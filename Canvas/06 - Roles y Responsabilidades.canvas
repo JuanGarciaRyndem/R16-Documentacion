@@ -1,0 +1,32 @@
+{
+	"nodes":[
+		{"id":"s1","type":"text","text":"📋 Pretramitar Pedido","x":-700,"y":100,"width":240,"height":60,"color":"#c7ceea"},
+		{"id":"s2","type":"text","text":"🔄 Tramitar Pedido","x":-700,"y":220,"width":240,"height":60,"color":"#c7ceea"},
+		{"id":"t1","type":"text","text":"📥 Buzon de Pagos","x":0,"y":0,"width":240,"height":60,"color":"#ffc8dd"},
+		{"id":"t2","type":"text","text":"💰 Validar Pago","x":0,"y":120,"width":240,"height":60,"color":"#ffc8dd"},
+		{"id":"t3","type":"text","text":"🧾 Facturar por Adelantado","x":0,"y":240,"width":240,"height":60,"color":"#ffc8dd"},
+		{"id":"t4","type":"text","text":"📝 Notas de Credito","x":0,"y":360,"width":240,"height":60,"color":"#ffc8dd"},
+		{"id":"m1","type":"text","text":"🤖 Clasificacion automatica correos","x":0,"y":480,"width":240,"height":60,"color":"#b5ead7"},
+		{"id":"m2","type":"text","text":"⚙️ Timbrado TurboPac","x":0,"y":600,"width":240,"height":60,"color":"#b5ead7"},
+		{"id":"m3","type":"text","text":"🔁 Transferencia a Legacy","x":0,"y":720,"width":240,"height":60,"color":"#b5ead7"},
+		{"id":"g3","type":"text","text":"── Control y Finanzas ──","x":600,"y":-60,"width":260,"height":40,"color":"#ffffb5"},
+		{"id":"g2","type":"text","text":"── Tesoreria / Cobros ──","x":-40,"y":-80,"width":260,"height":40,"color":"#ffc8dd"},
+		{"id":"g1","type":"text","text":"── ESAC de Pedidos ──","x":-720,"y":-60,"width":260,"height":40,"color":"#c7ceea"},
+		{"id":"f1","type":"text","text":"🔑 Autorizacion codigo FA","x":640,"y":70,"width":240,"height":60,"color":"#ffffb5"},
+		{"id":"f2","type":"text","text":"🏦 Catalogo de Bancos","x":640,"y":220,"width":240,"height":60,"color":"#ffffb5"},
+		{"id":"g4","type":"text","text":"── Sistema / MailBot ──","x":-220,"y":430,"width":260,"height":40,"color":"#b5ead7"}
+	],
+	"edges":[
+		{"id":"e1","fromNode":"s1","fromSide":"right","toNode":"t3","toSide":"left","label":"genera pendiente FA"},
+		{"id":"e2","fromNode":"s1","fromSide":"right","toNode":"t2","toSide":"left","label":"genera pendiente pago"},
+		{"id":"e3","fromNode":"s2","fromSide":"right","toNode":"m3","toSide":"left","label":"tramita desbloqueado"},
+		{"id":"e4","fromNode":"m1","fromSide":"right","toNode":"t1","toSide":"left","label":"clasifica correos"},
+		{"id":"e5","fromNode":"t1","fromSide":"right","toNode":"t2","toSide":"left","label":"alimenta"},
+		{"id":"e6","fromNode":"t3","fromSide":"right","toNode":"f1","toSide":"left","label":"solicita autorizacion"},
+		{"id":"e7","fromNode":"f1","fromSide":"right","toNode":"t3","toSide":"left","label":"envia codigo 4 digitos"},
+		{"id":"e8","fromNode":"t2","fromSide":"right","toNode":"s2","toSide":"left","label":"desbloquea prepago"},
+		{"id":"e9","fromNode":"t3","fromSide":"right","toNode":"s2","toSide":"left","label":"desbloquea credito"},
+		{"id":"e10","fromNode":"t2","fromSide":"right","toNode":"m2","toSide":"left","label":"timbra via"},
+		{"id":"e11","fromNode":"t3","fromSide":"right","toNode":"m2","toSide":"left","label":"timbra via"}
+	]
+}

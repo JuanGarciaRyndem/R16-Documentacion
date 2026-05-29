@@ -1,0 +1,36 @@
+{
+	"nodes":[
+		{"id":"a1","type":"text","text":"📧 Correo llega al buzon de pagos","x":0,"y":0,"width":280,"height":60,"color":"#b5ead7"},
+		{"id":"a2","type":"text","text":"❓ MailBot clasifica como pago?","x":0,"y":120,"width":280,"height":60,"color":"#ffdac1"},
+		{"id":"a3","type":"text","text":"⏳ Pendiente en Validar Pago sin monto","x":0,"y":240,"width":280,"height":60,"color":"#ffffb5"},
+		{"id":"a6","type":"text","text":"🔍 Filtrado por cartera del cobrador","x":0,"y":360,"width":280,"height":60,"color":"#c7ceea"},
+		{"id":"a7","type":"text","text":"👤 Especialista CxC","x":-360,"y":480,"width":280,"height":60,"color":"#e2f0cb"},
+		{"id":"a8","type":"text","text":"👤 Analista Sr CxC","x":0,"y":480,"width":280,"height":60,"color":"#e2f0cb"},
+		{"id":"a9","type":"text","text":"👤 Analista Jr CxC","x":360,"y":480,"width":280,"height":60,"color":"#e2f0cb"},
+		{"id":"a10","type":"text","text":"💼 Trabaja pendiente y captura monto","x":0,"y":600,"width":280,"height":60,"color":"#c7ceea"},
+		{"id":"a11","type":"text","text":"❓ Correo vinculado a proforma o factura?","x":0,"y":720,"width":280,"height":60,"color":"#ffdac1"},
+		{"id":"a12","type":"text","text":"🔒 Correo permanece en buzon","x":-360,"y":840,"width":280,"height":60,"color":"#ffb7b2"},
+		{"id":"a13","type":"text","text":"🗑️ Correo puede eliminarse","x":360,"y":840,"width":280,"height":60,"color":"#c7ceea"},
+		{"id":"a14","type":"text","text":"✅ Pendiente procesado en Validar Pago","x":0,"y":960,"width":280,"height":60,"color":"#b5ead7"},
+		{"id":"a4","type":"text","text":"⚠️ Correo queda sin clasificar","x":500,"y":60,"width":280,"height":60,"color":"#ffb7b2"},
+		{"id":"a5","type":"text","text":"🔧 Usuario reclasifica o elimina","x":500,"y":240,"width":280,"height":60,"color":"#c7ceea"}
+	],
+	"edges":[
+		{"id":"e1","fromNode":"a1","fromSide":"bottom","toNode":"a2","toSide":"top"},
+		{"id":"e2","fromNode":"a2","fromSide":"bottom","toNode":"a3","toSide":"top","label":"Si"},
+		{"id":"e3","fromNode":"a2","fromSide":"right","toNode":"a4","toSide":"left","label":"No reconocido"},
+		{"id":"e4","fromNode":"a4","fromSide":"bottom","toNode":"a5","toSide":"top"},
+		{"id":"e5","fromNode":"a3","fromSide":"bottom","toNode":"a6","toSide":"top"},
+		{"id":"e6","fromNode":"a6","fromSide":"left","toNode":"a7","toSide":"top"},
+		{"id":"e7","fromNode":"a6","fromSide":"bottom","toNode":"a8","toSide":"top"},
+		{"id":"e8","fromNode":"a6","fromSide":"right","toNode":"a9","toSide":"top"},
+		{"id":"e9","fromNode":"a7","fromSide":"bottom","toNode":"a10","toSide":"left"},
+		{"id":"e10","fromNode":"a8","fromSide":"bottom","toNode":"a10","toSide":"top"},
+		{"id":"e11","fromNode":"a9","fromSide":"bottom","toNode":"a10","toSide":"right"},
+		{"id":"e12","fromNode":"a10","fromSide":"bottom","toNode":"a11","toSide":"top"},
+		{"id":"e13","fromNode":"a11","fromSide":"left","toNode":"a12","toSide":"top","label":"No"},
+		{"id":"e14","fromNode":"a11","fromSide":"right","toNode":"a13","toSide":"top","label":"Si"},
+		{"id":"e15","fromNode":"a12","fromSide":"top","toNode":"a10","toSide":"left","label":"reintenta"},
+		{"id":"e16","fromNode":"a13","fromSide":"bottom","toNode":"a14","toSide":"right"}
+	]
+}

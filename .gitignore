@@ -1,0 +1,14 @@
+# Ignorar archivos JavaScript
+*.js
+
+# Ignorar carpeta de Obsidian
+/.obsidian/
+
+# Ignorar carpeta de Visual Studio
+/.vs/
+
+# Ignorar dependencias de Node.js
+/node_modules/
+
+# Ignorar archivo de bloqueo de dependencias
+package-lock.json

@@ -1,0 +1,42 @@
+{
+	"nodes":[
+		{"id":"a1","type":"text","text":"📋 Pendiente en Facturar por Adelantado","x":0,"y":0,"width":280,"height":60,"color":"#b5ead7"},
+		{"id":"a2","type":"text","text":"📄 Muestra datos del pedido","x":0,"y":120,"width":280,"height":60,"color":"#c7ceea"},
+		{"id":"a3","type":"text","text":"🔍 Verifica datos fiscales del cliente","x":0,"y":240,"width":280,"height":60,"color":"#c7ceea"},
+		{"id":"a4","type":"text","text":"❓ Entrega con Remision seleccionada?","x":0,"y":360,"width":280,"height":60,"color":"#ffdac1"},
+		{"id":"a5","type":"text","text":"🚫 Bloqueado - FA y Remision son excluyentes","x":360,"y":360,"width":280,"height":60,"color":"#ffb7b2"},
+		{"id":"a6","type":"text","text":"🔑 Solicita codigo de verificacion 24 hrs","x":0,"y":480,"width":280,"height":60,"color":"#c7ceea"},
+		{"id":"a7","type":"text","text":"❓ Codigo valido?","x":0,"y":600,"width":280,"height":60,"color":"#ffdac1"},
+		{"id":"a9","type":"text","text":"⚙️ Intenta timbrar con TurboPac","x":0,"y":720,"width":280,"height":60,"color":"#c7ceea"},
+		{"id":"a10","type":"text","text":"❓ Timbrado exitoso?","x":0,"y":840,"width":280,"height":60,"color":"#ffdac1"},
+		{"id":"a12","type":"text","text":"✏️ Usuario corrige RFC - CFDI - Metodo Pago","x":360,"y":960,"width":280,"height":60,"color":"#c7ceea"},
+		{"id":"a13","type":"text","text":"🧾 Genera CFDI con metodo PPD","x":0,"y":960,"width":280,"height":60,"color":"#ffc8dd"},
+		{"id":"a14","type":"text","text":"❓ Tipo de cliente?","x":0,"y":1080,"width":280,"height":60,"color":"#ffdac1"},
+		{"id":"a17","type":"text","text":"✅ Envia correo con XML y PDF al cliente","x":0,"y":1200,"width":280,"height":60,"color":"#b5ead7"},
+		{"id":"a8","type":"text","text":"🔄 Solicitar nuevo codigo","x":560,"y":600,"width":280,"height":60,"color":"#ffb7b2"},
+		{"id":"a11","type":"text","text":"❌ Muestra error especifico de TurboPac","x":500,"y":780,"width":280,"height":60,"color":"#ffb7b2"},
+		{"id":"a16","type":"text","text":"📄 Factura Normal - Pendiente Validar Pago","x":540,"y":1110,"width":280,"height":60,"color":"#ffc8dd"},
+		{"id":"a15","type":"text","text":"📄 Factura Normal - FEE - Desbloquea Tramitar","x":-480,"y":1110,"width":280,"height":60,"color":"#ffc8dd"}
+	],
+	"edges":[
+		{"id":"e1","fromNode":"a1","fromSide":"bottom","toNode":"a2","toSide":"top"},
+		{"id":"e2","fromNode":"a2","fromSide":"bottom","toNode":"a3","toSide":"top"},
+		{"id":"e3","fromNode":"a3","fromSide":"bottom","toNode":"a4","toSide":"top"},
+		{"id":"e4","fromNode":"a4","fromSide":"right","toNode":"a5","toSide":"left","label":"Si"},
+		{"id":"e5","fromNode":"a4","fromSide":"bottom","toNode":"a6","toSide":"top","label":"No"},
+		{"id":"e6","fromNode":"a6","fromSide":"bottom","toNode":"a7","toSide":"top"},
+		{"id":"e7","fromNode":"a7","fromSide":"right","toNode":"a8","toSide":"left","label":"No/Expirado"},
+		{"id":"e8","fromNode":"a8","fromSide":"top","toNode":"a6","toSide":"right"},
+		{"id":"e9","fromNode":"a7","fromSide":"bottom","toNode":"a9","toSide":"top","label":"Si"},
+		{"id":"e10","fromNode":"a9","fromSide":"bottom","toNode":"a10","toSide":"top"},
+		{"id":"e11","fromNode":"a10","fromSide":"right","toNode":"a11","toSide":"left","label":"No"},
+		{"id":"e12","fromNode":"a11","fromSide":"bottom","toNode":"a12","toSide":"top"},
+		{"id":"e13","fromNode":"a12","fromSide":"left","toNode":"a9","toSide":"right"},
+		{"id":"e14","fromNode":"a10","fromSide":"bottom","toNode":"a13","toSide":"top","label":"Si"},
+		{"id":"e15","fromNode":"a13","fromSide":"bottom","toNode":"a14","toSide":"top"},
+		{"id":"e16","fromNode":"a14","fromSide":"left","toNode":"a15","toSide":"right","label":"Credito"},
+		{"id":"e17","fromNode":"a14","fromSide":"right","toNode":"a16","toSide":"left","label":"Prepago"},
+		{"id":"e18","fromNode":"a15","fromSide":"bottom","toNode":"a17","toSide":"left"},
+		{"id":"e19","fromNode":"a16","fromSide":"bottom","toNode":"a17","toSide":"right"}
+	]
+}

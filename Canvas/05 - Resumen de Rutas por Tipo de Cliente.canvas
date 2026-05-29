@@ -1,0 +1,23 @@
+{
+	"nodes":[
+		{"id":"a2","type":"text","text":"🔄 Tramitar Pedido directo","x":-600,"y":160,"width":280,"height":60,"color":"#c7ceea"},
+		{"id":"a3","type":"text","text":"🧾 Facturar por Adelantado","x":0,"y":160,"width":280,"height":60,"color":"#ffc8dd"},
+		{"id":"a4","type":"text","text":"💰 Validar Pago","x":600,"y":160,"width":280,"height":60,"color":"#ffffb5"},
+		{"id":"a6","type":"text","text":"📄 Confirmacion de Pedido","x":0,"y":480,"width":280,"height":60,"color":"#ffdac1"},
+		{"id":"a7","type":"text","text":"✅ Transferencia a Legacy","x":0,"y":600,"width":280,"height":60,"color":"#b5ead7"},
+		{"id":"a5","type":"text","text":"🔄 Tramitar Pedido desbloqueado","x":260,"y":340,"width":280,"height":60,"color":"#c7ceea"},
+		{"id":"a1","type":"text","text":"📋 Pretramitar Pedido","x":0,"y":-140,"width":280,"height":60,"color":"#b5ead7"}
+	],
+	"edges":[
+		{"id":"e1","fromNode":"a1","fromSide":"left","toNode":"a2","toSide":"top","label":"Credito con controlados"},
+		{"id":"e2","fromNode":"a1","fromSide":"left","toNode":"a2","toSide":"top","label":"Credito sin FA"},
+		{"id":"e3","fromNode":"a1","fromSide":"bottom","toNode":"a3","toSide":"top","label":"Credito con FA / Prepago con FA"},
+		{"id":"e4","fromNode":"a1","fromSide":"right","toNode":"a4","toSide":"top","label":"Prepago sin FA / Prepago controlados"},
+		{"id":"e5","fromNode":"a3","fromSide":"right","toNode":"a4","toSide":"left","label":"Prepago genera pendiente"},
+		{"id":"e6","fromNode":"a3","fromSide":"bottom","toNode":"a5","toSide":"left","label":"Credito desbloquea candado"},
+		{"id":"e7","fromNode":"a4","fromSide":"bottom","toNode":"a5","toSide":"top","label":"Pago validado FEE establecida"},
+		{"id":"e8","fromNode":"a2","fromSide":"bottom","toNode":"a6","toSide":"left"},
+		{"id":"e9","fromNode":"a5","fromSide":"bottom","toNode":"a6","toSide":"right"},
+		{"id":"e10","fromNode":"a6","fromSide":"bottom","toNode":"a7","toSide":"top"}
+	]
+}
