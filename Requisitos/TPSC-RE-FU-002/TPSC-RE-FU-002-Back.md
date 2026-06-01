@@ -1,16 +1,34 @@
-# Análisis de Impacto Backend
-**Requisito:** TPSC-RE-FU-002 — Asignación de Cobrador a Cliente (Catálogo de Clientes)  
-**Proyecto:** ProquifaDotNet
+﻿# TPSC-RE-FU-002-Back — Análisis de Impacto Backend
+**Requisito:** TPSC-RE-FU-002 — Asignación de Cobrador a Cliente (Catálogo de Clientes)
+**Proyecto:** ProquifaDotNet-R14
+**Branch:** develop-pack04
+**Fecha:** 2025-07-14
+**Revisión aplicada:** TPSC-RE-FU-002-Revision.md
+
+---
+
+## Cambios respecto a la versión anterior del Back
+
+| # | Cambio aplicado | Origen |
+|---|-----------------|--------|
+| 1 | Cabecera completada con branch, fecha y revisión aplicada | Mejora de trazabilidad |
+| 2 | Mapeo de reglas: las 5 reglas ya declarativas se mantienen; se refuerza **Regla 4** con la decisión tomada de filtrado dinámico | Revisión — decisión sobre redistribución inmediata documentada |
+| 3 | Referencias de criterios actualizadas a las 3 secciones definitivas: A (Visibilidad/edición), B (Selector), C (Filtrado bandeja) | Revisión — criterios reorganizados |
+| 4 | GAP-05 nuevo: exclusión del campo Cobrador en el alta de cliente desde **Cotizar lo Cotizable** | Revisión — agregado en Alcance `No aplica a` del requisito |
+| 5 | Criterios de aceptación técnica actualizados con referencias a Criterios C2 y C3 (redistribución dinámica y cliente sin cobrador) | Revisión — Criterio 7 anterior dividido en C2 + C3 |
 
 ---
 
 ## 1. Resumen funcional
 
-El requisito habilita el campo **"Cobrador"** en la sección Datos Generales del Catálogo de Clientes.  
-- Solo el rol **Coordinador de Tesorería** puede editarlo.  
-- El selector muestra únicamente usuarios con rol **Gestor de Cobranza** (`AnalistaDeCuentasPorCobrar = 1`) activos.  
-- La asignación se persiste en `ClienteCartera.IdUsuarioCobrador`.  
-- El cambio de Cobrador redistribuye **dinámicamente** todos los pendientes y pagos del cliente a la bandeja del nuevo Cobrador en los módulos: **Validar Cobro**, **Factura por Adelantado** y **Buzón de Pagos**.
+El requisito habilita el campo **"Cobrador"** en la sección Datos Generales del Catálogo de Clientes.
+
+- Solo el rol **Coordinador de Tesorería** (`GerenteDeTesoreria = true`) puede editarlo.
+- El selector muestra únicamente usuarios con rol **Gestor de Cobranza** (`AnalistaDeCuentasPorCobrar = 1`) activos.
+- La asignación se persiste en `ClienteCartera.IdUsuarioCobrador`.
+- El filtrado de bandeja es **dinámico**: al reasignar el Cobrador de un cliente, todos sus pendientes y pagos vigentes se redistribuyen inmediatamente a la bandeja del nuevo Cobrador (Regla 4 / Criterio C2).
+- El campo **no aplica** en el alta de cliente desde **Cotizar lo Cotizable** (ese flujo es solo para habilitar cotización, no para gestión del cliente).
+- Módulos consumidores: **Validar Cobro**, **Factura por Adelantado** y **Buzón de Pagos**.
 
 ---
 
@@ -23,10 +41,10 @@ El requisito habilita el campo **"Cobrador"** en la sección Datos Generales del
 | `Clientes\Carteras\ClienteCarteraBO.cs` | `ClienteCarteraBO` | CRUD sobre `ClienteCartera`. Sin lógica de cobrador propia. |
 | `Clientes\Carteras\ClienteCarteraClienteBO.cs` | `ClienteCarteraClienteBO` | Vinculación cliente–cartera. `_GuardarOActualizar` con columnas únicas `IdCliente` + `IdClienteCartera`. |
 | `Clientes\Carteras\ClienteCarteraClienteBO.Extensions.cs` | `ClienteCarteraClienteBO` (partial) | `ObtenerIDUsuarioESACPorCliente()` — navega `ClienteCarteraCliente → ClienteCartera`. Patrón reutilizable para cobrador. |
-| `Clientes\ClienteBO.cs` | `ClienteBO` | En la creación de cliente ya maneja `IdUsuarioCobrador`: busca la cartera del cobrador y vincula el cliente a esa cartera (`ActualizaCarteraCliente`). |
+| `Clientes\ClienteBO.cs` | `ClienteBO` | En la creación de cliente ya maneja `IdUsuarioCobrador`: busca la cartera del cobrador y vincula el cliente a esa cartera. |
 | `Clientes\ClienteBO.Extensions.cs` | `ClienteBO` (partial) | `ObtenerUsuariosCobrosAsignados(Guid idCliente)` — devuelve `vUsuario` activos asignados como cobradores del cliente via `ClienteCartera.IdUsuarioCobrador`. |
-| `Usuarios\GMUsuarioClienteCarteraDetalleBO.cs` | `GMUsuarioClienteCarteraDetalleBO` | `Obtener(Guid IdUsuario)` — construye `CarteraUsuario` incluyendo `ClientesCarteraCobrador` (ya filtra por `IdUsuarioCobrador == Usuario.IdUsuario`). `ProcesarGMCarteraClienteUsuario()` — procesa asignación masiva de clientes a cartera. |
-| `Usuarios\Models\GMUsuarioClienteCarteraDetalle.cs` | `CarteraUsuario` | Contiene `ClientesCarteraCobrador` (List\<ClienteCarteraDatos\>). El modelo ya soporta la cartera de cobrador. |
+| `Usuarios\GMUsuarioClienteCarteraDetalleBO.cs` | `GMUsuarioClienteCarteraDetalleBO` | `Obtener(Guid IdUsuario)` — construye `CarteraUsuario` incluyendo `ClientesCarteraCobrador`. `ProcesarGMCarteraClienteUsuario()` — procesa asignación masiva. |
+| `Usuarios\Models\GMUsuarioClienteCarteraDetalle.cs` | `CarteraUsuario` | Contiene `ClientesCarteraCobrador` (List<ClienteCarteraDatos>). El modelo ya soporta la cartera de cobrador. |
 | `Usuarios\Models\GMCarteraClienteUsuario.cs` | `GMCarteraClienteUsuario` | DTO para procesar asignación de clientes a una cartera de usuario. |
 
 ### 2.2 Capa de API (`WebApi.Catalogos`)
@@ -34,34 +52,34 @@ El requisito habilita el campo **"Cobrador"** en la sección Datos Generales del
 | Archivo | Ruta HTTP | Métodos expuestos |
 |---------|-----------|-------------------|
 | `Controllers\Configuracion\Clientes\Cartera\ClienteCarteraController.cs` | `/ClienteCartera` | GET Obtener, PUT GuardarOActualizar, POST QueryResult, DELETE Desactivar |
-| `Controllers\Sistema\Usuarios\UsuarioController.cs` | `/Usuario/GMUsuarioClienteCarteraDetalle` | GET — obtiene cartera completa del usuario (incluye `ClientesCarteraCobrador`) |
-| `Controllers\Sistema\Usuarios\UsuarioController.cs` | `/Usuario/ClienteCarteraCliente` | POST — `ProcesarGMCarteraClienteUsuario` — asigna lista de clientes a cartera |
-| `Controllers\Sistema\Usuarios\UsuarioController.cs` | `/Usuario/ListaUsuariosCartera` | POST QueryInfo — lista usuarios con sus relaciones de cartera |
-| `Controllers\Sistema\Usuarios\UsuarioController.cs` | `/Usuario` | POST QueryResult — lista paginada de usuarios (base para filtrar Gestores de Cobranza) |
+| `Controllers\Sistema\Usuarios\UsuarioController.cs` | `/Usuario/GMUsuarioClienteCarteraDetalle` | GET — cartera completa del usuario (incluye `ClientesCarteraCobrador`) |
+| `Controllers\Sistema\Usuarios\UsuarioController.cs` | `/Usuario/ClienteCarteraCliente` | POST — asigna lista de clientes a cartera |
+| `Controllers\Sistema\Usuarios\UsuarioController.cs` | `/Usuario/ListaUsuariosCartera` | POST QueryInfo — lista usuarios con relaciones de cartera |
+| `Controllers\Sistema\Usuarios\UsuarioController.cs` | `/Usuario` | POST QueryResult — lista paginada de usuarios |
 
 ---
 
 ## 3. Mapeo de reglas de negocio al código
 
-| Regla del Requisito | Implementación esperada | Estado actual |
-|---------------------|------------------------|---------------|
-| **Regla 1** — Solo Coordinador de Tesorería edita Cobrador | Control en capa de aplicación: campo editable solo si `Usuario.GerenteDeTesoreria = true` | ⚠️ No existe endpoint ni validación explícita de rol en la operación de actualización de `IdUsuarioCobrador` |
-| **Regla 2** — Cobrador = Gestor de Cobranza activo | Filtrar `Usuario` con `AnalistaDeCuentasPorCobrar = 1 AND Activo = 1` | ⚠️ No existe un método/endpoint de solo Gestores de Cobranza para el selector |
-| **Regla 3** — Un solo Cobrador por cliente | `ClienteCartera.IdUsuarioCobrador` es un campo único por cartera | ✅ La estructura de BD lo garantiza (un IdUsuarioCobrador por cartera) |
-| **Regla 4** — Filtrado dinámico | El filtro en módulos usa JOIN a `ClienteCartera.IdUsuarioCobrador` en tiempo de consulta | ✅ `ObtenerUsuariosCobrosAsignados()` y `ClientesCarteraCobrador` ya implementan este patrón |
-| **Regla 5** — Cliente sin Cobrador invisible en bandejas | Módulos filtran `WHERE IdUsuarioCobrador = @actual` — si es NULL no aparece | ✅ El JOIN natural excluye registros sin cobrador asignado |
+> Las 5 reglas del requisito son declarativas (el *qué*). Alineadas con TPSC-RE-FU-002 tras la revisión.
+
+| Regla | Descripción de negocio | Implementación esperada | Estado actual |
+|-------|------------------------|------------------------|---------------|
+| **Regla 1** — Edición exclusiva del Coordinador de Tesorería | Solo `GerenteDeTesoreria = true` puede editar el campo Cobrador. | Validar rol en el endpoint de reasignación. Campo de solo lectura para otros roles. | ⚠️ No existe validación de rol en la operación de actualización de `IdUsuarioCobrador` |
+| **Regla 2** — Cobrador debe ser Gestor de Cobranza activo | Solo usuarios con `AnalistaDeCuentasPorCobrar = 1 AND Activo = 1` son asignables. | Método/endpoint que filtre el selector a Gestores de Cobranza activos. | ⚠️ No existe endpoint específico de solo Gestores de Cobranza |
+| **Regla 3** — Un solo Cobrador por cliente | Un único `IdUsuarioCobrador` por cartera en un momento dado. La asignación nueva reemplaza la anterior. | `ClienteCartera.IdUsuarioCobrador` es campo único por cartera. `ReasignarCobrador` sobreescribe el valor. | ✅ La estructura de BD lo garantiza |
+| **Regla 4** — Filtrado dinámico por cobrador actual | **Al reasignar el Cobrador, todos los pendientes y pagos vigentes del cliente se redistribuyen inmediatamente a la bandeja del nuevo Cobrador.** No hay distinción entre pendientes previos y nuevos. | El filtro en módulos usa JOIN a `ClienteCartera.IdUsuarioCobrador` en tiempo de consulta — el cambio de `IdUsuarioCobrador` surte efecto en la siguiente consulta de bandeja. No se requiere migración de registros. | ✅ El JOIN dinámico ya implementa este comportamiento. Solo requiere que `ReasignarCobrador` actualice `IdUsuarioCobrador` correctamente. |
+| **Regla 5** — Cliente sin Cobrador invisible en bandejas | Los pendientes y pagos de clientes sin cobrador se registran pero no aparecen en ninguna bandeja. | El JOIN natural de módulos excluye registros donde `IdUsuarioCobrador IS NULL`. | ✅ El JOIN natural ya excluye estos casos |
 
 ---
 
 ## 4. Gaps identificados y cambios requeridos
 
 ### GAP-01 — No existe endpoint de selector de Gestores de Cobranza activos
-**Impacto:** Criterio B1 — El frontend necesita poblar el selector de Cobrador con usuarios `AnalistaDeCuentasPorCobrar = 1 AND Activo = 1`.  
-**Archivo a modificar:** `Logic.Pqf.Catalogos\Usuarios\GMUsuarioClienteCarteraDetalleBO.cs` o crear método en `UsuarioBO`.  
-**Cambio requerido:** Agregar método para devolver la lista de Gestores de Cobranza activos.
+**Impacto:** Criterio B1 — El frontend necesita poblar el selector del campo Cobrador con usuarios `AnalistaDeCuentasPorCobrar = 1 AND Activo = 1`.
+**Archivo a modificar:** `Logic.Pqf.Catalogos\Usuarios\UsuariosBO.Extensions.cs`
 
-```csharp
-// En Logic.Pqf.Catalogos\Usuarios\UsuariosBO.Extensions.cs  (nuevo método)
+`csharp
 /// <summary>
 /// Devuelve los usuarios activos con rol Gestor de Cobranza,
 /// para poblar el selector del campo Cobrador en el Catálogo de Clientes.
@@ -76,11 +94,11 @@ public List<Usuario> ObtenerGestoresDeCobranzaActivos()
             .ToList();
     }
 }
-```
+`
 
 **Endpoint a agregar:** `WebApi.Catalogos\Controllers\Sistema\Usuarios\UsuarioController.cs`
 
-```csharp
+`csharp
 /// <summary>
 /// Devuelve usuarios activos con rol Gestor de Cobranza.
 /// Usado para poblar el selector del campo Cobrador en el Catálogo de Clientes.
@@ -97,17 +115,16 @@ public HttpResponseMessage ObtenerGestoresDeCobranzaActivos()
         return Request.CreateResponse(HttpStatusCode.OK, results);
     });
 }
-```
+`
 
 ---
 
 ### GAP-02 — No existe método para obtener el Cobrador actual de un cliente
-**Impacto:** Criterio A1 — El Catálogo de Clientes debe mostrar el Cobrador actualmente asignado al cliente en la sección Datos Generales.  
-**Patrón existente:** `ObtenerIDUsuarioESACPorCliente()` en `ClienteCarteraClienteBO.Extensions.cs` — el mismo patrón aplica para cobrador.  
-**Archivo a modificar:** `Logic.Pqf.Catalogos\Clientes\Carteras\ClienteCarteraClienteBO.Extensions.cs`  
-**Cambio requerido:** Agregar método análogo para `IdUsuarioCobrador`.
+**Impacto:** Criterio A1 — El Catálogo de Clientes debe mostrar el Cobrador actualmente asignado al cliente en Datos Generales.
+**Archivo a modificar:** `Logic.Pqf.Catalogos\Clientes\Carteras\ClienteCarteraClienteBO.Extensions.cs`
+**Patrón de referencia:** `ObtenerIDUsuarioESACPorCliente()` ya existente en el mismo archivo.
 
-```csharp
+`csharp
 /// <summary>
 /// Obtiene el IdUsuarioCobrador (Gestor de Cobranza) asignado a un cliente
 /// mediante su ClienteCarteraCliente activa.
@@ -139,29 +156,26 @@ public static Guid? ObtenerIdUsuarioCobradorPorCliente(Guid idCliente)
         throw new InvalidOperationException("Error al obtener el IdUsuarioCobrador del cliente.", e);
     }
 }
-```
+`
 
 ---
 
-### GAP-03 — No existe endpoint de reasignación explícita de Cobrador para un cliente
-**Impacto:** Criterios B2 / B3 — El Coordinador de Tesorería debe poder cambiar el Cobrador de un cliente existente y el cambio debe redistribuir las bandejas dinámicamente.  
-**Análisis:** El endpoint `PUT /ClienteCartera` (GuardarOActualizar) actualiza toda la cartera, incluyendo `IdUsuarioCobrador`. Técnicamente sirve, pero no encapsula la regla de negocio ni valida el rol del solicitante.  
-**Cambio requerido:** Agregar un método en `ClienteCarteraBO` (o nuevo partial) que encapsule la reasignación de cobrador de forma explícita y validada.
+### GAP-03 — No existe método de reasignación explícita de Cobrador
+**Impacto:** Criterios B2 / B3 / C2 — El Coordinador de Tesorería debe poder cambiar el Cobrador. El cambio redistribuye dinámicamente las bandejas (Regla 4).
+**Archivo a modificar:** `Logic.Pqf.Catalogos\Clientes\Carteras\ClienteCarteraBO.cs`
 
-```csharp
-// En Logic.Pqf.Catalogos\Clientes\Carteras\ClienteCarteraBO.cs  (nuevo método partial)
+> **Decisión de diseño (Regla 4):** Al actualizar `IdUsuarioCobrador` en `ClienteCartera`, el filtrado de bandeja en los módulos consumidores automáticamente refleja el cambio en la siguiente consulta — no se requiere migración de registros de pendientes o pagos. El filtro es JOIN dinámico sobre el valor actual de `IdUsuarioCobrador`.
+
+`csharp
 /// <summary>
 /// Reasigna el Cobrador (Gestor de Cobranza) en la cartera activa de un cliente.
-/// El cambio aplica dinámicamente sobre todos los módulos consumidores (Validar Cobro,
-/// Factura por Adelantado, Buzón de Pagos) en la siguiente consulta de cada bandeja.
+/// Al actualizar IdUsuarioCobrador, todos los pendientes y pagos vigentes del cliente
+/// se redistribuyen inmediatamente a la bandeja del nuevo Cobrador (Regla 4 / Criterio C2).
 /// </summary>
-/// <param name="idCliente">Cliente al que se reasigna el cobrador.</param>
-/// <param name="idNuevoCobrador">IdUsuario del nuevo Gestor de Cobranza.</param>
 public void ReasignarCobrador(Guid idCliente, Guid idNuevoCobrador)
 {
     using (var db = new ProquifaDotNetEntities())
     {
-        // Validar que el nuevo cobrador tenga rol Gestor de Cobranza y esté activo
         var cobrador = db.Usuario.FirstOrDefault(u =>
             u.IdUsuario == idNuevoCobrador
             && u.AnalistaDeCuentasPorCobrar == true
@@ -170,7 +184,6 @@ public void ReasignarCobrador(Guid idCliente, Guid idNuevoCobrador)
         if (cobrador == null)
             throw new ArgumentException("El usuario indicado no es un Gestor de Cobranza activo.");
 
-        // Obtener la cartera activa del cliente
         var cartera = db.ClienteCartera
             .Join(db.ClienteCarteraCliente.Where(ccc => ccc.IdCliente == idCliente && ccc.Activo),
                 cc => cc.IdClienteCartera,
@@ -188,14 +201,16 @@ public void ReasignarCobrador(Guid idCliente, Guid idNuevoCobrador)
         Logger.DebugFormat("Cobrador reasignado: cliente {0} → nuevo cobrador {1}", idCliente, idNuevoCobrador);
     }
 }
-```
+`
 
 **Endpoint a agregar:** `WebApi.Catalogos\Controllers\Configuracion\Clientes\Cartera\ClienteCarteraController.cs`
 
-```csharp
+`csharp
 /// <summary>
 /// Reasigna el Cobrador (Gestor de Cobranza) de un cliente.
-/// Solo debe ser invocado por usuarios con rol Coordinador de Tesorería.
+/// Solo debe ser invocado por usuarios con rol Coordinador de Tesorería (Regla 1).
+/// Al reasignar, todos los pendientes y pagos del cliente se redistribuyen
+/// dinámicamente a la bandeja del nuevo Cobrador (Regla 4 / Criterio C2).
 /// </summary>
 [HttpPut]
 [Route("ClienteCartera/ReasignarCobrador")]
@@ -205,31 +220,23 @@ public IHttpActionResult ReasignarCobrador(Guid idCliente, Guid idNuevoCobrador)
     bo.ReasignarCobrador(idCliente, idNuevoCobrador);
     return Ok();
 }
-```
+`
 
 ---
 
-### GAP-04 — Validación de rol Coordinador de Tesorería no implementada en la capa de API
-**Impacto:** Criterios A2 / A3 — La regla indica que solo el Coordinador de Tesorería (`GerenteDeTesoreria = true` en `Usuario`) puede editar el campo Cobrador.  
-**Estado actual:** No existe validación de rol en los endpoints de `ClienteCartera` ni en `GuardarOActualizar`.  
-**Cambio requerido:** El endpoint `ReasignarCobrador` (GAP-03) debe validar que el usuario que invoca tiene `GerenteDeTesoreria = true`. La validación puede hacerse en la capa de lógica o mediante un filtro de autorización en el controller.
+### GAP-04 — Validación de rol Coordinador de Tesorería no implementada
+**Impacto:** Criterios A2 / A3 — Solo `GerenteDeTesoreria = true` puede editar el campo Cobrador y llamar el endpoint de reasignación.
+**Estado actual:** No existe validación de rol en los endpoints de `ClienteCartera`.
+**Cambio requerido:** El endpoint `ReasignarCobrador` (GAP-03) debe validar que el usuario solicitante tiene `GerenteDeTesoreria = true`.
 
-> **Decisión de arquitectura pendiente:** El proyecto actualmente no implementa autorización basada en claims de rol para endpoints específicos. Se debe definir si la validación va en la capa BO (pasando `IdUsuarioSolicitante` como parámetro) o en un atributo de autorización del controller.
+> **Pendiente P2:** Definir si la validación va en la capa BO (pasando `IdUsuarioSolicitante` como parámetro) o en un filtro de autorización del controller.
 
 ---
 
-### GAP-05 — Confirmación del mapeo de roles
-**Impacto:** Regla 2 — El documento BD indica que `AnalistaDeCuentasPorCobrar` sería el campo del modelo `Usuario` que mapea al rol **Gestor de Cobranza**.  
-**Estado:** ⚠️ Pendiente confirmar con el equipo.  
-**Acción:** Verificar en la tabla `Usuario` que `AnalistaDeCuentasPorCobrar = true` sea exactamente el rol Gestor de Cobranza requerido en R16. Si no coincide, puede requerir un campo nuevo.
-
-```sql
--- Verificar qué usuarios tienen AnalistaDeCuentasPorCobrar = 1
-SELECT IdUsuario, NombreCompleto, AnalistaDeCuentasPorCobrar, Activo
-FROM dbo.Usuario
-WHERE AnalistaDeCuentasPorCobrar = 1
-ORDER BY NombreCompleto;
-```
+### GAP-05 — Alta de cliente desde Cotizar lo Cotizable no debe incluir campo Cobrador
+**Impacto:** Alcance "No aplica a" del requisito (nuevo tras la revisión) — El flujo de alta de cliente en Cotizar lo Cotizable está orientado exclusivamente a habilitar la cotización. El campo Cobrador **no debe aparecer** en ese flujo.
+**Estado actual:** Verificar que el formulario de alta de cliente en Cotizar lo Cotizable no expone el campo Cobrador.
+**Cambio requerido:** Confirmar que el endpoint/BO utilizado por Cotizar lo Cotizable para crear clientes no incluye ni valida `IdUsuarioCobrador`. Si lo incluye, eliminarlo del flujo.
 
 ---
 
@@ -239,25 +246,25 @@ ORDER BY NombreCompleto;
 |----------|------------|-----------------|-------------|
 | `ClienteCartera` | `ClienteCartera` | `IdClienteCartera` (PK), `IdUsuarioCobrador` (FK nullable) | Cartera del cliente. `IdUsuarioCobrador` = Gestor de Cobranza asignado. |
 | `ClienteCarteraCliente` | `ClienteCarteraCliente` | `IdClienteCarteraCliente` (PK), `IdClienteCartera` (FK), `IdCliente` (FK) | Relación N:N entre cartera y cliente. |
-| `Usuario` | `Usuario` | `IdUsuario` (PK), `AnalistaDeCuentasPorCobrar` (bit), `GerenteDeTesoreria` (bit), `Activo` (bit) | Rol Gestor de Cobranza = `AnalistaDeCuentasPorCobrar = 1`. Rol Coordinador de Tesorería = `GerenteDeTesoreria = 1`. |
-| `vClienteCarteraCliente` | `vClienteCarteraCliente` (vista) | `IdUsuarioCobrador`, `Cobrador` | Vista operativa principal para bandejas. |
-| `vUsuarioCartera` | `vUsuarioCartera` (vista) | `IdCliente`, `IdUsuario`, `Activo` | Vinculación directa usuario–cliente via cartera. Usada por módulos consumidores. |
+| `Usuario` | `Usuario` | `IdUsuario` (PK), `AnalistaDeCuentasPorCobrar` (bit), `GerenteDeTesoreria` (bit), `Activo` (bit) | Gestor de Cobranza = `AnalistaDeCuentasPorCobrar = 1`. Coordinador de Tesorería = `GerenteDeTesoreria = 1`. |
+| `vClienteCarteraCliente` | Vista | `IdUsuarioCobrador`, `Cobrador` | Vista operativa principal para bandejas. |
+| `vUsuarioCartera` | Vista | `IdCliente`, `IdUsuario`, `Activo` | Vinculación directa usuario–cliente via cartera. Usada por módulos consumidores. |
 
 ---
 
 ## 6. Consultas SQL de referencia
 
 ### Selector — Gestores de Cobranza activos
-```sql
+`sql
 SELECT IdUsuario, NombreCompleto
 FROM dbo.Usuario
 WHERE AnalistaDeCuentasPorCobrar = 1
   AND Activo = 1
 ORDER BY NombreCompleto;
-```
+`
 
 ### Cobrador actual de un cliente
-```sql
+`sql
 SELECT cc.IdUsuarioCobrador, u.NombreCompleto AS Cobrador
 FROM dbo.ClienteCarteraCliente ccc
 INNER JOIN dbo.ClienteCartera cc ON ccc.IdClienteCartera = cc.IdClienteCartera
@@ -265,38 +272,38 @@ LEFT  JOIN dbo.Usuario         u  ON cc.IdUsuarioCobrador = u.IdUsuario
 WHERE ccc.IdCliente = @IdCliente
   AND ccc.Activo    = 1
   AND cc.Activo     = 1;
-```
+`
 
-### Reasignar Cobrador
-```sql
+### Reasignar Cobrador (redistribuye bandeja dinámicamente — Regla 4 / Criterio C2)
+`sql
 UPDATE dbo.ClienteCartera
 SET    IdUsuarioCobrador        = @IdNuevoCobrador,
        FechaUltimaActualizacion = GETDATE()
 WHERE  IdClienteCartera = @IdClienteCartera;
-```
+`
 
-### Bandeja por cobrador (módulos consumidores)
-```sql
+### Bandeja por cobrador (módulos consumidores — filtrado dinámico)
+`sql
 SELECT v.IdCliente, v.Nombre AS Cliente, v.NombreCartera, v.Cobrador, v.NombreRegion
 FROM dbo.vClienteCarteraCliente v
 WHERE v.IdUsuarioCobrador = @IdUsuarioCobrador
 ORDER BY v.Nombre;
-```
+`
 
-### Clientes sin Cobrador (alerta operativa)
-```sql
+### Clientes sin Cobrador — Criterio C3 (alerta operativa)
+`sql
 SELECT v.IdCliente, v.Nombre, v.NombreCartera
 FROM dbo.vClienteCarteraCliente v
 WHERE v.IdUsuarioCobrador IS NULL
 ORDER BY v.Nombre;
-```
+`
 
 ---
 
 ## 7. Resumen de archivos a modificar / crear
 
 | # | Archivo | Tipo de cambio |
-|---|---------|---------------|
+|---|---------|----------------|
 | 1 | `Logic.Pqf.Catalogos\Usuarios\UsuariosBO.Extensions.cs` | Agregar `ObtenerGestoresDeCobranzaActivos()` |
 | 2 | `Logic.Pqf.Catalogos\Clientes\Carteras\ClienteCarteraClienteBO.Extensions.cs` | Agregar `ObtenerIdUsuarioCobradorPorCliente(Guid idCliente)` |
 | 3 | `Logic.Pqf.Catalogos\Clientes\Carteras\ClienteCarteraBO.cs` | Agregar `ReasignarCobrador(Guid idCliente, Guid idNuevoCobrador)` |
@@ -321,11 +328,11 @@ ORDER BY v.Nombre;
 
 | Módulo | Cómo consume el campo | Cambio requerido en R16 |
 |--------|-----------------------|-------------------------|
-| **Validar Cobro** | JOIN `vUsuarioCartera WHERE IdUsuario = @CobActual AND Activo = 1` | Validar que el filtro esté implementado en la consulta de bandeja |
-| **Factura por Adelantado** | JOIN `vUsuarioCartera WHERE IdUsuario = @CobActual AND Activo = 1` | Validar que el filtro esté implementado en la consulta de bandeja |
-| **Buzón de Pagos** | JOIN `vUsuarioCartera WHERE IdUsuario = @CobActual AND Activo = 1` | Validar que el filtro esté implementado en la consulta de bandeja |
+| **Validar Cobro** | JOIN `vUsuarioCartera WHERE IdUsuario = @CobActual AND Activo = 1` | Verificar que el filtro esté implementado en la consulta de bandeja |
+| **Factura por Adelantado** | JOIN `vUsuarioCartera WHERE IdUsuario = @CobActual AND Activo = 1` | Verificar que el filtro esté implementado en la consulta de bandeja |
+| **Buzón de Pagos** | JOIN `vUsuarioCartera WHERE IdUsuario = @CobActual AND Activo = 1` | Verificar que el filtro esté implementado en la consulta de bandeja |
 
-> Los cambios en los módulos consumidores se documentan en sus respectivos requisitos. Este documento solo cubre el catálogo de clientes y el campo Cobrador.
+> Los cambios en los módulos consumidores se documentan en sus respectivos requisitos. Este documento cubre únicamente el Catálogo de Clientes y el campo Cobrador.
 
 ---
 
@@ -337,15 +344,17 @@ ORDER BY v.Nombre;
 | P2 | Definir estrategia de validación de rol **Coordinador de Tesorería** (`GerenteDeTesoreria`): ¿en capa BO o filtro de autorización en controller? | Arquitectura |
 | P3 | El SP `spDesactivarCarterasCliente` no retorna `IdUsuarioCobrador` en el SELECT de retorno. Si se requiere auditoría de reasignaciones, actualizar el SP. | Backend |
 | P4 | Historial de asignaciones cobrador-cliente: fuera de alcance R16. Documentar como deuda técnica. | Product Owner |
+| P5 | Verificar que el flujo de alta de cliente en **Cotizar lo Cotizable** no incluye ni valida `IdUsuarioCobrador` (GAP-05). | Backend |
 
 ---
 
 ## 11. Criterios de aceptación técnica
 
 - [ ] `GET /Usuario/GestoresDeCobranza` retorna únicamente usuarios con `AnalistaDeCuentasPorCobrar = true AND Activo = true`.
-- [ ] `ObtenerIdUsuarioCobradorPorCliente(idCliente)` retorna el `IdUsuarioCobrador` de la cartera activa del cliente, o `null` si no tiene asignación.
-- [ ] `PUT /ClienteCartera/ReasignarCobrador` valida que el nuevo cobrador sea un Gestor de Cobranza activo antes de guardar.
-- [ ] `PUT /ClienteCartera/ReasignarCobrador` actualiza `ClienteCartera.IdUsuarioCobrador` y `FechaUltimaActualizacion`.
-- [ ] Tras la reasignación, la consulta de bandeja del nuevo Cobrador incluye al cliente reasignado; la del Cobrador anterior ya no lo incluye.
-- [ ] Clientes sin `IdUsuarioCobrador` no aparecen en la bandeja de ningún Gestor de Cobranza.
-- [ ] Roles distintos de Coordinador de Tesorería no pueden invocar el endpoint de reasignación de Cobrador.
+- [ ] `ObtenerIdUsuarioCobradorPorCliente(idCliente)` retorna el `IdUsuarioCobrador` de la cartera activa del cliente, o `null` si no tiene asignación (Criterio A1).
+- [ ] `PUT /ClienteCartera/ReasignarCobrador` valida que el nuevo cobrador es un Gestor de Cobranza activo antes de guardar (Criterio B1 / Regla 2).
+- [ ] `PUT /ClienteCartera/ReasignarCobrador` actualiza `ClienteCartera.IdUsuarioCobrador` y `FechaUltimaActualizacion` (Criterio B2 / B3).
+- [ ] Tras la reasignación, la consulta de bandeja del nuevo Cobrador incluye al cliente; la del Cobrador anterior ya no lo incluye — redistribución dinámica sin migración de registros (Regla 4 / Criterio C2).
+- [ ] Clientes sin `IdUsuarioCobrador` no aparecen en la bandeja de ningún Gestor de Cobranza (Regla 5 / Criterio C3).
+- [ ] Roles distintos de Coordinador de Tesorería no pueden invocar el endpoint de reasignación (Regla 1 / Criterio A2).
+- [ ] El flujo de alta de cliente en Cotizar lo Cotizable no expone ni procesa el campo Cobrador (GAP-05).
