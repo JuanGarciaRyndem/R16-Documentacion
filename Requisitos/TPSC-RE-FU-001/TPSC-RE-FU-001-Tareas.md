@@ -1,4 +1,4 @@
-﻿# Tareas — TPSC-RE-FU-001 Catálogo de Cuentas Bancarias del Grupo PROQUIFA
+# Tareas — TPSC-RE-FU-001 Catálogo de Cuentas Bancarias del Grupo PROQUIFA
 
 | Campo | Valor |
 |---|---|
@@ -9,210 +9,16 @@
 
 ### Cambios respecto a la versión anterior de Tareas
 
-| # | Cambio | Origen |
-|---|--------|--------|
-| 1 | Terminología `Activo = true/false` → **existe / no existe vigente en sistema** en todos los criterios y descripciones | Alineación con Back revisado |
-| 2 | Tarea 4: ya no referencia GAP-04 (eliminado del Back). Ahora referencia **Pendiente P1** del Back y Criterios C1/C2 del requisito | Back revisado eliminó GAP-04 |
-| 3 | Tarea 5: ya no referencia GAP-05 (eliminado del Back). Ahora referencia **Regla 4** y Sección 2 del Back revisado | Back revisado: GAP-05 consolidado |
-| 4 | Tarea 6: validación pasa a vista `vEmpresaDatosBancariosVigentes` y **Pendiente P4** del Back | Consistencia con Back actualizado |
-| 5 | Tarea 7 agregada: Guía de resolución operativa para alta, baja y actualización de cuentas bancarias (Notas adicionales de Revisión) | TPSC-RE-FU-001-Revision.md |
+| #   | Cambio                                                                                                                              | Origen                            |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| 1   | Terminología `Activo = true/false` → **existe / no existe vigente en sistema** en todos los criterios y descripciones               | Alineación con Back revisado      |
+| 2   | Tarea 4: ya no referencia GAP-04 (eliminado del Back). Ahora referencia **Pendiente P1** del Back y Criterios C1/C2 del requisito   | Back revisado eliminó GAP-04      |
+| 3   | Tarea 5: ya no referencia GAP-05 (eliminado del Back). Ahora referencia **Regla 4** y Sección 2 del Back revisado                   | Back revisado: GAP-05 consolidado |
+| 4   | Tarea 6: validación pasa a vista `vEmpresaDatosBancariosVigentes` y **Pendiente P4** del Back                                       | Consistencia con Back actualizado |
+| 5   | Tarea 7 agregada: Guía de resolución operativa para alta, baja y actualización de cuentas bancarias (Notas adicionales de Revisión) | TPSC-RE-FU-001-Revision.md        |
 
 ---
-
 ## Tarea 1
-
-### [ TPSC-RE-FU-001 ] [ IMP-EXIST-SERVICE ] Corrección de ObtenerTodos() para excluir cuentas no vigentes
-
-**Aplicativos:**
-ProquifaNet 2
-
-**Módulos:**
-Catálogo de Cuentas Bancarias — Logic.Pqf.Catalogos
-
-**Consideraciones previas:**
-Para esta actividad están contempladas su construcción, pruebas unitarias, aprobación del líder técnico mediante PR, liberación en dev, documentación sobre desarrollo (si aplica).
-
-**Objetivo general:**
-Corregir el método `ObtenerTodos()` en `EmpresaDatosBancariosBO.Extensions.cs` para que retorne únicamente cuentas que **existen vigentes en sistema** (`Activo = true`), cumpliendo la Regla 2 y el Criterio B1 del requisito.
-
-**Objetivos específicos:**
-- Leer el análisis de impacto backend del requisito TPSC-RE-FU-001 (GAP-01)
-- Localizar el método `ObtenerTodos()` en `EmpresaDatosBancariosBO.Extensions.cs`
-- Agregar el filtro `Where(x => x.Activo)` al query
-- Verificar que ningún módulo consumidor dependa del comportamiento anterior (sin filtro)
-- Ejecutar pruebas unitarias sobre el método corregido
-
-**Resultado esperado:**
-`ObtenerTodos()` retorna únicamente las cuentas que existen vigentes en sistema. Las cuentas no vigentes (`Activo = false`) no son devueltas a los módulos consumidores pero se conservan en BD para trazabilidad histórica.
-
-**Entregables:**
-- `EmpresaDatosBancariosBO.Extensions.cs` modificado con filtro `Where(x => x.Activo)`
-- Pruebas unitarias del método
-
-**Criterios de aceptación:**
-- [ ] `ObtenerTodos()` retorna únicamente cuentas que **existen vigentes en sistema**
-- [ ] Las cuentas que no existen vigentes no aparecen en el resultado
-- [ ] Las cuentas no vigentes se conservan en BD (sin DELETE físico) para trazabilidad histórica
-- [ ] PR aprobado por líder técnico
-
-**Más información de la tarea:**
-- Archivo a modificar: `Logic.Pqf.Catalogos\Empresas\DatosBancarios\EmpresaDatosBancariosBO.Extensions.cs`
-- GAP documentado: GAP-01 del archivo `TPSC-RE-FU-001-Back.md`
-
-**Recursos:**
-- Análisis de impacto backend: `Requisitos/TPSC-RE-FU-001/TPSC-RE-FU-001-Back.md`
-- Diccionario de datos: `Requisitos/TPSC-RE-FU-001/TPSC-RE-FU-001_BD.md`
-- Requisito funcional: `Requisitos/TPSC-RE-FU-001/TPSC-RE-FU-001.md`
-
----
-
-## Tarea 2
-
-### [ TPSC-RE-FU-001 ] [ IMP-EXIST-SERVICE ] Agregar método ObtenerVigentesPorEmpresa() en EmpresaDatosBancariosBO
-
-**Aplicativos:**
-ProquifaNet 2
-
-**Módulos:**
-Catálogo de Cuentas Bancarias — Logic.Pqf.Catalogos
-
-**Consideraciones previas:**
-Para esta actividad están contempladas su construcción, pruebas unitarias, aprobación del líder técnico mediante PR, liberación en dev, documentación sobre desarrollo (si aplica).
-
-**Objetivo general:**
-Agregar el método `ObtenerVigentesPorEmpresa(string prefijo)` en `EmpresaDatosBancariosBO.Extensions.cs` para que los módulos consulten cuentas que **existen vigentes en sistema** filtradas por empresa emisora del grupo, cumpliendo el Criterio A2 del requisito (GAP-02).
-
-**Objetivos específicos:**
-- Leer el análisis de impacto backend del requisito TPSC-RE-FU-001 (GAP-02)
-- Implementar el método `ObtenerVigentesPorEmpresa(string prefijo)`
-- Validar que el prefijo esté dentro del set permitido: `GOL`, `MUN`, `PRO`, `PQF`
-- Aplicar filtro de existencia vigente (`Activo = true`) en `Empresa` y `EmpresaDatosBancarios`
-- Retornar lista vacía si el prefijo no es válido o la empresa no existe en sistema
-- Ejecutar pruebas unitarias con cada prefijo válido e inválido
-
-**Resultado esperado:**
-El método retorna las cuentas que existen vigentes en sistema de la empresa cuyo prefijo coincide con el solicitado. Prefijos fuera del alcance R16 (ej. `GOLPERU`) retornan lista vacía.
-
-**Entregables:**
-- `EmpresaDatosBancariosBO.Extensions.cs` con el nuevo método
-- Pruebas unitarias para los 4 prefijos válidos y casos inválidos
-
-**Criterios de aceptación:**
-- [ ] `ObtenerVigentesPorEmpresa("GOL")` retorna cuentas que existen vigentes de Golocaer
-- [ ] `ObtenerVigentesPorEmpresa("GOLPERU")` retorna lista vacía
-- [ ] Solo se retornan cuentas que existen vigentes en sistema (`Activo = true`)
-- [ ] PR aprobado por líder técnico
-
-**Más información de la tarea:**
-- Archivo a modificar: `Logic.Pqf.Catalogos\Empresas\DatosBancarios\EmpresaDatosBancariosBO.Extensions.cs`
-- GAP documentado: GAP-02 del archivo `TPSC-RE-FU-001-Back.md`
-- Prefijos válidos R16: `GOL`, `MUN`, `PRO`, `PQF`. Excluir `GOLPERU`.
-
-**Recursos:**
-- Análisis de impacto backend: `Requisitos/TPSC-RE-FU-001/TPSC-RE-FU-001-Back.md`
-- Diccionario de datos: `Requisitos/TPSC-RE-FU-001/TPSC-RE-FU-001_BD.md`
-- Requisito funcional: `Requisitos/TPSC-RE-FU-001/TPSC-RE-FU-001.md`
-
----
-
-## Tarea 3
-
-### [ TPSC-RE-FU-001 ] [ LIST-NO-FILTER ] Agregar endpoint GET /EmpresaDatosBancarios/Vigentes/{prefijo}
-
-**Aplicativos:**
-ProquifaNet 2
-
-**Módulos:**
-Catálogo de Cuentas Bancarias — WebApi.Catalogos
-
-**Consideraciones previas:**
-Para esta actividad están contempladas su construcción, pruebas unitarias, aprobación del líder técnico mediante PR, liberación en dev, documentación sobre desarrollo (si aplica).
-
-**Objetivo general:**
-Agregar el endpoint `GET /EmpresaDatosBancarios/Vigentes/{prefijo}` en `EmpresaDatosBancariosController.cs` para exponer las cuentas que existen vigentes en sistema, filtradas por empresa emisora, a los módulos consumidores. Cumple el Criterio A2 del requisito (GAP-03).
-
-**Objetivos específicos:**
-- Leer el análisis de impacto backend del requisito TPSC-RE-FU-001 (GAP-03)
-- Agregar el método `ObtenerVigentesPorEmpresa(string prefijo)` en el controller
-- Consumir el método del mismo nombre implementado en la Tarea 2 (`EmpresaDatosBancariosBO`)
-- Documentar el endpoint en Swagger con descripción de prefijos válidos R16
-- Verificar que el endpoint no requiera UI (solo consumo interno entre módulos)
-
-**Resultado esperado:**
-`GET /EmpresaDatosBancarios/Vigentes/{prefijo}` responde con la lista de cuentas que existen vigentes en sistema de la empresa solicitada. La respuesta excluye automáticamente cuentas no vigentes y empresas fuera del alcance R16.
-
-**Entregables:**
-- `EmpresaDatosBancariosController.cs` con el nuevo endpoint documentado en Swagger
-- Prueba manual del endpoint en ambiente de desarrollo
-
-**Criterios de aceptación:**
-- [ ] `GET /EmpresaDatosBancarios/Vigentes/GOL` retorna cuentas que existen vigentes de Golocaer
-- [ ] `GET /EmpresaDatosBancarios/Vigentes/GOLPERU` retorna lista vacía
-- [ ] El endpoint está documentado en Swagger con descripción de prefijos válidos
-- [ ] PR aprobado por líder técnico
-
-**Más información de la tarea:**
-- Archivo a modificar: `WebApi.Catalogos\Controllers\Configuracion\Empresas\EmpresaDatosBancariosController.cs`
-- GAP documentado: GAP-03 del archivo `TPSC-RE-FU-001-Back.md`
-- Depende de Tarea 2 (método `ObtenerVigentesPorEmpresa` en BO)
-
-**Recursos:**
-- Análisis de impacto backend: `Requisitos/TPSC-RE-FU-001/TPSC-RE-FU-001-Back.md`
-- Diccionario de datos: `Requisitos/TPSC-RE-FU-001/TPSC-RE-FU-001_BD.md`
-- Requisito funcional: `Requisitos/TPSC-RE-FU-001/TPSC-RE-FU-001.md`
-
----
-
-## Tarea 4
-
-### [ TPSC-RE-FU-001 ] [ DOC-INTERNAL ] Documentar endpoints de escritura como uso exclusivo de Soporte a la Producción
-
-**Aplicativos:**
-ProquifaNet 2
-
-**Módulos:**
-Catálogo de Cuentas Bancarias — WebApi.Catalogos
-
-**Consideraciones previas:**
-Para esta actividad están contempladas la documentación, decisión de arquitectura, aprobación del líder técnico mediante PR y liberación en dev.
-
-**Objetivo general:**
-Documentar los endpoints `PUT GuardarOActualizar` y `DELETE Desactivar` de `EmpresaDatosBancariosController.cs` como de uso exclusivo de Soporte a la Producción. Resuelve el **Pendiente P1** del Back y los Criterios C1/C2 del requisito.
-
-> **Nota:** Esta tarea ya no corresponde a un GAP numerado en el Back. El GAP-04 fue eliminado en la revisión porque el requisito clasifica "Sin UI / gestión en BD" como criterios de aceptación, no como regla de negocio del backend. La acción sigue siendo necesaria como documentación y decisión de arquitectura.
-
-**Objetivos específicos:**
-- Leer el Pendiente P1 del archivo `TPSC-RE-FU-001-Back.md`
-- Agregar documentación Swagger en los endpoints PUT y DELETE indicando uso exclusivo de Soporte a la Producción
-- Confirmar con Arquitectura/TechLead si se aplica `[ApiExplorerSettings(IgnoreApi = true)]` o política de autorización restrictiva
-- Verificar que ninguna pantalla de PQF2 consuma estos endpoints en R16
-- Cerrar el Pendiente P1 en `TPSC-RE-FU-001-Back.md` con la decisión tomada
-
-**Resultado esperado:**
-Los endpoints de escritura quedan documentados como internos. Ninguna pantalla de PQF2 los consume en R16. La decisión de ocultarlos o restringirlos formalmente queda registrada y cerrada.
-
-**Entregables:**
-- `EmpresaDatosBancariosController.cs` con documentación actualizada en PUT y DELETE
-- Pendiente P1 del `TPSC-RE-FU-001-Back.md` cerrado con la decisión tomada
-
-**Criterios de aceptación:**
-- [ ] Los endpoints PUT y DELETE tienen documentación Swagger indicando uso exclusivo de Soporte a la Producción
-- [ ] Ninguna pantalla de PQF2 en R16 consume estos endpoints
-- [ ] Pendiente P1 del Back registrado como resuelto con la decisión de arquitectura aprobada
-- [ ] PR aprobado por líder técnico
-
-**Más información de la tarea:**
-- Archivo a revisar: `WebApi.Catalogos\Controllers\Configuracion\Empresas\EmpresaDatosBancariosController.cs`
-- Referencia: **Pendiente P1** del archivo `TPSC-RE-FU-001-Back.md`
-- Decisión pendiente: `[ApiExplorerSettings(IgnoreApi = true)]` vs. política de autorización restrictiva
-
-**Recursos:**
-- Análisis de impacto backend: `Requisitos/TPSC-RE-FU-001/TPSC-RE-FU-001-Back.md`
-- Requisito funcional: `Requisitos/TPSC-RE-FU-001/TPSC-RE-FU-001.md`
-
----
-
-## Tarea 5
 
 ### [ TPSC-RE-FU-001 ] [ BD-OBJ-CH ] Construcción de vista vEmpresaDatosBancariosVigentes
 
@@ -262,8 +68,150 @@ Construir la vista `vEmpresaDatosBancariosVigentes` en la BD `ProquifaDotNet` qu
 - Requisito funcional: `Requisitos/TPSC-RE-FU-001/TPSC-RE-FU-001.md`
 
 ---
+## Tarea 2
 
-## Tarea 6
+### [ TPSC-RE-FU-001 ] [ IMP-EXIST-SERVICE ] Corrección de ObtenerTodos() para excluir cuentas no vigentes
+
+**Aplicativos:**
+ProquifaNet 2
+
+**Módulos:**
+Catálogo de Cuentas Bancarias — Logic.Pqf.Catalogos
+
+**Consideraciones previas:**
+Para esta actividad están contempladas su construcción, pruebas unitarias, aprobación del líder técnico mediante PR, liberación en dev, documentación sobre desarrollo (si aplica).
+
+**Objetivo general:**
+Corregir el método `ObtenerTodos()` en `EmpresaDatosBancariosBO.Extensions.cs` para que retorne únicamente cuentas que **existen vigentes en sistema** (`Activo = true`), cumpliendo la Regla 2 y el Criterio B1 del requisito.
+
+**Objetivos específicos:**
+- Leer el análisis de impacto backend del requisito TPSC-RE-FU-001 (GAP-01)
+- Localizar el método `ObtenerTodos()` en `EmpresaDatosBancariosBO.Extensions.cs`
+- Agregar el filtro `Where(x => x.Activo)` al query
+- Verificar que ningún módulo consumidor dependa del comportamiento anterior (sin filtro)
+- Ejecutar pruebas unitarias sobre el método corregido
+
+**Resultado esperado:**
+`ObtenerTodos()` retorna únicamente las cuentas que existen vigentes en sistema. Las cuentas no vigentes (`Activo = false`) no son devueltas a los módulos consumidores pero se conservan en BD para trazabilidad histórica.
+
+**Entregables:**
+- `EmpresaDatosBancariosBO.Extensions.cs` modificado con filtro `Where(x => x.Activo)`
+- Pruebas unitarias del método
+
+**Criterios de aceptación:**
+- [ ] `ObtenerTodos()` retorna únicamente cuentas que **existen vigentes en sistema**
+- [ ] Las cuentas que no existen vigentes no aparecen en el resultado
+- [ ] Las cuentas no vigentes se conservan en BD (sin DELETE físico) para trazabilidad histórica
+- [ ] PR aprobado por líder técnico
+
+**Más información de la tarea:**
+- Archivo a modificar: `Logic.Pqf.Catalogos\Empresas\DatosBancarios\EmpresaDatosBancariosBO.Extensions.cs`
+- GAP documentado: GAP-01 del archivo `TPSC-RE-FU-001-Back.md`
+
+**Recursos:**
+- Análisis de impacto backend: `Requisitos/TPSC-RE-FU-001/TPSC-RE-FU-001-Back.md`
+- Diccionario de datos: `Requisitos/TPSC-RE-FU-001/TPSC-RE-FU-001_BD.md`
+- Requisito funcional: `Requisitos/TPSC-RE-FU-001/TPSC-RE-FU-001.md`
+
+---
+
+## Tarea 3
+
+### [ TPSC-RE-FU-001 ] [ IMP-EXIST-SERVICE ] Agregar método ObtenerVigentesPorEmpresa() en vEmpresaDatosBancariosBO
+
+**Aplicativos:**
+ProquifaNet 2
+
+**Módulos:**
+Catálogo de Cuentas Bancarias — Logic.Pqf.Catalogos
+
+**Consideraciones previas:**
+Para esta actividad están contempladas su construcción, pruebas unitarias, aprobación del líder técnico mediante PR, liberación en dev, documentación sobre desarrollo (si aplica).
+
+**Objetivo general:**
+Agregar el método `ObtenerVigentesPorEmpresa(string prefijo)` en `vEmpresaDatosBancariosBO.Extensions.cs` para que los módulos consulten cuentas que **existen vigentes en sistema** filtradas por empresa emisora del grupo, cumpliendo el Criterio A2 del requisito (GAP-02).
+
+**Objetivos específicos:**
+- Leer el análisis de impacto backend del requisito TPSC-RE-FU-001 (GAP-02)
+- Implementar el método `ObtenerVigentesPorEmpresa(string prefijo)`
+- Validar que el prefijo esté dentro del set permitido: `GOL`, `MUN`, `PRO`, `PQF`
+- Aplicar filtro de existencia vigente (`Activo = true`) en `Empresa` y `EmpresaDatosBancarios`
+- Retornar lista vacía si el prefijo no es válido o la empresa no existe en sistema
+- Ejecutar pruebas unitarias con cada prefijo válido e inválido
+
+**Resultado esperado:**
+El método retorna las cuentas que existen vigentes en sistema de la empresa cuyo prefijo coincide con el solicitado. Prefijos fuera del alcance R16 (ej. `GOLPERU`) retornan lista vacía.
+
+**Entregables:**
+- `vEmpresaDatosBancariosBO.Extensions.cs` con el nuevo método
+- Pruebas unitarias para los 4 prefijos válidos y casos inválidos
+
+**Criterios de aceptación:**
+- [ ] `ObtenerVigentesPorEmpresa("GOL")` retorna cuentas que existen vigentes de Golocaer
+- [ ] `ObtenerVigentesPorEmpresa("GOLPERU")` retorna lista vacía
+- [ ] Solo se retornan cuentas que existen vigentes en sistema (`Activo = true`)
+- [ ] PR aprobado por líder técnico
+
+**Más información de la tarea:**
+- Archivo a modificar: `Logic.Pqf.Catalogos\Empresas\DatosBancarios\EmpresaDatosBancariosBO.Extensions.cs`
+- GAP documentado: GAP-02 del archivo `TPSC-RE-FU-001-Back.md`
+- Prefijos válidos R16: `GOL`, `MUN`, `PRO`, `PQF`. Excluir `GOLPERU`.
+
+**Recursos:**
+- Análisis de impacto backend: `Requisitos/TPSC-RE-FU-001/TPSC-RE-FU-001-Back.md`
+- Diccionario de datos: `Requisitos/TPSC-RE-FU-001/TPSC-RE-FU-001_BD.md`
+- Requisito funcional: `Requisitos/TPSC-RE-FU-001/TPSC-RE-FU-001.md`
+
+---
+
+## Tarea 4
+
+### [ TPSC-RE-FU-001 ] [ LIST-NO-FILTER ] Agregar endpoint GET /vEmpresaDatosBancarios/Vigentes/{prefijo}
+
+**Aplicativos:**
+ProquifaNet 2
+
+**Módulos:**
+Catálogo de Cuentas Bancarias — WebApi.Catalogos
+
+**Consideraciones previas:**
+Para esta actividad están contempladas su construcción, pruebas unitarias, aprobación del líder técnico mediante PR, liberación en dev, documentación sobre desarrollo (si aplica).
+
+**Objetivo general:**
+Agregar el endpoint `GET /vEmpresaDatosBancarios/Vigentes/{prefijo}` en `EmpresaDatosBancariosController.cs` para exponer las cuentas que existen vigentes en sistema, filtradas por empresa emisora, a los módulos consumidores. Cumple el Criterio A2 del requisito (GAP-03).
+
+**Objetivos específicos:**
+- Leer el análisis de impacto backend del requisito TPSC-RE-FU-001 (GAP-03)
+- Agregar el método `ObtenerVigentesPorEmpresa(string prefijo)` en el controller
+- Consumir el método del mismo nombre implementado en la Tarea 2 (`EmpresaDatosBancariosBO`)
+- Documentar el endpoint en Swagger con descripción de prefijos válidos R16
+- Verificar que el endpoint no requiera UI (solo consumo interno entre módulos)
+
+**Resultado esperado:**
+`GET /vEmpresaDatosBancarios/Vigentes/{prefijo}` responde con la lista de cuentas que existen vigentes en sistema de la empresa solicitada. La respuesta excluye automáticamente cuentas no vigentes y empresas fuera del alcance R16.
+
+**Entregables:**
+- `vEmpresaDatosBancariosController.cs` con el nuevo endpoint documentado en Swagger
+- Prueba manual del endpoint en ambiente de desarrollo
+
+**Criterios de aceptación:**
+- [ ] `GET /vEmpresaDatosBancarios/Vigentes/GOL` retorna cuentas que existen vigentes de Golocaer
+- [ ] `GET /vEmpresaDatosBancarios/Vigentes/GOLPERU` retorna lista vacía
+- [ ] El endpoint está documentado en Swagger con descripción de prefijos válidos
+- [ ] PR aprobado por líder técnico
+
+**Más información de la tarea:**
+- Archivo a modificar: `WebApi.Catalogos\Controllers\Configuracion\Empresas\vEmpresaDatosBancariosController.cs`
+- GAP documentado: GAP-03 del archivo `TPSC-RE-FU-001-Back.md`
+- Depende de Tarea 2 (método `ObtenerVigentesPorEmpresa` en BO)
+
+**Recursos:**
+- Análisis de impacto backend: `Requisitos/TPSC-RE-FU-001/TPSC-RE-FU-001-Back.md`
+- Diccionario de datos: `Requisitos/TPSC-RE-FU-001/TPSC-RE-FU-001_BD.md`
+- Requisito funcional: `Requisitos/TPSC-RE-FU-001/TPSC-RE-FU-001.md`
+
+---
+## Tarea 5
 
 ### [ TPSC-RE-FU-001 ] [ MIG-DATOS ] Carga inicial de cuentas bancarias del grupo PROQUIFA
 
@@ -318,9 +266,9 @@ Las cuentas bancarias del grupo existen vigentes en sistema con `Activo = 1`. Lo
 
 ---
 
-## Tarea 7
+## Tarea 6
 
-### [ TPSC-RE-FU-001 ] [ DOC-GUIDE ] Guia de resolucion — Alta, Baja y Actualizacion de cuentas bancarias del grupo PROQUIFA
+### [ TPSC-RE-FU-001 ] [ DOC-GUIDE ] Guía de resolución — Alta, Baja y Actualización de cuentas bancarias del grupo PROQUIFA
 
 **Aplicativos:**
 ProquifaNet 2 — Soporte a la Produccion
@@ -543,7 +491,7 @@ ORDER BY Prefijo, NumeroDeCuenta;
 - [ ] Guia revisada y aprobada por el lider tecnico
 - [ ] El documento referencia la vista `vEmpresaDatosBancariosVigentes` (Tarea 5) para validacion post-operacion
 
-**Mas informacion de la tarea:**
+**Mas información de la tarea:**
 - Pendiente P1 del archivo `TPSC-RE-FU-001-Back.md`: restriccion formal o documentacion de uso interno de PUT/DELETE
 - Criterio C2 del requisito: gestion de cuentas por Soporte a la Produccion directamente en BD, sin UI en R16
 - No hay UI en ProquifaNet 2 para esta operacion. Esta guia es el mecanismo de control operativo.
