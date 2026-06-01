@@ -1,4 +1,4 @@
-﻿# TPSC-RE-FU-008
+# TPSC-RE-FU-008
 
 **Estatus:** ✅ Atendido
 
@@ -12,9 +12,6 @@
 - ¿Qué sucede si llega un correo de un cliente no registrado y el mailbot lo clasifica erróneamente como Cobro? ¿Quién lo ve?
 - **Criterio 9:** Actualmente los Buzones permiten eliminar pendientes. ¿Estamos seguros de que para Cobros no puede eliminarse? Si no puede eliminar, indicar que tendrá la salida existente para clasificarlo como *Otros* y sea el ESAC quien pueda eliminarlo.
 
-## Notas adicionales
-
-- Realizar estimación de un nuevo mailbot integrando IA para la clasificación.
 
 ## Resumen de cambios aplicados
 

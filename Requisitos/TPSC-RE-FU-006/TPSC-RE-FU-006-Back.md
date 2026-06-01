@@ -13,14 +13,14 @@
 
 ### 1.1 Capa de Lógica
 
-| Archivo | Clase | Descripción |
-|---------|-------|-------------|
-| `Logic.Pqf.Catalogos\Cuentas\ConfiguracionDatosBancarios\DatosBancariosBO.cs` | `DatosBancariosBO` | CRUD de cuentas bancarias del grupo PROQUIFA. |
-| `Logic.Pqf.Catalogos\Cuentas\ConfiguracionDatosBancarios\DatosBancariosBO.Extensions.cs` | `DatosBancariosBO` Extensions | Filtros especiales por `IdEmpresa`, `IdConfiguracionPagos`, `IdCatMedioDePago`. |
-| `Logic.Pqf.Catalogos\Empresas\DatosBancarios\EmpresaDatosBancariosBO.cs` | `EmpresaDatosBancariosBO` | Catálogo de cuentas del grupo PROQUIFA — fuente del selector de pantalla. |
-| `Logic.Pqf.Logistica\L05.TramitarPedido\Facturas\Fabrica\tpProformaPedidoFactory.cs` | `tpProformaPedidoFactory` | Fábrica que construye `tpProformaPedido`. Asigna `ReferenciaPago = null` en estado actual. |
-| *(no existe)* | `ClienteDatosBancariosBO` | **NUEVO R16** — Gestión de relación cliente-cuenta-CódigoValidador. |
-| *(no existe)* | `ReferenciaBancariaBO` | **NUEVO R16** — Algoritmo de construcción de referencia bancaria (Banamex/no-Banamex). |
+| Archivo                                                                                  | Clase                         | Descripción                                                                                |
+| ---------------------------------------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------ |
+| `Logic.Pqf.Catalogos\Cuentas\ConfiguracionDatosBancarios\DatosBancariosBO.cs`            | `DatosBancariosBO`            | CRUD de cuentas bancarias del grupo PROQUIFA.                                              |
+| `Logic.Pqf.Catalogos\Cuentas\ConfiguracionDatosBancarios\DatosBancariosBO.Extensions.cs` | `DatosBancariosBO` Extensions | Filtros especiales por `IdEmpresa`, `IdConfiguracionPagos`, `IdCatMedioDePago`.            |
+| `Logic.Pqf.Catalogos\Empresas\DatosBancarios\EmpresaDatosBancariosBO.cs`                 | `EmpresaDatosBancariosBO`     | Catálogo de cuentas del grupo PROQUIFA — fuente del selector de pantalla.                  |
+| `Logic.Pqf.Logistica\L05.TramitarPedido\Facturas\Fabrica\tpProformaPedidoFactory.cs`     | `tpProformaPedidoFactory`     | Fábrica que construye `tpProformaPedido`. Asigna `ReferenciaPago = null` en estado actual. |
+| *(no existe)*                                                                            | `ClienteDatosBancariosBO`     | **NUEVO R16** — Gestión de relación cliente-cuenta-CódigoValidador.                        |
+| *(no existe)*                                                                            | `ReferenciaBancariaBO`        | **NUEVO R16** — Algoritmo de construcción de referencia bancaria (Banamex/no-Banamex).     |
 
 ### 1.2 Capa de API (`WebApi.Catalogos`)
 
