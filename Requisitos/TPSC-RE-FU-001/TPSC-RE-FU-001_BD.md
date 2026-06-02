@@ -1,340 +1,416 @@
-# Diccionario de Datos - Catalogo de Cuentas Bancarias PROQUIFA
+﻿# Diccionario de Datos — Catálogo de Cuentas Bancarias PROQUIFA
+
 **Requisito:** TPSC-RE-FU-001
 **Base de Datos:** ProquifaDotNet
+**Servidor:** RYNL010
+**Versión:** 1.4 — `IdRegion` en `EmpresaDatosBancarios` + Vista `vEmpresaDatosBancarios`
 
 ---
 
 ## Resumen Ejecutivo
-Implementacion del Catalogo de Cuentas Bancarias del grupo PROQUIFA como origen unico
-de informacion para modulos de cobro y pago.
+
+Implementación del Catálogo de Cuentas Bancarias del grupo PROQUIFA como origen único
+de información para módulos de cobro y pago.
 
 ### Empresas en Alcance R16
-- GOL - Golocaer
-- MUN - Mungen
-- PRO - Proquifa
-- PQF - Proveedora Quimico Farmaceutica
 
-> Fuera de alcance: GOLPERU (Golocaer S.A.C. - Peru)
+| Prefijo | Empresa |
+|---------|---------|
+| **GOL** | Golocaer |
+| **MUN** | Mungen |
+| **PRO** | Proquifa |
+| **PQF** | Proveedora Químico Farmacéutica |
+
+> ⚠️ Fuera de alcance R16: **GOLPERU** (Golocaer S.A.C. — Perú)
+
+---
+
+## Modelo de Datos
+
+```
+EmpresaDatosBancarios  (IdRegion — NUEVO R16)
+    FK IdEmpresa         -> Empresa
+    FK IdRegion          -> Region  (MEX / PER)
+    FK IdDatosBancarios  -> DatosBancarios
+            FK IdCatBanco  -> catBanco
+            FK IdCatMoneda -> catMoneda
+
+Vista: vEmpresaDatosBancarios  (NUEVA R16)
+    Unión de EmpresaDatosBancarios + Empresa + Region + DatosBancarios + catBanco + catMoneda
+```
 
 ---
 
 ## Entidades Afectadas
 
-| Objeto                          | Tipo     | Impacto                                               | Incluido en Alcance R16 |
-| ------------------------------- | -------- | ----------------------------------------------------- | ----------------------- |
-| EmpresaDatosBancarios           | Tabla    | Principal - catalogo de cuentas                       | SI                      |
-| DatosBancarios                  | Tabla    | Detalle de cuenta bancaria                            | SI                      |
-| Empresa                         | Tabla    | Empresas emisoras del grupo                           | SI                      |
-| CuentaEmpresa                   | Tabla    | Vincula cuenta contable con datos bancarios           | SI                      |
-| catBanco                        | Catalogo | Instituciones bancarias                               | SI                      |
-| catMoneda                       | Catalogo | Monedas MXN/USD                                       | SI                      |
-| catMedioDePago                  | Catalogo | Formas de pago                                        | SI                      |
-| fcppOrdenDePago                 | Tabla    | Consumidor directo - usa EmpresaDatosBancarios        | SI                      |
-| fppEjecucionOrdenDePago         | Tabla    | Consumidor directo - ejecuta pagos contra catalogo    | SI                      |
-| fppSeguimientoPagoFactura       | Tabla    | Consumidor indirecto - seguimiento por cuenta destino | SI                      |
-| fppEjecucionOrdenDePagoDestino  | Tabla    | Consumidor indirecto - destino de ejecucion de pago   | SI                      |
-| fcppSeguimientoFactura          | Tabla    | Consumidor indirecto - seguimiento factura con cuenta | SI                      |
-| fcppSeguimientoFacturaIndirecto | Tabla    | Datos bancarios inline en seguimiento                 | SI                      |
-| vClienteDatosBancarios          | Vista    | Datos bancarios de clientes externos                  | NO - fuera alcance R16  |
-| vFacturaClienteCalendario       | Vista    | Modulo consumidor via IdCatMedioDePago                | Referencia              |
+| Objeto | Tipo | Estado | Descripción |
+|--------|------|--------|-------------|
+| `EmpresaDatosBancarios` | Tabla | ✏️ Existente — **IdRegion NUEVO R16** | Catálogo principal de cuentas bancarias |
+| `vEmpresaDatosBancarios` | Vista | 🆕 **NUEVA R16** | Vista operativa con unión completa |
+| `EmpresaRegion` | Tabla | ✅ Existente — sin cambios | Vincula Empresa con Región |
+| `DatosBancarios` | Tabla | ✅ Existente — sin cambios | Detalle de cuenta bancaria |
+| `Empresa` | Tabla | ✅ Existente — sin cambios | Empresas GOL/MUN/PRO/PQF |
+| `Region` | Tabla | ✅ Existente — sin cambios | MEX / PER |
+| `catBanco` | Catálogo | ✅ Existente — sin cambios | Instituciones bancarias |
+| `catMoneda` | Catálogo | ✅ Existente — sin cambios | MXN / USD |
+| `catMedioDePago` | Catálogo | ✅ Existente — sin cambios | Formas de pago |
+| `fcppOrdenDePago` | Tabla | ✅ Existente — consumidor | FK `IdEmpresaDatosBancarios` |
+| `fppEjecucionOrdenDePago` | Tabla | ✅ Existente — consumidor | FK `IdEmpresaDatosBancarios` |
+| `fppSeguimientoPagoFactura` | Tabla | ✅ Existente — consumidor indirecto | Seguimiento por cuenta destino |
+| `fppEjecucionOrdenDePagoDestino` | Tabla | ✅ Existente — consumidor indirecto | Destino de ejecución de pago |
+| `fcppSeguimientoFactura` | Tabla | ✅ Existente — consumidor indirecto | Seguimiento factura con cuenta |
+| `fcppSeguimientoFacturaIndirecto` | Tabla | ✅ Existente — consumidor indirecto | Datos bancarios inline en seguimiento |
+| `vClienteDatosBancarios` | Vista | 🚫 Fuera de alcance R16 | Datos bancarios de clientes externos |
+
+---
+
+## Orden de Ejecución de Scripts R16
+
+| Paso | Script | Dependencia |
+|------|--------|-------------|
+| 1 | `ALTER TABLE EmpresaDatosBancarios` | Ninguna — ejecutar primero |
+| 2 | `CREATE VIEW vEmpresaDatosBancarios` | Requiere Paso 1 completado |
 
 ---
 
 ## 1. EmpresaDatosBancarios (TABLA PRINCIPAL)
-**Proposito:** Catalogo principal de cuentas bancarias del grupo PROQUIFA
 
-| Columna | Tipo | Nulo | Descripcion |
-|---------|------|------|-------------|
-| IdEmpresaDatosBancarios | uniqueidentifier | NO | PK |
-| IdDatosBancarios | uniqueidentifier | NO | FK - DatosBancarios |
-| IdEmpresa | uniqueidentifier | SI | FK - Empresa (GOL/MUN/PRO/PQF) |
-| FechaRegistro | datetime | NO | Fecha de creacion |
-| FechaUltimaActualizacion | datetime | NO | Fecha de modificacion |
-| Activo | bit | NO | 1=Vigente, 0=No vigente (historico) |
+**Propósito:** Catálogo principal de cuentas bancarias del grupo PROQUIFA.
+**Creada:** 12/10/2020
+**Cambio R16:** Agregar `IdRegion` (FK → `Region`) para regionalizar cuentas (MEX / PER).
 
-- Activo = 1: Cuenta vigente (visible a usuarios)
-- Activo = 0: Cuenta no vigente (conservada para trazabilidad)
+### Estructura de columnas
 
----
+| Columna | Tipo | Longitud | Nulo | Default | Descripción |
+|---------|------|:--------:|:----:|---------|-------------|
+| `IdEmpresaDatosBancarios` | uniqueidentifier | 16 | NO | `NEWID()` | PK |
+| `IdDatosBancarios` | uniqueidentifier | 16 | NO | `NEWID()` | FK → DatosBancarios |
+| `IdEmpresa` | uniqueidentifier | 16 | SÍ | — | FK → Empresa |
+| `FechaRegistro` | datetime | 8 | NO | `GETDATE()` | Fecha de alta |
+| `FechaUltimaActualizacion` | datetime | 8 | NO | `GETDATE()` | Fecha de modificación |
+| `Activo` | bit | 1 | NO | `1` | 1 = Vigente / 0 = No vigente |
+| 🆕 **`IdRegion`** | **uniqueidentifier** | **16** | **SÍ** | **—** | **NUEVO R16 — FK → Region (MEX / PER)** |
 
-## 2. DatosBancarios
-**Proposito:** Informacion detallada de cuentas bancarias
+### Foreign Keys
 
-| Columna | Tipo | Nulo | Descripcion |
-|---------|------|------|-------------|
-| IdDatosBancarios | uniqueidentifier | NO | PK |
-| IdCatBanco | uniqueidentifier | SI | FK - catBanco |
-| NumeroDeCuenta | varchar(20) | SI | Numero de cuenta |
-| Beneficiario | varchar(200) | SI | Empresa beneficiaria |
-| Clabe | varchar(200) | SI | CLABE interbancaria |
-| IdCatMoneda | uniqueidentifier | SI | FK - catMoneda (MXN/USD) |
-| Sucursal | varchar(50) | SI | Sucursal bancaria |
-| NumeroTarjeta | varchar(20) | SI | Numero de tarjeta |
+| Constraint | Columna | Referencia |
+|------------|---------|------------|
+| `FK_EmpresaDatosBancarios_DatosBancarios` | `IdDatosBancarios` | `DatosBancarios.IdDatosBancarios` |
+| `FK_EmpresaDatosBancarios_Empresa` | `IdEmpresa` | `Empresa.IdEmpresa` |
+| 🆕 **`FK_EmpresaDatosBancarios_Region`** | **`IdRegion`** | **`Region.IdRegion`** (NUEVO R16) |
 
----
+### Tablas que referencian esta tabla
 
-## 3. Empresa
-**Proposito:** Empresas del grupo PROQUIFA (emisoras)
+| Tabla | Columna |
+|-------|---------|
+| `fcppOrdenDePago` | `IdEmpresaDatosBancarios` |
+| `fppEjecucionOrdenDePago` | `IdEmpresaDatosBancarios` |
 
-| Columna | Tipo | Nulo | Descripcion |
-|---------|------|------|-------------|
-| IdEmpresa | uniqueidentifier | NO | PK |
-| Prefijo | varchar(50) | NO | Codigo GOL/MUN/PRO/PQF |
-| Alias | varchar(50) | NO | Nombre corto |
-| RazonSocial | varchar(50) | NO | Nombre legal |
-| RFC | varchar(13) | SI | RFC Mexico |
-| IdCatRegimenFiscal | uniqueidentifier | SI | FK - catRegimenFiscal |
-| Activo | bit | NO | Empresa activa |
-
----
-
-## 4. CuentaEmpresa
-**Proposito:** Vincula cuentas contables con datos bancarios
-
-| Columna | Tipo | Nulo | Descripcion |
-|---------|------|------|-------------|
-| IdCuentaEmpresa | uniqueidentifier | NO | PK |
-| IdEmpresa | uniqueidentifier | NO | FK - Empresa |
-| IdCuenta | uniqueidentifier | NO | FK - Cuenta contable |
-| IdDatosBancarios | uniqueidentifier | NO | FK - DatosBancarios |
-| MXN | bit | SI | Cuenta en pesos mexicanos |
-| USD | bit | SI | Cuenta en dolares |
-| Activo | bit | NO | Registro activo |
-
----
-
-## 5. catBanco (Catalogo)
-**Proposito:** Instituciones bancarias
-
-| Columna | Tipo | Nulo | Descripcion |
-|---------|------|------|-------------|
-| IdCatBanco | uniqueidentifier | NO | PK |
-| Banco | varchar(180) | NO | Nombre del banco |
-| IdCatPais | uniqueidentifier | SI | FK - catPais |
-| Clave | varchar(8) | SI | Codigo bancario |
-| Deposito | bit | SI | Permite depositos |
-| Transferencia | bit | SI | Permite transferencias |
-| Activo | bit | NO | Banco activo |
-
----
-
-## 6. catMoneda (Catalogo)
-**Proposito:** Monedas del sistema
-
-| Columna | Tipo | Nulo | Descripcion |
-|---------|------|------|-------------|
-| IdCatMoneda | uniqueidentifier | NO | PK |
-| ClaveMoneda | varchar(5) | NO | MXN, USD, EUR |
-| Moneda | varchar(50) | NO | Pesos, Dolares, Euros |
-| Activo | bit | NO | Moneda activa |
-
----
-
-## 7. catMedioDePago (Catalogo)
-**Proposito:** Medios y formas de pago
-
-| Columna | Tipo | Nulo | Descripcion |
-|---------|------|------|-------------|
-| IdCatMedioDePago | uniqueidentifier | NO | PK |
-| MedioDePago | nvarchar(200) | NO | Transferencia, Cheque, etc. |
-| ClaveFormaDePago | varchar(2) | SI | Clave SAT |
-| RequiereNumeroDeCuenta | bit | SI | Requiere num. cuenta |
-| Activo | bit | NO | Medio activo |
-
----
-
-## 8. Tablas Consumidoras Directas del Catalogo
-
-### fcppOrdenDePago
-**Proposito:** Orden de pago que referencia directamente EmpresaDatosBancarios
-
-| Columna | Tipo | Nulo | Descripcion |
-|---------|------|------|-------------|
-| IdFCPPOrdenDePago | uniqueidentifier | NO | PK |
-| IdEmpresaDatosBancarios | uniqueidentifier | NO | FK - EmpresaDatosBancarios (cuenta destino) |
-| IdUsuarioCaptura | uniqueidentifier | SI | FK - Usuario que captura |
-| IdUsuarioAutoriza | uniqueidentifier | SI | FK - Usuario que autoriza |
-| Autorizada | bit | NO | Orden autorizada |
-| FechaPropuesta | datetime | SI | Fecha propuesta de pago |
-| Activo | bit | NO | Registro activo |
-
-### fppEjecucionOrdenDePago
-**Proposito:** Ejecucion de pagos contra cuentas del catalogo
-
-| Columna | Tipo | Descripcion |
-|---------|------|-------------|
-| IdFPPEjecucionOrdenDePago | uniqueidentifier | PK |
-| IdFCPPOrdenDePago | uniqueidentifier | FK - fcppOrdenDePago |
-| IdEmpresaDatosBancarios | uniqueidentifier | FK - EmpresaDatosBancarios (cuenta ejecutada) |
-| FechaRealizacion | datetime | Fecha de realizacion |
-| FechaFondeo | datetime | Fecha de fondeo |
-| Activo | bit | Registro activo |
-
----
-
-## 9. Tablas Consumidoras Indirectas
-
-### fcppSeguimientoFactura
-**Proposito:** Seguimiento de facturas con cuenta destino
-
-| Columna | Tipo | Descripcion |
-|---------|------|-------------|
-| IdFCPPSeguimientoFactura | uniqueidentifier | PK |
-| IdCuentaDestino | uniqueidentifier | FK - Cuenta destino de pago |
-| IdCFDI | uniqueidentifier | FK - CFDI relacionado |
-| Autorizada | bit | Factura autorizada |
-| Activo | bit | Registro activo |
-
-### fppSeguimientoPagoFactura
-**Proposito:** Seguimiento de pago por cuenta destino
-
-| Columna | Tipo | Descripcion |
-|---------|------|-------------|
-| IdFPPSeguimientoPagoFactura | uniqueidentifier | PK |
-| IdFCPPSeguimientoFactura | uniqueidentifier | FK - fcppSeguimientoFactura |
-| IdFPPEjecucionOrdenDePago | uniqueidentifier | FK - fppEjecucionOrdenDePago |
-| IdCuentaDestino | uniqueidentifier | FK - Cuenta destino |
-| Monto | decimal | Monto pagado |
-| FechaPago | datetime | Fecha de pago |
-| Activo | bit | Registro activo |
-
-### fppEjecucionOrdenDePagoDestino
-**Proposito:** Destino de ejecucion de pago
-
-| Columna | Tipo | Descripcion |
-|---------|------|-------------|
-| IdFPPEjecucionOrdenDePagoDestino | uniqueidentifier | PK |
-| IdCuentaDestino | uniqueidentifier | FK - Cuenta destino |
-| IdFPPSeguimientoPagoFactura | uniqueidentifier | FK - fppSeguimientoPagoFactura |
-| IdFPPEjecucionOrdenDePago | uniqueidentifier | FK - fppEjecucionOrdenDePago |
-| Activo | bit | Registro activo |
-
-### fcppSeguimientoFacturaIndirecto
-**Proposito:** Datos bancarios inline en seguimiento de factura indirecta
-
-| Columna | Tipo | Descripcion |
-|---------|------|-------------|
-| IdFCPPSeguimientoFacturaIndirecto | uniqueidentifier | PK |
-| IdFCPPSeguimientoFactura | uniqueidentifier | FK - fcppSeguimientoFactura |
-| IdCatBanco | uniqueidentifier | FK - catBanco (datos bancarios inline) |
-| NumeroDeCuenta | varchar | Numero de cuenta inline |
-| ClabeInterbancaria | varchar | CLABE inline |
-| Activo | bit | Registro activo |
-
----
-
-## 10. Vistas Relacionadas
-
-### vClienteDatosBancarios
-**NOTA: Fuera de alcance R16 - aplica a clientes externos, no a empresas del grupo**
-
-| Columna | Tipo | Descripcion |
-|---------|------|-------------|
-| IdCliente | uniqueidentifier | Cliente externo |
-| IdDatosBancarios | uniqueidentifier | FK - DatosBancarios |
-| IdCatBanco | uniqueidentifier | FK - catBanco |
-| NumeroDeCuenta | varchar | Numero de cuenta |
-| Beneficiario | varchar | Beneficiario |
-| Clabe | varchar | CLABE interbancaria |
-| IdCatMoneda | uniqueidentifier | Moneda |
-| Banco | varchar | Nombre del banco |
-| ClaveBanco | varchar | Codigo banco |
-| ClaveBroker | varchar | Codigo broker |
-
-### vFacturaClienteCalendario
-**Proposito:** Vista consumidora del catalogo via IdCatMedioDePago
-
-| Columna Relevante | Descripcion |
-|-------------------|-------------|
-| IdCatMedioDePago | Medio de pago de la factura |
-| MedioDePago | Descripcion del medio |
-| ClaveFormaDePago | Clave SAT |
-| MXN / USD | Moneda de la factura |
-
----
-
-## Consultas SQL Principales
-
-### Cuentas vigentes del grupo
+### Script — Paso 1
 
 ```sql
-SELECT
-    e.Prefijo,
-    e.Alias AS Empresa,
-    b.Banco,
-    db.NumeroDeCuenta,
-    db.Clabe,
-    m.ClaveMoneda AS Moneda,
-    edb.FechaRegistro
-FROM dbo.EmpresaDatosBancarios edb
-INNER JOIN dbo.Empresa e         ON edb.IdEmpresa = e.IdEmpresa
-INNER JOIN dbo.DatosBancarios db ON edb.IdDatosBancarios = db.IdDatosBancarios
-LEFT  JOIN dbo.catBanco b        ON db.IdCatBanco = b.IdCatBanco
-LEFT  JOIN dbo.catMoneda m       ON db.IdCatMoneda = m.IdCatMoneda
-WHERE edb.Activo = 1
-  AND e.Activo   = 1
-  AND e.Prefijo IN ('GOL','MUN','PRO','PQF')
-ORDER BY e.Prefijo, db.NumeroDeCuenta;
+-- Paso 1.1: Agregar IdRegion a EmpresaDatosBancarios
+ALTER TABLE dbo.EmpresaDatosBancarios
+    ADD IdRegion uniqueidentifier NULL
+        CONSTRAINT FK_EmpresaDatosBancarios_Region
+            FOREIGN KEY REFERENCES dbo.Region(IdRegion);
+
+-- Paso 1.2: Asignar México a todos los registros existentes
+DECLARE @IdMexico uniqueidentifier = '60390fda-7773-4ba1-8120-cb874f3a3a53';
+
+UPDATE dbo.EmpresaDatosBancarios
+SET    IdRegion                  = @IdMexico,
+       FechaUltimaActualizacion  = GETDATE()
+WHERE  IdRegion IS NULL;
+
+-- Paso 1.3 (cuando se incorpore Perú — fuera de alcance R16):
+-- DECLARE @IdPeru uniqueidentifier = '8278ecd0-c337-4484-b008-5b5e65b0dfaf';
+-- INSERT INTO dbo.EmpresaDatosBancarios (..., IdRegion) VALUES (..., @IdPeru);
 ```
 
-### Ordenes de pago por cuenta del catalogo
+---
+
+## 2. vEmpresaDatosBancarios (VISTA NUEVA R16)
+
+**Propósito:** Vista operativa que expone el catálogo completo de cuentas bancarias
+con todos los datos resueltos de Empresa, Región, Banco y Moneda.
+
+> ⚠️ **PRERREQUISITO:** El Paso 1 (ALTER TABLE + IdRegion) debe ejecutarse **antes** de crear esta vista.
+
+### Columnas de la vista
+
+| Columna | Origen | Descripción |
+|---------|--------|-------------|
+| `IdEmpresaDatosBancarios` | EmpresaDatosBancarios | PK del registro |
+| `IdEmpresa` | EmpresaDatosBancarios | FK — Empresa |
+| `EmpresaPrefijo` | Empresa.Prefijo | GOL / MUN / PRO / PQF |
+| `EmpresaAlias` | Empresa.Alias | Nombre corto de la empresa |
+| `IdRegion` | EmpresaDatosBancarios | FK — Región |
+| `Region` | Region.Nombre | México / Perú |
+| `RegionClave` | Region.ClaveISO | MEX / PER |
+| `IdDatosBancarios` | EmpresaDatosBancarios | FK — DatosBancarios |
+| `IdCatBanco` | DatosBancarios | FK — catBanco |
+| `Banco` | catBanco.Banco | Nombre de la institución bancaria |
+| `ClaveBanco` | catBanco.Clave | Código del banco (ej. 002 = Banamex) |
+| `NumeroDeCuenta` | DatosBancarios | Número de cuenta |
+| `Clabe` | DatosBancarios | CLABE interbancaria |
+| `Beneficiario` | DatosBancarios | Empresa beneficiaria de la cuenta |
+| `Sucursal` | DatosBancarios | Sucursal bancaria |
+| `IdCatMoneda` | DatosBancarios | FK — catMoneda |
+| `ClaveMoneda` | catMoneda.ClaveMoneda | MXN / USD |
+| `Moneda` | catMoneda.Moneda | Pesos / Dólares |
+| `FechaRegistro` | EmpresaDatosBancarios | Fecha de alta |
+| `FechaUltimaActualizacion` | EmpresaDatosBancarios | Fecha de modificación |
+| `Activo` | EmpresaDatosBancarios | 1 = Vigente / 0 = No vigente |
+
+### Script — Paso 2 (ejecutar DESPUÉS del Paso 1)
+
+```sql
+-- PRERREQUISITO: Paso 1 debe estar ejecutado (IdRegion ya debe existir en EmpresaDatosBancarios)
+CREATE VIEW dbo.vEmpresaDatosBancarios
+AS
+SELECT
+    edb.IdEmpresaDatosBancarios,
+    edb.IdEmpresa,
+    e.Prefijo        AS EmpresaPrefijo,
+    e.Alias          AS EmpresaAlias,
+    edb.IdRegion,
+    r.Nombre         AS Region,
+    r.ClaveISO       AS RegionClave,
+    edb.IdDatosBancarios,
+    db.IdCatBanco,
+    b.Banco,
+    b.Clave          AS ClaveBanco,
+    db.NumeroDeCuenta,
+    db.Clabe,
+    db.Beneficiario,
+    db.Sucursal,
+    db.IdCatMoneda,
+    m.ClaveMoneda,
+    m.Moneda,
+    edb.FechaRegistro,
+    edb.FechaUltimaActualizacion,
+    edb.Activo
+FROM       dbo.EmpresaDatosBancarios edb
+LEFT  JOIN dbo.Empresa               e   ON edb.IdEmpresa        = e.IdEmpresa
+LEFT  JOIN dbo.Region                r   ON edb.IdRegion         = r.IdRegion
+INNER JOIN dbo.DatosBancarios        db  ON edb.IdDatosBancarios = db.IdDatosBancarios
+LEFT  JOIN dbo.catBanco              b   ON db.IdCatBanco        = b.IdCatBanco
+LEFT  JOIN dbo.catMoneda             m   ON db.IdCatMoneda       = m.IdCatMoneda;
+```
+
+---
+
+## 3. EmpresaRegion (Referencia — sin cambios en R16)
+
+**Propósito:** Vincula cada empresa del grupo con la región en que opera.
+**Creada:** 03/10/2025
+
+| Columna | Tipo | Longitud | Nulo | Default | Descripción |
+|---------|------|:--------:|:----:|---------|-------------|
+| `IdEmpresaRegion` | uniqueidentifier | 16 | NO | `NEWID()` | PK |
+| `IdEmpresa` | uniqueidentifier | 16 | NO | — | FK → Empresa |
+| `IdRegion` | uniqueidentifier | 16 | NO | — | FK → Region (MEX / PER) |
+| `FechaRegistro` | datetime | 8 | NO | `GETDATE()` | Fecha de alta |
+| `FechaUltimaActualizacion` | datetime | 8 | NO | `GETDATE()` | Fecha de modificación |
+| `Activo` | bit | 1 | NO | `1` | Relación activa |
+
+---
+
+## 4. DatosBancarios
+
+**Propósito:** Detalle de cada cuenta bancaria. Sin cambios en R16.
+
+| Columna | Tipo | Nulo | Descripción |
+|---------|------|:----:|-------------|
+| `IdDatosBancarios` | uniqueidentifier | NO | PK |
+| `IdCatBanco` | uniqueidentifier | SÍ | FK → catBanco |
+| `NumeroDeCuenta` | varchar(20) | SÍ | Número de cuenta |
+| `Beneficiario` | varchar(200) | SÍ | Empresa beneficiaria |
+| `Clabe` | varchar(200) | SÍ | CLABE interbancaria |
+| `IdCatMoneda` | uniqueidentifier | SÍ | FK → catMoneda |
+| `Sucursal` | varchar(50) | SÍ | Sucursal bancaria |
+| `NumeroTarjeta` | varchar(20) | SÍ | Número de tarjeta |
+
+---
+
+## 5. Empresa
+
+**Propósito:** Empresas del grupo PROQUIFA. Sin cambios en R16.
+
+| Columna | Tipo | Descripción |
+|---------|------|-------------|
+| `IdEmpresa` | uniqueidentifier | PK |
+| `Prefijo` | varchar(50) | GOL / MUN / PRO / PQF |
+| `Alias` | varchar(50) | Nombre corto |
+| `RazonSocial` | varchar(50) | Nombre legal |
+| `RFC` | varchar(13) | RFC México |
+| `Activo` | bit | Empresa activa |
+
+> ℹ️ `Empresa` no tiene `IdRegion` propio.
+> La región se gestiona vía `EmpresaRegion` y se replica en `EmpresaDatosBancarios` por cuenta.
+
+---
+
+## 6. catBanco (Catálogo)
+
+| Columna | Tipo | Descripción |
+|---------|------|-------------|
+| `IdCatBanco` | uniqueidentifier | PK |
+| `Banco` | varchar(180) | Nombre del banco |
+| `Clave` | varchar(8) | Código bancario (ej. 002 = Banamex) |
+| `Deposito` | bit | Permite depósitos |
+| `Transferencia` | bit | Permite transferencias |
+| `Activo` | bit | Banco activo |
+
+---
+
+## 7. catMoneda (Catálogo)
+
+| Columna | Tipo | Descripción |
+|---------|------|-------------|
+| `IdCatMoneda` | uniqueidentifier | PK |
+| `ClaveMoneda` | varchar | MXN / USD / EUR |
+| `Moneda` | varchar | Pesos / Dólares / Euros |
+| `Activo` | bit | Moneda activa |
+
+---
+
+## 8. catMedioDePago (Catálogo)
+
+| Columna | Tipo | Descripción |
+|---------|------|-------------|
+| `IdCatMedioDePago` | uniqueidentifier | PK |
+| `MedioDePago` | nvarchar(200) | Transferencia, Cheque, etc. |
+| `ClaveFormaDePago` | varchar(2) | Clave SAT c_FormaPago |
+| `RequiereNumeroDeCuenta` | bit | Requiere captura de cuenta |
+| `Activo` | bit | Medio activo |
+
+---
+
+## 9. Tablas Consumidoras Directas
+
+| Tabla | Columna FK | Descripción |
+|-------|-----------|-------------|
+| `fcppOrdenDePago` | `IdEmpresaDatosBancarios` | Cuenta destino de la orden de pago |
+| `fppEjecucionOrdenDePago` | `IdEmpresaDatosBancarios` | Cuenta contra la que se ejecuta el pago |
+
+---
+
+## 10. Tablas Consumidoras Indirectas
+
+| Tabla | Columna FK | Descripción |
+|-------|-----------|-------------|
+| `fcppSeguimientoFactura` | `IdCuentaDestino` | Cuenta destino del seguimiento |
+| `fppSeguimientoPagoFactura` | `IdCuentaDestino` | Cuenta destino del pago |
+| `fppEjecucionOrdenDePagoDestino` | `IdCuentaDestino` | Destino de la ejecución |
+| `fcppSeguimientoFacturaIndirecto` | `IdCatBanco` | Datos bancarios inline |
+
+---
+
+## 11. Consultas SQL Principales
+
+### Cuentas vigentes vía vista por Región (uso principal en módulos)
+
+```sql
+-- Uso principal en módulos: siempre consumir la vista, no la tabla directamente
+DECLARE @RegionClave varchar(3) = 'MEX';  -- o 'PER'
+
+SELECT
+    IdEmpresaDatosBancarios,
+    EmpresaPrefijo,
+    EmpresaAlias,
+    Banco,
+    ClaveBanco,
+    NumeroDeCuenta,
+    Clabe,
+    Sucursal,
+    ClaveMoneda,
+    Moneda
+FROM  dbo.vEmpresaDatosBancarios
+WHERE RegionClave = @RegionClave
+  AND Activo      = 1
+ORDER BY EmpresaPrefijo, NumeroDeCuenta;
+```
+
+### Órdenes de pago por cuenta del catálogo
 
 ```sql
 SELECT
     op.IdFCPPOrdenDePago,
-    e.Alias AS Empresa,
-    db.NumeroDeCuenta,
-    db.Clabe,
+    v.EmpresaAlias,
+    v.Banco,
+    v.NumeroDeCuenta,
+    v.Clabe,
     op.FechaPropuesta,
     op.Autorizada
-FROM dbo.fcppOrdenDePago op
-INNER JOIN dbo.EmpresaDatosBancarios edb ON op.IdEmpresaDatosBancarios = edb.IdEmpresaDatosBancarios
-INNER JOIN dbo.Empresa e                 ON edb.IdEmpresa = e.IdEmpresa
-INNER JOIN dbo.DatosBancarios db         ON edb.IdDatosBancarios = db.IdDatosBancarios
+FROM       dbo.fcppOrdenDePago          op
+INNER JOIN dbo.vEmpresaDatosBancarios   v  ON op.IdEmpresaDatosBancarios = v.IdEmpresaDatosBancarios
 WHERE op.Activo = 1
-  AND edb.Activo = 1
+  AND v.Activo  = 1
 ORDER BY op.FechaPropuesta DESC;
 ```
 
-### Baja logica de cuenta
+### Baja lógica de cuenta
 
 ```sql
 DECLARE @IdCuenta UNIQUEIDENTIFIER;
 
 UPDATE dbo.EmpresaDatosBancarios
-SET    Activo = 0,
+SET    Activo                   = 0,
        FechaUltimaActualizacion = GETDATE()
-WHERE  IdEmpresaDatosBancarios = @IdCuenta;
+WHERE  IdEmpresaDatosBancarios  = @IdCuenta;
 ```
 
 ---
 
 ## Reglas de Negocio
 
-| Regla | Implementacion | Tabla/Campo |
-|-------|----------------|-------------|
-| Catalogo unico | Tabla centralizada | EmpresaDatosBancarios |
-| Estado vigente | Campo binario | EmpresaDatosBancarios.Activo |
-| Sin UI en R16 | Gestion manual BD | Soporte a la Produccion |
-| Consumo modulos | Filtrar vigentes | WHERE Activo = 1 |
+| Regla | Implementación | Objeto |
+|-------|----------------|--------|
+| Catálogo único | Tabla centralizada | `EmpresaDatosBancarios` |
+| Estado vigente | `Activo = 1` | `EmpresaDatosBancarios.Activo` |
+| Regionalización de cuentas | `IdRegion` FK | `EmpresaDatosBancarios.IdRegion` |
+| Vista operativa única | JOIN completo resuelto | `vEmpresaDatosBancarios` |
+| Sin UI en R16 | Gestión manual en BD | Soporte a la Producción |
 
 ---
 
-## Mejores Practicas
+## Mejores Prácticas
 
-- SIEMPRE filtrar Activo = 1 en consultas de modulos
-- SIEMPRE validar Prefijo IN ('GOL','MUN','PRO','PQF') para alcance R16
-- NUNCA hacer DELETE fisico de registros
-- NUNCA crear catalogos paralelos en otros modulos
-- NO incluir GOLPERU en consultas de alcance R16
+- **SIEMPRE** consumir `vEmpresaDatosBancarios` en módulos — nunca la tabla directamente
+- **SIEMPRE** filtrar `Activo = 1`
+- **SIEMPRE** filtrar `RegionClave` (MEX / PER) según el contexto operativo
+- **SIEMPRE** validar `Prefijo IN ('GOL','MUN','PRO','PQF')` para alcance R16
+- **NUNCA** hacer DELETE físico de registros
+- **NUNCA** crear catálogos paralelos en otros módulos
+- **NO** incluir GOLPERU en consultas de alcance R16
+
+---
+
+## Análisis de Gaps
+
+| # | Gap | Descripción | Acción | Prioridad |
+|:-:|-----|-------------|--------|:---------:|
+| 1 | `IdRegion` ausente en `EmpresaDatosBancarios` | Columna nueva requerida | Ejecutar Script Paso 1 | 🔴 Alta |
+| 2 | `vEmpresaDatosBancarios` no existe | Vista nueva requerida | Ejecutar Script Paso 2 tras Paso 1 | 🔴 Alta |
+| 3 | `Empresa` sin `IdRegion` propio | Región vía `EmpresaRegion` | Sin cambio estructural — usar JOIN | ℹ️ Info |
+| 4 | Cuentas Perú fuera de alcance R16 | GOLPERU no incluida | Deuda técnica — `IdRegion=PER` cuando aplique | 🟢 Baja |
+| 5 | Sin UI en R16 | Gestión manual en BD | Validaciones en BD y auditoría | 🟡 Media |
 
 ---
 
 ## Riesgos
 
-| # | Riesgo | Mitigacion |
-|---|--------|------------|
-| 1 | Modelo Peru no definido | Definir en release posterior |
-| 2 | Sin UI - errores manuales | Validaciones en BD y auditoria |
+| # | Riesgo | Mitigación | Prioridad |
+|:-:|--------|------------|:---------:|
+| 1 | Vista creada antes del ALTER | Fallará con `Invalid column name IdRegion` — ejecutar Paso 1 primero | 🔴 Alta |
+| 2 | Registros sin `IdRegion` tras ALTER | Ejecutar UPDATE del Paso 1.2 inmediatamente | 🔴 Alta |
+| 3 | Modelo Perú no definido | Definir en release posterior con `IdRegion = PER` | 🟢 Baja |
+| 4 | Sin UI — errores manuales | Validaciones en BD y auditoría | 🟡 Media |
 
 ---
+
+**Generado por:** GitHub Copilot in SSMS
+**Versión:** 1.4 — `IdRegion` en `EmpresaDatosBancarios` + Vista `vEmpresaDatosBancarios`
+**Base de Datos:** ProquifaDotNet

@@ -1,4 +1,4 @@
-﻿# TPSC-RE-FU-001
+# TPSC-RE-FU-001
 
 **Estatus:** ✅ Atendido
 
@@ -14,6 +14,7 @@
 - **(Criterios de aceptación)** La Regla 2 y 3 deberían redactarse como un *qué*, no como un *cómo*, ya que la solución técnica puede ser diferente por diseño pero cumplir con la regla.
 - **(Criterios de aceptación)** La Regla 5 y Criterio 5 no deberían especificarse. Se está entrando en temas de estrategia de borrado del sistema (borrado lógico). No es que se "filtre por cuentas activas" sino que son las cuentas que existen en sistema. Si técnicamente está inactiva, para negocio no existe. Puede confundir los términos *Existir* vs *Activo*. Sugerencia: cambiar a "Existe o no existe en sistema".
 - Agregar requisito de mantenimiento post-go-live del catálogo (¿quién actualiza las cuentas y cómo si no hay UI?).
+- 
 
 ## Notas adicionales
 
