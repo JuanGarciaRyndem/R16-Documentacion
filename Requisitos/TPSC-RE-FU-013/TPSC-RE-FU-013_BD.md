@@ -1,0 +1,175 @@
+# Impacto en BD - Tramitacion Pedidos Prepago con Sustancias Controladas
+**Requisito:** TPSC-RE-FU-013
+**Base de Datos:** ProquifaDotNet
+**Version:** 1.0
+
+---
+
+## Resumen
+Tramitacion de pedidos Prepago con sustancias controladas (MEX y PER).
+Genera proforma, envia al cliente y crea pendiente en Validar Cobro.
+No renderiza FAA ni Entrega con Remision. Datos facturacion solo lectura.
+SIN CAMBIOS ESTRUCTURALES en BD - flujo preexistente.
+
+---
+
+## Impacto en BD: SIN CAMBIOS ESTRUCTURALES
+
+> Todas las tablas necesarias para este flujo ya existen en la BD.
+> La proforma (tpProformaPedido) ya tiene campo Controlados (bit).
+> El pendiente de Validar Cobro es la proforma con MontoPendiente > 0.
+
+---
+
+## Modelo de Datos
+
+    tpPedido (Tramitar Pedido)
+        IdCatCondicionesDePago -> catCondicionesDePago (Prepago: SinCredito=1)
+        FacturaPorAdelantado = 0 (NO RENDERIZADO - controlados)
+        EntregaConRemision   = 0 (NO RENDERIZADO - controlados)
+        Tramitado = 1
+        FolioPedidoInterno (asignado al tramitar)
+        IdRegion -> Region (MEX/PER)
+
+    tpProformaPedido (Proforma generada al tramitar)
+        MontoTotal, MontoPagado=0, MontoPendiente=MontoTotal
+        Controlados = 1 (sustancias controladas)
+        ReferenciaPago (reconstruida segun RE-FU-006)
+        Folio (foliador lineal global)
+        IdArchivoPDF? -> PDF de la proforma
+
+    tpPedidoProformaPedido (relacion N:N pedido-proforma)
+        IdTPPedido FK -> tpPedido
+        IdTPProformaPedido FK -> tpProformaPedido
+
+    tpProformaPartidaPedido (partidas de la proforma)
+        IdTPProformaPedido FK -> tpProformaPedido
+        IdTPPartidaPedido FK -> tpPartidaPedido
+        IdProducto, NumeroDePiezas, PrecioUnitario
+
+    tpPedidoCorreoEnviado (correo de proforma enviado al cliente)
+        IdTPPedido FK, IdCorreoEnviado FK
+
+    [Validar Cobro]: tpProformaPedido.MontoPendiente > 0 = PENDIENTE
+
+---
+
+## Tablas Involucradas
+
+| Tabla | Rol | Estado |
+|-------|-----|--------|
+| tpPedido | Cabecera pedido tramitado | Existente - sin cambios |
+| tpPartidaPedido | Partidas con productos controlados | Existente - sin cambios |
+| tpProformaPedido | Proforma generada (Controlados=1) | Existente - sin cambios |
+| tpPedidoProformaPedido | Relacion pedido-proforma | Existente - sin cambios |
+| tpProformaPartidaPedido | Partidas incluidas en la proforma | Existente - sin cambios |
+| tpPedidoCorreoEnviado | Correo de proforma al cliente | Existente - sin cambios |
+| catCondicionesDePago | Prepago: SinCredito=1 | Existente - sin cambios |
+| DatosFacturacionCliente | Datos fiscales (solo lectura en prepago) | Existente - sin cambios |
+| catControl | Deteccion controlados | Existente - sin cambios |
+| fnEsProductoControlado | Deteccion controlados | Existente - requiere 'origen' |
+
+---
+
+## Campos Clave en tpProformaPedido
+
+| Campo | Tipo | Uso en este Flujo |
+|-------|------|-------------------|
+| IdTPProformaPedido | uniqueidentifier | PK |
+| IdCliente | uniqueidentifier | Cliente del pedido |
+| IdEmpresa | uniqueidentifier | Empresa que factura |
+| MontoTotal | decimal | Monto total de la proforma |
+| MontoPagado | decimal | = 0 al generar (pendiente de cobro) |
+| MontoPendiente | decimal | = MontoTotal al generar -> pendiente Validar Cobro |
+| ReferenciaPago | varchar(80) | Referencia bancaria reconstruida (RE-FU-006) |
+| Controlados | bit | **= 1 en este flujo** |
+| Folio | varchar(80) | Folio de proforma (foliador lineal global) |
+| Cancelada | bit | NULL al generar |
+| FechaCompromisoPago | datetime | Fecha limite de pago |
+| Activo | bit | 1 = proforma vigente |
+
+---
+
+## Flujo en BD al Tramitar Prepago con Controlados
+
+    1. tpPedido.FolioPedidoInterno = siguiente folio (mecanica actual)
+    2. tpPedido.Tramitado = 1, FechaTramitacion = GETDATE()
+    3. INSERT tpProformaPedido (Controlados=1, MontoPendiente=MontoTotal, Folio=foliador_global)
+    4. INSERT tpPedidoProformaPedido (vincular pedido con proforma)
+    5. INSERT tpProformaPartidaPedido (por cada partida del pedido)
+    6. Generar PDF de proforma
+    7. Previsualizar PDF al ESAC -> aceptacion explicita
+    8. INSERT tpPedidoCorreoEnviado (correo al cliente con PDF adjunto)
+    9. Pendiente Validar Cobro = tpProformaPedido con MontoPendiente > 0
+   10. Cierre pendiente Tramitar Pedido
+
+---
+
+## Pendiente en Validar Cobro
+
+> No existe tabla separada 'PendienteValidarCobro'.
+> El pendiente se identifica como:
+>   tpProformaPedido.MontoPendiente > 0 AND Activo = 1 AND Cancelada IS NULL
+> Al validarse el cobro: MontoPagado se incrementa, MontoPendiente se decrementa.
+> Al completarse: FechaPagoCompleto se asigna.
+
+---
+
+## Restricciones Regulatorias
+
+| Campo | Tabla | Comportamiento con Controlados |
+|-------|-------|-------------------------------|
+| FacturaPorAdelantado | tpPedido | NO RENDERIZADO en UI |
+| EntregaConRemision | tpPedido | NO RENDERIZADO en UI |
+| Controlados | tpProformaPedido | = 1 (factura anticipo posterior en Validar Cobro) |
+
+---
+
+## Correo de Proforma
+
+| Campo correo | Fuente                                    | Editable      |
+| ------------ | ----------------------------------------- | ------------- |
+| Para         | ContactoCliente.Correo (default catalogo) | SI            |
+| CC           | Usuario ESAC asignado                     | SI            |
+| Asunto       | 'Proforma ' + tpPedido.FolioPedidoInterno | NO            |
+| Adjunto      | PDF proforma generado                     | NO            |
+| Notas extras | Campo libre capturado por ESAC            | SI (opcional) |
+
+---
+
+## Diferencia MEX vs PER
+
+| Aspecto                                     | Mexico (MEX) | Peru (PER)                |
+| ------------------------------------------- | ------------ | ------------------------- |
+| Tramitacion Prepago con controlados         | Identica     | Identica                  |
+| Generacion proforma                         | SI           | SI                        |
+| Envio correo                                | SI           | SI                        |
+| Pendiente Validar Cobro                     | SI           | SI                        |
+| Transferencia a Legacy (post-Validar Cobro) | SI           | NO (fuera scope este req) |
+
+---
+
+## Gaps
+
+| # | Gap | Accion |
+|---|-----|--------|
+| 1 | fnEsProductoControlado sin 'origen' | ALTER FUNCTION (compartido RE-FU-007/009/011) |
+| 2 | Folio proforma lineal global | Verificar mecanismo actual de foliador en BD |
+| 3 | Politica folio proforma si ESAC cancela previsualizacion | Confirmar con cliente |
+| 4 | PDF proforma vinculado a tpProformaPedido | No hay FK directa a Archivo - verificar IdArchivoPDF |
+
+---
+
+## Dependencias
+
+| Requisito | Relacion |
+|-----------|----------|
+| TPSC-RE-FU-006 | ReferenciaPago en proforma |
+| TPSC-RE-FU-007 | Leyenda regulatoria en PDF proforma |
+| TPSC-RE-FU-009 | Validacion regulatoria en Pretramitar (prerequisito) |
+| TPSC-RE-FU-011 | Deteccion de controlados (misma cadena) |
+
+---
+
+**Generado por:** GitHub Copilot in SSMS
+**Base de Datos:** ProquifaDotNet

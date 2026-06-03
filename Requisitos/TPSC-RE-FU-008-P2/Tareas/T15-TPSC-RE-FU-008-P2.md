@@ -1,0 +1,62 @@
+# [ TPSC-RE-FU-008 ] [IMPL-THIRD-SERV] Implementar Mailbot.Infrastructure — Gmail, OpenAI, Channel, PromptBuilder
+
+---
+
+## Aplicativos
+
+- MailbotWorker
+
+## Módulos
+
+- Mailbot
+
+## Consideraciones previas
+
+- Tarea T14 completada (interfaces del dominio definidas).
+- Se requieren paquetes NuGet: Google.Apis.Gmail.v1, Azure.AI.OpenAI (o OpenAI SDK), System.Threading.Channels (incluido en .NET).
+- Los prompts se almacenan como archivos `.txt` embebidos o en carpeta de contenido para ser editables sin recompilar.
+
+## Objetivo general
+
+Implementar los servicios de infraestructura que conectan con Gmail API, Azure OpenAI/OpenAI y el canal interno de eventos, cumpliendo los contratos definidos en `Mailbot.Domain`.
+
+## Objetivos específicos
+
+1. `Gmail\GmailService.cs` — implementa lectura de correo completo vía `Gmail API history.list`.
+2. `Gmail\GmailWatchService.cs` — gestiona `watch.create`, `watch.stop` y renovación.
+3. `Channels\EventoCorreoChannel.cs` — implementa `IEventoChannel` con `Channel<EventoCorreoDto>`.
+4. `IA\OpenAIClasificadorAgente.cs` — implementa `IClasificadorAgente` usando Azure OpenAI / OpenAI.
+5. `IA\PromptBuilder.cs` — carga y construye prompts desde archivos `.txt`.
+6. Crear archivos de prompts en `Prompts\`:
+   - `clasificacion_correo.txt`
+   - `extraccion_cobro.txt`
+   - `extraccion_pedido.txt`
+   - `extraccion_cotizacion.txt`
+
+## Resultado esperado
+
+- Servicios funcionales que cumplen los contratos del dominio y se integran con servicios externos.
+
+## Entregables
+
+- 5 clases de servicio + 4 archivos de prompts.
+
+## Criterios de aceptación
+
+- [ ] `GmailService` puede leer un correo dado un `historyId` (prueba con cuenta de prueba).
+- [ ] `GmailWatchService` puede crear y detener un watch.
+- [ ] `EventoCorreoChannel` permite publicar y consumir eventos sin pérdida.
+- [ ] `OpenAIClasificadorAgente` clasifica un correo de ejemplo y retorna resultado con confianza.
+- [ ] `PromptBuilder` carga los archivos `.txt` correctamente.
+- [ ] Los prompts son editables sin recompilar (no embebidos como recursos compilados).
+- [ ] El proyecto compila sin errores.
+
+## Más información de la tarea
+
+- Referencia: `TPSC-RE-FU-008-v2_Propuesta2.md` — sección "Arquitectura de la Solución" (Mailbot.Infrastructure)
+- Referencia: `TPSC-RE-FU-008-P2-Back.md` — PARTE 2, secciones 2.2 y 2.3
+
+## Recursos
+
+- Repositorio: MailbotWorker
+- NuGet: Google.Apis.Gmail.v1, Azure.AI.OpenAI

@@ -12,8 +12,8 @@
 		{"id":"a12","type":"text","text":"🔒 Correo permanece en buzon","x":-360,"y":840,"width":280,"height":60,"color":"#ffb7b2"},
 		{"id":"a13","type":"text","text":"🗑️ Correo puede eliminarse","x":360,"y":840,"width":280,"height":60,"color":"#c7ceea"},
 		{"id":"a14","type":"text","text":"✅ Pendiente procesado en Validar Pago","x":0,"y":960,"width":280,"height":60,"color":"#b5ead7"},
-		{"id":"a4","type":"text","text":"⚠️ Correo queda sin clasificar","x":500,"y":60,"width":280,"height":60,"color":"#ffb7b2"},
-		{"id":"a5","type":"text","text":"🔧 Usuario reclasifica o elimina","x":500,"y":240,"width":280,"height":60,"color":"#c7ceea"}
+		{"id":"a4","type":"text","text":"⚠️ Correo queda sin clasificar","x":460,"y":60,"width":280,"height":60,"color":"#ffb7b2"},
+		{"id":"a5","type":"text","text":"🔧 Usuario reclasifica o elimina","x":460,"y":240,"width":280,"height":60,"color":"#c7ceea"}
 	],
 	"edges":[
 		{"id":"e1","fromNode":"a1","fromSide":"bottom","toNode":"a2","toSide":"top"},

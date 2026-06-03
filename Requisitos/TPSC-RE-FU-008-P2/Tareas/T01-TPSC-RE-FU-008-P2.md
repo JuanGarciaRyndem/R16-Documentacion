@@ -1,0 +1,68 @@
+# [ TPSC-RE-FU-008 ] [UPDATE-TABL-CH] Script BD: INSERT catProceso Cobros + INSERT/UPDATE catClasificacionCorreoRecibido + ALTER RegionConfiguracionMailBot
+
+---
+
+## Aplicativos
+
+- ProquifaDotNet (Base de Datos — SQL Server RYNL010)
+
+## Módulos
+
+- Buzones
+- Mailbot
+
+## Consideraciones previas
+
+- Ejecutar query de validación antes de decidir entre Opción A (renombrar `pago` → `cobro`) u Opción B (nuevo registro `cobro`):
+  ```sql
+  SELECT COUNT(*) FROM CorreoRecibidoCliente crc
+  INNER JOIN catClasificacionCorreoRecibido cat
+      ON crc.IdCatClasificacionCorreoRecibido = cat.IdCatClasificacionCorreoRecibido
+  WHERE cat.Clave = 'pago'
+  ```
+- Verificar que `spActualizarBuzonPagoLegacy` no se vea afectado por el cambio de clave.
+- Confirmar con Arquitecto y Cliente la decisión final (Opción A o B).
+
+## Objetivo general
+
+Preparar los catálogos y configuración de BD necesarios para soportar la clasificación de correos como "Cobro" y la integración con Google Cloud Pub/Sub en el Mailbot.
+
+## Objetivos específicos
+
+1. Insertar el proceso `Cobros` (clave `cobros`) en `catProceso`.
+2. Insertar nueva clasificación `Cobro` (clave `cobro`, `AnalistaDeCuentasPorCobrar = 1`) en `catClasificacionCorreoRecibido` **o** renombrar la clasificación existente `Pago` según la decisión tomada.
+3. Ejecutar `ALTER TABLE RegionConfiguracionMailBot` para agregar las columnas:
+   - `PubSubTopic` (varchar 300, NULL)
+   - `WatchHistoryId` (varchar 50, NULL)
+   - `WatchExpiration` (datetime, NULL)
+
+## Resultado esperado
+
+- `catProceso` contiene el registro `Cobros` activo.
+- `catClasificacionCorreoRecibido` contiene la clasificación `Cobro` con `AnalistaDeCuentasPorCobrar = 1` y vinculada al proceso `Cobros`.
+- `RegionConfiguracionMailBot` cuenta con las 3 columnas nuevas para la gestión del watch de Gmail por región.
+
+## Entregables
+
+- Script SQL de migración (idempotente — con validación de existencia antes de INSERT/ALTER).
+- Script SQL de rollback.
+
+## Criterios de aceptación
+
+- [ ] El script se ejecuta sin errores en ambiente de desarrollo (RYNL010).
+- [ ] Los registros insertados son consistentes con la estructura documentada en `TPSC-RE-FU-008_BD.md`.
+- [ ] Las columnas nuevas en `RegionConfiguracionMailBot` aceptan NULL y no rompen funcionalidad existente del Mailbot actual.
+- [ ] El script de rollback revierte los cambios correctamente.
+
+## Más información de la tarea
+
+- Referencia: `TPSC-RE-FU-008-P2-Back.md` — PARTE 1, sección 1.1
+- Referencia BD: `TPSC-RE-FU-008_BD.md` — secciones 1 y 2
+- Referencia Propuesta: `TPSC-RE-FU-008-v2_Propuesta2.md` — sección "Cambio en RegionConfiguracionMailBot"
+
+## Recursos
+
+- Servidor: RYNL010
+- Base de datos: ProquifaDotNet
+- Documento de Propuesta 2: `TPSC-RE-FU-008-v2_Propuesta2.md`
+- Diccionario de Datos: `TPSC-RE-FU-008_BD.md`

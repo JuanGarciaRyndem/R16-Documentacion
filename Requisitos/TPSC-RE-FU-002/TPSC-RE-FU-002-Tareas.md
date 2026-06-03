@@ -170,7 +170,7 @@ El método reasigna el cobrador en la cartera activa del cliente. En la siguient
 
 ## Tarea 4
 
-### [ TPSC-RE-FU-002 ] [ LIST-NO-FILTER ] Agregar endpoint GET /Usuario/GestoresDeCobranza
+### [ TPSC-RE-FU-002 ] [ LIST-NO-FILTER ] Agregar endpoint GET /ClienteCartera/GestoresDeCobranza (ListaUsuariosCartera )
 
 **Aplicativos:**
 ProquifaNet 2
@@ -182,7 +182,7 @@ Catálogo de Clientes — WebApi.Catalogos
 Para esta actividad están contempladas su construcción, pruebas unitarias, aprobación del líder técnico mediante PR, liberación en dev, documentación sobre desarrollo (si aplica).
 
 **Objetivo general:**
-Agregar el endpoint `GET /Usuario/GestoresDeCobranza` en `UsuarioController.cs` para exponer la lista de Gestores de Cobranza activos al frontend, que la usará para poblar el selector del campo Cobrador. Cumple **Regla 2** y **Criterio B1**.
+Agregar el endpoint `GET /ClienteCartera/GestoresDeCobranza` en `UsuarioController.cs` para exponer la lista de Gestores de Cobranza activos al frontend, que la usará para poblar el selector del campo Cobrador. Cumple **Regla 2** y **Criterio B1**.
 
 **Objetivos específicos:**
 - Leer el análisis de impacto backend del requisito TPSC-RE-FU-002 (GAP-01)
