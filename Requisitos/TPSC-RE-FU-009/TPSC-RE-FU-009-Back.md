@@ -4,7 +4,7 @@
 |-------|-------|
 | **Requisito** | TPSC-RE-FU-009 |
 | **Nombre** | Validación Regulatoria en Pretramitar Pedido |
-| **Repositorio** | ProquifaDotNet-R14 (.NET Framework 4.8) |
+| **Repositorio** | ProquifaDotNet (.NET Framework 4.8) |
 | **Versión** | 1.0 |
 | **Fecha** | 2026-06-02 |
 

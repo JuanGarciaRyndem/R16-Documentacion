@@ -1,4 +1,4 @@
-﻿# Impacto en BD - Tramitacion Pedidos Credito con Factura por Adelantado
+# Impacto en BD - Tramitacion Pedidos Credito con Factura por Adelantado
 **Requisito:** TPSC-RE-FU-012
 **Base de Datos:** ProquifaDotNet
 **Version:** 1.0

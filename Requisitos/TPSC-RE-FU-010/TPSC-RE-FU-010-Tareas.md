@@ -8,7 +8,7 @@
 
 **Titulo:** [ TPSC-RE-FU-010 ] [IMP-EXIST-SERVICE] Verificacion del flujo de tramitacion Credito existente
 
-**Aplicativos:** ProquifaDotNet-R14
+**Aplicativos:** ProquifaDotNet
 
 **Modulos:** Logic.Pqf.Logistica\L05.TramitarPedido\Liberar
 
@@ -54,7 +54,7 @@ El flujo de tramitacion Credito ejecuta correctamente todos los pasos: folio, PD
 
 **Titulo:** [ TPSC-RE-FU-010 ] [IMP-EXIST-SERVICE] Verificacion de variante Pago contra entrega con marca de detencion en Legacy
 
-**Aplicativos:** ProquifaDotNet-R14
+**Aplicativos:** ProquifaDotNet
 
 **Modulos:** Logic.Pqf.Logistica\L05.TramitarPedido\Liberar
 
@@ -99,7 +99,7 @@ Al tramitar un pedido con condicion Pago contra entrega, el sistema transfiere a
 
 **Titulo:** [ TPSC-RE-FU-010 ] [SERV-TRANSACT] Crear endpoint de Cancelacion de pedido desde Tramitar Pedido
 
-**Aplicativos:** ProquifaDotNet-R14
+**Aplicativos:** ProquifaDotNet
 
 **Modulos:** WebApi.Logistica\Controllers\Procesos\L05.TramitarPedido, Logic.Pqf.Logistica\L05.TramitarPedido
 
@@ -159,7 +159,7 @@ Nuevo endpoint `[HttpPut] tpPedido/cancelar` que recibe `IdPPPedido` y ejecuta l
 
 **Titulo:** [ TPSC-RE-FU-010 ] [IMP-EXIST-SERVICE] Verificacion del cierre de pendiente en bandeja de Tramitar Pedido
 
-**Aplicativos:** ProquifaDotNet-R14
+**Aplicativos:** ProquifaDotNet
 
 **Modulos:** Logic.Pqf.Logistica\L05.TramitarPedido
 

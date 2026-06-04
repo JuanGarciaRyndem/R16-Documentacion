@@ -1,6 +1,6 @@
 # Impacto en Back — TPSC-RE-FU-010
 **Requisito:** Tramitacion de pedidos Credito
-**Aplicativo:** ProquifaDotNet-R14
+**Aplicativo:** ProquifaDotNet
 **Modulo:** L05.TramitarPedido
 **Impacto:** Flujo tramitacion preexistente + NUEVO endpoint de Cancelacion de pedido
 

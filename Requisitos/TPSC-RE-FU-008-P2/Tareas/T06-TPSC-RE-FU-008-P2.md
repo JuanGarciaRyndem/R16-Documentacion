@@ -4,7 +4,7 @@
 
 ## Aplicativos
 
-- ProquifaDotNet-R14
+- ProquifaDotNet
 
 ## Módulos
 
@@ -57,5 +57,5 @@ Implementar la lógica de reclasificación manual que permite al Gestor de Cobra
 
 ## Recursos
 
-- Repositorio: ProquifaDotNet-R14, branch `develop-pack04`
+- Repositorio: ProquifaDotNet, branch `develop-pack04`
 - Proyecto: `Logic.Pqf.Catalogos\Logic.Pqf.Catalogos.csproj`

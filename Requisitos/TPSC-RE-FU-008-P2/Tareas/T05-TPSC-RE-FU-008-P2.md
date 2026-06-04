@@ -4,7 +4,7 @@
 
 ## Aplicativos
 
-- ProquifaDotNet-R14
+- ProquifaDotNet
 
 ## Módulos
 
@@ -60,5 +60,5 @@ Crear la lógica de negocio que retorna la lista paginada del Buzón de Cobros, 
 
 ## Recursos
 
-- Repositorio: ProquifaDotNet-R14, branch `develop-pack04`
+- Repositorio: ProquifaDotNet, branch `develop-pack04`
 - Proyecto: `Logic.Pqf.Catalogos\Logic.Pqf.Catalogos.csproj`

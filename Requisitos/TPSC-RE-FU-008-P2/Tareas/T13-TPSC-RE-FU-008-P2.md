@@ -13,7 +13,7 @@
 ## Consideraciones previas
 
 - Esta es una solución completamente nueva que reemplaza al Mailbot actual (Framework 4.8 + Tarea de Windows).
-- Se crea en un repositorio separado de ProquifaDotNet-R14.
+- Se crea en un repositorio separado de ProquifaDotNet.
 - Utilizar la plantilla de Worker Service de .NET 10.
 - Arquitectura limpia con separación de capas: Domain, Application, Infrastructure, Worker, Api, Tests.
 

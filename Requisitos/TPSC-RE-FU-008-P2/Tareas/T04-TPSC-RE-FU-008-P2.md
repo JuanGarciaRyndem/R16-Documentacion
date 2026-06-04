@@ -4,7 +4,7 @@
 
 ## Aplicativos
 
-- ProquifaDotNet-R14
+- ProquifaDotNet
 
 ## Módulos
 
@@ -19,7 +19,7 @@
 
 ## Objetivo general
 
-Agregar las entidades `MailbotEventoCorreo` y `MailbotClasificacionLog` al modelo de Entity Framework 6 del proyecto `_Data\Mail` para que el repositorio ProquifaDotNet-R14 pueda consultar y escribir en estas tablas.
+Agregar las entidades `MailbotEventoCorreo` y `MailbotClasificacionLog` al modelo de Entity Framework 6 del proyecto `_Data\Mail` para que el repositorio ProquifaDotNet pueda consultar y escribir en estas tablas.
 
 ## Objetivos específicos
 
@@ -52,5 +52,5 @@ Agregar las entidades `MailbotEventoCorreo` y `MailbotClasificacionLog` al model
 
 ## Recursos
 
-- Repositorio: ProquifaDotNet-R14, branch `develop-pack04`
+- Repositorio: ProquifaDotNet, branch `develop-pack04`
 - Proyecto: `_Data\Mail\`

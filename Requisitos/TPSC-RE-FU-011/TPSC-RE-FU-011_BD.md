@@ -1,4 +1,4 @@
-﻿# Impacto en BD - Tramitacion Pedidos Credito con Sustancias Controladas
+# Impacto en BD - Tramitacion Pedidos Credito con Sustancias Controladas
 **Requisito:** TPSC-RE-FU-011
 **Base de Datos:** ProquifaDotNet
 **Version:** 1.0

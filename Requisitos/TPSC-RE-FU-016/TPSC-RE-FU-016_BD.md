@@ -1,4 +1,4 @@
-﻿# Impacto en BD - Diseno y Generacion PDF Proforma Mexico
+# Impacto en BD - Diseno y Generacion PDF Proforma Mexico
 **Requisito:** TPSC-RE-FU-016
 **Base de Datos:** ProquifaDotNet
 **Version:** 1.0

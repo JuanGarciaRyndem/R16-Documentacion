@@ -4,7 +4,7 @@
 
 ## Aplicativos
 
-- ProquifaDotNet-R14
+- ProquifaDotNet
 
 ## Módulos
 
@@ -50,5 +50,5 @@ Exponer un endpoint GET que retorne la lista paginada del Buzón de Cobros filtr
 
 ## Recursos
 
-- Repositorio: ProquifaDotNet-R14, branch `develop-pack04`
+- Repositorio: ProquifaDotNet, branch `develop-pack04`
 - Proyecto: `WebApi.Catalogos\WebApi.Catalogos.csproj`

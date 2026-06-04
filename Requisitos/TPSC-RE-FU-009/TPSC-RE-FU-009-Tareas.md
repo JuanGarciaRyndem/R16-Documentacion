@@ -4,7 +4,7 @@
 |-------|-------|
 | **Requisito** | TPSC-RE-FU-009 |
 | **Nombre** | ValidaciÃ³n Regulatoria en Pretramitar Pedido |
-| **Repositorio** | ProquifaDotNet-R14 |
+| **Repositorio** | ProquifaDotNet |
 | **Branch** | develop-pack04 |
 
 ---
@@ -40,7 +40,7 @@
 
 ### Aplicativos
 
-- ProquifaDotNet-R14
+- ProquifaDotNet
 
 ### MÃ³dulos
 
@@ -102,7 +102,7 @@ Crear la clase de validaciÃ³n regulatoria que verifica si el cliente de un ped
 
 ### Recursos
 
-- Repositorio: ProquifaDotNet-R14, branch `develop-pack04`
+- Repositorio: ProquifaDotNet, branch `develop-pack04`
 - Proyecto: `Logic.Pqf.Logistica\Logic.Pqf.Logistica.csproj`
 
 ---
@@ -115,7 +115,7 @@ Crear la clase de validaciÃ³n regulatoria que verifica si el cliente de un ped
 
 ### Aplicativos
 
-- ProquifaDotNet-R14
+- ProquifaDotNet
 
 ### MÃ³dulos
 
@@ -160,7 +160,7 @@ Crear el DTO que encapsula el resultado de la validaciÃ³n regulatoria (vÃ¡li
 
 ### Recursos
 
-- Repositorio: ProquifaDotNet-R14, branch `develop-pack04`
+- Repositorio: ProquifaDotNet, branch `develop-pack04`
 - Proyecto: `Logic.Pqf.Logistica\Logic.Pqf.Logistica.csproj`
 
 ---
@@ -173,7 +173,7 @@ Crear el DTO que encapsula el resultado de la validaciÃ³n regulatoria (vÃ¡li
 
 ### Aplicativos
 
-- ProquifaDotNet-R14
+- ProquifaDotNet
 
 ### MÃ³dulos
 
@@ -229,7 +229,7 @@ Integrar la llamada a `ValidarDocumentosRegulatoriosBO.Validar()` dentro del flu
 
 ### Recursos
 
-- Repositorio: ProquifaDotNet-R14, branch `develop-pack04`
+- Repositorio: ProquifaDotNet, branch `develop-pack04`
 - Proyecto: `Logic.Pqf.Logistica\Logic.Pqf.Logistica.csproj`
 
 ---
@@ -242,7 +242,7 @@ Integrar la llamada a `ValidarDocumentosRegulatoriosBO.Validar()` dentro del flu
 
 ### Aplicativos
 
-- ProquifaDotNet-R14
+- ProquifaDotNet
 
 ### MÃ³dulos
 
@@ -297,7 +297,7 @@ Verificar que el mÃ©todo `ProductoBO.EsControlado()` retorna `true` para produ
 
 ### Recursos
 
-- Repositorio: ProquifaDotNet-R14, branch `develop-pack04`
+- Repositorio: ProquifaDotNet, branch `develop-pack04`
 - Proyecto: `Logic.Pqf.Catalogos\Logic.Pqf.Catalogos.csproj`
 
 ---
