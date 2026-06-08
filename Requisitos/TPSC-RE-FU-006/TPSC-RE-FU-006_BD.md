@@ -353,7 +353,7 @@ ORDER BY c.Nombre;
 
 ## Módulos Consumidores
 
-| Módulo | Tabla | Campo | Descripción |
-|---|---|---|---|
-| Generación de Proforma | `tpProformaPedido` | `ReferenciaPago` | Se escribe la referencia reconstruida al generar el PDF |
-| Buzón de Pagos | `fccPagoCliente` | `ReferenciaBancaria` | Identificación de pagos contra la referencia del cliente |
+| Módulo                 | Tabla              | Campo                | Descripción                                              |
+| ---------------------- | ------------------ | -------------------- | -------------------------------------------------------- |
+| Generación de Proforma | `tpProformaPedido` | `ReferenciaPago`     | Se escribe la referencia reconstruida al generar el PDF  |
+| Buzón de Pagos         | `fccPagoCliente`   | `ReferenciaBancaria` | Identificación de pagos contra la referencia del cliente |

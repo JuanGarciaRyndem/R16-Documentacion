@@ -1,128 +1,269 @@
 # Impacto en BD - Diseno y Generacion PDF Proforma Mexico
 **Requisito:** TPSC-RE-FU-016
 **Base de Datos:** ProquifaDotNet
-**Version:** 1.0
+**Version:** 2.5
 
 ---
 
 ## Resumen
 Generacion del PDF de Proforma al tramitar pedido Prepago sin FAA para clientes Mexico.
-Branding diferenciado por empresa emisora (GOL/MUN/PRO/PQF). Foliador global con PRF.
-PDF se genera bajo demanda en previsualizacion, se persiste en BD tras envio exitoso.
-SIN CAMBIOS ESTRUCTURALES MAYORES - Posible nueva tabla de branding/plantilla.
+Branding diferenciado por empresa emisora (GOL/MUN/PRO/PQF). Foliador global PRF.
+PDF se genera bajo demanda, se persiste en Minio via tabla Archivo tras envio exitoso.
+Logos se resuelven por Prefijo en DocumentBuilder (repositorio o base64), no en BD.
 
 ---
 
 ## Impacto en BD
 
-> El PDF se genera bajo demanda y se persiste como artefacto inmutable tras envio.
-> Las fuentes de datos (Cliente, Pedido, CuentasBancarias, Empresa) ya existen.
-> El foliador global ya existe (usado por tpProformaPedido.Folio).
-> Posible impacto: tabla de configuracion de branding por empresa si no existe.
+| #   | Cambio                                                          | Tipo         | Prioridad |
+| --- | --------------------------------------------------------------- | ------------ | --------- |
+| 1   | ALTER TABLE tpProformaPedido ADD FolioProforma varchar(80) NULL | ALTER        | Alta      |
+| 2   | CREATE SEQUENCE dbo.SeqFolioProforma                            | DDL Nuevo    | Alta      |
+| 3   | CREATE VIEW dbo.vtpProformaPedido                               | Vista nueva  | Alta      |
+| 4   | ClienteDatosBancarios (RE-FU-006)                               | Prerequisito | Alta      |
+| 5   | EmpresaDatosBancarios.IdRegion (RE-FU-001)                      | Prerequisito | Alta      |
+
+> tpProformaPedido.Folio/Serie/Uuid son de la **factura CFDI**, no de la proforma.
+> Se requiere campo **FolioProforma** nuevo para el foliador PRF global.
+> Se reutiliza: tpPedido.IdArchivo -> Archivo (FileKey + FileBucket) para el PDF.
+> Logos NO van en BD ni en Minio — se resuelven por Prefijo en el DocumentBuilder.
+
+---
+
+## Aclaracion: campos existentes en tpProformaPedido
+
+| Campo existente                 | Uso REAL                                    | Es folio proforma? |
+| ------------------------------- | ------------------------------------------- | ------------------ |
+| Folio                           | Folio de la factura CFDI                    | NO                 |
+| Serie                           | Serie de la factura CFDI                    | NO                 |
+| Uuid                            | UUID del timbrado CFDI                      | NO                 |
+| NumeroFactura                   | Numero de factura                           | NO                 |
+| IdCFDI / IdCFDIGenerada         | FK al CFDI                                  | NO                 |
+| **FolioProforma (NUEVO)**       | **Folio PRF global de la proforma**         | **SI**             |
+| **ConsecutivoProforma (NUEVO)** | **Folio Consecutivo global de la proforma** | **SI**             |
+
+---
+
+## Script de cambios
+
+    -- Created by GitHub Copilot in SSMS - review carefully before executing
+
+    -- 1. Nuevo campo para folio de proforma
+    ALTER TABLE dbo.tpProformaPedido
+        ADD FolioProforma varchar(80) NULL;
+    -- 1. Nuevo campo para folio de proforma
+    ALTER TABLE dbo.tpProformaPedido
+        ADD ConsecutivoProforma int DEFAULT(0);
+
+    -- 2. Foliador global (ajustar START WITH al MAX consecutivo existente + 1)
+    CREATE SEQUENCE dbo.SeqFolioProforma
+        AS INT
+        START WITH 1
+        INCREMENT BY 1
+        NO CYCLE;
+    GO
+
+    -- 3. Vista operativa con catalogos resueltos
+    CREATE VIEW dbo.vtpProformaPedido
+    AS
+    SELECT
+        pp.IdTPProformaPedido,
+         --Poner Columna (FolioProforma+'-'+ConsecutivoProforma) as FolioProforma
+		pp.IdCliente,
+        c.Nombre              AS ClienteNombre,
+        pp.IdEmpresa,
+        e.Prefijo             AS EmpresaPrefijo,
+        e.Alias               AS EmpresaAlias,
+        pp.ReferenciaPago,
+        pp.NumeroFactura,
+        pp.MontoTotal,
+        pp.MontoPagado,
+        pp.MontoPendiente,
+        pp.FechaCompromisoPago,
+        pp.FechaPromesaPagoMonitoreoCobros,
+        pp.FechaPagoCompleto,
+        pp.FacturaFlete,
+        pp.Factura,
+        pp.MXN,
+        pp.USD,
+        pp.Folio              AS FolioFactura,
+        pp.Serie              AS SerieFactura,
+        pp.Uuid               AS UuidCFDI,
+        pp.Cancelada,
+        pp.Controlados,
+        pp.Comentarios,
+        pp.Publicaciones,
+        pp.Revisada,
+        pp.Contrarecibo,
+        pp.NumeroOrdenDeCompra,
+        pp.IdContactoCliente,
+        pp.IdDireccionCliente,
+        pp.IdCFDI,
+        pp.IdCFDIGenerada,
+        pp.IdTPProformaPedidoReemplazo,
+        pp.FechaRegistro,
+        pp.FechaUltimaActualizacion,
+        pp.Activo,
+        pp.PrecioFleteKPI,
+        -- Datos del pedido vinculado
+        tp.IdTPPedido,
+        tp.FolioPedidoInterno,
+        tp.IdRegion,
+        r.Nombre              AS Region,
+        r.ClaveISO            AS RegionClave,
+        tp.IdCatCondicionesDePago,
+        cdp.CondicionesDePago,
+        tp.FacturaPorAdelantado,
+        tp.EntregaConRemision,
+        tp.Tramitado,
+        tp.FechaTramitacion
+    FROM dbo.tpProformaPedido pp
+    LEFT  JOIN dbo.Cliente c            ON pp.IdCliente = c.IdCliente
+    LEFT  JOIN dbo.Empresa e            ON pp.IdEmpresa = e.IdEmpresa
+    LEFT  JOIN dbo.tpPedidoProformaPedido tpp ON pp.IdTPProformaPedido = tpp.IdTPProformaPedido
+                                              AND tpp.Activo = 1
+    LEFT  JOIN dbo.tpPedido tp          ON tpp.IdTPPedido = tp.IdTPPedido
+    LEFT  JOIN dbo.Region r             ON tp.IdRegion = r.IdRegion
+    LEFT  JOIN dbo.catCondicionesDePago cdp ON tp.IdCatCondicionesDePago = cdp.IdCatCondicionesDePago;
+
+---
+
+## Vista vtpProformaPedido - Columnas
+
+| Columna              | Origen                                | Descripcion                                |
+| -------------------- | ------------------------------------- | ------------------------------------------ |
+| IdTPProformaPedido   | tpProformaPedido                      | PK                                         |
+| FolioProforma        | FolioProforma+'-'+ConsecutivoProforma | FolioProforma(PreFijo-Fecha) + Consecutivo |
+| ClienteNombre        | Cliente.Nombre                        | Nombre del cliente                         |
+| EmpresaPrefijo       | Empresa.Prefijo                       | GOL/MUN/PRO/PQF (branding)                 |
+| EmpresaAlias         | Empresa.Alias                         | Nombre corto empresa                       |
+| MontoTotal           | tpProformaPedido                      | Monto total de la proforma                 |
+| MontoPagado          | tpProformaPedido                      | Monto pagado (Validar Cobro)               |
+| MontoPendiente       | tpProformaPedido                      | Monto pendiente de cobro                   |
+| FolioFactura         | tpProformaPedido.Folio                | Folio de la factura CFDI                   |
+| SerieFactura         | tpProformaPedido.Serie                | Serie de la factura CFDI                   |
+| UuidCFDI             | tpProformaPedido.Uuid                 | UUID del timbrado                          |
+| Controlados          | tpProformaPedido                      | 1=Sustancias controladas                   |
+| IdTPPedido           | tpPedido (via tpPedidoProformaPedido) | Pedido vinculado                           |
+| FolioPedidoInterno   | tpPedido                              | Folio interno del pedido                   |
+| Region               | Region.Nombre                         | Mexico / Peru                              |
+| RegionClave          | Region.ClaveISO                       | MEX / PER                                  |
+| CondicionesDePago    | catCondicionesDePago                  | Texto condiciones                          |
+| FacturaPorAdelantado | tpPedido                              | 1=FAA activa                               |
+| EntregaConRemision   | tpPedido                              | 1=Remision                                 |
+| Tramitado            | tpPedido                              | 1=Pedido tramitado                         |
+| FechaTramitacion     | tpPedido                              | Fecha de tramitacion                       |
+
+---
+
+## Patron de Almacenamiento (existente)
+
+    RegionConfiguracionMinioBucket
+        BucketClave, BucketNombre, IdRegion, EsRegionalizable
+
+    Archivo
+        IdArchivo (PK)
+        FileKey: varchar(600)   <- path en Minio
+        FileBucket: varchar(100) <- bucket (default 'public/')
+        IdRegion: FK Region
+        Sincronizado: bit
+
+    tpPedido.IdArchivo -> Archivo.IdArchivo  (PDF persistido)
+
+---
+
+## Persistencia del PDF
+
+| Etapa | BD | Minio |
+|-------|-----|-------|
+| Previsualizacion | Nada | Nada (PDF en memoria) |
+| Envio exitoso | INSERT Archivo + UPDATE tpPedido.IdArchivo + UPDATE tpProformaPedido.FolioProforma | Sube PDF al bucket 'pedidos' |
+| Consulta historica | SELECT Archivo.FileKey, FileBucket | Descarga PDF |
+
+**Flujo de persistencia:**
+
+    1. NEXT VALUE FOR dbo.SeqFolioProforma -> @Consecutivo
+    2. @FolioProforma = FORMAT(GETDATE(),'MMddyy') + '-' + CAST(@Consecutivo AS VARCHAR)
+    3. INSERT dbo.Archivo (FileKey='proformas/PRF-{FolioProforma}.pdf', FileBucket='pedidos', IdRegion=MEX)
+    4. UPDATE dbo.tpPedido SET IdArchivo = @IdArchivo
+    5. UPDATE dbo.tpProformaPedido SET FolioProforma = @FolioProforma
+    6. PDF binario sube a Minio bucket 'pedidos'
+
+---
+
+## Foliador Global PRF
+
+| Aspecto            | Valor                                                 |
+| ------------------ | ----------------------------------------------------- |
+| Campo BD           | **tpProformaPedido.FolioProforma** (varchar 80) NUEVO |
+| Campo BD           | **tpProformaPedido.ConsecutivoProforma** (int) NUEVO  |
+| Formato interno BD | MMDDAA-Consecutivo (ej: 031826-691)                   |
+| Formato visual PDF | PRF-MMDDAA-Consecutivo (prefijo PRF solo en render)   |
+| Segmentacion       | Ninguna (global)                                      |
+| Momento consumo    | Al confirmar envio exitoso (sin huecos)               |
+| Mecanismo          | SQL SEQUENCE dbo.SeqFolioProforma                     |
+
+---
+
+## Branding
+
+| Empresa | Prefijo | Resolucion |
+|---------|---------|------------|
+| Golocaer S.A. de C.V. | GOL | DocumentBuilder: repo versionado o base64 |
+| Mungen S.A. de C.V. | MUN | DocumentBuilder: repo versionado o base64 |
+| Proquifa S.A. de C.V. | PRO | DocumentBuilder: repo versionado o base64 |
+| Proveedora Quimico Farmaceutica S.A. de C.V. | PQF | DocumentBuilder: repo versionado o base64 |
+
+> DocumentBuilder recibe Empresa.Prefijo y traduce a logo + color.
+> Assets viven en el repositorio de codigo, no en BD ni en Minio.
 
 ---
 
 ## Fuentes de Datos para el PDF
 
-| Seccion del PDF | Tabla Fuente | Campos |
-|-----------------|-------------|--------|
-| Cabecera - Logo y color | Empresa | Prefijo (GOL/MUN/PRO/PQF) -> determina branding |
-| Cabecera - Folio PRF | tpProformaPedido | Folio (formato MMDDAA-Consecutivo) |
-| Cliente | Cliente / DatosFacturacionCliente | Alias o RazonSocial, RFC |
-| Partidas | tpProformaPartidaPedido + tpPartidaPedido | IdProducto, NumeroDePiezas, PrecioUnitario |
-| Descripcion producto | Producto / MarcaFamilia | Catalogo + Descripcion + Marca |
-| Montos (SubTotal, IVA, Total) | tpProformaPedido | MontoTotal + calculo IVA |
-| Moneda de facturacion | DatosFacturacionCliente | IdCatMoneda -> catMoneda.ClaveMoneda |
-| Tipo de cambio | tpPedido | TipoCambioFacturacion / TipoDeCambioDiarioOficial |
-| Condiciones de Pago | catCondicionesDePago | CondicionesDePago (ej. PREPAGO 100%) |
-| Datos bancarios | EmpresaDatosBancarios + DatosBancarios + catBanco | Banco, Cuenta, CLABE, Sucursal |
-| REF. CLIENTE | Logica CodigoValidador | Referencia bancaria dinamica por cuenta |
-| Facturacion | DatosFacturacionCliente | RFC, RazonSocial, DireccionFiscal |
-| Entrega | tpPedido + DireccionCliente | FolioPedidoInterno, Direccion, ContactoEntrega |
-| Pie - Empresa emisora | Empresa | RazonSocial legal, Direccion legal |
-| Pie - Certificaciones | Configuracion empresa | ISO 9001, NEEC, metodos pago |
+| Seccion PDF | Tabla Fuente | Campos |
+|-------------|-------------|--------|
+| Cabecera - Logo/Color | Empresa | Prefijo -> DocumentBuilder |
+| Cabecera - Folio Proforma | tpProformaPedido | **FolioProforma** (NUEVO) |
+| Cliente | Cliente + DatosFacturacionCliente | Alias/RazonSocial, RFC |
+| Partidas | tpProformaPartidaPedido | IdProducto, NumeroDePiezas, PrecioUnitario |
+| Descripcion producto | Producto + MarcaFamilia | Catalogo + Descripcion + Marca |
+| Pago - Montos | tpProformaPedido | MontoTotal + calculo IVA |
+| Pago - Moneda | DatosFacturacionCliente.IdCatMoneda | catMoneda.ClaveMoneda |
+| Pago - Tipo cambio | tpPedido | TipoCambioFacturacion |
+| Pago - Condiciones | catCondicionesDePago | CondicionesDePago texto |
+| Bancarios - Cuentas | EmpresaDatosBancarios + DatosBancarios | Banco, Cuenta, CLABE, Sucursal |
+| Bancarios - REF.CLIENTE | ClienteDatosBancarios (RE-FU-006) | CodigoValidador |
+| Facturacion | DatosFacturacionCliente + DireccionCliente | RFC, RazonSocial, Direccion fiscal |
+| Entrega | tpPedido + DireccionCliente + ContactoCliente | FolioPedido, Direccion, Contacto |
+| Pie - Empresa | Empresa | RazonSocial legal, Direccion legal |
 
 ---
 
-## Tablas Consultadas (Lectura - sin modificacion)
+## Tablas Consultadas (Lectura)
 
 | Tabla | Rol |
 |-------|-----|
-| tpPedido | Cabecera pedido: FolioPedidoInterno, IdEmpresa, IdRegion, TipoCambio |
-| tpProformaPedido | Folio proforma, MontoTotal, ReferenciaPago |
-| tpProformaPartidaPedido | Partidas: IdProducto, NumeroDePiezas, PrecioUnitario |
-| tpPartidaPedido | Datos adicionales de partida |
+| tpPedido | FolioPedidoInterno, IdEmpresa, IdRegion, TipoCambio, IdArchivo |
+| tpProformaPedido | FolioProforma, MontoTotal, ReferenciaPago |
 | tpPedidoProformaPedido | Vinculacion pedido-proforma |
-| Producto / MarcaFamilia | Catalogo, Descripcion, Marca |
-| Cliente | Alias, Nombre |
-| DatosFacturacionCliente | RFC, RazonSocial, IdCatMoneda, Correo, DireccionFiscal |
-| DireccionCliente | Direccion de entrega |
+| tpProformaPartidaPedido | Partidas: IdProducto, Piezas, PrecioUnitario |
+| tpPartidaPedido | Datos adicionales partida |
+| Producto + MarcaFamilia | Catalogo, Descripcion, Marca |
+| Cliente | Nombre, Alias |
+| DatosFacturacionCliente | RFC, RazonSocial, IdCatMoneda, Correo |
+| DireccionCliente | Direccion fiscal y de entrega |
 | ContactoCliente | Contacto de entrega |
-| Empresa | Prefijo, RazonSocial legal, Direccion legal -> branding |
+| Empresa | Prefijo, RazonSocial legal, Direccion legal |
 | EmpresaDatosBancarios | Cuentas bancarias del grupo (MN + DLS) |
 | DatosBancarios | NumeroDeCuenta, Clabe, Sucursal |
 | catBanco | Nombre del banco |
 | catMoneda | ClaveMoneda (MXN/USD) |
 | catCondicionesDePago | CondicionesDePago texto |
 | Region | Filtro MEX |
-
----
-
-## Persistencia del PDF
-
-| Etapa | Almacenamiento | Descripcion |
-|-------|---------------|-------------|
-| Previsualizacion | NO se persiste | PDF generado bajo demanda, descartable |
-| Envio exitoso confirmado | SI se persiste | PDF final inmutable en BD |
-| Consulta historica | Desde BD | PDF almacenado, sin regeneracion |
-
-**Tabla de almacenamiento del PDF:**
-- Posible: tpProformaPedido ya tiene relacion con Archivo via tpPedido.IdArchivoPDF
-- O tabla Archivo generica del sistema (IdArchivo -> contenido binario)
-- ** Pendiente decisión técnica: BLOB vs snapshot estructurado **
-
----
-
-## Foliador Global PRF
-
-| Aspecto | Detalle |
-|---------|---------|
-| Tabla | tpProformaPedido.Folio |
-| Formato interno | MMDDAA-Consecutivo |
-| Formato visual PDF | PRF-MMDDAA-Consecutivo |
-| Segmentacion | NINGUNA (lineal global, sin segmentar por empresa/region) |
-| Prefijo PRF | Solo en representacion visual del PDF - posiblemente no en BD |
-
-> **Pendiente:** confirmar si el prefijo PRF se almacena en BD o solo en render.
-> **Pendiente:** momento de consumo del folio (previsualizacion vs envio exitoso).
-
----
-
-## Branding por Empresa Emisora
-
-| Empresa | Prefijo | Logo | Color | Razon Social Legal |
-|---------|---------|------|-------|-------------------|
-| Golocaer S.A. de C.V. | GOL | Logo GOL | Color GOL | Completa |
-| Mungen S.A. de C.V. | MUN | Logo MUN | Color MUN | Completa |
-| Proquifa S.A. de C.V. | PRO | Logo PRO | Color PRO | Completa |
-| Proveedora Quimico Farmaceutica S.A. de C.V. | PQF | Logo PQF | Color PQF | Completa |
-
-> Actualmente la tabla Empresa tiene Prefijo, RazonSocial y posiblemente Alias.
-> El logo y color institucional probablemente se gestionan en la capa de aplicacion
-> o en una tabla de configuracion de branding. Verificar si existe.
-
----
-
-## Codigo Validador (REF. CLIENTE)
-
-    Cuenta Banamex:
-        Concatenacion de 7 segmentos: nombre cliente + clave + codigo banco + moneda + CodValidador
-
-    Cuenta No-Banamex:
-        Nombre del cliente directo
-
-> Esta logica ya existe en la aplicacion (RE-FU-006).
-> El PDF la consume en el render de la seccion de datos bancarios.
+| Archivo | FileKey, FileBucket (persistencia PDF) |
+| RegionConfiguracionMinioBucket | Bucket 'pedidos' |
+| ClienteDatosBancarios (RE-FU-006) | CodigoValidador para REF.CLIENTE |
 
 ---
 
@@ -130,16 +271,14 @@ SIN CAMBIOS ESTRUCTURALES MAYORES - Posible nueva tabla de branding/plantilla.
 
 | # | Gap | Tipo | Accion |
 |---|-----|------|--------|
-| 1 | Momento consumo folio (previsualizacion vs envio) | Tecnico | Definir con equipo desarrollo + validacion fiscal |
-| 2 | Almacenamiento PDF (BLOB vs snapshot) | Tecnico | Definir con equipo desarrollo |
-| 3 | Prefijo PRF en BD o solo en render | Tecnico | Confirmar con equipo |
-| 4 | Vigencia del documento - regla de calculo | Negocio | Confirmar con cliente |
-| 5 | Seccion Cliente: Alias vs RazonSocial | Negocio | Confirmar con cliente |
-| 6 | Seccion Entrega: tipo de contacto | Negocio | Confirmar con cliente |
-| 7 | Certificaciones y logos pie: vigencia | Negocio | Confirmar con cliente |
-| 8 | Datos bancarios: siempre MN+DLS o variable | Negocio | Confirmar con cliente |
-| 9 | Leyenda PUE: siempre aplica para Prepago | Fiscal | Confirmar con equipo contable |
-| 10 | Tabla de branding por empresa (logo/color) | Tecnico | Verificar si existe o crear |
+| 1 | START WITH del SEQUENCE | Tecnico | Consultar MAX(consecutivo) en produccion |
+| 2 | Vigencia del documento | Negocio | Confirmar regla de calculo |
+| 3 | Alias vs RazonSocial en seccion Cliente | Negocio | Confirmar dato fuente |
+| 4 | Contacto de entrega: cual contacto | Negocio | Confirmar tipo |
+| 5 | Certificaciones pie (ISO/NEEC) | Negocio | Confirmar vigencia |
+| 6 | Cuentas siempre MN+DLS | Negocio | Confirmar si puede variar |
+| 7 | PUE siempre en Prepago | Fiscal | Confirmar con equipo contable |
+| 8 | Prefijo PRF en BD o solo render | Tecnico | Recomendacion: solo render |
 
 ---
 
@@ -147,11 +286,10 @@ SIN CAMBIOS ESTRUCTURALES MAYORES - Posible nueva tabla de branding/plantilla.
 
 | Requisito | Relacion |
 |-----------|----------|
-| TPSC-RE-FU-013 | Flujo Prepago con controlados - mismo PDF sin FAA |
-| TPSC-RE-FU-014 | Flujo Prepago sin controlados sin FAA - mismo PDF |
-| TPSC-RE-FU-006 | Codigo Validador / ReferenciaPago en seccion bancaria |
-| TPSC-RE-FU-001 | Catalogo Cuentas Bancarias del grupo (seccion datos bancarios) |
-| TPSC-RE-FU-007 | Leyenda regulatoria (si aplica controlados - otro PDF) |
+| TPSC-RE-FU-001 | EmpresaDatosBancarios.IdRegion (filtrar cuentas MEX) |
+| TPSC-RE-FU-006 | ClienteDatosBancarios.CodigoValidador (REF.CLIENTE) |
+| TPSC-RE-FU-013 | Flujo Prepago con controlados (mismo PDF) |
+| TPSC-RE-FU-014 | Flujo Prepago sin controlados sin FAA (dispara este PDF) |
 
 ---
 
