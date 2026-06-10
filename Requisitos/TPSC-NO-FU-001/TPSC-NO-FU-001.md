@@ -350,17 +350,40 @@ WHERE [Estado] IN ('PENDIENTE', 'ERROR');
 
 **Descripción:** Registro de plantillas HTML disponibles para envío de correos simples y genéricos. Permite administración sin despliegue.
 
+| Columna                    | Tipo                                   | Descripción                                       |
+| -------------------------- | -------------------------------------- | ------------------------------------------------- |
+| `IdPlantillaCorreo`        | `uniqueidentifier` PK                  | Identificador                                     |
+| `Clave`                    | `nvarchar(100)` NOT NULL UNIQUE        | Clave única de la plantilla (ej. `COTIZACION_MX`) |
+| `Nombre`                   | `nvarchar(200)` NOT NULL               | Nombre descriptivo                                |
+| `Asunto`                   | `nvarchar(500)` NULL                   | Asunto por defecto                                |
+| `ContenidoHtml`            | `nvarchar(max)` NOT NULL               | Contenido HTML con marcadores `{{variable}}`      |
+| `IdRegion`                 | `uniqueidentifier` NULL                | NULL = global, con valor = específica de región   |
+| `Activo`                   | `bit` NOT NULL DEFAULT 1               | Plantilla activa                                  |
+| `FechaRegistro`            | `datetime2` NOT NULL DEFAULT GETDATE() | Fecha de creación                                 |
+| `FechaUltimaActualizacion` | `datetime2` NOT NULL DEFAULT GETDATE() | Última modificación                               |
+
+#### Tabla: `CatalogoPlantillaBrevo`
+
+**Descripción:** Catálogo de plantillas nativas de Brevo disponibles para envío. Mapea una clave lógica al `IdTemplateBrevo` (entero) de la plataforma Brevo. A diferencia de `PlantillaCorreo`, el HTML es renderizado por Brevo en sus servidores; el servidor solo pasa el ID y los parámetros dinámicos.
+
 | Columna | Tipo | Descripción |
 |---|---|---|
-| `IdPlantillaCorreo` | `uniqueidentifier` PK | Identificador |
-| `Clave` | `nvarchar(100)` NOT NULL UNIQUE | Clave única de la plantilla (ej. `COTIZACION_MX`) |
+| `IdCatalogoPlantillaBrevo` | `uniqueidentifier` PK | Identificador interno |
+| `Clave` | `nvarchar(100)` NOT NULL UNIQUE | Clave lógica (e.g. `BIENVENIDA_CLIENTE`) |
+| `IdTemplateBrevo` | `int` NOT NULL | ID de plantilla en la plataforma Brevo |
 | `Nombre` | `nvarchar(200)` NOT NULL | Nombre descriptivo |
-| `Asunto` | `nvarchar(500)` NULL | Asunto por defecto |
-| `ContenidoHtml` | `nvarchar(max)` NOT NULL | Contenido HTML con marcadores `{{variable}}` |
-| `IdRegion` | `uniqueidentifier` NULL | NULL = global, con valor = específica de región |
-| `Activo` | `bit` NOT NULL DEFAULT 1 | Plantilla activa |
-| `FechaRegistro` | `datetime2` NOT NULL DEFAULT GETDATE() | Fecha de creación |
-| `FechaUltimaActualizacion` | `datetime2` NOT NULL DEFAULT GETDATE() | Última modificación |
+| `Descripcion` | `nvarchar(500)` NOT NULL DEFAULT '' | Descripción del uso de la plantilla |
+| `EsquemaParametros` | `nvarchar(MAX)` NOT NULL DEFAULT '{}'  | JSON con los parámetros esperados por la plantilla |
+| `IdRegion` | `uniqueidentifier` NULL | Región de la cuenta Brevo (NULL = aplica a todas) |
+| `FechaRegistro` | `datetime2` NOT NULL DEFAULT GETDATE() | Fecha de alta |
+| `FechaUltimaActualizacion` | `datetime2` NOT NULL DEFAULT GETDATE() | Último timestamp |
+| `Activo` | `bit` NOT NULL DEFAULT 1 | Borrado lógico |
+
+**Índices:**
+- `UQ_CatalogoPlantillaBrevo_Clave` — único sobre `Clave`
+- `IX_CatalogoPlantillaBrevo_IdTemplateBrevo` — non-clustered sobre `IdTemplateBrevo`
+
+---
 
 #### Tabla: `AppSettings`
 
@@ -388,22 +411,25 @@ ProquifaDotNet.SendInBlue/
 │   │   ├── BitacoraEnvioCorreo.cs
 │   │   ├── ConfiguracionSendInBlue.cs
 │   │   ├── PlantillaCorreo.cs
+│   │   ├── CatalogoPlantillaBrevo.cs
 │   │   └── AppSettings.cs
 │   ├── Interfaces/
 │   │   ├── ISolicitudCorreoRepository.cs
 │   │   ├── IBitacoraEnvioCorreoRepository.cs
 │   │   ├── IConfiguracionSendInBlueRepository.cs
 │   │   ├── IPlantillaCorreoRepository.cs
+│   │   ├── ICatalogoPlantillaBrevoRepository.cs
 │   │   └── IBrevoMailService.cs
 │   └── Enums/
-│       ├── TipoEnvioCorreo.cs         (TEMPLATE, SIMPLE, HTML)
+│       ├── TipoEnvioCorreo.cs         (TEMPLATE, SIMPLE, HTML, BREVO_TEMPLATE)
 │       └── EstadoSolicitudCorreo.cs   (PENDIENTE, PROCESANDO, ENVIADO, ERROR, CANCELADO)
 │
 ├── Application/
 │   ├── Commands/
-│   │   ├── EnviarCorreoCommand.cs         (envío template vía XSLT — flujo principal)
-│   │   ├── EnviarCorreoSimpleCommand.cs   (envío simple sin plantilla XSLT)
-│   │   ├── EnviarCorreoHtmlCommand.cs     (envío con HTML explícito)
+│   │   ├── EnviarCorreoCommand.cs                 (envío template vía XSLT — flujo principal)
+│   │   ├── EnviarCorreoSimpleCommand.cs           (envío simple sin plantilla XSLT)
+│   │   ├── EnviarCorreoHtmlCommand.cs             (envío con HTML explícito)
+│   │   ├── EnviarCorreoPlantillaBrevoCommand.cs   (envío por plantilla nativa de Brevo)
 │   │   └── SincronizarEstadoCorreoCommand.cs
 │   ├── Queries/
 │   │   ├── ObtenerSolicitudCorreoQuery.cs
@@ -412,10 +438,12 @@ ProquifaDotNet.SendInBlue/
 │   │   ├── EnviarCorreoDto.cs
 │   │   ├── EnviarCorreoSimpleDto.cs
 │   │   ├── EnviarCorreoHtmlDto.cs
+│   │   ├── EnviarCorreoPlantillaBrevoDto.cs
 │   │   └── SolicitudCorreoDto.cs
 │   └── Validators/
 │       ├── EnviarCorreoCommandValidator.cs
-│       └── EnviarCorreoHtmlCommandValidator.cs
+│       ├── EnviarCorreoHtmlCommandValidator.cs
+│       └── EnviarCorreoPlantillaBrevoCommandValidator.cs
 │
 ├── Infrastructure/
 │   ├── Persistence/
@@ -426,8 +454,9 @@ ProquifaDotNet.SendInBlue/
 │   │       ├── BitacoraEnvioCorreoRepository.cs
 │   │       └── ConfiguracionSendInBlueRepository.cs
 │   ├── Brevo/
-│   │   ├── BrevoMailService.cs        (implementa IBrevoMailService — HTTP a Brevo)
-│   │   ├── BrevoMailRequest.cs
+│   │   ├── BrevoMailService.cs              (implementa IBrevoMailService — HTTP a Brevo)
+│   │   ├── BrevoMailRequest.cs              (request para envío con HTML/texto)
+│   │   ├── BrevoTemplateRequest.cs          (request para envío por templateId Brevo)
 │   │   └── BrevoMailResponse.cs
 │   ├── Templates/
 │   │   ├── XsltTemplateRenderer.cs    (migrado de Logic.MailXslt)
@@ -442,7 +471,7 @@ ProquifaDotNet.SendInBlue/
 │
 ├── API/
 │   ├── Controllers/
-│   │   └── CorreoController.cs        (3 endpoints)
+│   │   └── CorreoController.cs        (4 endpoints)
 │   └── Program.cs
 │
 ├── Worker.SendMail/
@@ -517,20 +546,58 @@ Envío con contenido HTML explícito. Para correos donde el caller ya generó el
 
 ---
 
+#### `POST /api/correo/plantilla-brevo`
+
+Envío usando una plantilla nativa de Brevo. El HTML es renderizado por Brevo en sus servidores; el servidor solo envía el `IdTemplateBrevo` y los parámetros dinámicos. La plantilla se puede referenciar por `clave` lógica (lookup en `CatalogoPlantillaBrevo`) o por `idTemplateBrevo` directo.
+
+**Request:**
+```json
+{
+  "idRegion": "guid",
+  "receptores": [{ "nombre": "string", "correo": "string" }],
+  "conCopia": [{ "nombre": "string", "correo": "string" }],
+  "clave": "BIENVENIDA_CLIENTE",
+  "idTemplateBrevo": null,
+  "params": {
+    "nombre": "Juan García",
+    "empresa": "Proquifa",
+    "urlAccion": "https://app.proquifa.mx/login"
+  }
+}
+```
+
+> `clave` o `idTemplateBrevo` — debe estar presente exactamente uno de los dos.
+
+**Comportamiento:** Resuelve `IdTemplateBrevo` si se pasó `clave` (consulta `CatalogoPlantillaBrevo`). Intenta envío directo; si hay timeout → encola en RabbitMQ con `TipoEnvioCorreo.BREVO_TEMPLATE`.
+
+**Response (envío directo):**
+```json
+{ "brevoMessageId": "string", "enviado": true }
+```
+
+**Response (encolado):**
+```json
+{ "idSolicitudCorreo": "guid", "estado": "PENDIENTE" }
+```
+
+---
+
 ### 6.3 Worker.SendMail
 
 Procesa dos tipos de trabajo asíncrono:
 
 **SendMailWorker** — escucha cola RabbitMQ `queueSendInBlue`:
 1. Recibe `SolicitudCorreoMessage { IdSolicitudCorreo }`
-2. Lee `SolicitudCorreo` + `CorreoEnviado` (via Scaffold)
-3. Resuelve plantilla XSLT según objeto relacionado
-4. Descarga adjuntos desde MinIO
-5. Llama `IBrevoMailService.SendMail`
-6. Actualiza `SolicitudCorreo.Estado` y `BitacoraEnvioCorreo`
-7. Actualiza `CorreoEnviado.IdentificadorCorreo` / `FechaEnvio` en ProquifaDotNet
-8. **Reintento:** en caso de fallo, programa `FechaProximoIntento` con backoff exponencial (hasta `MaxIntentos`)
-9. **Notificación:** al agotar intentos, notifica vía Brevo o log crítico
+2. Lee `SolicitudCorreo` + `TipoEnvioCorreo`
+3. Según tipo de envío:
+   - **TEMPLATE**: Lee `CorreoEnviado` (via Scaffold) → resuelve plantilla XSLT → descarga adjuntos MinIO → llama `IBrevoMailService.SendMail`
+   - **SIMPLE**: Lee `PlantillaCorreo` por clave → sustituye `{{params}}` → llama `IBrevoMailService.SendMail`
+   - **HTML**: Usa `HtmlContent` almacenado en `SolicitudCorreo` → llama `IBrevoMailService.SendMail`
+   - **BREVO_TEMPLATE**: Lee `IdTemplateBrevo` + `ParamsJson` de `SolicitudCorreo` → llama `IBrevoMailService.EnviarConPlantillaBrevo(templateId, receptores, params)`
+4. Actualiza `SolicitudCorreo.Estado` y `BitacoraEnvioCorreo`
+5. Para tipo TEMPLATE: actualiza `CorreoEnviado.IdentificadorCorreo` / `FechaEnvio` en ProquifaDotNet
+6. **Reintento:** en caso de fallo, programa `FechaProximoIntento` con backoff exponencial (hasta `MaxIntentos`)
+7. **Notificación:** al agotar intentos, notifica vía Brevo o log crítico
 
 **SincronizacionWorker** — ejecuta según cron configurado:
 1. Consulta `CorreoEnviado` enviados hoy sin `FechaLectura` (via Scaffold)
@@ -576,11 +643,11 @@ Las tablas de ProquifaDotNet que la nueva solución lee/escribe se agregan al Sc
 
 ## 8. Dependencias y Orden de Implementación
 
-1. **Base de datos** — Crear `ProquifaDotNetSendInBlue` con todas sus tablas
-2. **Domain + Application** — Entidades, interfaces, commands/queries, DTOs
-3. **Infrastructure** — Scaffold, repositorios, `BrevoMailService`, `XsltTemplateRenderer`
-4. **API** — 3 endpoints con autenticación IdentityServer
-5. **Worker.SendMail** — `SendMailWorker` + `SincronizacionWorker`
+1. **Base de datos** — Crear `ProquifaDotNetSendInBlue` con todas sus tablas, incluyendo `CatalogoPlantillaBrevo`
+2. **Domain + Application** — Entidades, interfaces, commands/queries, DTOs (incluye `EnviarCorreoPlantillaBrevoCommand`)
+3. **Infrastructure** — Scaffold, repositorios, `BrevoMailService` (con `EnviarConPlantillaBrevo`), `XsltTemplateRenderer`
+4. **API** — 4 endpoints con autenticación IdentityServer
+5. **Worker.SendMail** — `SendMailWorker` (4 tipos de envío) + `SincronizacionWorker`
 6. **Refactorizar ProquifaDotNet** — `CorreoEnviadoEnviarController` + `CorreoGenericoBO`
 7. **Testing** — Pruebas unitarias e integración
 8. **Validación en paralelo** — Correr ambos sistemas y comparar resultados

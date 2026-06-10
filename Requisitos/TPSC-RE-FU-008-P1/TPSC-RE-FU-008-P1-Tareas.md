@@ -3,7 +3,7 @@
 > **Requisito:** TPSC-RE-FU-008 — Buzon de Cobros (Mailbot Rediseñado)
 > **Propuesta:** P1 — Nueva solucion `MailbotWorker.sln` (.NET 10) + ajustes en ProquifaDotNet (Framework 4.8)
 > **Analisis de impacto:** `TPSC-RE-FU-008-P1-Back.md`
-> **Total de tareas:** 12
+> **Total de tareas:** 17
 
 ---
 
@@ -686,6 +686,317 @@ Implementar `CorreoWorkerMex.cs` y `CorreoWorkerPer.cs` como `BackgroundService`
 
 ---
 
+---
+
+## Tarea 13
+
+### [TPSC-RE-FU-008] [SERV-COMPLEX-TRANSACT] Crear CorreoRecibidoClienteBuzonCotizacionesBO
+
+**Aplicativos:**
+ProquifaDotNet (Framework 4.8) — `Logic.Pqf.Logistica`
+
+**Módulos:**
+Mailbot — L11 Cotizaciones — Buzón de correos de cotización
+
+**Consideraciones previas:**
+Esta tarea es el equivalente de la Tarea 4 para el buzón de Cotizaciones.
+El BO devuelve el listado paginado de correos clasificados como Requisición/Cotización, filtrado por el agente comercial (gestor) e `IdRegion` del usuario autenticado.
+La clave de clasificación a filtrar es `ClasificacionCorreoRecibidoConstants.Requisicion` (`"requisicion"`), que apunta a los correos procesados por `CorreoRecibidoClienteToCotizacionBO`.
+La región y el gestor se obtienen exclusivamente del contexto de autenticación — **no se aceptan como parámetros externos**.
+El filtro de región debe aplicarse usando `AsegurarFiltroRegion(ResumeGroupQueryInfo, IdRegion)`.
+Dependencia: Tareas 1 y 2 completadas.
+
+**Objetivo general:**
+Implementar `CorreoRecibidoClienteBuzonCotizacionesBO.cs` que retorne el listado paginado de correos de cotización para el gestor e `IdRegion` del usuario autenticado.
+
+**Objetivos específicos:**
+- Crear `Logic.Pqf.Logistica\L11.MailBot\Procesos\Cotizaciones\CorreoRecibidoClienteBuzonCotizacionesBO.cs`
+- Recibir `ResumeGroupQueryInfo` (paginación y filtros) como parámetro de entrada
+- Extraer `IdRegion` e `IdUsuario` (gestor) del contexto del BO — nunca de parámetros directos
+- Aplicar filtro de región obligatorio con `AsegurarFiltroRegion` antes de ejecutar la consulta
+- Filtrar por `ClasificacionCorreoRecibido.Clave = ClasificacionCorreoRecibidoConstants.Requisicion`
+- Retornar `PagedList<CorreoRecibidoClienteBuzonCotizacionesDTO>` con los campos requeridos por la vista
+- Implementar el mapeo entre entidades de BD y el DTO de respuesta
+
+**Resultado esperado:**
+`CorreoRecibidoClienteBuzonCotizacionesBO` retorna el listado paginado de correos de cotización filtrados por región y gestor, listo para ser consumido por `BuzonCotizacionesController`.
+
+**Entregables:**
+- Archivo nuevo: `Logic.Pqf.Logistica\L11.MailBot\Procesos\Cotizaciones\CorreoRecibidoClienteBuzonCotizacionesBO.cs`
+- Archivo nuevo (DTO): `Logic.Pqf.Logistica\L11.MailBot\DTOs\CorreoRecibidoClienteBuzonCotizacionesDTO.cs`
+
+**Criterios de aceptación:**
+- [ ] El BO aplica filtro de región obligatorio antes de ejecutar la consulta
+- [ ] El `IdRegion` se obtiene del contexto del BO — no de parámetros de entrada externos
+- [ ] Los correos MEX no aparecen en resultados para usuarios PER y viceversa
+- [ ] El listado está paginado usando `ResumeGroupQueryInfo`
+- [ ] El BO solo retorna correos con clasificación `Clave = 'requisicion'`
+- [ ] El proyecto `Logic.Pqf.Logistica` compila sin errores (Framework 4.8)
+- [ ] PR aprobado por líder técnico
+
+**Más información de la tarea:**
+- Patrón equivalente al GAP-03 del archivo `TPSC-RE-FU-008-P1-Back.md`, pero para clasificación `Requisicion`
+- La clave `Requisicion` se define en `ClasificacionCorreoRecibidoConstants` (Tarea 3)
+- Los correos en este buzón fueron pretramitados por `CorreoRecibidoClienteToCotizacionBO`
+
+**Recursos:**
+- Análisis de impacto backend: `Requisitos/TPSC-RE-FU-008-P1/TPSC-RE-FU-008-P1-Back.md`
+- Referencia de patrón (cobros): `Logic.Pqf.Logistica\L11.MailBot\Procesos\Cobros\CorreoRecibidoClienteBuzonCobrosBO.cs`
+- Requisito funcional: `Requisitos/TPSC-RE-FU-008/TPSC-RE-FU-008.md`
+
+---
+
+## Tarea 14
+
+### [TPSC-RE-FU-008] [LIST-PAG-MULT-FILTER] Crear BuzonCotizacionesController en WebApi.Logistica
+
+**Aplicativos:**
+ProquifaDotNet (Framework 4.8) — `WebApi.Logistica`
+
+**Módulos:**
+Mailbot — API — Buzón de Cotizaciones
+
+**Consideraciones previas:**
+Esta tarea es el equivalente de la Tarea 5 para el buzón de Cotizaciones.
+El controller expone el endpoint `POST /BuzonCotizaciones` que consume `CorreoRecibidoClienteBuzonCotizacionesBO`.
+La región y el gestor se extraen del token mediante `ObtenerUsuarioAutenticado()` — **no se aceptan como parámetros en el body o query string**.
+El controller debe seguir el patrón `BaseApiController` con `TryExecute()` para manejo de excepciones, idéntico al `BuzonCobrosController` de Tarea 5.
+Dependencia: Tarea 13 completada.
+
+**Objetivo general:**
+Crear `BuzonCotizacionesController.cs` en `WebApi.Logistica` que exponga `POST /BuzonCotizaciones` con paginación y múltiples filtros, consumiendo `CorreoRecibidoClienteBuzonCotizacionesBO` con la región del usuario autenticado.
+
+**Objetivos específicos:**
+- Crear `WebApi.Logistica\Controllers\Mailbot\BuzonCotizacionesController.cs` heredando de `BaseApiController`
+- Implementar acción `POST /BuzonCotizaciones` que recibe `ResumeGroupQueryInfo` en el body
+- Obtener `Usuario` autenticado con `ObtenerUsuarioAutenticado()` y pasar `IdRegion` al BO
+- Invocar `CorreoRecibidoClienteBuzonCotizacionesBO` y retornar el resultado paginado
+- Envolver la lógica en `TryExecute()` para manejo uniforme de excepciones
+- Aplicar atributo de autorización correspondiente al rol de gestor/agente comercial
+
+**Resultado esperado:**
+El endpoint `POST /BuzonCotizaciones` está disponible en `WebApi.Logistica`, retorna el listado paginado de correos de cotización filtrado por la región e identidad del usuario del token.
+
+**Entregables:**
+- Archivo nuevo: `WebApi.Logistica\Controllers\Mailbot\BuzonCotizacionesController.cs`
+
+**Criterios de aceptación:**
+- [ ] `POST /BuzonCotizaciones` retorna `200 OK` con listado paginado en estructura `ResumeGroupResult`
+- [ ] La región y el gestor se extraen del token mediante `ObtenerUsuarioAutenticado()` — no de parámetros externos
+- [ ] El controller usa `TryExecute()` para manejo de excepciones
+- [ ] El endpoint requiere autenticación (rol de gestor/agente comercial)
+- [ ] El proyecto `WebApi.Logistica` compila sin errores (Framework 4.8)
+- [ ] PR aprobado por líder técnico
+
+**Más información de la tarea:**
+- Patrón equivalente al GAP-04 del archivo `TPSC-RE-FU-008-P1-Back.md`, pero para el buzón de cotizaciones
+- Referencia de patrón: `BaseApiController.ObtenerUsuarioAutenticado()` en `Core.WebApi\ControllerOperations\BaseApiController.cs`
+
+**Recursos:**
+- Análisis de impacto backend: `Requisitos/TPSC-RE-FU-008-P1/TPSC-RE-FU-008-P1-Back.md`
+- Referencia de patrón (cobros): `WebApi.Logistica\Controllers\Mailbot\BuzonCobrosController.cs`
+- Requisito funcional: `Requisitos/TPSC-RE-FU-008/TPSC-RE-FU-008.md`
+
+---
+
+## Tarea 15
+
+### [TPSC-RE-FU-008] [SERV-COMPLEX-TRANSACT] Crear CorreoRecibidoClienteBuzonPedidosBO
+
+**Aplicativos:**
+ProquifaDotNet (Framework 4.8) — `Logic.Pqf.Logistica`
+
+**Módulos:**
+Mailbot — L11 Pedidos — Buzón de correos de pedido
+
+**Consideraciones previas:**
+Esta tarea es el equivalente de la Tarea 4 para el buzón de Pedidos.
+El BO devuelve el listado paginado de correos clasificados como Pedido, filtrado por el agente e `IdRegion` del usuario autenticado.
+La clave de clasificación a filtrar es `ClasificacionCorreoRecibidoConstants.Pedido` (`"pedido"`), que apunta a los correos procesados por `CorreoRecibidoClienteToPretramitacionPedidoBO`.
+La región y el agente se obtienen exclusivamente del contexto de autenticación — **no se aceptan como parámetros externos**.
+El filtro de región debe aplicarse usando `AsegurarFiltroRegion(ResumeGroupQueryInfo, IdRegion)`.
+Dependencia: Tareas 1 y 2 completadas.
+
+**Objetivo general:**
+Implementar `CorreoRecibidoClienteBuzonPedidosBO.cs` que retorne el listado paginado de correos de pedido para el agente e `IdRegion` del usuario autenticado.
+
+**Objetivos específicos:**
+- Crear `Logic.Pqf.Logistica\L11.MailBot\Procesos\Pedidos\CorreoRecibidoClienteBuzonPedidosBO.cs`
+- Recibir `ResumeGroupQueryInfo` (paginación y filtros) como parámetro de entrada
+- Extraer `IdRegion` e `IdUsuario` (agente) del contexto del BO — nunca de parámetros directos
+- Aplicar filtro de región obligatorio con `AsegurarFiltroRegion` antes de ejecutar la consulta
+- Filtrar por `ClasificacionCorreoRecibido.Clave = ClasificacionCorreoRecibidoConstants.Pedido`
+- Retornar `PagedList<CorreoRecibidoClienteBuzonPedidosDTO>` con los campos requeridos por la vista
+- Implementar el mapeo entre entidades de BD y el DTO de respuesta
+
+**Resultado esperado:**
+`CorreoRecibidoClienteBuzonPedidosBO` retorna el listado paginado de correos de pedido filtrados por región y agente, listo para ser consumido por `BuzonPedidosController`.
+
+**Entregables:**
+- Archivo nuevo: `Logic.Pqf.Logistica\L11.MailBot\Procesos\Pedidos\CorreoRecibidoClienteBuzonPedidosBO.cs`
+- Archivo nuevo (DTO): `Logic.Pqf.Logistica\L11.MailBot\DTOs\CorreoRecibidoClienteBuzonPedidosDTO.cs`
+
+**Criterios de aceptación:**
+- [ ] El BO aplica filtro de región obligatorio antes de ejecutar la consulta
+- [ ] El `IdRegion` se obtiene del contexto del BO — no de parámetros de entrada externos
+- [ ] Los correos MEX no aparecen en resultados para usuarios PER y viceversa
+- [ ] El listado está paginado usando `ResumeGroupQueryInfo`
+- [ ] El BO solo retorna correos con clasificación `Clave = 'pedido'`
+- [ ] El proyecto `Logic.Pqf.Logistica` compila sin errores (Framework 4.8)
+- [ ] PR aprobado por líder técnico
+
+**Más información de la tarea:**
+- Patrón equivalente al GAP-03 del archivo `TPSC-RE-FU-008-P1-Back.md`, pero para clasificación `Pedido`
+- La clave `Pedido` se define en `ClasificacionCorreoRecibidoConstants` (Tarea 3)
+- Los correos en este buzón fueron pretramitados por `CorreoRecibidoClienteToPretramitacionPedidoBO`
+
+**Recursos:**
+- Análisis de impacto backend: `Requisitos/TPSC-RE-FU-008-P1/TPSC-RE-FU-008-P1-Back.md`
+- Referencia de patrón (cobros): `Logic.Pqf.Logistica\L11.MailBot\Procesos\Cobros\CorreoRecibidoClienteBuzonCobrosBO.cs`
+- Requisito funcional: `Requisitos/TPSC-RE-FU-008/TPSC-RE-FU-008.md`
+
+---
+
+## Tarea 16
+
+### [TPSC-RE-FU-008] [LIST-PAG-MULT-FILTER] Crear BuzonPedidosController en WebApi.Logistica
+
+**Aplicativos:**
+ProquifaDotNet (Framework 4.8) — `WebApi.Logistica`
+
+**Módulos:**
+Mailbot — API — Buzón de Pedidos
+
+**Consideraciones previas:**
+Esta tarea es el equivalente de la Tarea 5 para el buzón de Pedidos.
+El controller expone el endpoint `POST /BuzonPedidos` que consume `CorreoRecibidoClienteBuzonPedidosBO`.
+La región y el agente se extraen del token mediante `ObtenerUsuarioAutenticado()` — **no se aceptan como parámetros en el body o query string**.
+El controller debe seguir el patrón `BaseApiController` con `TryExecute()` para manejo de excepciones, idéntico al `BuzonCobrosController` de Tarea 5.
+Dependencia: Tarea 15 completada.
+
+**Objetivo general:**
+Crear `BuzonPedidosController.cs` en `WebApi.Logistica` que exponga `POST /BuzonPedidos` con paginación y múltiples filtros, consumiendo `CorreoRecibidoClienteBuzonPedidosBO` con la región del usuario autenticado.
+
+**Objetivos específicos:**
+- Crear `WebApi.Logistica\Controllers\Mailbot\BuzonPedidosController.cs` heredando de `BaseApiController`
+- Implementar acción `POST /BuzonPedidos` que recibe `ResumeGroupQueryInfo` en el body
+- Obtener `Usuario` autenticado con `ObtenerUsuarioAutenticado()` y pasar `IdRegion` al BO
+- Invocar `CorreoRecibidoClienteBuzonPedidosBO` y retornar el resultado paginado
+- Envolver la lógica en `TryExecute()` para manejo uniforme de excepciones
+- Aplicar atributo de autorización correspondiente al rol de agente comercial
+
+**Resultado esperado:**
+El endpoint `POST /BuzonPedidos` está disponible en `WebApi.Logistica`, retorna el listado paginado de correos de pedido filtrado por la región e identidad del usuario del token.
+
+**Entregables:**
+- Archivo nuevo: `WebApi.Logistica\Controllers\Mailbot\BuzonPedidosController.cs`
+
+**Criterios de aceptación:**
+- [ ] `POST /BuzonPedidos` retorna `200 OK` con listado paginado en estructura `ResumeGroupResult`
+- [ ] La región y el agente se extraen del token mediante `ObtenerUsuarioAutenticado()` — no de parámetros externos
+- [ ] El controller usa `TryExecute()` para manejo de excepciones
+- [ ] El endpoint requiere autenticación (rol de agente comercial)
+- [ ] El proyecto `WebApi.Logistica` compila sin errores (Framework 4.8)
+- [ ] PR aprobado por líder técnico
+
+**Más información de la tarea:**
+- Patrón equivalente al GAP-04 del archivo `TPSC-RE-FU-008-P1-Back.md`, pero para el buzón de pedidos
+- Referencia de patrón: `BaseApiController.ObtenerUsuarioAutenticado()` en `Core.WebApi\ControllerOperations\BaseApiController.cs`
+
+**Recursos:**
+- Análisis de impacto backend: `Requisitos/TPSC-RE-FU-008-P1/TPSC-RE-FU-008-P1-Back.md`
+- Referencia de patrón (cobros): `WebApi.Logistica\Controllers\Mailbot\BuzonCobrosController.cs`
+- Requisito funcional: `Requisitos/TPSC-RE-FU-008/TPSC-RE-FU-008.md`
+
+---
+
+## Tarea 17
+
+### [TPSC-RE-FU-008] [IMP-EXIST-SERVICE] Actualizar lógica de clasificación y enrutamiento para Cotizaciones y Pedidos
+
+**Aplicativos:**
+ProquifaDotNet (Framework 4.8) — `Logic.Pqf.Logistica` / MailbotWorker (nueva solución .NET 10) — `Mailbot.Application`
+
+**Módulos:**
+Mailbot — L11 — Clasificación y enrutamiento de correos: Cotizaciones y Pedidos
+
+**Consideraciones previas:**
+La Tarea 3 refactoriza el switch de `GeneradorProcesoMailBotBO` para usar `Clave` y corrige el `case Cobro` (vacío), pero los `case Requisicion` y `case Pedido` se marcan solo como "siguen funcionando". Esta tarea hace el análisis explícito de ambos BOs de procesamiento en Framework 4.8, verifica que producen los pendientes correctos, y detalla la implementación de los `case Cotizacion` y `case Pedido` en `GenerarPendienteUseCase` del Worker .NET 10.
+
+Los BOs de Framework 4.8 ya existen:
+- `CorreoRecibidoClienteToCotizacionBO` — crea el pendiente de cotización (pretramitación de requisición)
+- `CorreoRecibidoClienteToPretramitacionPedidoBO` — crea el pendiente de pedido (pretramitación de pedido)
+
+Se debe revisar que ambos BOs sean compatibles con el nuevo flujo (clasificación por `Clave` en lugar de nombre display) y que generen correctamente los registros esperados.
+
+Para el Worker .NET 10, la Tarea 9 (`GenerarPendienteUseCase`) menciona los cases de Cotizacion y Pedido con una descripción genérica. Esta tarea implementa y valida el flujo completo de cada uno dentro de `GenerarPendienteUseCase`.
+
+Dependencias: Tarea 3 completada (constantes y switch refactorizado), Tarea 9 completada (estructura base de `GenerarPendienteUseCase`).
+
+**Objetivo general:**
+Verificar y actualizar `CorreoRecibidoClienteToCotizacionBO` y `CorreoRecibidoClienteToPretramitacionPedidoBO` en Framework 4.8 para que sean compatibles con el nuevo sistema de clasificación por `Clave`, e implementar los `case Cotizacion` y `case Pedido` completos en `GenerarPendienteUseCase` del Worker .NET 10.
+
+**Objetivos específicos:**
+
+*Framework 4.8 — `Logic.Pqf.Logistica`:*
+- Revisar `CorreoRecibidoClienteToCotizacionBO.Process()`: verificar que recibe `CorreoRecibidoCliente` y genera el pendiente de cotización (`cotCotizacionPendiente` o equivalente) sin depender del nombre display de la clasificación
+- Revisar `CorreoRecibidoClienteToPretramitacionPedidoBO.Process()`: verificar que genera el pendiente de pedido correctamente y no depende del nombre display
+- Confirmar que `GeneradorProcesoMailBotBO` (post-Tarea 3) enruta correctamente:
+  - `case ClasificacionCorreoRecibidoConstants.Requisicion` → `CorreoRecibidoClienteToCotizacionBO`
+  - `case ClasificacionCorreoRecibidoConstants.Pedido` → `CorreoRecibidoClienteToPretramitacionPedidoBO`
+- Corregir cualquier referencia a nombre display o literal de clasificación que persista en los BOs revisados
+- Prueba de integración: correo con clasificación `Clave='requisicion'` genera pendiente de cotización; correo con `Clave='pedido'` genera pendiente de pedido
+
+*Worker .NET 10 — `Mailbot.Application`:*
+- Implementar `case "cotizacion"` en `GenerarPendienteUseCase`:
+  - INSERT en la tabla que corresponda al pendiente de cotización (equivalente a `cotCotizacionPendiente` en Framework 4.8)
+  - INSERT en `CorreoRecibidoCliente` con el vínculo al correo procesado
+  - Actualizar `MailbotEventoCorreo` con estado PROCESADO
+- Implementar `case "pedido"` en `GenerarPendienteUseCase`:
+  - INSERT en la tabla que corresponda al pendiente de pedido (equivalente a `ppPretramitacion` o tabla de pretramitación de pedido)
+  - INSERT en `CorreoRecibidoCliente` con el vínculo al correo procesado
+  - Actualizar `MailbotEventoCorreo` con estado PROCESADO
+- Agregar al scaffold de EF Core (`ProquifaDbContext`) las tablas de pendientes de cotización y pedido si no están incluidas
+- Validar que en caso de error en el INSERT, la transacción se revierte y `MailbotEventoCorreo` queda en estado ERROR con el mensaje correspondiente
+
+**Resultado esperado:**
+El Mailbot clasifica y enruta correctamente correos de Cotización y Pedido en ambos contextos: Framework 4.8 (enruta a los BOs existentes) y Worker .NET 10 (genera los pendientes directamente en BD). Un correo de cotización recibido produce el pendiente de cotización; un correo de pedido produce el pendiente de pretramitación de pedido.
+
+**Entregables:**
+
+*Framework 4.8:*
+- Informe de revisión + commits con correcciones en `CorreoRecibidoClienteToCotizacionBO.cs` (si aplica)
+- Informe de revisión + commits con correcciones en `CorreoRecibidoClienteToPretramitacionPedidoBO.cs` (si aplica)
+
+*Worker .NET 10:*
+- `Mailbot.Application\UseCases\GenerarPendienteUseCase.cs` actualizado con cases `cotizacion` y `pedido` completos
+- Scaffold de EF Core actualizado si se requieren tablas adicionales de pendientes
+
+**Criterios de aceptación:**
+- [ ] `GeneradorProcesoMailBotBO` enruta `Clave='requisicion'` → `CorreoRecibidoClienteToCotizacionBO` y genera el pendiente de cotización correctamente (Framework 4.8)
+- [ ] `GeneradorProcesoMailBotBO` enruta `Clave='pedido'` → `CorreoRecibidoClienteToPretramitacionPedidoBO` y genera el pendiente de pedido correctamente (Framework 4.8)
+- [ ] Ningún BO de cotización o pedido referencia el nombre display de la clasificación
+- [ ] `GenerarPendienteUseCase` `case "cotizacion"` inserta el pendiente de cotización en BD y actualiza `MailbotEventoCorreo` (Worker .NET 10)
+- [ ] `GenerarPendienteUseCase` `case "pedido"` inserta el pendiente de pretramitación de pedido en BD y actualiza `MailbotEventoCorreo` (Worker .NET 10)
+- [ ] En caso de error en el INSERT, la transacción se revierte y el evento queda en estado ERROR
+- [ ] El proyecto `Logic.Pqf.Logistica` compila sin errores (Framework 4.8)
+- [ ] La solución `MailbotWorker.sln` compila en .NET 10 sin errores tras esta tarea
+- [ ] PR aprobado por líder técnico
+
+**Más información de la tarea:**
+- Complementa la Tarea 3 (switch refactorizado) y la Tarea 9 (estructura base de `GenerarPendienteUseCase`)
+- Las tablas de pendientes de cotización y pedido deben confirmarse con el TechLead antes de implementar el `case` en .NET 10 (pueden diferir del Framework 4.8)
+- Si los BOs existentes en Framework 4.8 no requieren cambios, los entregables se reducen al informe de revisión y a la actualización de `GenerarPendienteUseCase`
+
+**Recursos:**
+- Análisis de impacto backend: `Requisitos/TPSC-RE-FU-008-P1/TPSC-RE-FU-008-P1-Back.md` — Sección 3.1 (flujo de clasificación) y Sección 4.1
+- `Logic.Pqf.Logistica\L11.MailBot\Procesos\Requisiciones\CorreoRecibidoClienteToCotizacionBO.cs`
+- `Logic.Pqf.Logistica\L11.MailBot\Procesos\Pedidos\CorreoRecibidoClienteToPretramitacionPedidoBO.cs`
+- `Mailbot.Application\UseCases\GenerarPendienteUseCase.cs` (producido por Tarea 9)
+- Dependencias: Tarea 3 (T3) y Tarea 9 (T9)
+
+---
+
 ## Resumen de tareas
 
 |  #  | Clave                 | Descripcion                                                                         | Proyecto                         | Dependencias |
@@ -695,10 +1006,15 @@ Implementar `CorreoWorkerMex.cs` y `CorreoWorkerPer.cs` como `BackgroundService`
 |  3  | IMP-EXIST-SERVICE     | Refactorizar GeneradorProcesoMailBotBO + crear ClasificacionCorreoRecibidoConstants | Logic.Pqf.Logistica (F4.8)       | 1            |
 |  4  | SERV-COMPLEX-TRANSACT | Crear CorreoRecibidoClienteBuzonCobrosBO                                            | Logic.Pqf.Logistica (F4.8)       | 1, 2         |
 |  5  | LIST-PAG-MULT-FILTER  | Crear BuzonCobrosController                                                         | WebApi.Logistica (F4.8)          | 4            |
-|  6  | ARQ-PROJ-NET          | Crear MailbotWorker.sln — estructura base + scaffold EF Core                        | Nueva solucion .NET 10           | 1, 2         |
+|  6  | ARQ-PROJ-NET          | Crear MailbotWorker.sln — estructura base + scaffold EF Core                        | Nueva solución .NET 10           | 1, 2         |
 |  7  | IMPL-THIRD-SERV       | Integrar n8n + RabbitMQ — consumer y queues                                         | Mailbot.Infrastructure (.NET 10) | 6            |
 |  8  | ALG-COMPLX-LOGIC      | Implementar Agente IA (OpenAIClasificadorAgente + PromptBuilder)                    | Mailbot.Infrastructure (.NET 10) | 6            |
 |  9  | SERV-COMPLEX-TRANSACT | Implementar ProcesarCorreoUseCase + GenerarPendienteUseCase                         | Mailbot.Application (.NET 10)    | 6, 7, 8      |
 | 10  | IMPL-THIRD-SERV       | Integrar MinIO (MinioArchivoService)                                                | Mailbot.Infrastructure (.NET 10) | 6            |
 | 11  | ATTACHED-EMAIL        | Integrar Brevo (BrevoNotificacionService)                                           | Mailbot.Infrastructure (.NET 10) | 6            |
 | 12  | AUTOMATIC-JOB         | Configurar CorreoWorkerMex + CorreoWorkerPer (IHostedService)                       | Mailbot.Worker (.NET 10)         | 7, 9, 10, 11 |
+| 13  | SERV-COMPLEX-TRANSACT | Crear CorreoRecibidoClienteBuzonCotizacionesBO                                      | Logic.Pqf.Logistica (F4.8)       | 1, 2         |
+| 14  | LIST-PAG-MULT-FILTER  | Crear BuzonCotizacionesController                                                   | WebApi.Logistica (F4.8)          | 13           |
+| 15  | SERV-COMPLEX-TRANSACT | Crear CorreoRecibidoClienteBuzonPedidosBO                                           | Logic.Pqf.Logistica (F4.8)       | 1, 2         |
+| 16  | LIST-PAG-MULT-FILTER  | Crear BuzonPedidosController                                                        | WebApi.Logistica (F4.8)          | 15           |
+| 17  | IMP-EXIST-SERVICE     | Actualizar lógica de clasificación y enrutamiento: Cotizaciones y Pedidos           | Logic.Pqf.Logistica (F4.8) + Mailbot.Application (.NET 10) | 3, 9 |

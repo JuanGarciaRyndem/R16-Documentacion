@@ -1,0 +1,57 @@
+# [ TPSC-RE-FU-008 ] [SERV-SIMPLE-PUT] Crear endpoint PUT /api/buzon/cotizaciones/{id}/reclasificar
+
+---
+
+## Aplicativos
+
+- ProquifaDotNet
+
+## Módulos
+
+- WebApi.Catalogos
+- Buzones
+
+## Consideraciones previas
+
+- Tarea T26 completada (`BuzonCotizacionesBO.Reclasificar` disponible).
+- Seguir el mismo patrón del endpoint `PUT /api/buzon/cobros/{id}/reclasificar` (T10).
+- Solo el Gestor Comercial autenticado y propietario del correo puede ejecutar la acción.
+- El destino de reclasificación se recibe en el body de la petición.
+
+## Objetivo general
+
+Exponer el endpoint `PUT /api/buzon/cotizaciones/{id}/reclasificar` en `WebApi.Catalogos` que permite al Gestor Comercial mover un correo de cotización a otro buzón.
+
+## Objetivos específicos
+
+1. Agregar acción `PUT /api/buzon/cotizaciones/{id}/reclasificar` en `BuzonCotizacionesController`.
+2. Recibir `GMReclasificarCorreoCotizacion` en el body (IdCatClasificacionCorreoRecibidoDestino).
+3. Obtener `IdUsuario` del token para validar propiedad del correo.
+4. Invocar `BuzonCotizacionesBO.Reclasificar()` y retornar `200 OK` o `404 Not Found` si no existe/pertenece al usuario.
+5. Aplicar autorización para rol de Gestor Comercial.
+
+## Resultado esperado
+
+- `PUT /api/buzon/cotizaciones/{id}/reclasificar` actualiza la clasificación del correo al buzón destino indicado.
+
+## Entregables
+
+- Acción agregada a `WebApi.Catalogos\Controllers\Buzones\BuzonCotizacionesController.cs`
+
+## Criterios de aceptación
+
+- [ ] `PUT /api/buzon/cotizaciones/{id}/reclasificar` retorna `200 OK` al reclasificar exitosamente.
+- [ ] Retorna `404 Not Found` si el correo no existe o no pertenece al usuario autenticado.
+- [ ] El destino de reclasificación es validado como clave existente en catálogo.
+- [ ] Sin token válido retorna `401 Unauthorized`.
+- [ ] El proyecto `WebApi.Catalogos` compila sin errores.
+
+## Más información de la tarea
+
+- Referencia: `TPSC-RE-FU-008-P2-Back.md` — PARTE 1, sección 1.3
+- Patrón de referencia: endpoint `PUT /api/buzon/cobros/{id}/reclasificar` (T10)
+
+## Recursos
+
+- Repositorio: ProquifaDotNet, branch `develop-pack04`
+- Proyecto: `WebApi.Catalogos`

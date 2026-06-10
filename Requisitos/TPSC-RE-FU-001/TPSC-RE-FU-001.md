@@ -1,12 +1,12 @@
 # Mantenimiento de catálogos del sistema
 
-| Campo | Valor |
-|---|---|
-| **ID** | TPSC-RE-FU-001 |
-| **Nombre** | Mantenimiento de catálogos del sistema |
-| **Categoría** | Bases de Datos |
-| **Estatus** | Propuesto |
-| **Referencia Legacy** | R16.3M-RE-FU-001 |
+| Campo                 | Valor                                  |
+| --------------------- | -------------------------------------- |
+| **ID**                | TPSC-RE-FU-001                         |
+| **Nombre**            | Mantenimiento de catálogos del sistema |
+| **Categoría**         | Bases de Datos                         |
+| **Estatus**           | Propuesto                              |
+| **Referencia Legacy** | R16.3M-RE-FU-001                       |
 
 ---
 

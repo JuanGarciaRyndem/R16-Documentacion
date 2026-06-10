@@ -236,6 +236,14 @@ dotnet ef dbcontext scaffold "Server=RYNL010;Database=ProquifaDotNet;..." \
 | T10 | Crear endpoint PUT /api/buzon/cobros/{id}/reclasificar | `SERV-SIMPLE-PUT` | `WebApi.Catalogos` |
 | T11 | Crear endpoint PUT /api/cobros/folio/{id}/cerrar | `SERV-SIMPLE-PUT` | `WebApi.Catalogos` |
 | T12 | Evaluar y actualizar spActualizarBuzonPagoLegacy si aplica | `BD-OBJ-CH` | BD ProquifaDotNet |
+| T25 | Crear BuzonCotizacionesBO — lista paginada del Buzón de Cotizaciones (filtro gestor + región) | `LIST-PAG-MULT-FILTER` | `Logic.Pqf.Catalogos` |
+| T26 | Crear BuzonCotizacionesBO.Reclasificar — reclasificación manual de correo de cotización | `SERV-SIMPLE-PUT` | `Logic.Pqf.Catalogos` |
+| T27 | Crear endpoint GET /api/buzon/cotizaciones — lista paginada con filtros | `LIST-PAG-MULT-FILTER` | `WebApi.Catalogos` |
+| T28 | Crear endpoint PUT /api/buzon/cotizaciones/{id}/reclasificar | `SERV-SIMPLE-PUT` | `WebApi.Catalogos` |
+| T29 | Crear BuzonPedidosBO — lista paginada del Buzón de Pedidos (filtro agente + región) | `LIST-PAG-MULT-FILTER` | `Logic.Pqf.Catalogos` |
+| T30 | Crear BuzonPedidosBO.Reclasificar — reclasificación manual de correo de pedido | `SERV-SIMPLE-PUT` | `Logic.Pqf.Catalogos` |
+| T31 | Crear endpoint GET /api/buzon/pedidos — lista paginada con filtros | `LIST-PAG-MULT-FILTER` | `WebApi.Catalogos` |
+| T32 | Crear endpoint PUT /api/buzon/pedidos/{id}/reclasificar | `SERV-SIMPLE-PUT` | `WebApi.Catalogos` |
 
 ### Tareas en MailbotWorker (Nueva Solucion .NET 10)
 
@@ -253,6 +261,7 @@ dotnet ef dbcontext scaffold "Server=RYNL010;Database=ProquifaDotNet;..." \
 | T22 | Configurar Google Cloud Pub/Sub: Topics, Subscriptions Push, Dead Letter Topic, permisos IAM | `SERVER-AMB` | Infraestructura GCP |
 | T23 | Configurar Gmail API watch por region (MEX/PER) con OAuth2 + gestion de secretos (Key Vault / env vars) | `CONFIG-GMAIL` | `Mailbot.Api` / `Mailbot.Worker` |
 | T24 | Escribir pruebas: ProcesarCorreoUseCaseTests, ClasificadorAgenteTests, WebhookGmailEndpointTests, GmailWatchServiceTests, ProquifaDbContextTests | `LIST-NO-FILTER` | `Mailbot.Tests` |
+| T33 | Actualizar GenerarPendienteUseCase — implementar cases cotizacion y pedido + actualizar ProcesarCorreoUseCase | `IMP-EXIST-SERVICE` | `Mailbot.Application` |
 
 ---
 

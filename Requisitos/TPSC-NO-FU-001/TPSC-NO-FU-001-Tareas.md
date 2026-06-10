@@ -14,18 +14,18 @@
 
 ## Resumen de tareas
 
-| #  | Clave                 | Título simple                                                                                      | Tipo | Aplicativo                     |
-| -- | --------------------- | -------------------------------------------------------------------------------------------------- | ---- | ------------------------------ |
-| 1  | CREATE-TABL-M         | Crear ProquifaDotNetSendInBlue: tablas ConfiguracionSendInBlue, AppSettings, PlantillaCorreo       | BD   | ProquifaDotNetSendInBlue        |
-| 2  | CREATE-TABL-M         | Crear tablas operativas SolicitudCorreo y BitacoraEnvioCorreo + índices en ProquifaDotNet          | BD   | ProquifaDotNetSendInBlue / ProquifaDotNet |
-| 3  | CREATE-SOLUTION       | Crear solución ProquifaDotNet.SendInBlue — estructura de proyectos + capa Domain                  | Back | ProquifaDotNet.SendInBlue       |
-| 4  | ALG-COMPLX-LOGIC      | Implementar Application layer (CQRS): Commands, Queries, DTOs, Validators                         | Back | ProquifaDotNet.SendInBlue       |
-| 5  | SERV-TRANSACT         | Implementar Infrastructure: Scaffold ProquifaDotNet, repositorios, BrevoMailService, renderers     | Back | ProquifaDotNet.SendInBlue       |
-| 6  | CREATE-API-ENDPOINT   | Implementar API — 3 endpoints: enviar, simple, html + autenticación IdentityServer                 | Back | ProquifaDotNet.SendInBlue       |
-| 7  | CREATE-WORKER         | Implementar Worker.SendMail: SendMailWorker (RabbitMQ + reintentos) + SincronizacionWorker         | Back | ProquifaDotNet.SendInBlue       |
-| 8  | IMP-EXIST-SERVICE     | Migrar plantillas XSLT de Logic.MailXslt a nueva solución + Testing unitario e integración         | Back | ProquifaDotNet.SendInBlue       |
-| 9  | IMP-EXIST-SERVICE     | Refactorizar ProquifaDotNet — CorreoEnviadoEnviarController: llamar API SendInBlue                 | Back | ProquifaDotNet                  |
-| 10 | IMP-EXIST-SERVICE     | Refactorizar ProquifaDotNet — CorreoGenericoBO y módulos dependientes: llamar API SendInBlue       | Back | ProquifaDotNet                  |
+| #   | Clave               | Título simple                                                                                  | Tipo | Aplicativo                                |
+| --- | ------------------- | ---------------------------------------------------------------------------------------------- | ---- | ----------------------------------------- |
+| 1   | CREATE-TABL-M       | Crear ProquifaDotNetSendInBlue: tablas ConfiguracionSendInBlue, AppSettings, PlantillaCorreo   | BD   | ProquifaDotNetSendInBlue                  |
+| 2   | CREATE-TABL-M       | Crear tablas operativas SolicitudCorreo y BitacoraEnvioCorreo + índices en ProquifaDotNet      | BD   | ProquifaDotNetSendInBlue / ProquifaDotNet |
+| 3   | CREATE-SOLUTION     | Crear solución ProquifaDotNet.SendInBlue — estructura de proyectos + capa Domain               | Back | ProquifaDotNet.SendInBlue                 |
+| 4   | ALG-COMPLX-LOGIC    | Implementar Application layer (CQRS): Commands, Queries, DTOs, Validators                      | Back | ProquifaDotNet.SendInBlue                 |
+| 5   | SERV-TRANSACT       | Implementar Infrastructure: Scaffold ProquifaDotNet, repositorios, BrevoMailService, renderers | Back | ProquifaDotNet.SendInBlue                 |
+| 6   | CREATE-API-ENDPOINT | Implementar API — 3 endpoints: enviar, simple, html + autenticación IdentityServer             | Back | ProquifaDotNet.SendInBlue                 |
+| 7   | CREATE-WORKER       | Implementar Worker.SendMail: SendMailWorker (RabbitMQ + reintentos) + SincronizacionWorker     | Back | ProquifaDotNet.SendInBlue                 |
+| 8   | IMP-EXIST-SERVICE   | Migrar plantillas XSLT de Logic.MailXslt a nueva solución + Testing unitario e integración     | Back | ProquifaDotNet.SendInBlue                 |
+| 9   | IMP-EXIST-SERVICE   | Refactorizar ProquifaDotNet — CorreoEnviadoEnviarController: llamar API SendInBlue             | Back | ProquifaDotNet                            |
+| 10  | IMP-EXIST-SERVICE   | Refactorizar ProquifaDotNet — CorreoGenericoBO y módulos dependientes: llamar API SendInBlue   | Back | ProquifaDotNet                            |
 
 ---
 
@@ -66,18 +66,18 @@ Base de datos `ProquifaDotNetSendInBlue` creada con las 3 tablas de configuraci�
 
 **Tabla: ConfiguracionSendInBlue**
 
-| Nombre | Tipo | Descripción |
-|---|---|---|
-| `IdConfiguracionSendInBlue` | `uniqueidentifier` PK, DEFAULT NEWID() | Identificador único |
-| `IdRegion` | `uniqueidentifier` NOT NULL | FK lógica a `Region` en ProquifaDotNet |
-| `Nombre` | `nvarchar(100)` NOT NULL | Nombre descriptivo (ej. "Configuración México") |
-| `UrlEnvioCorreo` | `nvarchar(500)` NOT NULL | URL endpoint Brevo (ej. `https://api.brevo.com/v3/smtp/email`) |
-| `ClaveAPI` | `nvarchar(500)` NOT NULL | API key de Brevo (cifrada con DPAPI o AES) |
-| `CorreoEmisor` | `nvarchar(200)` NOT NULL | Correo remitente por defecto |
-| `NombreEmisor` | `nvarchar(200)` NOT NULL | Nombre del remitente |
-| `Activo` | `bit` NOT NULL DEFAULT 1 | Configuración activa |
-| `FechaRegistro` | `datetime2(7)` NOT NULL DEFAULT SYSUTCDATETIME() | Fecha de creación |
-| `FechaUltimaActualizacion` | `datetime2(7)` NOT NULL DEFAULT SYSUTCDATETIME() | Última modificación |
+| Nombre                      | Tipo                                             | Descripción                                                    |
+| --------------------------- | ------------------------------------------------ | -------------------------------------------------------------- |
+| `IdConfiguracionSendInBlue` | `uniqueidentifier` PK, DEFAULT NEWID()           | Identificador único                                            |
+| `IdRegion`                  | `uniqueidentifier` NOT NULL                      | FK lógica a `Region` en ProquifaDotNet                         |
+| `Nombre`                    | `nvarchar(100)` NOT NULL                         | Nombre descriptivo (ej. "Configuración México")                |
+| `UrlEnvioCorreo`            | `nvarchar(500)` NOT NULL                         | URL endpoint Brevo (ej. `https://api.brevo.com/v3/smtp/email`) |
+| `ClaveAPI`                  | `nvarchar(500)` NOT NULL                         | API key de Brevo (cifrada con DPAPI o AES)                     |
+| `CorreoEmisor`              | `nvarchar(200)` NOT NULL                         | Correo remitente por defecto                                   |
+| `NombreEmisor`              | `nvarchar(200)` NOT NULL                         | Nombre del remitente                                           |
+| `Activo`                    | `bit` NOT NULL DEFAULT 1                         | Configuración activa                                           |
+| `FechaRegistro`             | `datetime2(7)` NOT NULL DEFAULT SYSUTCDATETIME() | Fecha de creación                                              |
+| `FechaUltimaActualizacion`  | `datetime2(7)` NOT NULL DEFAULT SYSUTCDATETIME() | Última modificación                                            |
 
 **Tabla: AppSettings**
 
@@ -102,6 +102,93 @@ Base de datos `ProquifaDotNetSendInBlue` creada con las 3 tablas de configuraci�
 | `Activo` | `bit` NOT NULL DEFAULT 1 | Plantilla activa |
 | `FechaRegistro` | `datetime2(7)` NOT NULL DEFAULT SYSUTCDATETIME() | Fecha de creación |
 | `FechaUltimaActualizacion` | `datetime2(7)` NOT NULL DEFAULT SYSUTCDATETIME() | Última modificación |
+
+**Propuesta de scripts:**
+
+```sql
+-- ============================================================
+-- TPSC-NO-FU-001 T1 — ProquifaDotNetSendInBlue: tablas de configuración
+-- Servidor: RYNL010
+-- ============================================================
+
+CREATE DATABASE [ProquifaDotNetSendInBlue];
+GO
+
+USE [ProquifaDotNetSendInBlue];
+GO
+
+-- -------------------------------------------------------
+-- Tabla: ConfiguracionSendInBlue
+-- -------------------------------------------------------
+CREATE TABLE [dbo].[ConfiguracionSendInBlue] (
+    [IdConfiguracionSendInBlue] UNIQUEIDENTIFIER NOT NULL CONSTRAINT [DF_ConfiguracionSendInBlue_Id]                     DEFAULT NEWID(),
+    [IdRegion]                  UNIQUEIDENTIFIER NOT NULL,
+    [Nombre]                    NVARCHAR(100)    NOT NULL,
+    [UrlEnvioCorreo]            NVARCHAR(500)    NOT NULL,
+    [ClaveAPI]                  NVARCHAR(500)    NOT NULL,
+    [CorreoEmisor]              NVARCHAR(200)    NOT NULL,
+    [NombreEmisor]              NVARCHAR(200)    NOT NULL,
+    [Activo]                    BIT              NOT NULL CONSTRAINT [DF_ConfiguracionSendInBlue_Activo]                 DEFAULT 1,
+    [FechaRegistro]             DATETIME2(7)     NOT NULL CONSTRAINT [DF_ConfiguracionSendInBlue_FechaRegistro]         DEFAULT SYSUTCDATETIME(),
+    [FechaUltimaActualizacion]  DATETIME2(7)     NOT NULL CONSTRAINT [DF_ConfiguracionSendInBlue_FechaUltimaActualizacion] DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT [PK_ConfiguracionSendInBlue] PRIMARY KEY CLUSTERED ([IdConfiguracionSendInBlue] ASC)
+);
+GO
+
+-- -------------------------------------------------------
+-- Tabla: AppSettings
+-- -------------------------------------------------------
+CREATE TABLE [dbo].[AppSettings] (
+    [IdAppSettings]            UNIQUEIDENTIFIER NOT NULL CONSTRAINT [DF_AppSettings_Id]                        DEFAULT NEWID(),
+    [Clave]                    NVARCHAR(200)    NOT NULL,
+    [Valor]                    NVARCHAR(MAX)    NOT NULL,
+    [Descripcion]              NVARCHAR(500)    NULL,
+    [FechaUltimaActualizacion] DATETIME2(7)     NOT NULL CONSTRAINT [DF_AppSettings_FechaUltimaActualizacion] DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT [PK_AppSettings]       PRIMARY KEY CLUSTERED ([IdAppSettings] ASC),
+    CONSTRAINT [UQ_AppSettings_Clave] UNIQUE ([Clave])
+);
+GO
+
+-- -------------------------------------------------------
+-- Tabla: PlantillaCorreo
+-- -------------------------------------------------------
+CREATE TABLE [dbo].[PlantillaCorreo] (
+    [IdPlantillaCorreo]        UNIQUEIDENTIFIER NOT NULL CONSTRAINT [DF_PlantillaCorreo_Id]                        DEFAULT NEWID(),
+    [Clave]                    NVARCHAR(100)    NOT NULL,
+    [Nombre]                   NVARCHAR(200)    NOT NULL,
+    [Asunto]                   NVARCHAR(500)    NULL,
+    [ContenidoHtml]            NVARCHAR(MAX)    NOT NULL,
+    [IdRegion]                 UNIQUEIDENTIFIER NULL,
+    [Activo]                   BIT              NOT NULL CONSTRAINT [DF_PlantillaCorreo_Activo]                    DEFAULT 1,
+    [FechaRegistro]            DATETIME2(7)     NOT NULL CONSTRAINT [DF_PlantillaCorreo_FechaRegistro]            DEFAULT SYSUTCDATETIME(),
+    [FechaUltimaActualizacion] DATETIME2(7)     NOT NULL CONSTRAINT [DF_PlantillaCorreo_FechaUltimaActualizacion] DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT [PK_PlantillaCorreo]       PRIMARY KEY CLUSTERED ([IdPlantillaCorreo] ASC),
+    CONSTRAINT [UQ_PlantillaCorreo_Clave] UNIQUE ([Clave])
+);
+GO
+
+-- -------------------------------------------------------
+-- DML: Datos iniciales — ConfiguracionSendInBlue
+-- Reemplazar IdRegion con los GUIDs reales de la tabla Region en ProquifaDotNet
+-- Reemplazar ClaveAPI con los valores reales de Brevo antes de ejecutar en producción
+-- -------------------------------------------------------
+INSERT INTO [dbo].[ConfiguracionSendInBlue]
+    ([IdRegion], [Nombre], [UrlEnvioCorreo], [ClaveAPI], [CorreoEmisor], [NombreEmisor])
+VALUES
+    ('00000000-0000-0000-0000-000000000001', 'Configuración México', 'https://api.brevo.com/v3/smtp/email', 'API_KEY_MX_PENDIENTE', 'noreply@proquifa.com.mx', 'Proquifa México'),
+    ('00000000-0000-0000-0000-000000000002', 'Configuración Perú',   'https://api.brevo.com/v3/smtp/email', 'API_KEY_PE_PENDIENTE', 'noreply@proquifa.com.pe', 'Proquifa Perú');
+GO
+
+-- -------------------------------------------------------
+-- Validación
+-- -------------------------------------------------------
+SELECT 'ConfiguracionSendInBlue' AS Tabla, COUNT(*) AS Filas FROM [dbo].[ConfiguracionSendInBlue]
+UNION ALL
+SELECT 'AppSettings',  COUNT(*) FROM [dbo].[AppSettings]
+UNION ALL
+SELECT 'PlantillaCorreo', COUNT(*) FROM [dbo].[PlantillaCorreo];
+GO
+```
 
 **Criterios de aceptación:**
 - [ ] Base de datos `ProquifaDotNetSendInBlue` creada en RYNL010
@@ -203,6 +290,102 @@ ON [ProquifaDotNet].[dbo].[CorreoEnviado] ([IdentificadorCorreo])
 WHERE [IdentificadorCorreo] IS NOT NULL;
 ```
 
+**Propuesta de scripts:**
+
+```sql
+-- ============================================================
+-- TPSC-NO-FU-001 T2 — Tablas operativas en ProquifaDotNetSendInBlue
+-- ============================================================
+
+USE [ProquifaDotNetSendInBlue];
+GO
+
+-- -------------------------------------------------------
+-- Tabla: SolicitudCorreo
+-- -------------------------------------------------------
+CREATE TABLE [dbo].[SolicitudCorreo] (
+    [IdSolicitudCorreo]   UNIQUEIDENTIFIER NOT NULL CONSTRAINT [DF_SolicitudCorreo_Id]                  DEFAULT NEWID(),
+    [IdCorreoEnviado]     UNIQUEIDENTIFIER NOT NULL,
+    [TipoEnvio]           NVARCHAR(50)     NOT NULL,
+    [Estado]              NVARCHAR(50)     NOT NULL CONSTRAINT [DF_SolicitudCorreo_Estado]              DEFAULT 'PENDIENTE',
+    [Intentos]            INT              NOT NULL CONSTRAINT [DF_SolicitudCorreo_Intentos]            DEFAULT 0,
+    [MaxIntentos]         INT              NOT NULL CONSTRAINT [DF_SolicitudCorreo_MaxIntentos]         DEFAULT 3,
+    [FechaCreacion]       DATETIME2(7)     NOT NULL CONSTRAINT [DF_SolicitudCorreo_FechaCreacion]       DEFAULT SYSUTCDATETIME(),
+    [FechaProximoIntento] DATETIME2(7)     NULL,
+    [FechaProcesado]      DATETIME2(7)     NULL,
+    [ErrorUltimoIntento]  NVARCHAR(MAX)    NULL,
+    [BrevoMessageId]      NVARCHAR(200)    NULL,
+    [Activo]              BIT              NOT NULL CONSTRAINT [DF_SolicitudCorreo_Activo]              DEFAULT 1,
+    CONSTRAINT [PK_SolicitudCorreo] PRIMARY KEY CLUSTERED ([IdSolicitudCorreo] ASC)
+);
+GO
+
+-- Índice filtrado — usado por Worker en polling de pendientes
+CREATE NONCLUSTERED INDEX [IX_SolicitudCorreo_Estado_FechaProximoIntento]
+ON [dbo].[SolicitudCorreo] ([Estado] ASC, [FechaProximoIntento] ASC)
+WHERE [Estado] IN ('PENDIENTE', 'ERROR');
+GO
+
+-- -------------------------------------------------------
+-- Tabla: BitacoraEnvioCorreo
+-- -------------------------------------------------------
+CREATE TABLE [dbo].[BitacoraEnvioCorreo] (
+    [IdBitacoraEnvioCorreo] UNIQUEIDENTIFIER NOT NULL CONSTRAINT [DF_BitacoraEnvioCorreo_Id]          DEFAULT NEWID(),
+    [IdSolicitudCorreo]     UNIQUEIDENTIFIER NOT NULL,
+    [NumeroIntento]         INT              NOT NULL,
+    [FechaIntento]          DATETIME2(7)     NOT NULL CONSTRAINT [DF_BitacoraEnvioCorreo_FechaIntento] DEFAULT SYSUTCDATETIME(),
+    [Exitoso]               BIT              NOT NULL,
+    [HttpStatusCode]        INT              NULL,
+    [BrevoMessageId]        NVARCHAR(200)    NULL,
+    [BrevoResponseBody]     NVARCHAR(MAX)    NULL,
+    [ErrorDetalle]          NVARCHAR(MAX)    NULL,
+    [DuracionMs]            INT              NULL,
+    CONSTRAINT [PK_BitacoraEnvioCorreo] PRIMARY KEY CLUSTERED ([IdBitacoraEnvioCorreo] ASC),
+    CONSTRAINT [FK_BitacoraEnvioCorreo_SolicitudCorreo] FOREIGN KEY ([IdSolicitudCorreo])
+        REFERENCES [dbo].[SolicitudCorreo] ([IdSolicitudCorreo])
+);
+GO
+
+-- -------------------------------------------------------
+-- Índices en ProquifaDotNet (CorreoEnviado)
+-- Ejecutar en la BD ProquifaDotNet
+-- -------------------------------------------------------
+USE [ProquifaDotNet];
+GO
+
+CREATE NONCLUSTERED INDEX [IX_CorreoEnviado_Sincronizacion]
+ON [dbo].[CorreoEnviado] ([Activo] ASC, [FechaRegistro] ASC, [FechaLectura] ASC, [FechaSpam] ASC)
+INCLUDE ([IdCorreoEnviado], [IdentificadorCorreo], [IdRegion]);
+GO
+
+CREATE NONCLUSTERED INDEX [IX_CorreoEnviado_IdentificadorCorreo]
+ON [dbo].[CorreoEnviado] ([IdentificadorCorreo] ASC)
+WHERE [IdentificadorCorreo] IS NOT NULL;
+GO
+
+-- -------------------------------------------------------
+-- Validación
+-- -------------------------------------------------------
+USE [ProquifaDotNetSendInBlue];
+GO
+
+INSERT INTO [dbo].[SolicitudCorreo] ([IdCorreoEnviado], [TipoEnvio])
+VALUES (NEWID(), 'TEMPLATE');
+GO
+
+DECLARE @IdSolicitud UNIQUEIDENTIFIER = (SELECT TOP 1 [IdSolicitudCorreo] FROM [dbo].[SolicitudCorreo] ORDER BY [FechaCreacion] DESC);
+
+INSERT INTO [dbo].[BitacoraEnvioCorreo] ([IdSolicitudCorreo], [NumeroIntento], [Exitoso], [HttpStatusCode])
+VALUES (@IdSolicitud, 1, 0, 500);
+GO
+
+SELECT
+    'SolicitudCorreo'     AS Tabla, COUNT(*) AS Filas FROM [dbo].[SolicitudCorreo]
+UNION ALL
+SELECT 'BitacoraEnvioCorreo', COUNT(*) FROM [dbo].[BitacoraEnvioCorreo];
+GO
+```
+
 **Criterios de aceptación:**
 - [ ] `SolicitudCorreo` y `BitacoraEnvioCorreo` creadas con FK funcional
 - [ ] Índice filtrado en `SolicitudCorreo` creado correctamente
@@ -275,7 +458,7 @@ Ver sección 6.1 de `TPSC-NO-FU-001.md` para la estructura completa de la soluci
 **Módulos:** Application — CQRS
 
 **Consideraciones previas:**
-- Patrón CQRS con MediatR (igual que Finanzas y Timbrado).
+- Patrón CQRS con MediatR.
 - `EnviarCorreoCommand` es el flujo principal: recibe `IdCorreoEnviado`, crea `SolicitudCorreo` en BD y encola en RabbitMQ. No envía directamente.
 - `EnviarCorreoSimpleCommand` y `EnviarCorreoHtmlCommand` son flujos alternativos: envío directo con failover a RabbitMQ si Brevo no responde en timeout configurado.
 - `SincronizarEstadoCorreoCommand` consulta Brevo por `IdentificadorCorreo` y actualiza `CorreoEnviado` en ProquifaDotNet via Scaffold.
@@ -602,5 +785,198 @@ Refactorizar `CorreoGenericoBO.GenerarCorreo<T>` para delegar el envío al API d
 - [ ] Logs de auditoría registran módulo y operación en cada llamada
 
 **Recursos:**
-- `ProquifaDotNet-R14\Logic.Pqf.Catalogos\CorreosEnviados\CorreoGenericoBO.cs`
-- `TPSC-NO-FU-001.md` — Sección 4.2-B
+- `ProquifaDotNet-R14\Logic.Pqf.Catalogos\CorreosEnviados\CorreoGe
+---
+
+## T11 — [ TPSC-NO-FU-001 ] [CREATE-TABL-M] Crear tabla CatalogoPlantillaBrevo en ProquifaDotNetSendInBlue
+
+**Aplicativos:** ProquifaDotNet.SendInBlue
+
+**Módulos:** Base de Datos — Catálogo de Plantillas Brevo
+
+**Consideraciones previas:**
+- Brevo ofrece un sistema propio de plantillas donde el renderizado ocurre en sus servidores. Solo se necesita pasar el `IdTemplateBrevo` (entero) y un objeto `params` con los valores dinámicos.
+- Esta tabla es el **catálogo local** que mapea una clave lógica (e.g. `BIENVENIDA_CLIENTE`) al ID de plantilla en Brevo, con metadata descriptiva y el esquema JSON de los parámetros esperados.
+- Es diferente a `PlantillaCorreo` (T1): esa tabla almacena HTML local para renderizado en el servidor; esta tabla apunta a plantillas gestionadas en la plataforma de Brevo.
+- La columna `EsquemaParametros` (JSON) documenta los campos que acepta la plantilla de Brevo, facilitando la validación del request antes de enviarlo.
+- La tabla vive en `ProquifaDotNetSendInBlue`.
+- Poblar con los `IdTemplateBrevo` reales de la cuenta Brevo de Proquifa al configurar el ambiente.
+
+**Objetivo general:**
+Crear la tabla `CatalogoPlantillaBrevo` en `ProquifaDotNetSendInBlue` como catálogo de plantillas nativas de Brevo disponibles para envío.
+
+**Objetivos específicos:**
+- DDL: `CREATE TABLE CatalogoPlantillaBrevo` con 10 columnas.
+- Índice único sobre `Clave` (para lookup por clave lógica).
+- Índice sobre `IdTemplateBrevo` (para lookup por ID Brevo).
+- Script DML de validación con INSERT de ejemplo + SELECT.
+
+**Resultado esperado:**
+Tabla `CatalogoPlantillaBrevo` creada en `ProquifaDotNetSendInBlue`. La nueva solución puede resolver el `IdTemplateBrevo` por clave lógica antes de llamar a la API de Brevo.
+
+**Diccionario de datos — `CatalogoPlantillaBrevo`:**
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| `IdCatalogoPlantillaBrevo` | `uniqueidentifier` PK | Identificador interno |
+| `Clave` | `nvarchar(100)` NOT NULL UNIQUE | Clave lógica de la plantilla (e.g. `BIENVENIDA_CLIENTE`) |
+| `IdTemplateBrevo` | `int` NOT NULL | ID de la plantilla en la plataforma Brevo |
+| `Nombre` | `nvarchar(200)` NOT NULL | Nombre descriptivo de la plantilla |
+| `Descripcion` | `nvarchar(500)` NOT NULL DEFAULT '' | Descripción del uso de la plantilla |
+| `EsquemaParametros` | `nvarchar(MAX)` NOT NULL DEFAULT '{}' | JSON con los parámetros esperados por la plantilla |
+| `IdRegion` | `uniqueidentifier` NULL | Región de la cuenta Brevo (NULL = aplica a todas) |
+| `FechaRegistro` | `datetime2` NOT NULL | Fecha de alta |
+| `FechaUltimaActualizacion` | `datetime2` NOT NULL | Timestamp de última modificación |
+| `Activo` | `bit` NOT NULL DEFAULT 1 | Borrado lógico |
+
+**Entregables:**
+- Script DDL: `CREATE TABLE CatalogoPlantillaBrevo` + índices
+- Script de validación
+
+**Propuesta de scripts:**
+
+```sql
+-- ============================================================
+-- TPSC-NO-FU-001 T11 — CatalogoPlantillaBrevo en ProquifaDotNetSendInBlue
+-- Ejecutar después de T1 (la BD y las tablas base ya deben existir)
+-- ============================================================
+
+USE [ProquifaDotNetSendInBlue];
+GO
+
+CREATE TABLE [dbo].[CatalogoPlantillaBrevo] (
+    [IdCatalogoPlantillaBrevo] UNIQUEIDENTIFIER NOT NULL CONSTRAINT [DF_CatalogoPlantillaBrevo_Id]                        DEFAULT NEWID(),
+    [Clave]                    NVARCHAR(100)    NOT NULL,
+    [IdTemplateBrevo]          INT              NOT NULL,
+    [Nombre]                   NVARCHAR(200)    NOT NULL,
+    [Descripcion]              NVARCHAR(500)    NOT NULL CONSTRAINT [DF_CatalogoPlantillaBrevo_Descripcion]               DEFAULT '',
+    [EsquemaParametros]        NVARCHAR(MAX)    NOT NULL CONSTRAINT [DF_CatalogoPlantillaBrevo_EsquemaParametros]         DEFAULT '{}',
+    [IdRegion]                 UNIQUEIDENTIFIER NULL,
+    [FechaRegistro]            DATETIME2(7)     NOT NULL CONSTRAINT [DF_CatalogoPlantillaBrevo_FechaRegistro]             DEFAULT SYSUTCDATETIME(),
+    [FechaUltimaActualizacion] DATETIME2(7)     NOT NULL CONSTRAINT [DF_CatalogoPlantillaBrevo_FechaUltimaActualizacion]  DEFAULT SYSUTCDATETIME(),
+    [Activo]                   BIT              NOT NULL CONSTRAINT [DF_CatalogoPlantillaBrevo_Activo]                    DEFAULT 1,
+    CONSTRAINT [PK_CatalogoPlantillaBrevo]       PRIMARY KEY CLUSTERED ([IdCatalogoPlantillaBrevo] ASC),
+    CONSTRAINT [UQ_CatalogoPlantillaBrevo_Clave] UNIQUE ([Clave])
+);
+GO
+
+-- Índice para lookup por IdTemplateBrevo (registros activos)
+CREATE NONCLUSTERED INDEX [IX_CatalogoPlantillaBrevo_IdTemplateBrevo]
+ON [dbo].[CatalogoPlantillaBrevo] ([IdTemplateBrevo] ASC)
+WHERE [Activo] = 1;
+GO
+
+-- -------------------------------------------------------
+-- DML: INSERT de ejemplo
+-- Reemplazar IdTemplateBrevo con el valor real de la cuenta Brevo de Proquifa
+-- -------------------------------------------------------
+INSERT INTO [dbo].[CatalogoPlantillaBrevo]
+    ([Clave], [IdTemplateBrevo], [Nombre], [Descripcion], [EsquemaParametros])
+VALUES (
+    'BIENVENIDA_CLIENTE',
+    1,
+    'Bienvenida a nuevo cliente',
+    'Correo de bienvenida enviado al registrar un nuevo cliente en el sistema',
+    '{"nombre": "string", "empresa": "string", "urlAcceso": "string"}'
+);
+GO
+
+-- -------------------------------------------------------
+-- Validación: lookup por Clave y por IdTemplateBrevo
+-- -------------------------------------------------------
+SELECT [IdCatalogoPlantillaBrevo], [Clave], [IdTemplateBrevo], [Nombre], [Activo]
+FROM [dbo].[CatalogoPlantillaBrevo]
+WHERE [Clave] = 'BIENVENIDA_CLIENTE';
+GO
+
+SELECT [IdCatalogoPlantillaBrevo], [Clave], [IdTemplateBrevo]
+FROM [dbo].[CatalogoPlantillaBrevo]
+WHERE [IdTemplateBrevo] = 1 AND [Activo] = 1;
+GO
+```
+
+**Criterios de aceptación:**
+- Tabla creada con las 10 columnas
+- Índice único sobre `Clave` funcional
+- Índice sobre `IdTemplateBrevo` creado
+- INSERT de plantilla de prueba exitoso
+- SELECT por `Clave` retorna el `IdTemplateBrevo` correcto
+
+**Más información de la tarea:**
+Complementa T1 (que crea las tablas base de `ProquifaDotNetSendInBlue`). Debe ejecutarse después de T1.
+
+**Recursos:**
+- `TPSC-NO-FU-001.md` — Sección 5.2 (Base de datos ProquifaDotNetSendInBlue)
+- Dependencia: T1
+
+---
+
+## T12 — [ TPSC-NO-FU-001 ] [ALG-COMPLX-LOGIC] Implementar flujo de envío por plantilla Brevo nativa — Command, BrevoMailService, endpoint y Worker
+
+**Aplicativos:** ProquifaDotNet.SendInBlue
+
+**Módulos:** Application — Infrastructure — API — Worker.SendMail
+
+**Consideraciones previas:**
+- Brevo soporta envío por plantilla nativa mediante `POST https://api.brevo.com/v3/smtp/email` con `templateId` (int) y `params` (objeto JSON). Brevo renderiza el HTML en su lado; el servidor solo envía el ID + parámetros.
+- Diferencia clave respecto a los otros 3 endpoints:
+  - `POST /api/correo/enviar` → usa XSLT local + `CorreoEnviado` de ProquifaDotNet.
+  - `POST /api/correo/simple` → HTML de plantilla local + `{{variable}}` sustitución.
+  - `POST /api/correo/html` → HTML explícito en el request.
+  - **`POST /api/correo/plantilla-brevo`** → ID de plantilla en Brevo + `params` JSON.
+- El nuevo `TipoEnvioCorreo` enum debe incluir `BREVO_TEMPLATE`.
+- El request puede resolver el `IdTemplateBrevo` de dos formas: por `clave` lógica (lookup en `CatalogoPlantillaBrevo`) o por `idTemplateBrevo` directo (int).
+- El envío puede ser directo (responde inmediato) o encolado en RabbitMQ si hay timeout.
+- El Worker debe manejar `TipoEnvioCorreo.BREVO_TEMPLATE` al consumir la cola.
+- `IBrevoMailService` necesita un nuevo método `EnviarConPlantillaBrevo(int templateId, string to, object params)`.
+
+**Objetivo general:**
+Implementar el flujo completo de envío por plantilla nativa de Brevo: nuevo Command con handler, método en BrevoMailService, endpoint REST y soporte en Worker.
+
+**Objetivos específicos:**
+
+**Application:**
+- `EnviarCorreoPlantillaBrevoCommand`: campos `Clave` (string, opcional), `IdTemplateBrevo` (int?, opcional), `Receptores` (`List<string>`), `Params` (`Dictionary<string,object>`), `IdRegion` (Guid?).
+- Handler: resuelve `IdTemplateBrevo` si se pasó `Clave` (consulta `CatalogoPlantillaBrevo`), construye `SolicitudCorreo` con `TipoEnvioCorreo.BREVO_TEMPLATE`, intenta envío directo; si timeout → encola en RabbitMQ.
+- Validator FluentValidation: al menos un receptor, y que `Clave` o `IdTemplateBrevo` esté presente (no ambos nulos).
+
+**Infrastructure:**
+- `IBrevoMailService`: nuevo método `EnviarConPlantillaBrevo(int templateId, IEnumerable<string> receptores, Dictionary<string,object> params, Guid? idRegion)`.
+- `BrevoMailService`: implementar el método con `POST /v3/smtp/email` usando `templateId` y `params` según API de Brevo.
+
+**API:**
+- Nuevo endpoint `POST /api/correo/plantilla-brevo` en `CorreoController`.
+- Request body: `{ clave, idTemplateBrevo, receptores, params }`.
+- Respuesta: `{ idSolicitudCorreo, estado }` o `{ brevoMessageId, enviado }` según si fue directo o encolado.
+- Documentación Swagger con ejemplo de `params`.
+
+**Worker:**
+- `SendMailWorker`: agregar case `TipoEnvioCorreo.BREVO_TEMPLATE` → leer `IdTemplateBrevo` de `SolicitudCorreo`, llamar `IBrevoMailService.EnviarConPlantillaBrevo(...)`.
+- Backoff exponencial igual que los otros tipos de envío.
+
+**Resultado esperado:**
+Un consumidor puede llamar `POST /api/correo/plantilla-brevo` con `{ "clave": "BIENVENIDA_CLIENTE", "receptores": ["x@y.com"], "params": { "nombre": "Juan" } }` y Brevo envía el correo usando la plantilla configurada en su plataforma.
+
+**Entregables:**
+- `EnviarCorreoPlantillaBrevoCommand.cs` + Handler + Validator
+- `IBrevoMailService.cs` actualizado con `EnviarConPlantillaBrevo`
+- `BrevoMailService.cs` con implementación HTTP del método
+- `CorreoController.cs` con endpoint `POST /api/correo/plantilla-brevo`
+- `SendMailWorker.cs` con case para `BREVO_TEMPLATE`
+
+**Criterios de aceptación:**
+- `POST /api/correo/plantilla-brevo` con `clave` válida resuelve el `IdTemplateBrevo` desde `CatalogoPlantillaBrevo` y envía exitosamente
+- `POST /api/correo/plantilla-brevo` con `idTemplateBrevo` directo (sin clave) funciona igualmente
+- Si `clave` y `idTemplateBrevo` son ambos nulos → HTTP 400 (validator)
+- Si ningún receptor → HTTP 400 (validator)
+- Si Brevo responde con error HTTP → encola en RabbitMQ para reintento
+- Worker procesa `BREVO_TEMPLATE` con backoff exponencial igual que otros tipos
+- Prueba manual: correo recibido con contenido renderizado por plantilla Brevo
+
+**Más información de la tarea:**
+Ver referencia de API Brevo: `POST /v3/smtp/email` con campo `templateId` (int) y `params` (objeto). La plantilla debe existir y estar activa en la cuenta Brevo.
+
+**Recursos:**
+- Documentación Brevo API: https://developers.brevo.com/reference/sendtransacemail
+- `TPSC-NO-FU-001.md` — Secciones 6.1 (Application), 6.2 (API)
+- Dependencias: T4 (Application base), T5 (Infrastructure), T6 (API), T11 (CatalogoPlantillaBrevo)

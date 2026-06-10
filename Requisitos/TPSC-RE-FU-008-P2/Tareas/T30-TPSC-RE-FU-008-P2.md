@@ -1,0 +1,59 @@
+# [ TPSC-RE-FU-008 ] [SERV-SIMPLE-PUT] Crear BuzonPedidosBO.Reclasificar — reclasificación manual de correo de pedido
+
+---
+
+## Aplicativos
+
+- ProquifaDotNet
+
+## Módulos
+
+- Buzones
+- Mailbot
+
+## Consideraciones previas
+
+- Tarea T29 completada (`BuzonPedidosBO` lista paginada disponible).
+- La reclasificación permite al Agente Comercial mover un correo clasificado como pedido a otro buzón (por ejemplo, si el Agente IA clasificó incorrectamente).
+- Seguir el mismo patrón de `BuzonCobrosBO.Reclasificar` (T06) y `BuzonCotizacionesBO.Reclasificar` (T26).
+- Solo el Agente Comercial autenticado y propietario del buzón puede reclasificar el correo.
+- El destino de reclasificación debe ser una `Clave` válida en `catClasificacionCorreoRecibido`.
+
+## Objetivo general
+
+Implementar la lógica de reclasificación manual que actualiza `CorreoRecibidoCliente.IdCatClasificacionCorreoRecibido` al buzón destino seleccionado por el Agente Comercial.
+
+## Objetivos específicos
+
+1. Crear `Logic.Pqf.Catalogos\Buzones\Pedidos\BuzonPedidosBO.Reclasificar.cs`.
+2. Crear modelo de entrada `Logic.Pqf.Catalogos\Buzones\Pedidos\Models\GMReclasificarCorreoPedido.cs` con campos: IdCorreoRecibidoCliente, IdCatClasificacionCorreoRecibidoDestino.
+3. Validar que el usuario autenticado es el Agente asignado al correo.
+4. Ejecutar `UPDATE CorreoRecibidoCliente SET IdCatClasificacionCorreoRecibido = @destino WHERE IdCorreoRecibidoCliente = @id`.
+5. Registrar la reclasificación en bitácora si aplica el patrón de auditoría del proyecto.
+
+## Resultado esperado
+
+- Un correo del Buzón de Pedidos puede ser movido manualmente a otro buzón por el Agente Comercial, actualizando la clasificación en BD.
+
+## Entregables
+
+- `Logic.Pqf.Catalogos\Buzones\Pedidos\BuzonPedidosBO.Reclasificar.cs`
+- `Logic.Pqf.Catalogos\Buzones\Pedidos\Models\GMReclasificarCorreoPedido.cs`
+
+## Criterios de aceptación
+
+- [ ] Solo el Agente autenticado y propietario del correo puede reclasificarlo.
+- [ ] El destino de reclasificación es una clave válida en `catClasificacionCorreoRecibido`.
+- [ ] `CorreoRecibidoCliente.IdCatClasificacionCorreoRecibido` se actualiza correctamente.
+- [ ] El correo desaparece del Buzón de Pedidos tras la reclasificación.
+- [ ] El proyecto compila sin errores.
+
+## Más información de la tarea
+
+- Referencia: `TPSC-RE-FU-008-P2-Back.md` — PARTE 1, sección 1.2
+- Patrón de referencia: `Logic.Pqf.Catalogos\Buzones\Cobros\BuzonCobrosBO.Reclasificar.cs` (T06)
+
+## Recursos
+
+- Repositorio: ProquifaDotNet, branch `develop-pack04`
+- Proyecto: `Logic.Pqf.Catalogos\Logic.Pqf.Catalogos.csproj`
