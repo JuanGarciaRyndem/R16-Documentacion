@@ -1,14 +1,14 @@
 # TPSC-RE-FU-028 — Validar Cobro: Paso 3 México
 
-| Campo | Valor |
-|---|---|
-| **ID** | TPSC-RE-FU-028 |
-| **Título** | Validar Cobro: Paso 3 México |
-| **Módulo / Épica** | Validar Cobro |
+| Campo                   | Valor                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **ID**                  | TPSC-RE-FU-028                                                                                                                                                                                                                                                                                                                                                                                                     |
+| **Título**              | Validar Cobro: Paso 3 México                                                                                                                                                                                                                                                                                                                                                                                       |
+| **Módulo / Épica**      | Validar Cobro                                                                                                                                                                                                                                                                                                                                                                                                      |
 | **Historia de Usuario** | Yo como **Gestor de Cobranza / Analista de Cuentas por Cobrar (denominación pendiente resolver)**, quiero contar con la tercera pantalla del wizard de Validar Cobro (Paso 3 - Facturación y Envío) para previsualizar, timbrar y enviar los documentos fiscales de cada línea de la asociación, para cerrar el ciclo operativo de cobranza con todos los artefactos fiscales y operativos del cliente entregados. |
-| **Prioridad** | Alta |
-| **Estado** | Propuesto |
-| **Requisito asociado** | R16.2M-RE-FU-002 |
+| **Prioridad**           | Alta                                                                                                                                                                                                                                                                                                                                                                                                               |
+| **Estado**              | Propuesto                                                                                                                                                                                                                                                                                                                                                                                                          |
+| **Requisito asociado**  | R16.2M-RE-FU-002                                                                                                                                                                                                                                                                                                                                                                                                   |
 
 ---
 
@@ -42,7 +42,7 @@ El sistema debe contar con la tercera pantalla del wizard de Validar Cobro (Paso
 - Modal Enviar: permite al usuario disparar el envío del documento al cliente.
 - Destinatario del envío: el contacto del cliente que envió el pedido (heredado del flujo de tramitación del pedido).
 - Cuerpo del correo de envío para facturas: misma plantilla que el correo de envío de Factura por Adelantado.
-- Cuerpo del correo de envío para complementos de pago: ** Pendiente confirmar la plantilla; propuesta inicial "<Folio Pedido Interno> - <Folio Factura>" como asunto, cuerpo por definir. **
+- Cuerpo del correo de envío para complementos de pago: ** Pendiente confirmar la plantilla; propuesta inicial "`<Folio Pedido Interno> - <Folio Factura>`" como asunto, cuerpo por definir. **
 - Al ENVIAR cada documento, el sistema dispara automáticamente las acciones post-envío (solo México):
   - Establecimiento de la Fecha Estimada de Entrega (FEE) del pedido asociado.
   - Transferencia del pedido y documentos generados (factura/anticipo/complemento, NCs aplicadas, info del cobro) a Legacy.

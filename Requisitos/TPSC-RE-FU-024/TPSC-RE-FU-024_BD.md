@@ -1,4 +1,4 @@
-﻿# Impacto en BD — TPSC-RE-FU-024
+# Impacto en BD — TPSC-RE-FU-024
 **Requisito:** Validar Cobro: Paso 1 México — Captura del Cobro
 **Base de Datos:** ProquifaDotNet
 **Versión:** 1.1 (actualizado: se agrega IdCatMoneda detectado en pantalla)
@@ -26,16 +26,16 @@ Se crean 2 tablas nuevas (inconsistencias) y 1 SEQUENCE (foliador COB).
 
 ## Impacto en BD
 
-| #   | Cambio                                                                        | Tipo | Estado        |
-| --- | ----------------------------------------------------------------------------- | ---- | ------------- |
+| #   | Cambio                                                                        | Tipo | Estado                   |
+| --- | ----------------------------------------------------------------------------- | ---- | ------------------------ |
 | 1   | ALTER TABLE fccPagoCliente ADD Confirmado bit NOT NULL DEFAULT(0)             | DDL  | ✅ Ejecutado en RE-FU-023 |
 | 2   | ALTER TABLE fccPagoCliente ADD FechaConfirmacion datetime2 NULL               | DDL  | ✅ Ejecutado en RE-FU-023 |
 | 3   | ALTER TABLE fccPagoCliente ADD IdUsuarioConfirmacion uniqueidentifier NULL    | DDL  | ✅ Ejecutado en RE-FU-023 |
 | 4   | ALTER TABLE fccPagoCliente ADD Notas varchar(500) NULL                        | DDL  | ✅ Ejecutado en RE-FU-023 |
 | 5   | ALTER TABLE fccPagoCliente ADD IdCatMoneda uniqueidentifier NULL FK catMoneda | DDL  | ✅ Ejecutado en RE-FU-023 |
-| 6   | CREATE TABLE catTipoInconsistenciaCobro                                       | DDL  | ❌ Pendiente  |
-| 7   | CREATE TABLE fccInconsistenciaCobro                                           | DDL  | ❌ Pendiente  |
-| 8   | CREATE SEQUENCE dbo.SeqFolioCobro                                             | DDL  | ❌ Pendiente  |
+| 6   | CREATE TABLE catTipoInconsistenciaCobro                                       | DDL  | ❌ Pendiente              |
+| 7   | CREATE TABLE fccInconsistenciaCobro                                           | DDL  | ❌ Pendiente              |
+| 8   | CREATE SEQUENCE dbo.SeqFolioCobro                                             | DDL  | ❌ Pendiente              |
 
 > **Nota #5 — IdCatMoneda:** La pantalla del Paso 1 (Captura del Cobro) muestra un combo
 > desplegable de Moneda (ej. "USD"). Esto requiere un FK a `catMoneda` para cargar las opciones.

@@ -75,7 +75,7 @@ Estado de Cuenta para registrar saldo a favor y diferencias de tolerancia 100 MX
 **Proposito:** Registrar saldo a favor del cliente (sobrepago) y diferencias de
 tolerancia 100 MXN, para uso en futuras sesiones de Validar Cobro.
 
-    -- Created by GitHub Copilot in SSMS - review carefully before executing
+
     CREATE TABLE [dbo].[fccSaldoFavorCliente](
         [IdFCCSaldoFavorCliente] uniqueidentifier NOT NULL
             CONSTRAINT [DF_fccSaldoFavorCliente_Id] DEFAULT (NEWID()),
