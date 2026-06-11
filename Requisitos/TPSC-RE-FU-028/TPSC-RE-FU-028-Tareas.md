@@ -34,7 +34,9 @@
 | 14  | IMP-EXIST-SERVICE     | Implementar modal de Envío: generar Confirmación de Pedido + despacho Brevo (adjuntos CFDI + CDP)   | Back            | ProquifaDotNet.Finanzas |
 | 15  | SERV-TRANSACT         | Implementar acciones post-envío: FEE + registro trazabilidad Confirmación de Pedido                 | Back            | ProquifaDotNet.Finanzas |
 | 16  | SERV-SIMPLE-PUT       | Implementar cierre automático del wizard al completar todas las líneas enviadas                     | Back            | ProquifaDotNet.Finanzas |
-| 17  | SERV-TRANSACT         | Implementar transferencias ETL a Legacy post-envío (E1/E2/E3/E6)                                    | Back            | ProquifaDotNet.Finanzas |
+| 17  | QUERY-G               | Análisis ETL Legacy — Mapeo de datos E1/E2/E3/E6 y resolución Brecha B3                             | Análisis        | ProquifaDotNet.Finanzas |
+| 18  | SERV-COMPLEX-TRANSACT | Implementar builders de payloads ETL E1/E2/E3/E6 e interfaz IEtlLegacyTransferenciaService          | Back            | ProquifaDotNet.Finanzas |
+| 19  | SERV-TRANSACT         | Canal ETL Legacy definitivo E1/E2/E3/E6 — integración, pruebas y documentación                      | Back            | ProquifaDotNet.Finanzas |
 
 ---
 
@@ -1307,66 +1309,179 @@ Ver sección *"Parte B / B8"* en `TPSC-RE-FU-028-Back.md`.
 
 ## TAREA 17
 
-**[ RE-FU-028 ] [SERV-TRANSACT] Implementar transferencias ETL a Legacy post-envío (E1/E2/E3/E6)**
+**[ TPSC-RE-FU-028 ] [QUERY-G] Análisis ETL Legacy — Mapeo de datos E1/E2/E3/E6 y resolución Brecha B3**
 
-**Aplicativos:** ProquifaDotNet.Finanzas
+**Aplicativos:** ProquifaDotNet.Finanzas, Legacy (consulta)
 
-**Módulos:** Validar Cobro — Paso 3 México (ETL Legacy)
+**Módulos:** Validar Cobro — Paso 3 México (ETL Legacy — Análisis)
 
 **Consideraciones previas:**
-- La Tarea 14 y la Tarea 15 deben estar ejecutadas antes de implementar esta tarea.
-- Se dispara automáticamente al confirmar el envío exitoso de cada línea (parte del flujo post-envío junto con T15).
-- ⚠️ **Brecha B3 BLOQUEANTE:** El mecanismo de transferencia a Legacy (tabla ETL, cola RabbitMQ, API directa) no está definido. Las transferencias E1/E2/E3/E6 quedan como estructura preparada pero sin implementación del canal hasta resolver B3 con el equipo de arquitectura.
-- Esta tarea se separó de T15 porque la Brecha B3 es un bloqueante independiente a la Brecha B4 (FEE). Permite avanzar con T15 (FEE + Confirmación) sin esperar la definición del canal ETL.
-- Si la transferencia falla, la línea permanece en `ENVIADO` — manejar el error individualmente con log y reencolar, sin revertir el estado.
-- Solo aplica a México. Para Perú no se disparan transferencias ETL en este requisito.
-- **Alcance de RE-028:** E1 (Datos Buzón de Cobros), E2 (Datos Proforma), E3 (Datos Factura), E6 (PDF Factura). E4/E5/E7/E8 pertenecen a RE-FU-030/032/034.
+- ⚠️ **Brecha B3 BLOQUEANTE:** El canal de transferencia a Legacy (tabla ETL, cola RabbitMQ, API directa) no está definido. Esta tarea existe para resolverla formalmente con el equipo de arquitectura.
+- Precede a T18 (implementación de builders) y T19 (canal definitivo). No puede avanzar implementación sin los resultados de este análisis.
+- Requiere sesión de trabajo con el equipo de arquitectura y revisión con el equipo Legacy para definir tablas destino y campos de referencia cruzada.
+- Alcance exclusivo: E1 (Buzón de Cobros), E2 (Proforma), E3 (Factura), E6 (PDF Factura). E4/E5/E7/E8 pertenecen a RE-030/032/034.
 
 **Objetivo general:**
-Implementar en Finanzas los cuatro payloads de transferencia ETL a Legacy post-envío del Paso 3 México (E1 Buzón, E2 Proforma, E3 Factura, E6 PDF Factura), con el canal de transferencia a implementar una vez resuelta la Brecha B3.
+Resolver la Brecha B3 documentando el mecanismo de transferencia ETL a Legacy y mapeando con precisión los datos de origen (ProquifaDotNet) a destino (Legacy) para cada uno de los cuatro eventos E1, E2, E3 y E6.
 
 **Objetivos específicos:**
-
-**E1 — Buzón de Cobros:**
-- Construir payload con datos del cobro desde `fccPagoCliente` (Folio, Monto, MXN, USD, TipoDeCambio, IdCliente).
-- Identificar el registro de Buzón de Cobros legacy correspondiente (campo de referencia cruzada pendiente de definir con Legacy — parte de Brecha B3).
-
-**E2 — Datos Proforma:**
-- Construir payload con datos de la proforma desde `tpProformaPedido` (Folio, MontoTotal, MontoPendiente, IdEmpresa, partidas).
-- Aplica solo a líneas con origen `fccPagoFacturaPedido`; para líneas `fccPagoFacturaAdelanto` construir el payload de la proforma adelanto (`tpProformaAdelanto`).
-
-**E3 — Datos Factura:**
-- Construir payload con datos del CFDI generado desde `CFDIGenerada` (UUID, Folio, Serie, FechaEmision, Total, TipoCFDI).
-- Incluir datos del receptor (RFC, RazonSocial) desde `DatosFacturacionCliente`.
-
-**E6 — PDF Factura:**
-- Preparar referencia del PDF de Factura almacenado en MinIO (ruta o bytes según defina Legacy).
-- No aplica a líneas de tipo `COMPLEMENTO_PAGO` sin Factura asociada.
-
-**Canal de transferencia (Brecha B3):**
-- Implementar encapsulado en `IEtlLegacyTransferenciaService` con método `EnviarAsync(EtlLegacyPayload)`.
-- Mientras B3 no esté resuelta: registrar el payload en Serilog como `ETL_PENDIENTE` y retornar éxito simulado para no bloquear el flujo de envío.
-- Al resolver B3: reemplazar la implementación stub por la real (tabla ETL / RabbitMQ / API Legacy) sin cambiar la interfaz.
+- Definir el canal de transferencia con arquitectura: tabla ETL intermedia en BD, cola RabbitMQ o llamada API Legacy directa.
+- E1: identificar el campo de referencia cruzada en Legacy que vincula el cobro de ProquifaDotNet con el registro en Legacy.
+- E2: confirmar qué tablas Legacy reciben los datos de Proforma; diferenciar `fccPagoFacturaPedido` vs `fccPagoFacturaAdelanto`.
+- E3: mapear UUID, Folio, Serie, Total del CFDI a columnas exactas en tablas Legacy (Factura, Pedidos, Partidas, Cobro).
+- E6: definir si Legacy recibe bytes del PDF o ruta MinIO; confirmar formato y capacidad de almacenamiento.
+- Documentar orden de ejecución E2 → E1 → E3+E6, atomicidad de E3+E6 y política de error ante fallo de canal.
+- Entregar documento de análisis como insumo directo para T18 y T19.
 
 **Resultado esperado:**
-Los cuatro payloads ETL (E1/E2/E3/E6) construidos correctamente y despachados al canal definitivo una vez resuelta la Brecha B3. Mientras B3 esté pendiente: payloads logueados como `ETL_PENDIENTE` sin bloquear el flujo.
+Brecha B3 resuelta. Documento de análisis ETL que incluye canal definitivo seleccionado, mapeo columna-a-columna para E1/E2/E3/E6, política de atomicidad, manejo de errores y acuerdos con arquitectura y Legacy.
 
 **Entregables:**
-- `IEtlLegacyTransferenciaService` + implementación stub (log `ETL_PENDIENTE`) + implementación real (al resolver B3)
-- Builders de payload: `EtlBuzonCobrosPayloadBuilder`, `EtlProformaPayloadBuilder`, `EtlFacturaPayloadBuilder`, `EtlPdfFacturaPayloadBuilder`
-- DTO: `EtlLegacyPayload` con discriminador de tipo de transferencia (E1/E2/E3/E6)
-- Pruebas unitarias para los 4 builders (incluyendo: E6 no aplica para COMPLEMENTO_PAGO sin Factura, E2 varía entre fccPagoFacturaPedido y fccPagoFacturaAdelanto)
+- Documento de análisis ETL con: canal de transferencia seleccionado y justificación, mapeo origen → destino para E1/E2/E3/E6, política de atomicidad E3+E6, política de error (sin revertir `ENVIADO`), acuerdos documentados con arquitectura y Legacy.
+- Actualización de Brecha B3 en `TPSC-RE-FU-028-Back.md` como resuelta (con la decisión tomada).
 
 **Criterios de aceptación:**
-- Los payloads E1/E2/E3/E6 se construyen correctamente con los datos de las tablas fuente.
-- Para líneas `COMPLEMENTO_PAGO` sin Factura asociada: E6 no genera payload.
-- Si el canal ETL falla o está pendiente: la línea permanece en `ENVIADO`, el payload se loguea como `ETL_PENDIENTE` en Serilog, el flujo no se revierte.
-- La interfaz `IEtlLegacyTransferenciaService` permite reemplazar la implementación stub por la real sin cambiar los callers.
-- ⚠️ Brecha B3 (canal definitivo) queda documentada como pendiente hasta confirmar con arquitectura.
+- El canal de transferencia está definido y acordado con el equipo de arquitectura.
+- El campo de referencia cruzada Legacy-ProquifaDotNet para E1 está identificado.
+- Los mapeos de campos para E2, E3 y E6 están documentados a nivel de tabla y columna en Legacy.
+- Se definió si E6 transfiere bytes o ruta, con confirmación del equipo Legacy.
+- La política de error (sin revertir `ENVIADO`) está confirmada por arquitectura.
+- El documento de análisis está disponible y aprobado como prerequisito para T18 y T19.
 
 **Más información de la tarea:**
-Ver sección *"Parte E / E1–E6"* y Brecha B3 en `TPSC-RE-FU-028-Back.md`.
+Ver Brecha B3 y Parte E en `TPSC-RE-FU-028-Back.md`. El análisis debe resolver específicamente las incógnitas marcadas en las secciones E1–E6 y en Consideraciones transversales ETL.
+
+**Recursos:**
+- `TPSC-RE-FU-028-Back.md` — Parte E (E1–E6), Brecha B3, Consideraciones transversales ETL
+- `TPSC-RE-FU-028_BD.md` — tablas fuente: `fccPagoCliente`, `tpProformaPedido`, `CFDIGenerada`, `DatosFacturacionCliente`
+
+---
+
+## TAREA 18
+
+**[ TPSC-RE-FU-028 ] [SERV-COMPLEX-TRANSACT] Implementar builders de payloads ETL E1/E2/E3/E6 e interfaz IEtlLegacyTransferenciaService**
+
+**Aplicativos:** ProquifaDotNet.AplicativoNuevoLegacy
+
+**Módulos:** Validar Cobro — Paso 3 México (ETL Legacy — Implementación)
+
+**Consideraciones previas:**
+- Predecesora: T17 — Análisis ETL (mapeo de datos y resolución Brecha B3).
+- La Tarea 14 y la Tarea 15 deben estar ejecutadas antes de esta tarea.
+- Se dispara automáticamente al confirmar el envío exitoso de cada línea, como parte del flujo post-envío junto con T15.
+- Si la Brecha B3 aún no está resuelta al momento de implementar: la interfaz usa la implementación stub que registra el payload como `ETL_PENDIENTE` en Serilog sin bloquear el flujo.
+- Al resolver B3: la implementación stub se reemplaza por la real en T19 sin cambiar la interfaz ni los callers.
+- Solo aplica a México. Para Perú no hay ETL en este requisito.
+- Alcance: E1 (Buzón de Cobros), E2 (Proforma), E3 (Factura), E6 (PDF Factura).
+
+**Objetivo general:**
+Implementar la capa de construcción de los cuatro payloads ETL (builders) y la interfaz `IEtlLegacyTransferenciaService` con implementación stub, de forma que el flujo post-envío quede funcional independientemente del estado de la Brecha B3.
+
+**Objetivos específicos:**
+- Crear `IEtlLegacyTransferenciaService` con método `EnviarAsync(EtlLegacyPayload payload)`.
+- Crear `EtlLegacyTransferenciaServiceStub`: implementación que loguea el payload en Serilog como `ETL_PENDIENTE` y retorna éxito simulado.
+- Crear `EtlLegacyPayload` con discriminador de tipo (`TipoEtl`: E1/E2/E3/E6) y datos del payload.
+- Implementar `EtlBuzonCobrosPayloadBuilder` (E1): construye desde `fccPagoCliente` + `fccBuzonCobro` con el campo de referencia cruzada definido en T17.
+- Implementar `EtlProformaPayloadBuilder` (E2): construye desde `tpProformaPedido`; diferencia entre `fccPagoFacturaPedido` y `fccPagoFacturaAdelanto`.
+- Implementar `EtlFacturaPayloadBuilder` (E3): construye desde `CFDIGenerada`, `DatosFacturacionCliente`, `Empresa`.
+- Implementar `EtlPdfFacturaPayloadBuilder` (E6): construye referencia del PDF desde MinIO vía `CFDIGenerada.IdArchivoPdf`; omite para líneas `COMPLEMENTO_PAGO` sin Factura.
+- Invocar los builders en el flujo post-envío de T15 en el orden definido en T17: E2 → E1 → E3+E6.
+
+**Resultado esperado:**
+Los cuatro builders construyen correctamente los payloads usando el mapeo de T17. La interfaz permite inyectar stub o implementación real sin cambiar callers. El flujo post-envío no se bloquea aunque B3 esté pendiente.
+
+**Entregables:**
+- `IEtlLegacyTransferenciaService` (interfaz)
+- `EtlLegacyTransferenciaServiceStub` (implementación stub con log `ETL_PENDIENTE`)
+- `EtlLegacyPayload` + enum `TipoEtl` (E1/E2/E3/E6)
+- `EtlBuzonCobrosPayloadBuilder`, `EtlProformaPayloadBuilder`, `EtlFacturaPayloadBuilder`, `EtlPdfFacturaPayloadBuilder`
+- Pruebas unitarias:
+  - E1: payload con datos correctos de `fccPagoCliente` y referencia cruzada
+  - E2: variante `fccPagoFacturaPedido` vs `fccPagoFacturaAdelanto`
+  - E3: payload con UUID, Folio, RFC emisor/receptor correctos
+  - E6: genera referencia para `FACTURA`; retorna vacío/null para `COMPLEMENTO_PAGO` sin Factura
+  - Stub: payload logueado como `ETL_PENDIENTE`, flujo no interrumpido
+
+**Criterios de aceptación:**
+- Los 4 builders producen payloads correctos según el mapeo definido en T17.
+- Para líneas `COMPLEMENTO_PAGO` sin Factura: `EtlPdfFacturaPayloadBuilder` retorna vacío sin lanzar excepción.
+- La implementación stub loguea `ETL_PENDIENTE` en Serilog y retorna éxito; el flujo post-envío no revierte `ENVIADO`.
+- La inyección de dependencias permite sustituir stub por implementación real sin cambiar callers.
+- Todas las pruebas unitarias pasan con cobertura de los casos críticos.
+- El código es revisado y aprobado por el equipo.
+
+**Más información de la tarea:**
+Ver Parte E / E1–E6 en `TPSC-RE-FU-028-Back.md`. El mapeo columna-a-columna para construir los payloads proviene del análisis de T17.
 
 **Recursos:**
 - `TPSC-RE-FU-028-Back.md` — Parte E, E1/E2/E3/E6; Brecha B3
-- `TPSC-RE-FU-028_BD.md` — tablas fuente ETL (fccPagoCliente, tpProformaPedido, CFDIGenerada, DatosFacturacionCliente)
+- `TPSC-RE-FU-028_BD.md` — tablas fuente ETL (`fccPagoCliente`, `tpProformaPedido`, `CFDIGenerada`, `DatosFacturacionCliente`)
+- Análisis de T17 (mapeo de campos y campo de referencia cruzada E1)
+
+---
+
+## TAREA 19
+
+**[ TPSC-RE-FU-028 ] [SERV-TRANSACT] Canal ETL Legacy definitivo E1/E2/E3/E6 — integración, pruebas y documentación**
+
+**Aplicativos:** ProquifaDotNet.AplicativoNuevoLegacy, Legacy (validación)
+
+**Módulos:** Validar Cobro — Paso 3 México (ETL Legacy — Integración y Validación)
+
+**Consideraciones previas:**
+- Predecesoras: T17 (análisis y resolución B3) y T18 (builders + interfaz + stub). Esta tarea NO inicia sin ambas completadas.
+- Requiere que la Brecha B3 esté resuelta (canal definido por arquitectura).
+- Implementa `EtlLegacyTransferenciaService` real que reemplaza `EtlLegacyTransferenciaServiceStub`, sin modificar `IEtlLegacyTransferenciaService` ni los callers.
+- Si el canal es RabbitMQ: configurar cola, exchange, binding y política de reintento.
+- Si el canal es tabla ETL: configurar proceso lector en Legacy (SSIS u otro) para consumir los registros.
+- Si el canal es API Legacy directa: documentar endpoint, contrato y autenticación.
+- Las pruebas de integración deben ejecutarse en ambiente de QA/staging con Legacy real.
+- El fallo en el canal no revierte el estado `ENVIADO` de la línea; manejar con log, reencola o bandera de reintento según política definida en T17.
+- Solo aplica a México. Para Perú no hay ETL en este requisito.
+
+**Objetivo general:**
+Implementar el canal ETL definitivo para las transferencias E1/E2/E3/E6 a Legacy, reemplazando la implementación stub de T18 por la real, ejecutar y documentar las pruebas de integración, y garantizar que los payloads lleguen correctamente a Legacy con trazabilidad completa.
+
+**Objetivos específicos:**
+- Implementar `EtlLegacyTransferenciaService` real según el mecanismo definido en T17 (tabla ETL / RabbitMQ / API directa).
+- Registrar la implementación real en el contenedor DI en sustitución del stub.
+- Validar en Legacy que los registros de E1, E2, E3 y E6 se almacenan correctamente en las tablas destino.
+- Ejecutar pruebas de integración end-to-end: flujo completo Validar Cobro → envío Paso 3 → payloads en Legacy.
+- Verificar atomicidad de E3+E6: ambos llegan juntos o el fallo queda logueado para reintento.
+- Verificar orden de ejecución: E2 → E1 → E3+E6.
+- Documentar resultados de pruebas: casos ejecutados, evidencias, incidencias encontradas y resolución.
+- Actualizar `TPSC-RE-FU-028-Back.md` confirmando B3 como resuelta e implementada.
+
+**Resultado esperado:**
+Los payloads E1/E2/E3/E6 se transfieren exitosamente a Legacy a través del canal definitivo. Las pruebas de integración están ejecutadas y documentadas. La Brecha B3 queda formalmente cerrada.
+
+**Entregables:**
+- `EtlLegacyTransferenciaService` real (implementación definitiva del canal)
+- Configuración del canal según tecnología: DDL tabla ETL / configuración RabbitMQ / contrato API Legacy
+- Pruebas de integración documentadas:
+  - E1: cobro visible en Legacy vinculado al cliente y pedido
+  - E2: proforma registrada en Legacy correctamente
+  - E3: factura CFDI registrada con UUID, folio y datos fiscales
+  - E6: PDF disponible en repositorio Legacy
+  - Atomicidad E3+E6: si falla E6, se loguea y reencola sin revertir E3
+  - Orden E2 → E1 → E3+E6: verificado en logs
+  - Fallo de canal: estado `ENVIADO` no cambia, payload logueado o reencolado
+- Documento de resultados de pruebas (casos, evidencias, incidencias y resolución)
+- Actualización de Brecha B3 en `TPSC-RE-FU-028-Back.md` como resuelta e implementada
+
+**Criterios de aceptación:**
+- Los 4 payloads (E1/E2/E3/E6) llegan a Legacy con datos correctos validados en tablas destino.
+- La atomicidad E3+E6 se cumple: ambos se procesan exitosamente o el fallo queda logueado para reintento.
+- El estado `ENVIADO` de la línea no se revierte ante fallos del canal ETL.
+- Las pruebas de integración están ejecutadas con evidencias en ambiente QA/staging.
+- La implementación real pasa revisión de código del equipo.
+- Brecha B3 actualizada como resuelta en `TPSC-RE-FU-028-Back.md`.
+
+**Más información de la tarea:**
+Esta tarea cierra el ciclo ETL de RE-028. Los ETL E4/E7 (Complemento de Pago) y E5/E8 (Notas de Crédito) se implementan en RE-030 y RE-032/034 respectivamente.
+
+**Recursos:**
+- `TPSC-RE-FU-028-Back.md` — Parte E, Brecha B3 (resolución), Consideraciones transversales ETL
+- `TPSC-RE-FU-028_BD.md` — tablas fuente ETL
+- Análisis de T17 (documento de mapeo y definición de canal)
+- Entregables de T18 (interfaz `IEtlLegacyTransferenciaService` + builders + stub)

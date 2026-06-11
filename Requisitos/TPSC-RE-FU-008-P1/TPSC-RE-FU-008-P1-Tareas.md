@@ -999,22 +999,22 @@ El Mailbot clasifica y enruta correctamente correos de Cotización y Pedido en a
 
 ## Resumen de tareas
 
-|  #  | Clave                 | Descripcion                                                                         | Proyecto                         | Dependencias |
-| :-: | --------------------- | ----------------------------------------------------------------------------------- | -------------------------------- | ------------ |
-|  1  | BD-OBJ-CH             | Script UPDATE catClasificacionCorreoRecibido + INSERT catProceso                    | BD ProquifaDotNet                | —            |
-|  2  | BD-OBJ-M              | Script CREATE TABLE MailbotEventoCorreo + MailbotClasificacionLog                   | BD ProquifaDotNet                | 1            |
-|  3  | IMP-EXIST-SERVICE     | Refactorizar GeneradorProcesoMailBotBO + crear ClasificacionCorreoRecibidoConstants | Logic.Pqf.Logistica (F4.8)       | 1            |
-|  4  | SERV-COMPLEX-TRANSACT | Crear CorreoRecibidoClienteBuzonCobrosBO                                            | Logic.Pqf.Logistica (F4.8)       | 1, 2         |
-|  5  | LIST-PAG-MULT-FILTER  | Crear BuzonCobrosController                                                         | WebApi.Logistica (F4.8)          | 4            |
-|  6  | ARQ-PROJ-NET          | Crear MailbotWorker.sln — estructura base + scaffold EF Core                        | Nueva solución .NET 10           | 1, 2         |
-|  7  | IMPL-THIRD-SERV       | Integrar n8n + RabbitMQ — consumer y queues                                         | Mailbot.Infrastructure (.NET 10) | 6            |
-|  8  | ALG-COMPLX-LOGIC      | Implementar Agente IA (OpenAIClasificadorAgente + PromptBuilder)                    | Mailbot.Infrastructure (.NET 10) | 6            |
-|  9  | SERV-COMPLEX-TRANSACT | Implementar ProcesarCorreoUseCase + GenerarPendienteUseCase                         | Mailbot.Application (.NET 10)    | 6, 7, 8      |
-| 10  | IMPL-THIRD-SERV       | Integrar MinIO (MinioArchivoService)                                                | Mailbot.Infrastructure (.NET 10) | 6            |
-| 11  | ATTACHED-EMAIL        | Integrar Brevo (BrevoNotificacionService)                                           | Mailbot.Infrastructure (.NET 10) | 6            |
-| 12  | AUTOMATIC-JOB         | Configurar CorreoWorkerMex + CorreoWorkerPer (IHostedService)                       | Mailbot.Worker (.NET 10)         | 7, 9, 10, 11 |
-| 13  | SERV-COMPLEX-TRANSACT | Crear CorreoRecibidoClienteBuzonCotizacionesBO                                      | Logic.Pqf.Logistica (F4.8)       | 1, 2         |
-| 14  | LIST-PAG-MULT-FILTER  | Crear BuzonCotizacionesController                                                   | WebApi.Logistica (F4.8)          | 13           |
-| 15  | SERV-COMPLEX-TRANSACT | Crear CorreoRecibidoClienteBuzonPedidosBO                                           | Logic.Pqf.Logistica (F4.8)       | 1, 2         |
-| 16  | LIST-PAG-MULT-FILTER  | Crear BuzonPedidosController                                                        | WebApi.Logistica (F4.8)          | 15           |
-| 17  | IMP-EXIST-SERVICE     | Actualizar lógica de clasificación y enrutamiento: Cotizaciones y Pedidos           | Logic.Pqf.Logistica (F4.8) + Mailbot.Application (.NET 10) | 3, 9 |
+|  #  | Clave                 | Descripcion                                                                         | Proyecto                                                   | Dependencias |
+| :-: | --------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------ |
+|  1  | BD-OBJ-CH             | Script UPDATE catClasificacionCorreoRecibido + INSERT catProceso                    | BD ProquifaDotNet                                          | —            |
+|  2  | BD-OBJ-M              | Script CREATE TABLE MailbotEventoCorreo + MailbotClasificacionLog                   | BD ProquifaDotNet                                          | 1            |
+|  3  | IMP-EXIST-SERVICE     | Refactorizar GeneradorProcesoMailBotBO + crear ClasificacionCorreoRecibidoConstants | Logic.Pqf.Logistica (F4.8)                                 | 1            |
+|  4  | SERV-COMPLEX-TRANSACT | Crear CorreoRecibidoClienteBuzonCobrosBO                                            | Logic.Pqf.Logistica (F4.8)                                 | 1, 2         |
+|  5  | LIST-PAG-MULT-FILTER  | Crear BuzonCobrosController                                                         | WebApi.Logistica (F4.8)                                    | 4            |
+|  6  | ARQ-PROJ-NET          | Crear MailbotWorker.sln — estructura base + scaffold EF Core                        | Nueva solución .NET 10                                     | 1, 2         |
+|  7  | IMPL-THIRD-SERV       | Integrar n8n + RabbitMQ — consumer y queues                                         | Mailbot.Infrastructure (.NET 10)                           | 6            |
+|  8  | ALG-COMPLX-LOGIC      | Implementar Agente IA (OpenAIClasificadorAgente + PromptBuilder)                    | Mailbot.Infrastructure (.NET 10)                           | 6            |
+|  9  | SERV-COMPLEX-TRANSACT | Implementar ProcesarCorreoUseCase + GenerarPendienteUseCase                         | Mailbot.Application (.NET 10)                              | 6, 7, 8      |
+| 10  | IMPL-THIRD-SERV       | Integrar MinIO (MinioArchivoService)                                                | Mailbot.Infrastructure (.NET 10)                           | 6            |
+| 11  | ATTACHED-EMAIL        | Integrar Brevo (BrevoNotificacionService)                                           | Mailbot.Infrastructure (.NET 10)                           | 6            |
+| 12  | AUTOMATIC-JOB         | Configurar CorreoWorkerMex + CorreoWorkerPer (IHostedService)                       | Mailbot.Worker (.NET 10)                                   | 7, 9, 10, 11 |
+| 13  | SERV-COMPLEX-TRANSACT | Crear CorreoRecibidoClienteBuzonCotizacionesBO                                      | Logic.Pqf.Logistica (F4.8)                                 | 1, 2         |
+| 14  | LIST-PAG-MULT-FILTER  | Crear BuzonCotizacionesController                                                   | WebApi.Logistica (F4.8)                                    | 13           |
+| 15  | SERV-COMPLEX-TRANSACT | Crear CorreoRecibidoClienteBuzonPedidosBO                                           | Logic.Pqf.Logistica (F4.8)                                 | 1, 2         |
+| 16  | LIST-PAG-MULT-FILTER  | Crear BuzonPedidosController                                                        | WebApi.Logistica (F4.8)                                    | 15           |
+| 17  | IMP-EXIST-SERVICE     | Actualizar lógica de clasificación y enrutamiento: Cotizaciones y Pedidos           | Logic.Pqf.Logistica (F4.8) + Mailbot.Application (.NET 10) | 3, 9         |

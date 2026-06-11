@@ -4,9 +4,9 @@
 |-------|-------|
 | **Requisito** | TPSC-RE-FU-008 |
 | **Nombre** | Buzón de Cobros |
-| **Total de tareas** | 9 |
+| **Total de tareas** | 12 |
 | **Revisión aplicada** | TPSC-RE-FU-008-Back.md |
-| **Última actualización** | 2026-06-10 — OBS-021: Tareas 8 y 9 agregadas (Bandeja del Coordinador de Tesorería) |
+| **Última actualización** | 2026-06-11 — Tareas 10, 11 y 12 agregadas: ETL Buzón de Cobros → Legacy |
 
 ---
 
@@ -761,3 +761,211 @@ WebApi.Logistica\Controllers\Procesos\Mailbot\BandejaCoordenadorTesoreriaControl
 - Análisis de impacto backend: `Requisitos/TPSC-RE-FU-008/TPSC-RE-FU-008-Back.md`
 - Diccionario de datos: `Requisitos/TPSC-RE-FU-008/TPSC-RE-FU-008_BD.md`
 - Requisito funcional: `Requisitos/TPSC-RE-FU-008/TPSC-RE-FU-008.md`
+
+
+---
+
+## Tarea 10
+
+### TPSC-RE-FU-008  [ QUERY-G ]  Análisis ETL Legacy — Mapeo de datos Buzón de Cobros y definición de trigger
+
+**Aplicativos:**
+ProquifaDotNet.NuevoAplicativoLegacy / ProquifaNet 2 (consulta) / PConnect
+
+**Módulos:**
+Buzón de Cobros — ETL Legacy (Análisis)
+
+**Consideraciones previas:**
+- ⚠️ **Brecha B3 BLOQUEANTE (compartida con TPSC-RE-FU-028):** El canal de transferencia a Legacy (tabla ETL, cola RabbitMQ, API directa) no está definido. Esta tarea contribuye a su resolución desde la perspectiva del Buzón de Cobros.
+- La transferencia E1 (Datos Buzón de Cobros) está documentada en `TPSC-RE-FU-028-Back.md` Parte E como dependencia de RE-008. Esta tarea define el **qué y cuándo** desde el origen.
+- El análisis debe coordinarse con el equipo de arquitectura y con el equipo Legacy para confirmar las tablas/directorio destino y el campo de referencia cruzada.
+- Precede a Tarea 11 (implementación builders) y Tarea 12 (canal definitivo). No puede avanzar implementación sin los resultados de este análisis.
+- El disparador de E1 no está resuelto: puede ocurrir al clasificar el correo (RE-008), al confirmar el cobro en Paso 1 (RE-024) o al completar el Paso 3 (RE-028). Esta tarea debe definirlo formalmente.
+
+**Decisiones ya tomadas (resultado de análisis previo):**
+- **Archivos a transferir:** Se transfieren **todos** los archivos adjuntos del correo, obtenidos desde `ArchivoCorreoRecibido` (N:N entre `CorreoRecibido` y `Archivo`). No solo el comprobante seleccionado en Paso 1.
+- **Destino de archivos:** Los archivos se guardan en un **directorio específico en Legacy**. El equipo Legacy debe confirmar la ruta exacta y si varía por empresa o región.
+- **Política de reintentos:** La transferencia reintenta **N veces configurables** (valor en AppSettings o tabla de configuración). Si se agotan los reintentos, se registra en una **bitácora de fallos** con el motivo de error. No queda pendiente manual sin trazabilidad.
+- **Ante inconsistencia R7 (anulación del cobro):** El archivo ya transferido **permanece en Legacy como historial**. No se elimina ni se notifica a Legacy sobre la anulación.
+
+**Descripción del problema:**
+El Buzón de Cobros genera registros en `fccPagoCliente` y `fccFolioPagoCliente` que Legacy necesita conocer para mantener la continuidad del ciclo de surtido. Adicionalmente, los correos clasificados como cobro tienen adjuntos (comprobantes de pago) almacenados en MinIO que deben copiarse a un directorio en Legacy. Quedan por definir: el trigger exacto de E1, el campo de referencia cruzada, el mapeo columna-a-columna y la ruta destino del directorio en Legacy.
+
+**Objetivos específicos:**
+- Definir el **trigger** de E1: ¿se dispara al clasificar el correo (RE-008), al confirmar el cobro Paso 1 (RE-024) o al avanzar al Paso 3 (RE-028)? Documentar la decisión con el equipo.
+- Confirmar las **tablas destino en Legacy** que reciben los datos del cobro (registro cobro recibido, vinculación cliente/pedido).
+- Identificar el **campo de referencia cruzada** que vincula el cobro de ProquifaDotNet con el registro en Legacy.
+- Mapear columna a columna: `fccPagoCliente` (Folio, Monto, FechaPago, FormaPago, Moneda, TipoDeCambio, CuentaDestino, IdCliente) → columnas exactas en Legacy.
+- Confirmar con Legacy la **ruta del directorio destino** para los archivos adjuntos (¿varía por empresa emisora o región?).
+- Confirmar si los archivos se copian como nombre original o con un esquema de renombrado basado en folio/cliente.
+- Definir el **valor inicial de N reintentos** y la **tabla/estructura de la bitácora de fallos** (columnas: IdFolio, FechaIntento, MotivoFallo, NúmeroIntento, Resuelto).
+- Documentar el contrato completo E1 como insumo para Tarea 11 y Tarea 12.
+
+**Resultado esperado:**
+Documento de análisis E1 completamente resuelto: trigger definido, campo de referencia cruzada identificado, mapeo columna-a-columna hacia Legacy, ruta directorio destino confirmada, estructura de bitácora diseñada, acuerdos documentados con arquitectura y Legacy.
+
+**Entregables:**
+- Documento de análisis ETL E1 con:
+  - Trigger definitivo (RE-008 / RE-024 / RE-028)
+  - Mapeo de campos: `fccPagoCliente` → tablas/columnas Legacy
+  - Campo de referencia cruzada ProquifaDotNet ↔ Legacy
+  - Ruta del directorio destino en Legacy para archivos adjuntos
+  - Esquema de nombre de archivo en Legacy (nombre original o renombrado)
+  - Valor inicial de N reintentos y estructura de bitácora de fallos
+  - Acuerdos firmados con arquitectura y equipo Legacy
+- Script DDL o diseño de la **tabla bitácora de fallos ETL** (puede ser en BD ProquifaDotNet o en Legacy según decisión de arquitectura)
+- Actualización de la sección E1 en `TPSC-RE-FU-028-Back.md` con los acuerdos alcanzados
+
+**Criterios de aceptación:**
+- [ ] El trigger de E1 está definido y documentado.
+- [ ] El campo de referencia cruzada ProquifaDotNet ↔ Legacy está identificado y confirmado con el equipo Legacy.
+- [ ] El mapeo columna-a-columna para `fccPagoCliente` está documentado con columnas exactas en Legacy.
+- [ ] La ruta del directorio destino en Legacy para los archivos adjuntos está confirmada.
+- [ ] El esquema de nombre de archivo en directorio Legacy está definido.
+- [ ] El valor de N reintentos y la estructura de la bitácora de fallos están definidos y aprobados.
+- [ ] El documento de análisis está disponible y aprobado como prerequisito para Tarea 11 y Tarea 12.
+
+**Más información de la tarea:**
+Ver E1 en `TPSC-RE-FU-028-Back.md` — Parte E y Brecha B3. Los archivos adjuntos del correo se acceden desde `ArchivoCorreoRecibido` (N:N) — NO solo desde `fccFolioPagoCliente.IdArchivo`. Los archivos están en MinIO bucket `mailbot` y se recuperan vía `ArchivoBO.Obtener(IdArchivo)`.
+
+**Recursos:**
+- `TPSC-RE-FU-008-Back.md` — GAP-02, GAP-03, GAP-06 (modelo de datos del Buzón)
+- `TPSC-RE-FU-008_BD.md` — tablas: `fccFolioPagoCliente`, `ArchivoCorreoRecibido`, `Archivo`
+- `Logic.Pqf.Logistica/L11.MailBot/Archivos/ArchivoCorreoRecibidoBO.cs` — lógica existente de archivos en MinIO
+- `TPSC-RE-FU-028-Back.md` — Parte E, E1, Brecha B3
+- Requisito funcional: `TPSC-RE-FU-008.md`
+
+---
+
+## Tarea 11
+
+### TPSC-RE-FU-008  [ SERV-COMPLEX-TRANSACT ]  Implementar payload builder ETL E1 (Buzón de Cobros) e interfaz IEtlBuzonCobrosLegacyService
+
+**Aplicativos:**
+ProquifaDotNet.NuevoAplicativoLegacy / ProquifaNet 2 (consulta) / PConnect
+
+**Módulos:**
+Buzón de Cobros — ETL Legacy (Implementación)
+
+**Consideraciones previas:**
+- **Predecesora: Tarea 10** — Análisis ETL E1 (trigger, mapeo de campos, campo de referencia cruzada). No iniciar sin el documento de análisis aprobado.
+- El trigger de E1 determina dónde se invoca este servicio: si es en RE-024 (Paso 1), se invoca desde `ProquifaDotNet.Finanzas` al confirmar el cobro; si es en RE-028 (Paso 3), se invoca como parte del flujo post-envío junto con E2/E3/E6.
+- Mientras la Brecha B3 esté pendiente: implementar con stub que registra el payload como `ETL_PENDIENTE` en Serilog sin bloquear el flujo.
+- El canal definitivo se implementa en Tarea 12 sin cambiar la interfaz ni los callers.
+- Coordinación con `TPSC-RE-FU-028 T18`: si el canal general `IEtlLegacyTransferenciaService` ya fue implementado allá, evaluar si E1 se integra como tipo adicional al mismo servicio o como servicio independiente.
+
+**Descripción del problema:**
+No existe la capa de construcción del payload ETL para los datos del Buzón de Cobros hacia Legacy. Una vez definido el mapeo en Tarea 10, se debe implementar el builder que toma los datos de `fccPagoCliente` y `fccBuzonCobro` y construye el payload estructurado listo para ser despachado al canal Legacy.
+
+**Objetivos específicos:**
+- Crear `IEtlBuzonCobrosLegacyService` con métodos `EnviarDatosAsync(EtlBuzonCobrosPayload)` y `EnviarArchivosAsync(IEnumerable<ArchivoAdjuntoEtl>)` (o integrar E1 al `IEtlLegacyTransferenciaService` existente de RE-028 T18 según decisión de arquitectura).
+- Crear `EtlBuzonCobrosLegacyServiceStub`: implementación que loguea en Serilog como `ETL_PENDIENTE` y retorna éxito simulado.
+- Crear `EtlBuzonCobrosPayload` con los campos del análisis de Tarea 10: Folio, Monto, FechaPago, FormaPago, Moneda, TipoDeCambio, CuentaDestino, IdCliente, referencia cruzada Legacy, lista de `ArchivoAdjuntoEtl`.
+- Crear `ArchivoAdjuntoEtl`: DTO con `NombreArchivo`, `Bytes` (o URL según formato acordado en T10), `IdArchivo`.
+- Implementar `EtlBuzonCobrosPayloadBuilder`: construye el payload de datos desde `fccPagoCliente` usando la referencia cruzada de T10; obtiene **todos** los archivos adjuntos del correo desde `ArchivoCorreoRecibido` filtrado por `IdCorreoRecibido`, descarga bytes desde MinIO via `ArchivoBO.Obtener(IdArchivo)` → `ArchivoDetalle.Url`.
+- Implementar política de reintentos: N intentos configurables (AppSettings); al agotar intentos, registrar en la **bitácora de fallos ETL** con: `IdFolioPagoCliente`, `FechaIntento`, `MotivoFallo`, `NumeroIntento`. No lanzar excepción que bloquee el flujo principal.
+- Conectar la invocación del builder en el trigger definido en T10 (RE-024 Paso 1 o RE-028 Paso 3).
+
+**Resultado esperado:**
+El builder construye correctamente el payload E1 usando el mapeo de Tarea 10. La interfaz permite inyectar stub o implementación real sin cambiar callers. El flujo no se bloquea mientras B3 esté pendiente.
+
+**Entregables:**
+- `IEtlBuzonCobrosLegacyService` (interfaz) o extensión de `IEtlLegacyTransferenciaService` con tipo E1
+- `EtlBuzonCobrosLegacyServiceStub` (implementación stub con log `ETL_PENDIENTE`)
+- `EtlBuzonCobrosPayload` (DTO con campos del análisis T10)
+- `EtlBuzonCobrosPayloadBuilder` (construye desde `fccPagoCliente` + `fccBuzonCobro`)
+- Pruebas unitarias:
+  - Payload construido correctamente con datos reales de `fccPagoCliente`
+  - Campo de referencia cruzada Legacy incluido
+  - Referencia al adjunto de `fccBuzonCobro` incluida
+  - Stub loguea `ETL_PENDIENTE` y no interrumpe el flujo
+  - Cobro con inconsistencia (R7): comportamiento definido en T10
+
+**Criterios de aceptación:**
+- [ ] El builder produce el payload E1 correcto: datos de `fccPagoCliente` con referencia cruzada Legacy.
+- [ ] El payload incluye TODOS los adjuntos del correo obtenidos desde `ArchivoCorreoRecibido`, no solo el de `fccFolioPagoCliente.IdArchivo`.
+- [ ] La política de reintentos lee N desde AppSettings y registra en bitácora al agotar intentos sin lanzar excepción al flujo principal.
+- [ ] El fallo de descarga de un archivo individual no cancela la transferencia de los demás archivos ni los datos del cobro.
+- [ ] La implementación stub loguea `ETL_PENDIENTE` en Serilog y retorna éxito; el flujo no revierte el registro del cobro.
+- [ ] La inyección de dependencias permite sustituir stub por implementación real sin cambiar callers.
+- [ ] Todas las pruebas unitarias pasan.
+- [ ] El código es revisado y aprobado por el equipo.
+
+**Más información de la tarea:**
+El mapeo columna-a-columna para construir el payload proviene del análisis de Tarea 10. Coordinar con TPSC-RE-FU-028 T18 para evitar duplicación de la interfaz general de canal ETL.
+
+**Recursos:**
+- `TPSC-RE-FU-008-Back.md` — GAP-03, GAP-06, modelo `fccPagoCliente`, `fccBuzonCobro`
+- `TPSC-RE-FU-008_BD.md` — tablas fuente ETL
+- `TPSC-RE-FU-028-Back.md` — Parte E, E1, Brecha B3
+- Análisis de Tarea 10 (mapeo de campos y campo de referencia cruzada)
+
+---
+
+## Tarea 12
+
+### TPSC-RE-FU-008  [ SERV-TRANSACT ]  Canal ETL Legacy definitivo Buzón de Cobros (E1) — integración, pruebas y documentación
+
+**Aplicativos:**
+ProquifaDotNet.NuevoAplicativoLegacy / ProquifaNet 2 (consulta)
+
+**Módulos:**
+Buzón de Cobros — ETL Legacy (Integración y Validación)
+
+**Consideraciones previas:**
+- **Predecesoras: Tarea 10 y Tarea 11.** Esta tarea NO inicia sin ambas completadas y sin la Brecha B3 resuelta.
+- Requiere que el canal de transferencia esté definido (resultado de TPSC-RE-FU-028 T17 o de Tarea 10 si B3 se resuelve desde aquí).
+- Implementa la clase real que reemplaza `EtlBuzonCobrosLegacyServiceStub` sin modificar la interfaz ni los callers.
+- Si el canal es RabbitMQ: configurar cola, exchange, binding y política de reintento para E1.
+- Si el canal es tabla ETL: confirmar que el proceso lector en Legacy (SSIS u otro) consume el tipo E1.
+- Si el canal es API Legacy directa: documentar endpoint, contrato y autenticación para el cobro.
+- Las pruebas de integración deben ejecutarse en ambiente QA/staging con Legacy real.
+- El fallo en el canal no revierte el registro del cobro en `fccPagoCliente`; manejar con log, reencola o bandera de reintento según política definida en Tarea 10.
+- Validar el comportamiento ante inconsistencia (R7): si el cobro se marca inconsistencia en ProquifaDotNet después de la transferencia, confirmar si Legacy recibe notificación de anulación.
+
+**Descripción del problema:**
+Una vez construido el payload E1 en Tarea 11, se debe conectar el canal de transferencia definitivo hacia Legacy. Sin esta tarea, el cobro del Buzón solo queda logueado como `ETL_PENDIENTE` en Serilog y Legacy no recibe la información necesaria para continuar el ciclo de surtido.
+
+**Objetivos específicos:**
+- Implementar `EtlBuzonCobrosLegacyService` real según el mecanismo definido en Tarea 10 y TPSC-RE-FU-028 T17.
+- Registrar la implementación real en el contenedor DI en sustitución del stub.
+- Validar en Legacy que el registro del cobro se almacena correctamente en las tablas destino con los datos esperados.
+- Ejecutar pruebas de integración end-to-end: clasificación correo → generación cobro → payload E1 → registro en Legacy.
+- Validar el comportamiento ante inconsistencia (R7): cobro anulado en ProquifaDotNet → Legacy notificado o bandera en payload.
+- Verificar que el fallo de canal no cambia el estado del cobro en `fccPagoCliente`.
+- Documentar resultados de pruebas: casos ejecutados, evidencias, incidencias y resolución.
+- Actualizar la sección E1 en `TPSC-RE-FU-028-Back.md` confirmando la implementación como completada.
+
+**Resultado esperado:**
+El payload E1 se transfiere exitosamente a Legacy a través del canal definitivo. Las pruebas de integración están ejecutadas y documentadas. La transferencia del Buzón de Cobros a Legacy queda formalmente cerrada.
+
+**Entregables:**
+- `EtlBuzonCobrosLegacyService` real (implementación definitiva del canal)
+- Configuración del canal según tecnología: DDL tabla ETL / configuración RabbitMQ / contrato API Legacy para E1
+- Pruebas de integración documentadas:
+  - E1 completo: cobro visible en Legacy vinculado al cliente y al pedido
+  - Campos mapeados correctamente (Folio, Monto, FormaPago, TC, referencia cruzada)
+  - Adjunto/referencia de `fccBuzonCobro` incluido en Legacy
+  - Fallo de canal: estado del cobro en `fccPagoCliente` no cambia; payload logueado o reencolado
+  - Inconsistencia R7: comportamiento ante anulación posterior validado con equipo Legacy
+- Documento de resultados de pruebas (casos, evidencias, incidencias y resolución)
+- Actualización de E1 en `TPSC-RE-FU-028-Back.md` como implementado
+
+**Criterios de aceptación:**
+- [ ] El payload E1 llega a Legacy con todos los datos correctos validados en tablas destino.
+- [ ] El campo de referencia cruzada ProquifaDotNet ↔ Legacy está presente y correcto en Legacy.
+- [ ] El fallo de canal no altera el estado de `fccPagoCliente` ni `fccFolioPagoCliente`.
+- [ ] El comportamiento ante inconsistencia (R7) está validado y documentado.
+- [ ] Las pruebas de integración están ejecutadas con evidencias en ambiente QA/staging.
+- [ ] La implementación real pasa revisión de código del equipo.
+- [ ] E1 actualizado como implementado en `TPSC-RE-FU-028-Back.md`.
+
+**Más información de la tarea:**
+Esta tarea cierra el ciclo ETL de RE-008 para Legacy. El resto de los ETL del flujo Validar Cobro (E2 Proforma, E3 Factura, E6 PDF) se implementan en TPSC-RE-FU-028 T18/T19.
+
+**Recursos:**
+- `TPSC-RE-FU-008-Back.md` — GAP-03, GAP-06, modelo `fccPagoCliente`, `fccBuzonCobro`
+- `TPSC-RE-FU-008_BD.md` — tablas fuente ETL
+- `TPSC-RE-FU-028-Back.md` — Parte E, E1, Brecha B3, Consideraciones transversales ETL
+- Análisis de Tarea 10 (documento de mapeo y definición de canal)
+- Entregables de Tarea 11 (interfaz + builder + stub)
