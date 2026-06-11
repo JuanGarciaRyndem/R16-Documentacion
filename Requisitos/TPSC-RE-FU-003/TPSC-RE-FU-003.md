@@ -27,7 +27,7 @@ El sistema debe contar con una sección **“Documentos Regulatorios”** dentro
 
 ### Aplica a
 
-- Clientes de México y Perú en el Catálogo de Clientes.
+- Clientes de Región México en el Catálogo de Clientes (la sección de Documentos Regulatorios y su uso como condicionante regulatoria se construyen para México).
 - Sección “Documentos Regulatorios” dentro de la pantalla del cliente.
 - Dos documentos PDF por cliente: **Licencia Sanitaria** y **Aviso de Responsable Sanitario**.
 - Operaciones disponibles para el rol Regulatorios sobre los documentos: carga (subida), visualización, reemplazo (subir nueva versión que sobrescribe la anterior) y eliminación.
@@ -39,6 +39,7 @@ El sistema debe contar con una sección **“Documentos Regulatorios”** dentro
 - Validación del contenido del PDF, firmas digitales, autenticidad del documento o vigencia regulatoria.
 - Notificación automática de vencimiento o renovación de los documentos cargados.
 - Conservación de historial de versiones de los documentos en el listado de pantalla (cada reemplazo descarta la versión anterior sin trazabilidad visual).
+- Validaciones y condicionantes regulatorias de Sustancias Controladas para Región Perú: no se implementan en esta release. El sistema permite la existencia de familias controladas en cualquier región (no las restringe), pero para Perú no se construyen las validaciones regulatorias ni el bloqueo condicionante en Pretramitar Pedido; el manejo de controlados en Perú es operativo, no controlado por el sistema.
 
 ---
 
@@ -56,10 +57,8 @@ Cada cliente mantiene a lo más una versión vigente de cada documento regulator
 **Regla 4 — Sin validación de vigencia ni contenido**
 El sistema no valida el contenido, autenticidad, firmas digitales ni fecha de vigencia de los documentos cargados, ni notifica vencimientos. La responsabilidad de mantener los documentos vigentes y correctos recae fuera del sistema, en el rol Regulatorios.
 
-**Regla 5 — Aplicación uniforme México y Perú**
-La funcionalidad opera de manera idéntica para clientes de México y Perú. El equivalente documental peruano (denominaciones SUNAT/DIGEMID que correspondan) se carga bajo los mismos campos genéricos de Licencia Sanitaria y Aviso de Responsable Sanitario.
-
-> ** Pendiente confirmar etiquetas de campos para Perú. **
+**Regla 5 — Documentos Regulatorios construidos para Región México**
+La sección de Documentos Regulatorios y su uso como condicionante en Pretramitar Pedido se construyen para clientes de Región México. Para Región Perú no se implementan validaciones ni condicionantes regulatorias de Sustancias Controladas en esta release: el sistema no restringe la existencia de familias controladas, pero su manejo en Perú es operativo y no está soportado por validaciones del sistema.
 
 ---
 
@@ -74,11 +73,6 @@ Al sobrescribir un documento sin conservar la versión anterior en el listado de
 
 **Riesgo 3 — Eliminación accidental**
 Como el rol Regulatorios puede eliminar documentos cargados, una eliminación accidental dejaría al cliente sin documentación, bloqueando inmediatamente cualquier tramitación con sustancias controladas hasta nueva carga.
-
-**Riesgo 4 — Documentos peruanos con denominación distinta**
-La nomenclatura de los documentos regulatorios en Perú (regulados por DIGEMID/SUNAT) puede no coincidir literalmente con “Licencia Sanitaria” y “Aviso de Responsable Sanitario” usados en México.
-
-> ** Pendiente confirmar denominación exacta con el cliente y decidir si se modelan bajo los mismos campos genéricos o si requieren campos diferenciados por país. **
 
 ---
 
@@ -148,4 +142,10 @@ La nomenclatura de los documentos regulatorios en Perú (regulados por DIGEMID/S
 - Esta funcionalidad es habilitadora de la validación bloqueante en el módulo **Pretramitar Pedido** para pedidos con sustancias controladas (ver requisito **TPSC-RE-FU-009**).
 - La administración de roles del sistema (creación del rol Regulatorios, asignación usuario-rol) se gestiona a nivel base de datos.
 
-> ** Pendiente: definir si la denominación de los documentos en Perú difiere de “Licencia Sanitaria” y “Aviso de Responsable Sanitario” (regulados por DIGEMID/SUNAT) y, en caso afirmativo, si se modelan bajo los mismos campos genéricos o si requieren campos diferenciados por país. **
+---
+
+## Cambios
+
+| # | Fecha | Observación | Descripción del cambio |
+|---|-------|-------------|------------------------|
+| 1 | 2026-06-10 | OBS-007 | Alcance restringido a Región México. Regla 5 actualizada: los Documentos Regulatorios y su uso como condicionante en Pretramitar Pedido se construyen solo para México. Para Región Perú no se implementan validaciones ni condicionantes regulatorias en esta release. Se agrega bullet en “No aplica a” para Perú y se elimina Riesgo 4 (denominación Perú) ya no relevante. |

@@ -383,3 +383,12 @@ Entonces el sistema deberá cerrar el wizard y retornar al listado principal del
 - ** Pendiente definir vía operativa de excepción para casos donde el usuario necesita salir del Paso 3 con líneas pendientes sin posibilidad de continuar (cliente cancela a último minuto, error operativo detectado tarde, etc.). **
 - ** Pendiente definición formal de la política de indisponibilidad del PAC TurboPac (transversal con Factura por Adelantado). **
 - ** Pendiente resolver formalmente la denominación canónica del rol operativo entre "Gestor de Cobranza" y "Analista de Cuentas por Cobrar" (transversal). **
+
+
+---
+
+## Cambios
+
+| # | Fecha | Referencia | Descripción del cambio |
+|---|-------|------------|------------------------|
+| 1 | 2026-06-10 | OBS-048 | Revisado. La reanudación del wizard en el paso activo ya estaba cubierta en la nota de Persistencia del Paso 3. Sin cambios de contenido. |

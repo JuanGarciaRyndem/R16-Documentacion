@@ -195,12 +195,15 @@ La detracción aplica por producto/servicio (no por cliente). Un cliente podría
 
 - Funcionalidad ubicada en la sección **Cobros** del cliente dentro del Catálogo de Clientes.
 - Los campos para clientes México (Forma de Pago, Uso de CFDI, Método de Pago) ya existen en el sistema actual. R16 mantiene esa funcionalidad preexistente.
-- Los campos para clientes Perú son nuevos en R16: Condición de Pago SUNAT (Contado/Crédito), Tipo de Comprobante SUNAT (Factura/Boleta/Recibo por Honorarios), y las banderas Agente de Retención IGV y Sujeto a Detracción.
+- Los campos para clientes Perú son nuevos en R16: Condición de Pago SUNAT (Contado/Crédito), Tipo de Comprobante SUNAT (Factura/Boleta/Recibo por Honorarios). **Pendiente de confirmación:** las banderas Agente de Retención IGV y Sujeto a Detracción (sujetas a validación de aplicabilidad con el cliente antes de desarrollarse).
 - El campo de dimensión temporal del pago para Perú se denomina **Condición de Pago** (Contado/Crédito) conforme a la Resolución de Superintendencia N° 193-2020/SUNAT. Es el equivalente conceptual del Método de Pago mexicano (PUE/PPD). Para Perú no se captura el medio de pago específico (Forma de Pago mexicana) porque la normativa SUNAT no lo exige en el comprobante.
 - El Uso de CFDI (México) y el Tipo de Comprobante (Perú) se modelan como **campos independientes** con catálogos separados. No comparten campo en pantalla ni en base de datos, para evitar complicaciones al timbrar.
 - Catálogo actual de Forma de Pago en PQF2 (México): Cheque, Depósito bancario, Efectivo, Tarjeta, Transferencia, Otros, Na, —ninguno—. Es un catálogo simplificado propio del sistema que no emplea la nomenclatura ni las claves del catálogo SAT c_FormaPago.
 - Catálogo actual de Uso de CFDI en PQF2 (México): G01 Adquisición de mercancías, G02 Devoluciones/descuentos/bonificaciones, G03 Gastos en general, S01 Sin efectos fiscales, Por definir, N/A. Mantener el catálogo preexistente salvo indicación contraria del cliente.
 - Cualquier usuario con acceso a la cartera del cliente puede modificar los campos de la sección Cobros. No existe restricción de rol específica.
+- Para el detalle de los campos de la sección Cobros por Región, los catálogos y el análisis de los mecanismos tributarios peruanos, ver archivo adjunto `TPSC-RE-FU-005_Equivalencias_Cobros_MX_PE.xlsx`.
+
+> **⚠️ Duda** — Campo "Tipo de Revisión" (Digital / Física / Híbrida) en la sección de configuración fiscal del cliente: el campo existe en la pantalla actual de México (PQF2) pero no está documentado en ningún requisito de la matriz. Pendiente confirmar con el cliente: (1) si este campo entra dentro del alcance de R16 o queda fuera; (2) qué representa funcionalmente y qué reglas tiene; (3) si aplica igual a Perú.
 
 > **⚠️ Pendiente** — Confirmar con el cliente la denominación final del campo Condición de Pago para Perú.
 
@@ -219,18 +222,28 @@ La detracción aplica por producto/servicio (no por cliente). Un cliente podría
 Este requisito captura en el catálogo del cliente la información fiscal necesaria del receptor del documento. Sin embargo, la emisión efectiva de una factura electrónica SUNAT timbrada requiere capacidades adicionales a nivel sistema y catálogo de productos que no están cubiertas en el alcance actual. Estas brechas se gestionan como Pendientes formales en el proyecto.
 
 **Brecha 1 — Datos fiscales SUNAT en el catálogo de productos**
-Para emitir factura electrónica SUNAT cada producto/servicio requiere campos fiscales propios del estándar SUNAT que no existen en el catálogo de productos actual: código SUNAT del producto, unidad de medida según catálogo SUNAT (KGM, MTR, LTR, NIU, etc.) y tipo de afectación al IGV por línea (gravado, exonerado, inafecto, exportación, gratuito, etc.). Sin ellos SUNAT rechaza la emisión. Estos campos no aplican a México porque el modelo SAT no clasifica los productos por código SUNAT ni por afectación al IGV a nivel línea de comprobante.
+Para emitir factura electrónica SUNAT cada producto/servicio requiere campos fiscales propios del estándar SUNAT que no existen en el catálogo de productos actual: código SUNAT del producto, unidad de medida según catálogo SUNAT (KGM, MTR, LTR, NIU, etc.) y tipo de afectación al IGV por línea (gravado, exonerado, inafecto, exportación, gratuito, etc.). Son obligatorios en el XML UBL 2.1; sin ellos SUNAT rechaza la emisión. Estos campos no aplican a México porque el modelo SAT no clasifica los productos por código SUNAT ni por afectación al IGV a nivel línea de comprobante.
+
+> **⚠️ Pendiente** — Patrón observado en una factura real de Golocaer (un solo caso, NO confirmado como general): Golocaer resuelve estos datos con valores genéricos únicos — un código de producto SUNAT genérico ("41116107") para todas las líneas, unidad "PIEZAS" (código C62) y afectación al IGV "gravado" (18%). Pendiente validar con el cliente si este patrón genérico aplica siempre y, de ser así, si la solución para PQF2 es replicarlo en lugar de cargar datos SUNAT por producto.
 
 **Brecha 2 — Guía de Remisión Electrónica para despacho de mercancía**
-Cuando PROQUIFA Perú despacha mercancía física al cliente, SUNAT requiere emitir la Guía de Remisión Electrónica (GRE) que acompaña al transporte. La GRE involucra datos del transportista, del vehículo, de la ruta y del receptor. PROQUIFA Perú despacha mercancía (confirmado), por lo que cada operación de venta con entrega física requiere GRE además de la factura. SAT no exige el equivalente desde este flujo.
+Cuando PROQUIFA Perú despacha mercancía física al cliente, SUNAT requiere emitir la Guía de Remisión Electrónica (GRE) que acompaña al transporte. La GRE involucra datos del transportista, del vehículo, de la ruta y del receptor. *Por qué es necesario:* PROQUIFA Perú despacha mercancía (confirmado), por lo que cada operación de venta con entrega física requiere GRE además de la factura. *Por qué se diferencia de México:* SAT no exige el equivalente desde este flujo.
 
 **Brecha 3 — Tipo de Operación SUNAT (Catálogo 51) por factura**
-Cada factura electrónica Perú debe consignar un código de Tipo de Operación que identifica el contexto comercial (venta interna, exportación, anticipos, operación gratuita, etc.). Este código se captura por operación al emitir la factura, no en el catálogo del cliente. Es campo obligatorio del XML UBL 2.1; SUNAT rechaza la emisión si falta o es incorrecto. SAT no tiene un campo equivalente.
+Cada factura electrónica Perú debe consignar un código de Tipo de Operación que identifica el contexto comercial (venta interna, exportación, anticipos, operación gratuita, etc.). Este código se captura por operación al emitir la factura, no en el catálogo del cliente. *Por qué es necesario:* campo obligatorio del XML UBL 2.1; SUNAT rechaza la emisión si falta o es incorrecto. *Por qué se diferencia de México:* SAT no tiene un campo equivalente; el contexto comercial se infiere de la combinación de otros campos del CFDI.
 
 **Brecha 4 — Régimen de Percepción del IGV de PROQUIFA como Agente de Percepción**
-Si PROQUIFA Perú está designada por SUNAT como Agente de Percepción, debe cobrar al cliente un porcentaje adicional al IGV (típicamente 2%) por ciertas operaciones. Es una condición del emisor (PROQUIFA), no del cliente. Si aplica, la factura debe emitirse considerando la percepción; omitirla genera contingencia fiscal para PROQUIFA. SAT no tiene un régimen equivalente.
+Si PROQUIFA Perú está designada por SUNAT como Agente de Percepción, debe cobrar al cliente un porcentaje adicional al IGV (típicamente 2%) por ciertas operaciones. Es una condición del emisor (PROQUIFA), no del cliente. *Por qué es necesario:* si aplica, la factura debe emitirse considerando la percepción; omitirla genera contingencia fiscal para PROQUIFA. *Por qué se diferencia de México:* SAT no tiene un régimen equivalente.
 
 > **⚠️ Pendiente** — Confirmar si PROQUIFA Perú es Agente de Percepción designado por SUNAT.
 
 **Brecha 5 — Configuración del emisor PROQUIFA Perú para facturación electrónica SUNAT**
-La emisión electrónica SUNAT requiere a nivel sistema: certificado digital vigente del emisor PROQUIFA Perú, designación como emisor electrónico ante SUNAT, integración con SUNAT (vía Operador de Servicios Electrónicos OSE o vía SEE-SOL portal SUNAT) para envío de XMLs y recepción de Constancias de Recepción CDR, manejo de Resúmenes Diarios para boletas según volumen, y manejo de Comunicaciones de Baja para anulaciones. Sin esta infraestructura no se puede emitir un comprobante electrónico válido en Perú. En México la infraestructura está cubierta por la integración existente con TurboPac como PAC; en Perú se requiere infraestructura equivalente pero distinta (OSE o SEE-SOL).
+La emisión electrónica SUNAT requiere a nivel sistema: certificado digital vigente del emisor PROQUIFA Perú, designación como emisor electrónico ante SUNAT, integración con SUNAT (vía Operador de Servicios Electrónicos OSE o vía SEE-SOL portal SUNAT) para envío de XMLs y recepción de Constancias de Recepción CDR, manejo de Resúmenes Diarios para boletas según volumen, y manejo de Comunicaciones de Baja para anulaciones. *Por qué es necesario:* sin esta infraestructura no se puede emitir un comprobante electrónico válido en Perú — es la brecha mayor bloqueante. *Por qué se diferencia de México:* en México la infraestructura está cubierta por la integración existente con TurboPac como PAC; en Perú se requiere infraestructura equivalente pero distinta (OSE o SEE-SOL).
+
+---
+
+## Cambios
+
+| # | Fecha | Observación | Descripción del cambio |
+|---|-------|-------------|------------------------|
+| 1 | 2026-06-10 | OBS-009 | Brechas de facturación electrónica Perú confirmadas como ya cubiertas. Se amplía el detalle de cada brecha con contexto "Por qué es necesario" / "Por qué se diferencia de México". Brecha 1: se agrega el patrón genérico observado en factura real de Golocaer (pendiente de validación). Notas: banderas tributarias marcadas como pendientes de confirmación; nueva duda sobre campo "Tipo de Revisión"; referencia al archivo adjunto de equivalencias MX-PE. |

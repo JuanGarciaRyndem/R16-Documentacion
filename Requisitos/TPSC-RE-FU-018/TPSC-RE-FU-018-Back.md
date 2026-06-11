@@ -266,11 +266,12 @@ QueryResultDto<FacturaAdelantadoClienteDto> {
 ### Cadena de Datos (Consulta BD ProquifaDotNet)
 
 ```
-tpPedido (FacturaPorAdelantado=1, Tramitado=1, Activo=1)
+tpPedido (FacturaPorAdelantado=1, Tramitado=1, Activo=1, Region=MEX)
   -> tpPedidoProformaPedido -> tpProformaPedido (IdCliente)
   -> tpProformaAdelantoProformaPedido -> fccPagoFacturaAdelanto -> tpProformaAdelanto
 
 Filtro: tpProformaAdelanto.Activo=1 AND (IdCFDIGenerada IS NULL OR no enviada)
+        AND tpPedido.IdRegion = @IdRegionMexico  -- OBS-032/033: FAA solo aplica para Mexico; clientes Peru se excluyen del listado
 
 Agrupacion: GROUP BY Cliente
   COUNT(tpProformaAdelanto) AS FacturasPendientes
@@ -278,7 +279,8 @@ Agrupacion: GROUP BY Cliente
   MIN(tpProformaAdelanto.FechaRegistro) AS FechaPendienteMasAntiguo
 
 Filtro cartera: ClienteCarteraCliente -> ClienteCartera.IdUsuarioCobrador = @IdUsuario
-Buscador: DatosFacturacionCliente.RazonSocial LIKE / RFC LIKE / tpPedido.FolioPedidoInterno LIKE
+Buscador: TRIM(DatosFacturacionCliente.RazonSocial) LIKE / TRIM(RFC) LIKE / TRIM(tpPedido.FolioPedidoInterno) LIKE
+          -- OBS-041: trim automatico aplicado al texto ingresado antes de ejecutar el filtrado
 ```
 
 ### Tablas consultadas (ProquifaDotNet - Lectura)
@@ -297,6 +299,15 @@ Buscador: DatosFacturacionCliente.RazonSocial LIKE / RFC LIKE / tpPedido.FolioPe
 | ClienteCartera | IdUsuarioCobrador |
 | catMoneda | Para conversion a USD |
 | Region | MEX/PER |
+
+### Nota: FAA vs Factura Anticipo — OBS-037
+
+> **Decisión OBS-037:** La Factura por Adelantado (FAA) y la Factura Anticipo son instrumentos distintos e incompatibles:
+>
+> - **FAA (este requisito):** Pedidos de crédito con flag `FacturaPorAdelantado=1`. Exclusiva para región México. **NUNCA aplica para productos Sustancias Controladas.**
+> - **Factura Anticipo:** Generada desde el flujo de Validar Cobro para clientes prepago + productos controlados. No corresponde al módulo FAA.
+>
+> El back debe validar que no se procese un pendiente FAA si el pedido incluye productos controlados. Esta validación ya está cubierta en RE-FU-012 (depende de RE-FU-011 `fnEsProductoControlado`). El FacturaAdelantadoRepository nunca debería encontrar pedidos controlados con FAA=1, pero si llegara a existir, se excluye del listado.
 
 ---
 

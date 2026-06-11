@@ -10,6 +10,8 @@
 
 Este requisito implementa la **primera pantalla del wizard de Validar Cobro (Paso 1 - Captura del Cobro) para Región México** en ProquifaDotNet.Finanzas. El usuario revisa los correos del Buzón del cliente, selecciona el comprobante de pago adjunto y captura los datos del cobro (folio, monto, fecha, forma de pago SAT, cuenta origen/destino, **moneda via combo catMoneda**, TC del día). Un cobro confirmado es inmutable. Permite capturar múltiples cobros en la misma sesión con auto-guardado transparente.
 
+> **OBS-048 — Reanudación del wizard en el último paso activo:** Al ingresar al wizard para un cliente, Finanzas evalúa el estado actual del flujo (via `GET /api/validar-cobro/clientes/{idCliente}/estado-wizard`) y redirige al último paso activo donde el usuario se encontraba, no necesariamente al Paso 1. Si el Paso 1 ya tiene cobros confirmados pero el Paso 2 está pendiente, el wizard abre en el Paso 2 directamente.
+
 El impacto en BD (ProquifaDotNet) es **moderado**: 5 ALTER en `fccPagoCliente` (inmutabilidad + notas + **IdCatMoneda FK**) + 2 tablas nuevas + 1 SEQUENCE. El impacto en servicios (Finanzas) es **alto**: orquestación completa del Paso 1.
 
 ### Distribución de responsabilidades
@@ -234,6 +236,35 @@ WHERE IdFCCPagoCliente    = @Id
 **Endpoints:**
 - `GET /api/validar-cobro/inconsistencias/tipos?paso=1` → catálogo filtrado (solo tipos del Paso 1)
 - `POST /api/validar-cobro/clientes/{idCliente}/cobros/{idFCCPagoCliente}/inconsistencias` → INSERT en `fccInconsistenciaCobro`
+
+---
+
+### B8 — Estado del wizard para reanudación (OBS-048)
+
+**Descripción:** Endpoint en Finanzas que retorna el paso activo actual del wizard para un cliente, permitiendo que la UI rediriga al último paso donde el usuario se encontraba en lugar de siempre abrir en el Paso 1.
+
+**Endpoint:** `GET /api/validar-cobro/clientes/{idCliente}/estado-wizard`
+
+**Lógica de determinación del paso activo:**
+
+| Condición | Paso activo retornado |
+|-----------|----------------------|
+| Sin cobros en `fccPagoCliente` para el cliente | Paso 1 |
+| Hay cobros con `Confirmado=0` (borrador activo) | Paso 1 |
+| Todos los cobros del Buzón tienen `Confirmado=1` y existe asociación pendiente en Paso 2 | Paso 2 |
+| Paso 2 completado y existe validación pendiente en Paso 3 | Paso 3 |
+
+**DTO de respuesta:**
+```json
+{
+  "pasoActivo": 1,
+  "descripcion": "Captura del Cobro",
+  "tieneBorador": true,
+  "idFCCPagoClienteBorrador": "guid-opcional"
+}
+```
+
+> Esta lógica se expande en los requisitos de Paso 2 (RE-FU-025) y Paso 3. La regla base: el paso activo es el primer paso que aún tiene trabajo pendiente. (OBS-048)
 
 ---
 

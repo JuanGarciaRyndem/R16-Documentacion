@@ -337,27 +337,49 @@ SET    Activo                   = 0,
 WHERE  IdFCCFolioPagoCliente = @IdFCCFolioPagoCliente;
 ```
 
-### Correos sin cobrador asignado (riesgo operativo)
+### Bandeja del Coordinador de Tesorería — OBS-021
+
+Concentra correos de cobro no enrutables: Caso 1 (cliente sin Cobrador) y Caso 2 (remitente no dado de alta).
+La retroactividad al asignar Cobrador es **automática por diseño**: la query del Gestor filtra por `IdUsuarioCobrador`; en cuanto se asigna un Cobrador al cliente, los correos dejan de aparecer en esta consulta y aparecen automáticamente en la bandeja del Gestor asignado.
 
 ```sql
-DECLARE @ClaveCobro VARCHAR(150) = 'cobro';
+DECLARE @ClaveCobro VARCHAR(150) = 'cobro';  -- 'pago' mientras no se ejecute Tarea 1
 
 SELECT
+    cr.IdCorreoRecibido,
     cr.Asunto,
     cr.CorreoEmisor,
     cr.FechaRecepcion,
-    c.Nombre AS Cliente
+    crc.IdCorreoRecibidoCliente,
+    crc.IdCliente,
+    c.Nombre         AS Cliente,               -- NULL si Caso 2 (remitente no dado de alta)
+    CASE
+        WHEN crc.IdCliente IS NULL THEN 'Caso 2 — Remitente no dado de alta'
+        WHEN cc.IdUsuarioCobrador IS NULL THEN 'Caso 1 — Cliente sin Cobrador asignado'
+    END              AS MotivoBandejaCoordenador,
+    r.ClaveISO       AS Region,
+    ffc.IdFCCFolioPagoCliente,
+    ffc.Folio        AS FolioCobro
 FROM dbo.CorreoRecibidoCliente crc
-INNER JOIN dbo.CorreoRecibido cr ON crc.IdCorreoRecibido = cr.IdCorreoRecibido
+INNER JOIN dbo.CorreoRecibido cr
+       ON crc.IdCorreoRecibido = cr.IdCorreoRecibido
 INNER JOIN dbo.catClasificacionCorreoRecibido cat
        ON crc.IdCatClasificacionCorreoRecibido = cat.IdCatClasificacionCorreoRecibido
-LEFT  JOIN dbo.Cliente c ON crc.IdCliente = c.IdCliente
-LEFT  JOIN dbo.ClienteCarteraCliente ccc ON c.IdCliente = ccc.IdCliente AND ccc.Activo = 1
-LEFT  JOIN dbo.ClienteCartera cc ON ccc.IdClienteCartera = cc.IdClienteCartera AND cc.Activo = 1
+INNER JOIN dbo.Region r
+       ON cr.IdRegion = r.IdRegion
+LEFT  JOIN dbo.Cliente c
+       ON crc.IdCliente = c.IdCliente
+LEFT  JOIN dbo.ClienteCarteraCliente ccc
+       ON c.IdCliente = ccc.IdCliente AND ccc.Activo = 1
+LEFT  JOIN dbo.ClienteCartera cc
+       ON ccc.IdClienteCartera = cc.IdClienteCartera AND cc.Activo = 1
+LEFT  JOIN dbo.fccFolioPagoCliente ffc
+       ON crc.IdCorreoRecibidoCliente = ffc.IdCorreoRecibidoCliente AND ffc.Activo = 1
 WHERE cat.Clave  = @ClaveCobro
   AND crc.Activo = 1
-  AND (cc.IdUsuarioCobrador IS NULL OR crc.IdCliente IS NULL)
-ORDER BY cr.FechaRecepcion DESC;
+  AND (crc.IdCliente IS NULL               -- Caso 2: remitente no dado de alta
+       OR cc.IdUsuarioCobrador IS NULL)    -- Caso 1: cliente sin Cobrador
+ORDER BY cr.FechaRecepcion ASC;            -- más antiguo primero
 ```
 
 ### Verificación de uso de la clasificación ‘Pago’ (previo a decisión A/B)
@@ -401,7 +423,7 @@ WHERE cat.Clave = 'pago'
 
 | Regla | Descripción | Implementación en BD |
 |---|---|---|
-| Regla 1 | Clasificación automática por Mailbot | `catClasificacionCorreoRecibido.Clave = 'cobro'` |
+| Regla 1 | Clasificación automática por Mailbot | `catClasificacionCorreoRecibido.Clave = ‘cobro’` |
 | Regla 2 | Sin criterios configurables | Entrenamiento del Mailbot — sin tabla de criterios |
 | Regla 3 | Reflejo en Buzón del Gestor | `CorreoRecibidoCliente` → filtro por `IdUsuarioCobrador` |
 | Regla 4 | Pendiente automático en Validar Cobro | INSERT en `fccFolioPagoCliente` al clasificar |
@@ -411,6 +433,8 @@ WHERE cat.Clave = 'pago'
 | Regla 8 | Reclasificación manual | UPDATE `CorreoRecibidoCliente.IdCatClasificacionCorreoRecibido` |
 | Regla 9 | Sin eliminación directa por Gestor | No DELETE — reclasificar a ‘Otros’ para que ESAC elimine |
 | Regla 10 | Mismos filtros que buzones existentes | Patrón de `CorreoRecibidoCliente` ya usado en Requisición/Pedido |
+| Regla 11 | Bandeja Coordinador Tesorería — Caso 1: cliente sin Cobrador | LEFT JOIN `ClienteCartera` → `IdUsuarioCobrador IS NULL` → bandeja del Coordinador. OBS-021 |
+| Regla 12 | Bandeja Coordinador Tesorería — Caso 2: remitente no dado de alta | `CorreoRecibidoCliente.IdCliente IS NULL` → bandeja del Coordinador. OBS-021 |
 
 ---
 
@@ -418,8 +442,8 @@ WHERE cat.Clave = 'pago'
 
 | # | Riesgo | Mitigación |
 |---|---|---|
-| 1 | Cliente sin Cobrador asignado — correo invisible | Consulta de monitoreo (sección Consultas SQL) |
-| 2 | Correo no identifica al cliente | `IdCliente` nullable — confirmar flujo de atención con cliente |
+| 1 | ~~Cliente sin Cobrador asignado — correo invisible~~ | **Resuelto — OBS-021.** El correo va a la **bandeja del Coordinador de Tesorería** (Regla 11, Caso 1). Al asignar un Cobrador al cliente, los correos pasan automáticamente a la bandeja del Gestor por diseño de la query (retroactividad estructural). |
+| 2 | ~~Correo no identifica al cliente~~ | **Resuelto — OBS-021.** El correo va a la **bandeja del Coordinador de Tesorería** (Regla 12, Caso 2). El Coordinador da de alta el contacto para que el correo quede asociado al cliente. |
 
 ---
 

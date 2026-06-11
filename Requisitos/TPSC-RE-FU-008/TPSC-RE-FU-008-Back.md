@@ -100,6 +100,8 @@ Mailbot clasifica correo entrante
 | R8 | Reclasificación manual por Gestor | ✅ Existe | `CorreoRecibidoClienteExtensionsController` ya soporta UPDATE de `IdCatClasificacionCorreoRecibido` |
 | R9 | Sin eliminación directa del correo por Gestor | ✅ Por diseño | No hay DELETE en `CorreoRecibidoClienteController` |
 | R10 | Filtros, búsqueda y paginación como buzones existentes | ❌ Falta | Sin endpoint de listado de buzón de cobros con `QueryInfo` paginado |
+| R11 | Bandeja del Coordinador de Tesorería — Caso 1: cliente sin Cobrador | ❌ Falta | Correo de cliente existente sin `IdUsuarioCobrador` → va a bandeja del Coordinador. Ver GAP-05. OBS-021 |
+| R12 | Bandeja del Coordinador de Tesorería — Caso 2: remitente no dado de alta | ❌ Falta | `IdCliente` nulo en `CorreoRecibidoCliente` → va a bandeja del Coordinador. Ver GAP-05. OBS-021 |
 
 ---
 
@@ -283,6 +285,110 @@ public HttpResponseMessage Lista([FromBody] QueryInfo queryInfo, Guid idUsuarioC
 
 ---
 
+### GAP-05 — Logic + WebApi: Bandeja del Coordinador de Tesorería (OBS-021)
+
+**Problema:** Los correos clasificados como cobro que no pueden enrutarse a ningún Gestor (cliente sin Cobrador asignado — Caso 1; remitente no dado de alta — Caso 2) no aparecen en ninguna bandeja. OBS-021 establece que deben concentrarse en la bandeja del Coordinador de Tesorería para que tome acción: asignar un Cobrador al cliente (Caso 1) o dar de alta el contacto (Caso 2).
+
+**Mecanismo de retroactividad (automático por diseño de query):**
+La bandeja del Gestor de Cobranza ya filtra por `ClienteCartera.IdUsuarioCobrador`. Cuando el Coordinador asigna un Cobrador al cliente (mediante FU-002), los correos de ese cliente que antes aparecían en la bandeja del Coordinador **automáticamente dejan de aparecer allí** (porque el cliente ya tiene cobrador) y **automáticamente aparecen en la bandeja del nuevo Cobrador** (porque el JOIN por `IdUsuarioCobrador` ya los incluye). No se requiere lógica adicional de migración — la retroactividad es estructural.
+
+**Cómo identificar al Coordinador de Tesorería:**
+El sistema debe tener un mecanismo para identificar al usuario con rol de Coordinador de Tesorería (análogo a `AnalistaDeCuentasPorCobrar` en `catClasificacionCorreoRecibido`, o mediante el catálogo de roles de usuario existente). El endpoint de la bandeja del Coordinador solo debe ser accesible por ese rol.
+
+```csharp
+// NUEVO: Logic.Pqf.Logistica\L11.MailBot\Procesos\Cobros\BandejaCoordenadorTesoreriaBO.cs
+
+public class BandejaCoordenadorTesoreriaBO
+{
+    /// <summary>
+    /// Bandeja del Coordinador de Tesorería: correos de cobro no enrutables.
+    /// Caso 1 (R11 — OBS-021): cliente existe pero sin Cobrador asignado (IdUsuarioCobrador IS NULL).
+    /// Caso 2 (R12 — OBS-021): remitente no dado de alta (IdCliente IS NULL).
+    /// La retroactividad al asignar Cobrador es automática por el diseño de la query del Gestor.
+    /// </summary>
+    public QueryResult<vCorreoRecibidoBuzonCobros> Lista(QueryInfo queryInfo)
+    {
+        using (var context = new ProquifaDotNetEntities())
+        {
+            var claveCobro = ClasificacionCorreoRecibidoConstants.Pago; // → .Cobro tras Tarea 1
+
+            var query = (from crc in context.CorreoRecibidoCliente
+                         join cr  in context.CorreoRecibido
+                             on crc.IdCorreoRecibido equals cr.IdCorreoRecibido
+                         join cat in context.catClasificacionCorreoRecibido
+                             on crc.IdCatClasificacionCorreoRecibido equals cat.IdCatClasificacionCorreoRecibido
+                         join c   in context.Cliente
+                             on crc.IdCliente equals c.IdCliente into clienteGroup
+                         from c in clienteGroup.DefaultIfEmpty()   // LEFT JOIN para Caso 2
+                         join ccc in context.ClienteCarteraCliente
+                             on (c == null ? (Guid?)null : c.IdCliente) equals ccc.IdCliente into carteraGroup
+                         from ccc in carteraGroup.DefaultIfEmpty() // LEFT JOIN para Caso 1
+                         join cc  in context.ClienteCartera
+                             on (ccc == null ? (Guid?)null : ccc.IdClienteCartera) equals cc.IdClienteCartera into ccGroup
+                         from cc in ccGroup.DefaultIfEmpty()       // LEFT JOIN para Caso 1
+                         where cat.Clave == claveCobro
+                            && crc.Activo == true
+                            && (crc.IdCliente == null              // Caso 2: remitente no dado de alta
+                                || cc == null                      // Caso 1: cliente sin cartera
+                                || cc.IdUsuarioCobrador == null)   // Caso 1: cliente sin Cobrador
+                         orderby cr.FechaRecepcion ascending       // más antiguo primero
+                         select new vCorreoRecibidoBuzonCobros
+                         {
+                             IdCorreoRecibidoCliente = crc.IdCorreoRecibidoCliente,
+                             IdCorreoRecibido        = cr.IdCorreoRecibido,
+                             IdCliente               = crc.IdCliente,
+                             NombreCliente           = c == null ? null : c.Nombre,
+                             Asunto                  = cr.Asunto,
+                             De                      = cr.CorreoEmisor,
+                             Leido                   = crc.Leido,
+                             IdRegion                = cr.IdRegion,
+                             FechaRegistro           = cr.FechaRecepcion
+                         });
+
+            return new QueryResult<vCorreoRecibidoBuzonCobros>
+            {
+                Total   = query.Count(),
+                Results = query.Skip(queryInfo.Skip).Take(queryInfo.Take).ToList()
+            };
+        }
+    }
+}
+
+// NUEVO: WebApi.Logistica\Controllers\Procesos\Mailbot\BandejaCoordenadorTesoreriaController.cs
+// Endpoint: POST /BandejaCoordenadorTesoreria
+// Solo accesible por rol Coordinador de Tesorería (heredar [Authorize] + validación de rol)
+```
+
+---
+
+### GAP-06 — Tarea 5 actualizada: enrutamiento condicional al clasificar cobro (OBS-021)
+
+**Problema:** `CorreoRecibidoClienteToPagoBO.Process()` siempre genera `fccFolioPagoCliente`. Con OBS-021, el comportamiento cambia: si el correo es no enrutable (Caso 1 o Caso 2), el folio se crea igualmente pero se registra en log para que el Coordinador sepa que debe intervenir. El correo aparece en la bandeja del Coordinador (GAP-05) y no en ninguna bandeja de Gestor hasta que se resuelva.
+
+```csharp
+// CorreoRecibidoClienteToPagoBO.cs — flujo actualizado con OBS-021:
+
+// 1. Verificar IdCliente
+if (correoRecibidoCliente.IdCliente == null)
+{
+    Logger.Info("FU-008 OBS-021 Caso 2: remitente no dado de alta → bandeja Coordinador Tesorería");
+    // Crear folio igualmente para que el Coordinador lo vea en su bandeja
+    // NO asignar a ningún Gestor (sin IdUsuarioCobrador)
+}
+else
+{
+    // Verificar cobrador
+    var cobrador = ObtenerCobradorDeCliente(correoRecibidoCliente.IdCliente);
+    if (cobrador == null)
+        Logger.Info("FU-008 OBS-021 Caso 1: cliente sin Cobrador → bandeja Coordinador Tesorería");
+    // Crear folio en ambos casos; la bandeja del Coordinador lo mostrará por query (GAP-05)
+}
+// Crear fccFolioPagoCliente con Activo = true (sin datos de cobro pre-capturados)
+// Marcar CorreoRecibidoCliente.Procesado = true
+```
+
+---
+
 ## 5. Archivos a Modificar
 
 | # | Archivo | Tipo de cambio | GAP |
@@ -299,6 +405,8 @@ public HttpResponseMessage Lista([FromBody] QueryInfo queryInfo, Guid idUsuarioC
 | 5 | `Logic.Pqf.Logistica\L11.MailBot\Procesos\Cobros\vCorreoRecibidoBuzonCobros.cs` | Modelo POCO del resultado del buzón | GAP-03 |
 | 6 | `Logic.Pqf.Logistica\L11.MailBot\Procesos\Cobros\CorreoRecibidoClienteBuzonCobrosBO.cs` | BO de listado paginado filtrado por cobrador y región | GAP-03 |
 | 7 | `WebApi.Logistica\Controllers\Procesos\Mailbot\BuzonCobrosController.cs` | Controller con endpoint `POST /BuzonCobros` | GAP-04 |
+| 8 | `Logic.Pqf.Logistica\L11.MailBot\Procesos\Cobros\BandejaCoordenadorTesoreriaBO.cs` | BO de bandeja del Coordinador: correos no enrutables (sin cobrador o sin cliente) | GAP-05 — OBS-021 |
+| 9 | `WebApi.Logistica\Controllers\Procesos\Mailbot\BandejaCoordenadorTesoreriaController.cs` | Controller con endpoint `POST /BandejaCoordenadorTesoreria` | GAP-05 — OBS-021 |
 
 ---
 
@@ -322,7 +430,8 @@ public HttpResponseMessage Lista([FromBody] QueryInfo queryInfo, Guid idUsuarioC
 | P1 | Definir si `idUsuarioCobrador` se extrae del token o como parámetro de URL | Sí — impacta firma del endpoint y seguridad | Arquitecto / Líder técnico |
 | P2 | Decidir Opción A (renombrar `pago`→`cobro`) vs Opción B (nuevo registro) | **Sí** — bloquea GAP-01 y GAP-02 | Líder técnico + DBA |
 | P3 | Entrenamiento del Mailbot con categoría `Cobro` sobre correos reales de PROQUIFA | Sí — sin entrenamiento el Mailbot no clasifica correos como Cobro | Equipo de IA / Mailbot |
-| P4 | Confirmar flujo para correos cuyo `IdCliente` es null (cliente no identificable) | No bloquea — define si se necesita bandeja adicional | Cliente / PM |
+| P4 | Confirmar flujo para correos cuyo `IdCliente` es null (cliente no identificable) | **Resuelto OBS-021** — van a bandeja del Coordinador de Tesorería (Caso 2, Regla 12). Sin pendiente. | — |
+| P5 | Confirmar mecanismo de identificación del rol Coordinador de Tesorería en el sistema de usuarios | Sí — impacta la seguridad del endpoint de la bandeja del Coordinador | Arquitecto / Líder técnico |
 
 ---
 

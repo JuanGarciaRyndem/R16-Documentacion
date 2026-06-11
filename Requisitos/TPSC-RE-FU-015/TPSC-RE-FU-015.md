@@ -202,3 +202,11 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 - El asunto del correo de proforma se compone como "Proforma" más el folio del pedido interno.
 - El flujo de envío del correo de proforma requiere dos pasos secuenciales en la UI: primero previsualizar y aceptar el PDF; después confirmar los datos de envío del correo.
 - El pendiente del pedido en la bandeja del módulo Tramitar Pedido se cierra automáticamente al completarse la acción de tramitar.
+
+---
+
+## Cambios
+
+| # | Fecha | Observación | Descripción del cambio |
+|---|-------|-------------|------------------------|
+| 1 | 2026-06-10 | OBS-028 | El cliente confirma que el timbrado fiscal se genera en el módulo Factura por Adelantado. Confirmado/ya cubierto: el diseño vigente ya establece que el timbrado ocurre en el módulo Factura por Adelantado; FU-015 deja explícitamente fuera de su alcance la mecánica de facturación. Sin cambios estructurales. |

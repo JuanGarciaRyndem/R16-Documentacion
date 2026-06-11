@@ -464,6 +464,9 @@ Corresponde a GAP-12.
 - Agrupacion GROUP BY Cliente con: COUNT, SUM (conversion USD), MIN (antiguedad)
 - Filtro por cartera: ClienteCarteraCliente -> ClienteCartera.IdUsuarioCobrador
 - Buscador por: RazonSocial LIKE, RFC LIKE, FolioPedidoInterno LIKE
+- **OBS-041:** El sistema aplica trim automático al texto del buscador antes de ejecutar el filtrado (ignorar espacios al inicio y al final)
+- **OBS-032/033:** El listado incluye únicamente pedidos de región México (`tpPedido.IdRegion = RegionMex`). Los clientes Perú se excluyen del query para evitar huérfanos/ruido en el módulo FAA
+- **OBS-037:** Si excepcionalmente existiera un pedido con FAA=1 que incluya productos controlados (no debería ocurrir por validación en RE-FU-012/011), el repositorio lo excluye del listado
 
 **Objetivo general:**
 Implementar el repositorio que consulta los pendientes de Factura por Adelantado agrupados por cliente con paginacion y filtros.
@@ -492,6 +495,9 @@ Repositorio funcional que retorna listado agrupado por cliente con pendientes FA
 - Se ordena por antiguedad del pendiente mas antiguo (ASC)
 - El buscador filtra por RazonSocial, RFC/RUC o FolioPedidoInterno
 - La paginacion funciona correctamente
+- El query filtra exclusivamente pedidos de region Mexico (OBS-032/033): clientes Peru no aparecen en el listado
+- El buscador aplica trim automatico al texto ingresado antes de ejecutar el filtrado (OBS-041)
+- Pedidos con productos controlados y FAA=1 (caso excepcional) son excluidos del listado (OBS-037)
 
 **Mas informacion de la tarea:**
 Corresponde a GAP-14.

@@ -347,3 +347,12 @@ B12 — Tipo de cambio aplicado en Perú
 Confirmar si para Perú aplica el tipo de cambio SUNAT publicado (compra/venta) o un tipo de cambio interno corporativo.
 
 Mientras estas brechas no se resuelvan, el cliente Perú no puede recibir Proforma productiva con el formato adaptado. Se recomienda al cliente programar sesión específica para resolución integral del modelo Perú.
+
+
+---
+
+## Cambios
+
+| # | Fecha | Observación | Descripción del cambio |
+|---|-------|-------------|------------------------|
+| 1 | 2026-06-10 | OBS-032 | Revisado en contexto de OBS-032 (pendientes Perú sin timbrado). Este requisito es sobre el PDF de Proforma Perú y no genera pendientes de Factura por Adelantado directamente; la corrección OBS-032 se aplica al módulo FU-018 (listado FxA). Sin cambios de contenido en este archivo. |

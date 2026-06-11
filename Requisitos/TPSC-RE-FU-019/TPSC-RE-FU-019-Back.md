@@ -78,7 +78,7 @@ Ampliar `TimbradoService` para soportar el request de Factura por Adelantado:
 | DTO | Campos principales |
 |-----|-------------------|
 | TimbrarFAARequestDto | IdProformaAdelanto, DatosReceptor (RFC, RazonSocial, CP, RegimenFiscal, UsoCFDI), DatosEmisor (RFC, RazonSocial, RegimenFiscal, EmpresaClave), Conceptos[], MetodoPago="PPD", FormaPago="99", TipoComprobante="I", Moneda, TipoCambio |
-| ConceptoFAADto | Cantidad, Descripcion, PrecioUnitario, Importe, ClaveUnidad, ClaveProdServ |
+| ConceptoFAADto | Cantidad, Descripcion, PrecioUnitario, Importe, ClaveUnidad, ClaveProdServ — **Descripcion = "catálogo + descripción + marca"; NO se incluye lote ni pedimento (OBS-039)** |
 | TimbrarFAAResponseDto | IdCFDI, UUID, Serie, Folio, FechaEmision, Total, XmlBase64, Exitoso, ErrorDescripcion |
 
 #### Infrastructure — EmpresaFolioRepository
@@ -209,7 +209,7 @@ ORDER BY FechaTramitacion DESC
 6. Armar TimbrarFAARequestDto con:
    - Receptor: RFC, RazonSocial, CP, RegimenFiscal, UsoCFDI, Moneda, TipoCambio
    - Emisor: RFC, RazonSocial, RegimenFiscal, EmpresaClave
-   - Conceptos: partidas del pedido (cantidad, descripcion, precioUnitario, importe)
+   - Conceptos: partidas del pedido (cantidad, precioUnitario, importe). La descripción de cada concepto CFDI se construye como "catálogo + descripción + marca"; no se incluye lote ni pedimento (OBS-039).
    - Forzados: MetodoPago="PPD", FormaPago="99", TipoComprobante="I"
 7. Llamar ProquifaDotNet.Timbrado POST /api/timbrado/timbrar-faa
 8. Si EXITOSO:
@@ -627,6 +627,7 @@ Cuando el tipo de pedido es Prepago y la factura se envió exitosamente:
 | Manejo de errores PAC | Retornar descripción del error SAT sin modificar estado del pedido |
 | Timeout SAP | Polly con timeout + retry; si excede: error al usuario (no encola en este flujo síncrono) |
 | PDF preview vs final | El preview no incluye sello/UUID; el PDF final se regenera post-timbrado con datos fiscales completos |
+| Descripción concepto CFDI | Formato: "catálogo + descripción + marca". **No se incluye lote ni pedimento en ningún concepto de la FAA** (OBS-039). La Regla 15 ya cierra este punto. |
 | Legacy transfer | Usa RestClientLegacy existente; requiere mapeo de datos factura a formato Legacy |
 | Validar Cobro pendiente | INSERT directo en tabla de pendientes; el módulo Validar Cobro lo consume |
 

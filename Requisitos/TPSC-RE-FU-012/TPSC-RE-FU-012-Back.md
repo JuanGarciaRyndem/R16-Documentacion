@@ -84,16 +84,34 @@ Al activar FAA:
 - **Back:** datos se toman del catalogo vigente del cliente y se fijan
 - **Validacion Back:** rechazar actualizacion si `tpPedido.FacturaPorAdelantado = 1`
 
-### Datos que se fijan (DatosFacturacionCliente)
+### Datos que se fijan (DatosFacturacionCliente) — regionalizados (Regla 9 — OBS sincronización matriz)
 
-| Campo                 | Tipo             |
-| --------------------- | ---------------- |
-| RFC                   | varchar(50)      |
-| RazonSocial           | varchar(120)     |
-| IdCatUsoCFDI          | uniqueidentifier |
-| IdCatMetodoDePagoCFDI | uniqueidentifier |
-| Correo                | varchar(200)     |
-| IdCatRegimenFiscal    | uniqueidentifier |
+Los campos que se fijan y se exponen en el Panel de Información de Facturación dependen de la región del pedido. La estructura es la misma para ambas regiones, pero los campos fiscales difieren:
+
+**Campos comunes (México y Perú):**
+
+| Campo       | Tipo           | Descripción |
+|-------------|----------------|-------------|
+| RFC / RUC   | varchar(50)    | Identificador fiscal (RFC para MX, RUC para PE) — etiqueta unificada en UI |
+| RazonSocial | varchar(120)   | Razón social legal del cliente |
+| Correo      | varchar(200)   | Correo de envío de la factura |
+
+**Campos fiscales México:**
+
+| Campo                 | Tipo             | Descripción |
+|-----------------------|------------------|-------------|
+| IdCatUsoCFDI          | uniqueidentifier | Uso CFDI (catálogo SAT) |
+| IdCatMetodoDePagoCFDI | uniqueidentifier | Método de Pago (catálogo SAT) |
+| IdCatRegimenFiscal    | uniqueidentifier | Régimen Fiscal (catálogo SAT) |
+
+**Campos fiscales Perú:**
+
+| Campo            | Tipo             | Descripción |
+|------------------|------------------|-------------|
+| TipoOperacion    | varchar(50)      | Tipo de Operación (SUNAT) |
+| CondicionPago    | varchar(50)      | Condición de Pago (SUNAT) |
+
+> **Nota:** Los campos `Forma de Pago` y `correo de envío` NO se muestran en el Panel de Información de Facturación (Regla 9). La Forma de Pago se captura en Validar Cobro; el correo de envío se gestiona en el paso de envío de factura.
 
 ---
 
@@ -137,13 +155,13 @@ Sin cambios respecto a RE-FU-010. La FAA es un proceso paralelo independiente.
 
 ## Dependencias
 
-| Requisito | Relacion |
-|-----------|----------|
-| TPSC-RE-FU-010 | Flujo base Credito + Endpoint Cancelacion |
-| TPSC-RE-FU-011 | Restriccion: FAA NO compatible con controlados |
+| Requisito      | Relacion                                          |
+| -------------- | ------------------------------------------------- |
+| TPSC-RE-FU-010 | Flujo base Credito + Endpoint Cancelacion         |
+| TPSC-RE-FU-011 | Restriccion: FAA NO compatible con controlados    |
 | TPSC-RE-FU-018 | Generacion de factura (consumo del pendiente FAA) |
-| TPSC-RE-FU-019 | Generacion de CFDI |
-| TPSC-RE-FU-020 | Timbrado fiscal (PAC) |
+| TPSC-RE-FU-019 | Generacion de CFDI                                |
+| TPSC-RE-FU-020 | Timbrado fiscal (PAC)                             |
 
 ---
 

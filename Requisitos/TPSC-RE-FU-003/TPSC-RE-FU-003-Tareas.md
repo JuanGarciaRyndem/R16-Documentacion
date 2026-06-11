@@ -91,6 +91,7 @@ Lógica a implementar:
 - GAP-02 del archivo `TPSC-RE-FU-003-Back.md`
 - Criterios B1 y D1 del requisito
 - Reutilizar `ArchivoBO.SubirArchivoDesdePeticion` existente en `Logic.Pqf.Catalogos\Archivos\ArchivoBO.Upload.Extensions.cs`
+- **Alcance regional — OBS-007:** Este endpoint aplica en el contexto de clientes de Región México. Sustancias Controladas no habilitadas para Región Perú en R16.
 
 **Recursos:**
 - Análisis de impacto backend: `Requisitos/TPSC-RE-FU-003/TPSC-RE-FU-003-Back.md`
@@ -137,6 +138,7 @@ Nuevo método en `ArchivoClienteBO`: `ObtenerDocumentosRegulatoriosVigentes(Guid
 **Más información de la tarea:**
 - GAP-03 del archivo `TPSC-RE-FU-003-Back.md`
 - Criterio A1 del requisito: visibilidad del estado de carga por tipo de documento
+- **Alcance regional — OBS-007:** Este endpoint aplica en el contexto de clientes de Región México. Sustancias Controladas no habilitadas para Región Perú en R16.
 
 **Recursos:**
 - Análisis de impacto backend: `Requisitos/TPSC-RE-FU-003/TPSC-RE-FU-003-Back.md`
@@ -243,11 +245,11 @@ COMMIT;
 - [ ] Los registros `LicenciaSanitaria` y `AvisoResponsableSanitario` existen en `catUsoArchivoSistema` con `Activo = 1`
 - [ ] Los `IdCatUsoArchivoSistema` están documentados y disponibles para las Tareas 2 y 3
 - [ ] Script incluido en el formulario de control de scripts del release
-- [ ] Pendiente P2 atendido: si Perú requiere denominaciones distintas, se insertan registros adicionales o se confirma que los mismos aplican
+- [ ] ~~Pendiente P2 atendido: si Perú requiere denominaciones distintas, se insertan registros adicionales o se confirma que los mismos aplican~~ **Cancelado — OBS-007:** Perú fuera de alcance en R16. No se insertan registros diferenciados para Perú.
 
 **Más información de la tarea:**
 - GAP-05 y Pendiente P1 del archivo `TPSC-RE-FU-003-Back.md`
-- Pendiente P2: confirmar con cliente si Perú (DIGEMID/SUNAT) requiere registros diferenciados
+- ~~Pendiente P2: confirmar con cliente si Perú (DIGEMID/SUNAT) requiere registros diferenciados~~ **Cerrado — OBS-007:** Sustancias Controladas no habilitadas para Perú en R16. Solo se insertan registros para México.
 - Bloqueante para Tareas 2 y 3
 
 **Recursos:**

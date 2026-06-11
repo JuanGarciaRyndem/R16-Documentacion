@@ -19,7 +19,7 @@
 
 ## Requisito
 
-El sistema debe contar con un módulo **Buzón de Cobros** nuevo en PQF2 que reciba automáticamente los correos clasificados como cobros por el Mailbot, sumando la clasificación “Cobro” a las clasificaciones existentes del sistema. Cada correo clasificado como cobro se refleja en el Buzón del Gestor de Cobranza correspondiente y dispara la generación automática de un pendiente en el módulo **Validar Cobro**. La visibilidad del Buzón es por cobrador asignado: cada Gestor de Cobranza ve únicamente los correos de los clientes que tiene asignados en su cartera. El Gestor de Cobranza puede reclasificar manualmente un correo cuando detecta que fue clasificado incorrectamente.
+El sistema debe contar con un módulo **Buzón de Cobros** nuevo en PQF2 que reciba automáticamente los correos clasificados como cobros por el Mailbot, sumando la clasificación “Cobro” a las clasificaciones existentes del sistema. Cada correo clasificado como cobro se refleja en el Buzón del Gestor de Cobranza correspondiente y dispara la generación automática de un pendiente en el módulo **Validar Cobro**. La visibilidad del Buzón es por cobrador asignado: cada Gestor de Cobranza ve únicamente los correos de los clientes que tiene asignados en su cartera. El Gestor de Cobranza puede reclasificar manualmente un correo cuando detecta que fue clasificado incorrectamente. Adicionalmente, el Buzón de Cobros cuenta con una **bandeja del Coordinador de Tesorería** que concentra los correos de cobro que no pueden enrutarse a un Gestor: los de clientes existentes sin Cobrador asignado y los de correos cuyo remitente no está dado de alta como contacto de ningún cliente. Desde esta bandeja, según el caso, se asigna el Cobrador —lo que mueve el correo y todos los pendientes previos del cliente a la bandeja de ese Cobrador (retroactividad)— o se canaliza el alta del contacto por el flujo operativo existente.
 
 ---
 
@@ -35,6 +35,7 @@ El sistema debe contar con un módulo **Buzón de Cobros** nuevo en PQF2 que rec
 - Cierre automático del pendiente del Buzón cuando el cobro se vincula a una proforma o factura en Validar Cobro.
 - Eliminación automática del pendiente del Buzón cuando el cobro se marca como inconsistencia en Validar Cobro.
 - Acción manual de reclasificación: el Gestor de Cobranza puede mover un correo a otro buzón si la clasificación automática fue incorrecta.
+- **Bandeja del Coordinador de Tesorería** dentro del Buzón de Cobros: concentra los correos que no pueden enrutarse a un Gestor (cliente existente sin Cobrador asignado, o remitente no dado de alta como contacto), con las acciones de asignar Cobrador o canalizar el alta del contacto según el caso.
 - Aplicación a clientes de México y Perú.
 
 ### No aplica a
@@ -78,17 +79,17 @@ El Gestor de Cobranza no dispone de una acción de eliminación directa del corr
 **Regla 10 — Filtros, búsqueda y paginación equivalentes a Buzones preexistentes**
 El Buzón de Cobros ofrece los mismos mecanismos de filtros, búsqueda y paginación que los Buzones preexistentes del sistema, conservando consistencia de experiencia de usuario.
 
+**Regla 11 — Bandeja del Coordinador: correo de cliente existente sin Cobrador (Caso 1)**
+Cuando un correo de cobro proviene de un remitente dado de alta como contacto de un cliente existente, pero ese cliente no tiene Cobrador asignado, el correo se concentra en la bandeja del Coordinador de Tesorería dentro del Buzón de Cobros. Desde esa bandeja, el Coordinador de Tesorería puede asignar un Cobrador al cliente; al hacerlo, el correo desaparece de la bandeja del Coordinador y aparece en la bandeja del Cobrador asignado. La asignación también puede realizarse desde el Catálogo de Clientes, con el mismo efecto. Al asignarse el Cobrador, la bandeja de ese Cobrador muestra retroactivamente todos los correos y pendientes del cliente generados mientras no tenía Cobrador asignado.
+
+**Regla 12 — Bandeja del Coordinador: correo de remitente no dado de alta (Caso 2)**
+Cuando un correo de cobro proviene de un remitente que no está dado de alta como contacto de ningún cliente existente, el correo se concentra en la bandeja del Coordinador de Tesorería. Este caso no se resuelve desde el Buzón: el flujo operativo es el existente, dar de alta el contacto (con ese correo) en el cliente correspondiente. Una vez dado de alta el contacto, si el cliente ya tiene Cobrador asignado el correo pasa a la bandeja de ese Cobrador; si el cliente no tiene Cobrador asignado, el correo permanece en la bandeja del Coordinador y se resuelve conforme a la Regla 11.
+
 ---
 
 ## Riesgos
 
-**Riesgo 1 — Cliente sin Cobrador asignado en Catálogo**
-Si un correo de cobro llega de un cliente que no tiene Cobrador asignado en su Catálogo (campo Cobrador vacío), el correo no aparecerá en la bandeja de ningún Gestor de Cobranza y quedará invisible operativamente. El pendiente en Validar Cobro se genera pero tampoco se asigna a un Gestor específico.
-
-**Riesgo 2 — Correo no identifica al cliente**
-El Mailbot etiqueta el correo como cobro pero el correo puede no contener referencia clara al cliente que lo envió (cliente nuevo, referencia errónea, correo desde dominio genérico). En esos casos no se puede asignar al Buzón de un Gestor específico.
-
-> **⚠️ Pendiente** — Confirmar con el cliente la lógica para correos clasificados como cobro cuyo cliente no es identificable o no está registrado (cliente nuevo no registrado, referencia errónea, correo desde dominio genérico). ¿Quién lo visualiza y atiende? Queda como duda formal del proyecto.
+> El caso de cliente sin Cobrador asignado (riesgo anterior) queda cubierto por la **bandeja del Coordinador de Tesorería** (Reglas 11 y 12, SECCIÓN F de Criterios). Ver OBS-021.
 
 ---
 
@@ -169,6 +170,30 @@ El Mailbot etiqueta el correo como cobro pero el correo puede no contener refere
 
 ---
 
+### SECCIÓN F — Bandeja del Coordinador
+
+**Criterio F1 — Concentración de correos no enrutables en la bandeja del Coordinador**
+- **Dado** que un correo de cobro no puede enrutarse a un Gestor (cliente existente sin Cobrador asignado, o remitente no dado de alta como contacto),
+- **Cuando** el sistema procesa el correo,
+- **Entonces** deberá mostrarlo en la bandeja del Coordinador de Tesorería dentro del Buzón de Cobros, en lugar de dejarlo invisible operativamente.
+
+**Criterio F2 — Asignación de Cobrador desde la bandeja del Coordinador (Caso 1)**
+- **Dado** que un correo de la bandeja del Coordinador corresponde a un cliente existente sin Cobrador asignado,
+- **Cuando** el Coordinador de Tesorería asigna un Cobrador (desde la bandeja o desde el Catálogo de Clientes),
+- **Entonces** el sistema deberá retirar el correo de la bandeja del Coordinador y reflejar en la bandeja del Cobrador asignado no solo ese correo, sino todos los correos y pendientes del cliente que se hayan generado previamente mientras no tenía Cobrador asignado (retroactividad completa).
+
+**Criterio F3 — Correo de remitente no dado de alta (Caso 2)**
+- **Dado** que un correo de la bandeja del Coordinador proviene de un remitente no dado de alta como contacto de ningún cliente,
+- **Cuando** el usuario da de alta el contacto en el cliente correspondiente por el flujo operativo existente,
+- **Entonces** el sistema deberá enrutar el correo a la bandeja del Cobrador asignado si el cliente ya tiene Cobrador, o mantenerlo en la bandeja del Coordinador para asignación si el cliente aún no tiene Cobrador.
+
+**Criterio F4 — Visibilidad retroactiva de pendientes al asignar Cobrador**
+- **Dado** que a un cliente que no tenía Cobrador asignado se le asigna uno (desde la bandeja del Coordinador o desde el Catálogo de Clientes),
+- **Cuando** se completa la asignación,
+- **Entonces** la bandeja del Cobrador asignado deberá mostrar todos los correos pendientes de ese cliente generados antes de la asignación, sin que ninguno quede excluido por haberse generado previamente.
+
+---
+
 ## Notas de Implementación
 
 - El módulo se llama **“Buzón de Cobros”**. El nombre refleja la perspectiva operativa: son cobros que PROQUIFA registra hacia el cliente, aunque el correo original sea el comprobante del pago que el cliente envía a PROQUIFA. Toda la terminología del módulo, su contenido y sus mensajes utiliza el término “cobro”.
@@ -182,6 +207,16 @@ El Mailbot etiqueta el correo como cobro pero el correo puede no contener refere
 - La reclasificación manual se realiza moviendo el correo a otro buzón del sistema, incluido el buzón de Otros. No existe la opción “marcar como no-cobro”.
 - Aplicable a clientes México y Perú con la misma mecánica funcional, respetando siempre la región del cliente.
 
-> **⚠️ Pendiente** — Confirmar con el cliente la lógica para correos clasificados como cobro cuyo cliente no es identificable o no está registrado (cliente nuevo, referencia errónea, correo desde dominio genérico). ¿Quién lo visualiza y atiende? Queda como duda formal del proyecto.
+> **⚠️ Pendiente** — Confirmar con el cliente la lógica para correos clasificados como cobro cuyo cliente no es identificable o no está registrado (cliente nuevo no registrado, referencia errónea, correo desde dominio genérico). ¿Quién lo visualiza y atiende? Queda como duda formal del proyecto.
+
+> **⚠️ Pendiente confirmar con el cliente** — Para los correos de la bandeja del Coordinador (Caso 1): (1) si se permite reclasificar el correo a otro tipo de pendiente desde esa bandeja, y (2) en caso afirmativo, a qué destinos se permite reclasificar (hipótesis operativa: únicamente a "Otros").
 
 > **⚠️ Propuesta abierta** — Incorporar IA al clasificador para que lea el documento adjunto del correo (comprobante de pago en PDF o imagen) y precargue automáticamente los datos en Validar Cobro (monto, banco emisor, cuenta origen, fecha del depósito, referencia bancaria, etc.). Esto reduciría el trabajo manual del Gestor de Cobranza al validar el cobro. Queda como evolución futura del módulo, sujeta a validación de viabilidad y costo con el cliente.
+
+---
+
+## Cambios
+
+| # | Fecha | Observación | Descripción del cambio |
+|---|-------|-------------|------------------------|
+| 1 | 2026-06-10 | OBS-021 | Bandeja del Coordinador de Tesorería formalizada como requisito. Riesgo 1 (cliente sin Cobrador) resuelto por la mecánica de la bandeja. Cambios: Requisito ampliado con descripción de la bandeja; Alcance "Aplica a" con nueva viñeta; Regla 11 y Regla 12 agregadas; Riesgos reemplazados por nota de resolución; SECCIÓN F — Criterios F1–F4 (bandeja del Coordinador y retroactividad al asignar Cobrador) agregada. |

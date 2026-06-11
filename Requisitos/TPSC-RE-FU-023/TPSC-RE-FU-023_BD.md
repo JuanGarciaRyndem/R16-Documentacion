@@ -396,8 +396,8 @@ tpProformaPedido.IdCliente → Cliente
 
 | # | Gap | Tipo | Acción |
 |---|-----|------|--------|
-| 1 | Saldo Pendiente: dolarizado vs moneda cliente | Negocio | Confirmar con cliente |
-| 2 | Orden del listado por defecto | Negocio | Confirmar con cliente |
+| 1 | Saldo Pendiente: dolarizado vs moneda cliente | Negocio | ✅ Resuelta OBS-046: siempre en USD. Usar ConversorDivisas existente. |
+| 2 | Orden del listado por defecto | Negocio | ✅ Resuelta OBS-047: ordenar por antigüedad del cobro recibido más antiguo (MIN fccFolioPagoCliente.FechaRecepcion, ASC). Clientes sin cobros al final. SLA 72h como indicador visual. |
 | 3 | Historial de cambios FechaPromesaPago | Negocio | Confirmar si aplica en R16 |
 | 4 | Cancelación propaga a proforma/factura | Negocio | Confirmar alcance |
 | 5 | Buzón de Cobros Perú sin datos | Operativo | Brechas modelo bancario Perú |

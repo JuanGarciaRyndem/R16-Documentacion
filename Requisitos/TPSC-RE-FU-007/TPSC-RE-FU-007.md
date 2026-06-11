@@ -13,13 +13,13 @@
 
 ## Historia de Usuario
 
-> Yo como ESAC, quiero que el sistema agregue automáticamente una leyenda regulatoria visible en el PDF de la cotización definitiva entregada al cliente cuando la cotización contiene al menos una partida de producto clasificado como Sustancia Controlada (Mundial, Nacional u Origen), para que el cliente conozca desde el primer artefacto comercial qué documentos regulatorios debe tener para que su pedido pueda procesarse, evitando re-trabajos y fricciones tardías en el flujo de pretramitación.
+> Yo como **Asesor Comercial**, quiero que el sistema agregue automáticamente una leyenda regulatoria visible en el PDF de la cotización definitiva entregada al cliente cuando la cotización contiene al menos una partida de producto clasificado como Sustancia Controlada (Mundial, Nacional u Origen), para que el cliente conozca desde el primer artefacto comercial qué documentos regulatorios debe tener para que su pedido pueda procesarse, evitando re-trabajos y fricciones tardías en el flujo de pretramitación.
 
 ---
 
 ## Requisito
 
-El sistema debe agregar automáticamente una leyenda regulatoria al PDF de la cotización definitiva generada por el módulo **Cotizar lo Cotizable** cuando la cotización contenga al menos una partida de producto clasificado como **Sustancia Controlada tipo Mundial, Nacional u Origen**. La leyenda aplica únicamente a las cotizaciones definitivas e informa al cliente que el pedido requiere, para su procesamiento, la entrega de los documentos regulatorios correspondientes (Licencia Sanitaria y Aviso de Responsable Sanitario para Región México; denominación equivalente según normativa DIGEMID para Región Perú). La leyenda no bloquea la generación del PDF: la cotización definitiva se entrega siempre.
+El sistema debe agregar automáticamente una leyenda regulatoria al PDF de la cotización definitiva generada por el módulo **Cotizar lo Cotizable** cuando la cotización contenga al menos una partida de producto clasificado como **Sustancia Controlada tipo Mundial, Nacional u Origen** y el cliente sea de **Región México**. La leyenda aplica únicamente a las cotizaciones definitivas de México e informa al cliente que el pedido requiere, para su procesamiento, la entrega de los documentos regulatorios correspondientes (Licencia Sanitaria y Aviso de Responsable Sanitario). La leyenda no bloquea la generación del PDF: la cotización definitiva se entrega siempre.
 
 ---
 
@@ -29,7 +29,7 @@ El sistema debe agregar automáticamente una leyenda regulatoria al PDF de la co
 
 - Cotizaciones definitivas generadas en el módulo Cotizar lo Cotizable que contengan al menos una partida de producto clasificado como Sustancia Controlada tipo Mundial, Nacional u Origen.
 - Adición de una leyenda regulatoria visible en el PDF de la cotización definitiva entregada al cliente.
-- Aplicación a clientes de México y Perú con texto adaptado según la denominación regulatoria de cada región.
+- Aplicación exclusiva a clientes de **Región México** con la denominación regulatoria COFEPRIS (Licencia Sanitaria y Aviso de Responsable Sanitario).
 - Inclusión de la leyenda como información general del documento, sin desglose por partida.
 - Comportamiento no bloqueante: el PDF de la cotización definitiva se genera y entrega al cliente independientemente de si ya tiene o no documentos regulatorios cargados en el Catálogo de Clientes.
 
@@ -38,6 +38,7 @@ El sistema debe agregar automáticamente una leyenda regulatoria al PDF de la co
 - **Cotizaciones de investigación:** no incluyen la leyenda regulatoria. Las cotizaciones de investigación tienen su propia leyenda de trabajo en curso, que es funcionalidad preexistente del módulo y no es alcance de este requisito.
 - Cotizaciones definitivas que **no contienen** ninguna partida de producto clasificado como Sustancia Controlada (esas cotizaciones se generan sin la leyenda regulatoria).
 - Validación de presencia de documentos regulatorios en el Catálogo de Clientes (esa validación bloqueante vive en el módulo Pretramitar Pedido, requisito TPSC-RE-FU-009).
+- **Clientes de Región Perú:** la leyenda regulatoria no se muestra para Perú. Las Sustancias Controladas no están habilitadas en Perú en esta release (ver OBS-007 / TPSC-RE-FU-003).
 - Otros cambios al diseño general del PDF de cotización (mantiene su layout, colores y estructura actuales; solo se agrega la leyenda regulatoria).
 
 ---
@@ -53,12 +54,8 @@ La leyenda regulatoria se agrega a la cotización definitiva cuando al menos una
 **Regla 3 — Leyenda general a nivel documento**
 La leyenda regulatoria se incorpora una sola vez como nota general del documento, sin desglose por partida. El número de partidas controladas no afecta cuántas veces aparece: una sola aparición por PDF.
 
-**Regla 4 — Contenido de la leyenda según Región del cliente**
-El texto de la leyenda regulatoria corresponde a la Región del cliente:
-- **Región México:** referencia Licencia Sanitaria y Aviso de Responsable Sanitario (denominaciones COFEPRIS).
-- **Región Perú:** referencia los documentos regulatorios equivalentes según normativa DIGEMID.
-
-> **⚠️ Pendiente** — Denominación exacta para Perú pendiente de confirmar con el cliente.
+**Regla 4 — Leyenda solo para Región México**
+La leyenda regulatoria se aplica exclusivamente a cotizaciones de clientes de Región México. Para Región Perú no se genera leyenda regulatoria, ya que las Sustancias Controladas no están habilitadas en Perú en esta release. El texto de la leyenda para México referencia la **Licencia Sanitaria** y el **Aviso de Responsable Sanitario** (denominaciones COFEPRIS).
 
 **Regla 5 — Leyenda no bloqueante**
 La leyenda regulatoria es informativa, no validativa. El sistema genera y entrega la cotización definitiva con la leyenda incorporada, sin bloquear la generación del PDF.
@@ -74,11 +71,6 @@ La leyenda se agrega siempre que haya al menos una partida controlada en la coti
 La leyenda aparece siempre que haya productos controlados, incluso si el cliente ya tiene cargados todos sus documentos regulatorios en el Catálogo. Esto puede generar fricción operativa: clientes recurrentes que reciben siempre la misma notificación y podrían interpretarla como un recordatorio innecesario.
 
 > **⚠️ Propuesta abierta** — Para evaluación con el cliente: variante dinámica de la leyenda que consulte el Catálogo de Clientes y solo la agregue cuando el cliente **no** tenga cargados los documentos regulatorios. Esto evitaría ruido para clientes recurrentes que ya cumplieron con su documentación. La propuesta confirmada actual es la leyenda universal.
-
-**Riesgo 2 — Denominación regulatoria Perú no definida**
-Para clientes con Región Perú, la denominación exacta de los documentos regulatorios equivalentes (que regula DIGEMID en lugar de COFEPRIS) no está confirmada por el cliente. Si el desarrollo arranca sin esta definición, el texto del PDF para clientes Perú podría usar denominaciones incorrectas.
-
-> **⚠️ Pendiente** — Clarificar con el cliente la nomenclatura exacta para Perú antes del desarrollo.
 
 ---
 
@@ -133,13 +125,6 @@ Para clientes con Región Perú, la denominación exacta de los documentos regul
 
 > **⚠️ Pendiente** — El texto exacto queda como decisión de UX/Marketing del cliente. Propuesta base: *“Producto sujeto a regulación sanitaria. Para procesar el pedido se requiere: Licencia Sanitaria vigente y Aviso de Responsable Sanitario.”*
 
-**Criterio C2 — Texto de la leyenda para clientes Perú**
-- **Dado** que el cliente de la cotización definitiva tiene Región = Perú,
-- **Cuando** el sistema arma el texto de la leyenda,
-- **Entonces** deberá usar la denominación Perú con los documentos regulatorios equivalentes según DIGEMID.
-
-> **⚠️ Pendiente** — Denominación y texto exactos para Perú pendientes de confirmar con el cliente. Mientras tanto se mantiene placeholder.
-
 ---
 
 ## Notas de Implementación
@@ -153,4 +138,12 @@ Para clientes con Región Perú, la denominación exacta de los documentos regul
 
 > **⚠️ Pendiente** — Texto exacto de la leyenda para clientes México. El texto definitivo es una decisión de UX/Marketing del cliente.
 
-> **⚠️ Pendiente** — Denominación exacta de los documentos regulatorios equivalentes para clientes con Región Perú según normativa DIGEMID. Mientras no se confirme, el texto para Perú queda como placeholder.
+---
+
+## Cambios
+
+| # | Fecha | Observación | Descripción del cambio |
+|---|-------|-------------|------------------------|
+| 1 | 2026-06-10 | OBS-017 | Historia de Usuario: el rol cambia de «ESAC» a «Asesor Comercial». El resto del requisito es impersonal; solo la HU referenciaba el rol. |
+| 2 | 2026-06-10 | OBS-018 | Leyenda regulatoria acotada a Región México. Consecuencia de OBS-007 (Sustancias Controladas no habilitadas en Perú). Cambios: Requisito, Alcance "Aplica a" y "No aplica a" actualizados; Regla 4 reescrita (solo México, COFEPRIS); Riesgo 2 eliminado; Criterio C2 (Perú) eliminado; pendiente DIGEMID eliminado de Notas. |
+

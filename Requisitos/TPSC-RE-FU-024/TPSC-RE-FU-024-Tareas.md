@@ -24,6 +24,7 @@
 | 9 | SERV-TRANSACT | Endpoint y servicio — Confirmación del cobro con folio COB e inmutabilidad | Back | ProquifaDotNet.Finanzas |
 | 10 | ALG-COMPLX-LOGIC | Servicio — Tipo de Cambio del día automático para el cobro (México) | Back | ProquifaDotNet.Finanzas |
 | 11 | SERV-SIMPLE-PUT | Endpoint y servicio — Modal de inconsistencia del cobro (Paso 1) | Back | ProquifaDotNet.Finanzas |
+| 12 | ALG-BASIC-LOGIC | Endpoint y servicio — Estado del wizard para reanudación (OBS-048) | Back | ProquifaDotNet.Finanzas |
 
 ---
 
@@ -351,6 +352,7 @@ Ver sección *"Parte B / B2"* en `TPSC-RE-FU-024-Back.md`. Ver criterios C1, C2,
 - Si existe con `Confirmado=0`: UPDATE con datos actuales incluido `IdCatMoneda`.
 - Guardia: si `Confirmado=1`, no sobreescribir.
 - Tarea 1 es prerrequisito.
+- **OBS-048:** El estado del cobro en borrador (`Confirmado=0`) es la señal que usa el endpoint de estado del wizard (Tarea 12) para determinar que el cliente tiene el Paso 1 en progreso y reanudarlo ahí. El auto-guardado es el mecanismo que persiste ese estado.
 
 **Objetivo general:**
 Implementar en Finanzas el endpoint de auto-guardado que persiste el formulario del cobro como borrador de forma transparente, incluyendo la moneda seleccionada (`IdCatMoneda`).
@@ -519,3 +521,47 @@ Ver sección *"Parte B / B7"* en `TPSC-RE-FU-024-Back.md`. Ver criterios G1-G4 y
 **Recursos:**
 - `TPSC-RE-FU-024-Back.md` — Parte B, sección B7
 - `TPSC-RE-FU-024_BD.md` — catTipoInconsistenciaCobro + fccInconsistenciaCobro
+
+---
+
+## TAREA 12
+
+**[ RE-FU-024 ] [ALG-BASIC-LOGIC] Endpoint y servicio — Estado del wizard para reanudación (OBS-048)**
+
+**Aplicativos:** ProquifaDotNet.Finanzas
+
+**Módulos:** Validar Cobro — Wizard (estado general)
+
+**Consideraciones previas:**
+- **OBS-048:** El wizard no siempre debe abrir en el Paso 1. Al entrar al wizard para un cliente, la UI consulta este endpoint para saber en qué paso reanudar.
+- La lógica evalúa el estado de cada paso: si el Paso 1 tiene borrador activo (`Confirmado=0`) o cobros sin capturar, se reanuda en Paso 1. Si todos los cobros están confirmados y el Paso 2 tiene trabajo pendiente, se reanuda en Paso 2. Y así sucesivamente.
+- Esta tarea cubre la base del Paso 1. Los requisitos RE-FU-025 (Paso 2) y Paso 3 ampliarán la lógica de evaluación.
+
+**Objetivo general:**
+Implementar en Finanzas el endpoint `GET /api/validar-cobro/clientes/{idCliente}/estado-wizard` que retorna el paso activo donde el usuario debe continuar el wizard de Validar Cobro.
+
+**Objetivos específicos:**
+- Crear `GetEstadoWizardQuery` + Handler.
+- Evaluar: si hay `fccPagoCliente.Confirmado=0` para el cliente → Paso 1 activo. Si no, determinar si hay trabajo pendiente en Paso 2 (lógica extendida en RE-FU-025).
+- DTO de respuesta: `EstadoWizardDto` con campos `PasoActivo` (int), `Descripcion` (string), `TieneBorrador` (bool), `IdFCCPagoClienteBorrador` (guid?, solo si aplica).
+
+**Resultado esperado:**
+Endpoint `GET .../estado-wizard` que permite a la UI redirigir al usuario directamente al paso activo del wizard, sin forzarlo a comenzar siempre desde el Paso 1.
+
+**Entregables:**
+- Endpoint + Query + Handler: `GetEstadoWizardQuery`
+- DTO: `EstadoWizardDto`
+- Pruebas unitarias (escenarios: sin cobros → Paso 1, borrador activo → Paso 1, todos confirmados → Paso 2)
+
+**Criterios de aceptación:**
+- Si no hay `fccPagoCliente` para el cliente, retorna `PasoActivo=1`.
+- Si existe `fccPagoCliente.Confirmado=0`, retorna `PasoActivo=1` con `TieneBorrador=true` e `IdFCCPagoClienteBorrador` poblado.
+- Si todos los cobros están `Confirmado=1` y hay trabajo pendiente en Paso 2, retorna `PasoActivo=2` (lógica base; se detalla en RE-FU-025).
+- La UI no muestra el Paso 1 si el usuario ya completó todos los cobros del Buzón (OBS-048).
+
+**Más información de la tarea:**
+Ver sección *"Parte B / B8"* en `TPSC-RE-FU-024-Back.md`. Ver Regla 11 y Criterio F1 en `TPSC-RE-FU-024.md`.
+
+**Recursos:**
+- `TPSC-RE-FU-024-Back.md` — Parte B, sección B8
+- `TPSC-RE-FU-024.md` — Regla 11, Criterio F1

@@ -59,7 +59,7 @@ La acción de cada cliente en el listado es "Realizar Cobros" si el cliente tien
 Cuando un cliente tiene cero cobros recibidos en el Buzón, el listado muestra un tooltip explicativo en el conteo de cobros recibidos (ejemplo: "No hay correos de cobro en el buzón de este cliente") para que el usuario comprenda por qué la acción es "Gestionar Cobranza" en lugar de "Realizar Cobros".
 
 **Regla 6 — Buscador único por nombre de cliente o identificador fiscal**
-El buscador del listado filtra en tiempo real según coincidencias del texto en el nombre del cliente o en el identificador fiscal (RFC para México, RUC para Perú). El filtrado opera sin requerir botón de búsqueda.
+El buscador del listado filtra en tiempo real según coincidencias del texto en el nombre del cliente o en el identificador fiscal (RFC para México, RUC para Perú). El filtrado opera sin requerir botón de búsqueda. El sistema ignora los espacios al inicio y al final del texto ingresado antes de ejecutar el filtrado (trim automático). Ver OBS-041.
 
 **Regla 7 — Modal "Gestionar Cobranza" al presionar la acción**
 Al presionar "Gestionar Cobranza" en un cliente, se abre el modal del cliente con: cabecera con nombre del cliente y Monto Total pendiente; listado de pedidos pendientes con datos por pedido (Pedido Interno, número de orden de compra o referencia del cliente, datos de contacto del cliente, fecha estimada de pago editable, botón Cancelar Pedido por pedido); y un botón "Confirmar" que guarda los cambios de fechas estimadas y cierra el modal.
@@ -102,7 +102,7 @@ Entonces deberá mostrar las siguientes columnas por cliente:
 - Identificador fiscal (RFC del cliente para Región México, RUC para Región Perú).
 - Cobros recibidos (conteo de correos de cobro del Buzón pendientes de aplicar para este cliente).
 - Factura / Proforma por Cobrar (conteo de proformas y facturas emitidas pendientes de cobrar para este cliente).
-- Saldo Pendiente (monto total pendiente de cobro, con moneda). ** Pendiente confirmar si siempre se muestra dolarizado. **
+- Saldo Pendiente (monto total pendiente de cobro en USD). El listado siempre se muestra dolarizado en USD para homogeneizar la comparación entre clientes. Decisión confirmada por el cliente — OBS-046.
 - Acción contextual (botón "Realizar Cobros" o "Gestionar Cobranza" según estado).
 
 **Criterio A2 — Acción contextual visible por cliente**
@@ -120,19 +120,24 @@ Dado que un cliente tiene cero cobros recibidos pendientes,
 Cuando el usuario consulta el conteo de cobros recibidos del cliente,
 Entonces el sistema deberá mostrar un tooltip explicativo (ejemplo: "No hay correos de cobro en el buzón de este cliente").
 
+**Criterio A5 — Indicador de SLA 72 horas**
+Dado que un cliente tiene uno o más cobros recibidos pendientes de aplicar,
+Cuando el cobro más antiguo del cliente lleva más de 72 horas sin ser procesado (SLA de atención de cobros),
+Entonces el sistema deberá mostrar un indicador visual de alerta (por ejemplo, ícono o resaltado) sobre el cliente en el listado para señalizar el vencimiento del SLA. Decisión confirmada por el cliente — OBS-047.
+
 ═══════════════════════════════════════════════════════════════
 SECCIÓN B — BUSCADOR ÚNICO
 ═══════════════════════════════════════════════════════════════
 
-**Criterio B1 — Buscador en tiempo real**
+**Criterio B1 — Buscador en tiempo real con trim automático**
 Dado que el usuario interactúa con el campo buscador del listado,
 Cuando ingresa texto,
-Entonces el sistema deberá filtrar el listado de clientes en tiempo real conforme el usuario escribe, según coincidencias con nombre de cliente o identificador fiscal (RFC o RUC según región del cliente). El filtrado opera sin requerir botón de búsqueda.
+Entonces el sistema deberá filtrar el listado de clientes en tiempo real conforme el usuario escribe, según coincidencias con nombre de cliente o identificador fiscal (RFC o RUC según región del cliente). El filtrado opera sin requerir botón de búsqueda. El sistema ignorará los espacios al inicio y al final del texto ingresado antes de ejecutar el filtrado (trim automático). Ver OBS-041.
 
-**Criterio B2 — Sin filtros adicionales**
+**Criterio B2 — Sin filtros adicionales, ordenamiento por antigüedad de cobros**
 Dado que el usuario opera el listado,
 Cuando consulta los filtros disponibles,
-Entonces el listado deberá ofrecer únicamente el buscador único. No hay filtros adicionales por estado, región, monto u otros criterios (decisión de diseño operativo: el listado es ligero y el usuario opera sobre los clientes que aparecen). ** Pendiente confirmar el orden por defecto del listado (alfabético por cliente, por antigüedad de cobros recibidos, por mayor saldo pendiente, u otro). **
+Entonces el listado deberá ofrecer únicamente el buscador único. No hay filtros adicionales por estado, región, monto u otros criterios. El listado se ordena por defecto por antigüedad de los cobros recibidos pendientes de aplicar (el cliente con el cobro recibido más antiguo aparece primero). Decisión confirmada por el cliente — OBS-047.
 
 ═══════════════════════════════════════════════════════════════
 SECCIÓN C — VISIBILIDAD POR CARTERA Y REGIÓN
@@ -210,7 +215,17 @@ Entonces el sistema deberá descartar los cambios de fecha estimada no confirmad
 - El buscador único filtra por nombre de cliente o identificador fiscal (RFC en México, RUC en Perú) en tiempo real. No hay filtros adicionales por estado, monto, región u otros criterios.
 - ** Pendiente resolver formalmente la denominación canónica del rol operativo entre "Gestor de Cobranza" y "Analista de Cuentas por Cobrar". **
 - ** Pendiente confirmar si la cancelación de pedido desde "Gestionar Cobranza" dispara cancelación de la proforma o factura asociada y si propaga cancelación y/o transferencias a otros sistemas (Legacy). **
-- ** Pendiente confirmar si la moneda del Saldo Pendiente del listado se muestra siempre dolarizada (USD) para homogeneizar la comparación entre clientes, o si se muestra en la moneda de facturación de cada cliente. **
-- ** Pendiente confirmar el orden de ordenamiento por defecto del listado de clientes: alfabético por nombre del cliente, por antigüedad de cobros recibidos, por mayor saldo pendiente, u otro criterio. **
+- **Decisión OBS-046:** el Saldo Pendiente del listado se muestra siempre dolarizado en USD para homogeneizar la comparación entre clientes, independientemente de la moneda de facturación de cada cliente.
+- **Decisión OBS-047:** el orden por defecto del listado es por antigüedad de los cobros recibidos pendientes de aplicar (el cliente con el cobro más antiguo aparece primero). Los clientes sin cobros recibidos (acción "Gestionar Cobranza") se muestran al final del listado. Adicionalmente, los clientes cuyo cobro más antiguo supera las 72 horas de SLA reciben un indicador visual de alerta (Criterio A5).
 - ** Pendiente confirmar si la fecha estimada de pago registra historial de cambios con usuario y timestamp para trazabilidad de seguimiento. **
 - ** Para clientes Región Perú, el correcto funcionamiento de esta pantalla depende del Buzón de Cobros Perú (con sus brechas pendientes de modelo bancario peruano y formatos de comprobantes). Si el Buzón Perú no está poblado, los clientes Perú siempre aparecerán con cero cobros recibidos hasta que se resuelvan las brechas correspondientes. **
+
+---
+
+## Cambios
+
+| # | Fecha | Referencia | Descripción del cambio |
+|---|-------|------------|------------------------|
+| 1 | 2026-06-10 | OBS-041 | Regla 6: trim automático agregado al buscador. Criterio B1: actualizado con trim automático. |
+| 2 | 2026-06-10 | OBS-046 | Criterio A1: Saldo Pendiente siempre en USD. Pendiente de moneda cerrado. |
+| 3 | 2026-06-10 | OBS-047 | Criterio B2: ordenamiento por defecto por antigüedad de cobros recibidos. Criterio A5 agregado: indicador visual SLA 72 horas. Pendiente de orden cerrado. |

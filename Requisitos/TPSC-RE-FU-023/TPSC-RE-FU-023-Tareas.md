@@ -351,6 +351,9 @@ Ver sección *"B3"* en `TPSC-RE-FU-023-Back.md`.
 - Todas las tablas (`ClienteCartera`, `tpProformaPedido`, `fccFolioPagoCliente`) se leen vía
   Scaffold Finanzas — sin llamadas a la API de ProquifaDotNet.
 - Solo muestra clientes de la cartera del usuario: `ClienteCartera.IdUsuarioCobrador = @IdUsuarioActivo`.
+- **OBS-041:** Aplicar trim automático al valor de `textoBusqueda` antes de ejecutar el filtrado (ignorar espacios al inicio y al final).
+- **OBS-046:** `SaldoPendienteTotal` siempre en USD — convertir `MontoPendiente` a USD usando el `ConversorDivisas` existente en ProquifaDotNet.
+- **OBS-047:** El listado se ordena por antigüedad del cobro recibido más antiguo del cliente (`MIN fccFolioPagoCliente.FechaRecepcion`, ASC). Clientes sin cobros pendientes se ubican al final. Agregar campo `TieneSlaVencido` (bool): `true` si el cobro más antiguo lleva más de 72 horas sin procesar.
 
 **Objetivo general:**
 `POST /api/validar-cobro/clientes` con `[FromBody] QueryInfo` que retorna
@@ -368,11 +371,12 @@ siguiendo el patrón QueryInfo del repo Punchout.
   - Calcula `AccionContextual`.
   - Mapea a `ClienteValidarCobroDto`.
 - **`Application.DTOs`** → `ClienteValidarCobroDto` con: `IdCliente`, `Alias`, `RFC`,
-  `CobrosRecibidosPendientes`, `ProformasFacturasPendientes`, `SaldoPendienteTotal`,
-  `ClaveMoneda`, `AccionContextual`.
+  `CobrosRecibidosPendientes`, `ProformasFacturasPendientes`, `SaldoPendienteTotalUsd` (en USD, OBS-046),
+  `FechaCobroMasAntiguo` (nullable, para ordenamiento OBS-047), `TieneSlaVencido` (bool, OBS-047),
+  `AccionContextual`.
 - **`Infrastructure.Repository`** → `ClienteValidarCobroRepository`:
   - Filtro soportado vía `QueryInfo.Filters`:
-    - `textoBusqueda` → `WHERE Alias LIKE % OR RFC LIKE %` (case custom en switch).
+    - `textoBusqueda` → trim automático del valor ingresado, luego `WHERE TRIM(Alias) LIKE % OR TRIM(RFC) LIKE %` (case custom en switch). OBS-041.
   - Aplica filtro de cartera/región desde claims del usuario autenticado.
   - Usa `ToPagedList(queryInfo, out totalCount)` de `QueryableExtensions`.
 - **`API.Controllers`** → `ValidarCobroController` con `[HttpPost] POST /api/validar-cobro/clientes`
@@ -392,11 +396,14 @@ con `AccionContextual` correcto por cliente.
 
 **Criterios de aceptación:**
 - Request `POST` con `QueryInfo` vacío retorna primera página (PageSize=50 por defecto).
-- Filtro `textoBusqueda` filtra por Alias o RFC del cliente.
+- Filtro `textoBusqueda` aplica trim automático al valor ingresado antes de ejecutar el LIKE (OBS-041).
 - `TotalResults` refleja el total antes de paginar.
 - `CobrosRecibidosPendientes` = COUNT real `fccFolioPagoCliente.Activo=true` del cliente.
 - `AccionContextual` = `REALIZAR_COBROS` si pendientes > 0, `GESTIONAR_COBRANZA` si no.
 - Solo retorna clientes de la cartera del usuario activo (por claims del token).
+- `SaldoPendienteTotalUsd` se expresa siempre en USD, aplicando conversión de moneda (OBS-046).
+- El listado se ordena por `FechaCobroMasAntiguo` ASC (cobro recibido más antiguo primero). Clientes sin cobros pendientes al final (OBS-047).
+- `TieneSlaVencido = true` cuando `FechaCobroMasAntiguo` supera las 72 horas sin procesar (OBS-047).
 
 **Más información de la tarea:**
 Ver sección *"C1"* en `TPSC-RE-FU-023-Back.md`. Patrón de referencia: `BrandController`,

@@ -4,8 +4,9 @@
 |-------|-------|
 | **Requisito** | TPSC-RE-FU-008 |
 | **Nombre** | Buzón de Cobros |
-| **Total de tareas** | 7 |
+| **Total de tareas** | 9 |
 | **Revisión aplicada** | TPSC-RE-FU-008-Back.md |
+| **Última actualización** | 2026-06-10 — OBS-021: Tareas 8 y 9 agregadas (Bandeja del Coordinador de Tesorería) |
 
 ---
 
@@ -223,8 +224,7 @@ MailBot L11 — Buzón de Cobros
 **Depende de Tarea 1 y Tarea 2.** La clave `"cobro"` debe existir en BD y la constante debe estar actualizada antes de iniciar esta tarea.
 Confirmar que el campo `Clave` está mapeado en el modelo Entity Framework de `catClasificacionCorreoRecibido` antes de implementar la query.
 **D3 — Patrón de filtros/búsqueda/paginación:** El Buzón de Cobros debe aplicar el mismo patrón de filtros, búsqueda y paginación que los Buzones preexistentes (Buzón de Requisiciones, Buzón de Pedidos). El BO debe soportar los mismos parámetros de filtrado que usa `QueryInfo` en esos buzones.
-**Riesgo 1 — Cliente sin cobrador:** Si el cliente del correo no tiene cobrador asignado (`IdUsuarioCobrador` nulo en `ClienteCarteraCliente`), el correo no aparece en ninguna bandeja. Comportamiento por diseño.
-**Riesgo 2 — Cliente no identificable:** Si `IdCliente` es nulo (cliente nuevo, referencia errónea, dominio genérico), el correo no tiene entrada asignable a ningún cobrador. ⚠️ Pendiente confirmación con el cliente.
+**OBS-021 — Bandeja del Coordinador de Tesorería:** Los correos de cobro no enrutables (cliente sin Cobrador — Caso 1; remitente no dado de alta — Caso 2) se concentran en la bandeja del Coordinador de Tesorería (ver Tarea 8). Esta tarea solo cubre la bandeja del Gestor. La retroactividad al asignar Cobrador es automática por el diseño de la query.
 
 **Descripción del problema:**
 No existe BO que liste los correos del Buzón de Cobros filtrados por cobrador y región. El Gestor de Cobranza solo debe ver los correos cuyo cliente pertenece a su cartera (R5) y a su región (E1 — segregación MEX / PER). Sin filtro de región, un cobrador MEX podría ver correos de PER y viceversa.
@@ -443,8 +443,7 @@ MailBot L11 — Proceso de Clasificación / Validar Cobro
 `CorreoRecibidoClienteToPagoBO` ya existe y ya crea `fccFolioPagoCliente`. Esta tarea revisa, valida y completa su lógica interna para cumplir R3 y R4.
 **Nota de implementación:** El pendiente en Validar Cobro se genera **sin capturar previamente datos del cobro** (monto, banco, cuenta, fecha, referencia). La captura ocurre la primera vez que el Gestor trabaja el pendiente en Validar Cobro.
 **Nota de implementación:** El **Buzón de Cobros** y **Validar Cobro** NO son el mismo módulo. Este BO genera la entrada en ambos simultáneamente al clasificar el correo.
-**Riesgo 1 — Cliente sin cobrador:** Si el cliente no tiene cobrador asignado, el folio se crea pero no aparece en ninguna bandeja. Registrar advertencia en log.
-**Riesgo 2 — Cliente no identificable:** Si `IdCliente` es nulo, no se crea el folio. Registrar en log. ⚠️ Confirmación pendiente con el cliente.
+**OBS-021 — Correos no enrutables:** Si el cliente no tiene Cobrador (Caso 1) o el remitente no está dado de alta (Caso 2), el folio se crea igualmente y el correo aparece en la bandeja del Coordinador de Tesorería (Tarea 8). Registrar en log con motivo. Ver GAP-06 en `TPSC-RE-FU-008-Back.md`.
 
 **Descripción del problema:**
 Cuando el MailBot clasifica un correo como cobro, debe generarse automáticamente un pendiente en Validar Cobro (`fccFolioPagoCliente`) y el correo debe ser visible en el Buzón del Gestor asignado. El BO `CorreoRecibidoClienteToPagoBO` existe pero su lógica no ha sido validada para cumplir todos los criterios de FU-008: verificación de cobrador asignado, creación del folio sin datos previos, y marcado de `Procesado = true`.
@@ -671,6 +670,94 @@ var clavesValidas = new[] { "requisicion", "pedido", "cobro", "pago", "otros" };
 - Modelo actual: `_Ejecutables\_Catalogo\ConsumidorMailBot\ArchivosML\MLModel.zip`
 - Clasificador: `_Ejecutables\_Catalogo\ConsumidorMailBot\Library\DescargarCorreos\DescargarCorreosBO.cs`
 - Constructor del modelo: `_Ejecutables\_Catalogo\ConsumidorMailBot\ML\ModelBuilder.cs`
+- Requisito funcional: `Requisitos/TPSC-RE-FU-008/
+---
+
+## Tarea 8
+
+### TPSC-RE-FU-008  [ LIST-PAG-MULT-FILTER ]  BandejaCoordenadorTesoreriaBO — correos de cobro no enrutables
+
+**Aplicativos:**
+ProquifaNet 2 — Logic.Pqf.Logistica
+
+**Módulos:**
+MailBot L11 — Buzón de Cobros — Bandeja del Coordinador de Tesorería
+
+**Consideraciones previas:**
+**Depende de Tarea 1 y Tarea 2.** La clave `"cobro"` debe existir en BD antes de que esta query filtre correctamente.
+**Depende de Tarea 3.** El modelo POCO `vCorreoRecibidoBuzonCobros` debe existir antes de crear este BO.
+Esta tarea cubre **OBS-021 (Reglas 11 y 12)**: correos clasificados como cobro que no pueden enrutarse a ningún Gestor van a esta bandeja.
+**Retroactividad automática:** Al asignar un Cobrador al cliente (FU-002), los correos del Caso 1 dejan de aparecer en esta bandeja automáticamente y aparecen en la bandeja del nuevo Gestor. No se requiere lógica adicional — es consecuencia estructural de la query por `IdUsuarioCobrador`.
+**Solo accesible para Coordinador de Tesorería:** confirmar mecanismo de identificación del rol (P5 del Back).
+
+**Descripción del problema:**
+Los correos clasificados como cobro cuyo cliente no tiene Cobrador asignado (Caso 1) o cuyo remitente no está dado de alta (Caso 2) no aparecen en ninguna bandeja de Gestor. OBS-021 establece que deben concentrarse en la bandeja del Coordinador de Tesorería para que tome acción. Se requiere un BO que devuelva estos correos no enrutables con el motivo de no enrutamiento.
+
+**Archivo a crear:**
+```
+Logic.Pqf.Logistica\L11.MailBot\Procesos\Cobros\BandejaCoordenadorTesoreriaBO.cs
+```
+
+**Cambios requeridos:**
+Ver fragmento de código en GAP-05 de `TPSC-RE-FU-008-Back.md`.
+
+**Criterios de aceptación:**
+- [ ] **[R11 — F1 OBS-021]** La query retorna correos de cobro activos donde el cliente no tiene Cobrador asignado (Caso 1)
+- [ ] **[R12 — F3 OBS-021]** La query retorna correos de cobro activos donde `IdCliente` es nulo (Caso 2)
+- [ ] Cada registro incluye el motivo de no enrutamiento (Caso 1 vs Caso 2) para que el Coordinador sepa qué acción tomar
+- [ ] Los correos que ya tienen Cobrador asignado NO aparecen en esta bandeja
+- [ ] El BO recibe `QueryInfo` y devuelve `QueryResult<vCorreoRecibidoBuzonCobros>` paginado
+- [ ] El proyecto `Logic.Pqf.Logistica` compila sin errores
+- [ ] PR aprobado por líder técnico
+
+**Más información de la tarea:**
+- GAP-05 del archivo `TPSC-RE-FU-008-Back.md`
+- Reglas cubiertas: **R11**, **R12** (OBS-021)
+- Criterios cubiertos: **F1**, **F2**, **F3**, **F4** (SECCIÓN F del requisito)
+
+**Recursos:**
+- Análisis de impacto backend: `Requisitos/TPSC-RE-FU-008/TPSC-RE-FU-008-Back.md`
+- Diccionario de datos: `Requisitos/TPSC-RE-FU-008/TPSC-RE-FU-008_BD.md`
 - Requisito funcional: `Requisitos/TPSC-RE-FU-008/TPSC-RE-FU-008.md`
 
+---
 
+## Tarea 9
+
+### TPSC-RE-FU-008  [ QUERY-CH ]  BandejaCoordenadorTesoreriaController — endpoint POST /BandejaCoordenadorTesoreria
+
+**Aplicativos:**
+ProquifaNet 2 — WebApi.Logistica
+
+**Módulos:**
+MailBot L11 — Buzón de Cobros — Bandeja del Coordinador de Tesorería
+
+**Consideraciones previas:**
+**Depende de Tarea 8.** `BandejaCoordenadorTesoreriaBO` debe existir y compilar antes de crear el controller.
+**Solo accesible para Coordinador de Tesorería.** El endpoint debe validar el rol del usuario autenticado. Confirmar el mecanismo de identificación del rol con el arquitecto (P5 del Back).
+El endpoint retorna el mismo modelo `vCorreoRecibidoBuzonCobros` que usa `BuzonCobrosController` para consistencia de frontend.
+
+**Descripción del problema:**
+No existe endpoint que exponga la bandeja del Coordinador de Tesorería. El Coordinador necesita acceder a los correos no enrutables para asignar un Cobrador al cliente (Caso 1) o dar de alta el contacto (Caso 2). OBS-021 establece este módulo como punto de entrada de atención para correos sin ruta.
+
+**Archivo a crear:**
+```
+WebApi.Logistica\Controllers\Procesos\Mailbot\BandejaCoordenadorTesoreriaController.cs
+```
+
+**Criterios de aceptación:**
+- [ ] **[F1 OBS-021]** `POST /BandejaCoordenadorTesoreria` retorna correos de cobro no enrutables paginados con `Total` y `Results`
+- [ ] El endpoint solo es accesible por el rol Coordinador de Tesorería — retorna `403 Forbidden` para cualquier otro rol
+- [ ] El endpoint retorna `200 OK` con resultados cuando hay correos no enrutables, `204 NoContent` si no hay
+- [ ] El modelo de respuesta es `QueryResult<vCorreoRecibidoBuzonCobros>` — consistente con `BuzonCobrosController`
+- [ ] El proyecto `WebApi.Logistica` compila sin errores
+- [ ] PR aprobado por líder técnico
+
+**Más información de la tarea:**
+- GAP-05 del archivo `TPSC-RE-FU-008-Back.md`
+- Reglas cubiertas: **R11**, **R12** (OBS-021)
+
+**Recursos:**
+- Análisis de impacto backend: `Requisitos/TPSC-RE-FU-008/TPSC-RE-FU-008-Back.md`
+- Diccionario de datos: `Requisitos/TPSC-RE-FU-008/TPSC-RE-FU-008_BD.md`
+- Requisito funcional: `Requisitos/TPSC-RE-FU-008/TPSC-RE-FU-008.md`

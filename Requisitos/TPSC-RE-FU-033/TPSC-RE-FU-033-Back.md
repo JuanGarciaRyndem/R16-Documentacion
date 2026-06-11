@@ -3,6 +3,12 @@
 **Aplicativos:** ProquifaDotNet.Finanzas (.NET Core 10) + ProquifaDotNet.Timbrado (.NET Core 10) + DocumentBuilder
 **Versión:** 1.0
 
+## Revisiones aplicadas
+
+| # | Cambio | Origen |
+|---|--------|--------|
+| 1 | **Criterio A3 agregado en B8:** Nota sobre visibilidad por cartera del Cobrador para Perú — pendiente de alcance | OBS-004 |
+
 ---
 
 > ⚠️ **Nota transversal:** Toda la mecánica fiscal SUNAT (catálogo 09, campos CPE tipo 07, plazos, tipo de cambio, conservación) requiere validación con el asesor fiscal peruano de PROQUIFA antes de implementarse.
@@ -138,6 +144,11 @@ Orquesta la secuencia post-timbrado (⚠️ bloqueado por Brecha B1 — modalida
 
 - **Pantalla principal:** `GET /api/nc-peru?idCliente={id?}&moneda={m?}&fechaDesde={d?}&fechaHasta={h?}` — retorna NCs agrupadas por cliente (Total NC, Vigentes, Por Aplicar, Monto Total, Moneda).
 - **Drill-down:** `GET /api/nc-peru/cliente/{idCliente}` — lista NCs del cliente con folio (serie-correlativo), fecha, monto, estado, comprobante origen.
+
+**Criterio A3 — Visibilidad por cartera del Cobrador — Perú (OBS-004) ⚠️ Pendiente de alcance:**
+Al igual que en México (RE-032 Criterio A5), la pantalla principal de NC Perú debe filtrar por los clientes asignados al Cobrador autenticado, usando JOIN sobre `vUsuarioCartera`. Sin embargo, el alcance de la cartera de Cobrador para Perú en R16 está pendiente de confirmación con el cliente.
+
+> **Nota:** Mientras no se confirme el alcance, este filtro no debe implementarse. Cuando se resuelva, agregar el mismo JOIN de `vUsuarioCartera` que en RE-032 B7 (Criterio A5). Referencia de diseño: TPSC-RE-FU-002 Módulos Consumidores.
 
 ### B9 — Reenvío de correo
 

@@ -16,6 +16,8 @@ Habilitar la carga, visualización, reemplazo y eliminación de documentos PDF r
 (Licencia Sanitaria y Aviso de Responsable Sanitario) por cliente en el Catálogo de Clientes.
 La presencia de ambos documentos es requisito bloqueante para pretramitar pedidos con sustancias controladas.
 
+> **Alcance regional — OBS-007:** Esta funcionalidad aplica **únicamente a Región México**. Las Sustancias Controladas no están habilitadas para Región Perú en R16; por tanto, los Documentos Regulatorios y su validación condicionante en Pretramitar Pedido no deben activarse para Perú.
+
 ---
 
 ## Modelo de Datos
@@ -248,7 +250,7 @@ ORDER BY c.Nombre;
 | Regla 2 | Solo formato PDF | Validación en capa aplicación antes de insertar en `Archivo` |
 | Regla 3 | Una sola versión vigente por tipo por cliente | `UPDATE Activo = 0` antes de `INSERT` nuevo registro |
 | Regla 4 | Sin validación de vigencia ni contenido | No hay campos de fecha de vencimiento en el modelo |
-| Regla 5 | Aplica México y Perú por igual | Sin distinción de país en `ArchivoCliente` |
+| Regla 5 | **Solo aplica a Región México** — Perú no habilitado para Sustancias Controladas en R16 (OBS-007) | Sin distinción de país en `ArchivoCliente`; la restricción se aplica en la capa de negocio y en TPSC-RE-FU-009 |
 
 ---
 
@@ -257,7 +259,7 @@ ORDER BY c.Nombre;
 | Gap | Descripción | Acción requerida |
 |---|---|---|
 | `catUsoArchivoSistema` vacío | La tabla puede no tener los registros requeridos | Insertar: `LicenciaSanitaria` y `AvisoResponsableSanitario` |
-| Denominación Perú | Pendiente confirmar si aplican mismas etiquetas | Confirmar con cliente (Riesgo 4 del requisito) |
+| ~~Denominación Perú~~ | ~~Pendiente confirmar si aplican mismas etiquetas~~ | **Cerrado — OBS-007:** Perú fuera de alcance en R16. No se requieren registros diferenciados para Perú. |
 | Sin `FechaRegistro` en `ArchivoCliente` | No hay fecha de carga en la tabla de vinculación | Usar `Archivo.FechaRegistro` como fecha de carga |
 | Sin historial visual | Baja lógica oculta versiones anteriores | Comportamiento intencional documentado (Riesgo 2) |
 
@@ -267,7 +269,7 @@ ORDER BY c.Nombre;
 
 | Módulo | Requisito | Validación |
 |---|---|---|
-| Pretramitar Pedido | TPSC-RE-FU-009 | Ambos documentos `Activo = 1` requeridos para pedidos con sustancias controladas |
+| Pretramitar Pedido | TPSC-RE-FU-009 | Ambos documentos `Activo = 1` requeridos para pedidos con sustancias controladas — **solo Región México** (OBS-007) |
 
 ---
 
@@ -278,7 +280,7 @@ ORDER BY c.Nombre;
 | 1 | Documentos cargados pero vencidos legalmente | Revisión periódica offline por Regulatorios |
 | 2 | Pérdida de trazabilidad histórica por reemplazo | Comportamiento intencional — sin historial visual en R16 |
 | 3 | Eliminación accidental bloquea pretramitación | Confirmación explícita antes de eliminar en UI |
-| 4 | Denominación distinta en Perú (DIGEMID/SUNAT) | Pendiente confirmación con cliente |
+| ~~4~~ | ~~Denominación distinta en Perú (DIGEMID/SUNAT)~~ | **Eliminado — OBS-007:** Perú fuera de alcance en R16. Sustancias Controladas no habilitadas para Perú. |
 
 ---
 
@@ -287,5 +289,5 @@ ORDER BY c.Nombre;
 | # | Pendiente | Responsable |
 |---|---|---|
 | P1 | Confirmar existencia de registros `LicenciaSanitaria` y `AvisoResponsableSanitario` en `catUsoArchivoSistema` | DBA |
-| P2 | Confirmar denominación exacta de documentos para Perú (DIGEMID/SUNAT) y si requieren registros diferenciados en el catálogo | Funcional / Cliente |
+| ~~P2~~ | ~~Confirmar denominación exacta de documentos para Perú (DIGEMID/SUNAT) y si requieren registros diferenciados en el catálogo~~ | **Cerrado — OBS-007:** Perú fuera de alcance en R16. No aplica. |
 | P3 | Definir si la purga física de archivos en MinIO al eliminar / reemplazar entra en alcance R16 | Product Owner |

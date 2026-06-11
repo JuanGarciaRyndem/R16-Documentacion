@@ -1,4 +1,4 @@
-﻿# Mantenimiento de Catálogo de Clientes — Referencia de Pago y Código Validador
+# Mantenimiento de Catálogo de Clientes — Referencia de Pago y Código Validador
 
 | Campo | Valor |
 |---|---|
@@ -33,6 +33,7 @@ El sistema debe contar en la sección **Cobros** del Catálogo de Clientes con u
 - Captura manual del Código Validador para cada combinación cliente-cuenta.
 - Reconstrucción dinámica de la referencia bancaria en cada generación de proforma asociada a la cuenta seleccionada.
 - Replicación de la lógica documentada del sistema Legacy actual sobre Banamex (7 segmentos) y no-Banamex (nombre del cliente).
+- Migración de los datos actuales del sistema Legacy a ProquifaDotNet: cuentas bancarias asignadas por cliente y sus Códigos Validadores.
 
 ### No aplica a
 
@@ -209,3 +210,13 @@ Al modificar el Código Validador asignado a una combinación cliente-cuenta, el
 > **⚠️ Pendiente** — Validar con el cliente si la asignación de cuentas bancarias y captura del Código Validador debe restringirse al rol Coordinador de Tesorería u otro rol específico, considerando las implicaciones financieras.
 
 > **⚠️ Pendiente** — Confirmar con el cliente si es posible asignar más de una cuenta bancaria por cliente y si se requiere tope máximo.
+
+---
+
+## Cambios
+
+| #   | Fecha      | Observación | Descripción del cambio                                                                                                                                                                   |
+| --- | ---------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | 2026-06-10 | OBS-010     | Se agrega viñeta en Alcance "Aplica a": migración de datos actuales del sistema Legacy (cuentas bancarias y Códigos Validadores por cliente) como parte de los entregables de R16.       |
+| 2   | 2026-06-10 | OBS-012     | Confirmado / ya cubierto: la proforma solo se genera en Tramitar Pedido, no en Validar Cobro. Diseño vigente ya era correcto; sin cambios en la matriz.                                  |
+| 3   | 2026-06-10 | OBS-016     | Entregable: el cliente solicita mockups/pantallas del Catálogo de Clientes (sección Cobros, código validador). No genera cambio en la matriz. Pendiente producir el diseño de pantallas. |

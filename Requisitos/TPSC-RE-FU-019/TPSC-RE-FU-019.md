@@ -90,7 +90,7 @@ Regla 14 — Visibilidad filtrada por cartera del usuario
 El acceso al Detalle de un cliente solo se permite si el cliente está asignado a la cartera del usuario (campo Cobrador del Catálogo de Clientes). Los clientes asignados a otros usuarios no son accesibles.
 
 Regla 15 — Datos de la Factura provienen del Pedido
-Los conceptos de la Factura se obtienen del Pedido: por cada partida, cantidad, descripción (catálogo + descripción + marca + lote + caducidad cuando aplique), precio unitario e importe. ** Pendiente confirmar el origen del lote del producto en el flujo de Factura por Adelantado: en los XMLs de facturas reales el lote aparece en la descripción del concepto, pero en el flujo operativo de PROQUIFA el surtido del pedido (asignación de lote en almacén) ocurre DESPUÉS de cobrar y facturar (la orden al proveedor se hace después de cobrar). Es decir, al momento de timbrar la Factura por Adelantado el lote del producto no debería estar disponible todavía. Pendiente clarificar con el cliente: ¿el lote se omite y se completa posteriormente con una NC complementaria?, ¿se reserva lote anticipadamente?, ¿se factura sin lote y se complementa después? **
+Los conceptos de la Factura se obtienen del Pedido: por cada partida, cantidad, descripción (catálogo + descripción + marca), precio unitario e importe. **La Factura por Adelantado no consigna lote ni pedimento.** El pedimento se representa como N/A (comportamiento preexistente del sistema); el lote tampoco se incluye porque el surtido del pedido (asignación de lote en almacén) ocurre después de cobrar y facturar. Decisión confirmada por el cliente — OBS-039.
 
 ---
 
@@ -329,6 +329,14 @@ Entonces deberá seguirse el siguiente orden:
 - El asunto del correo de envío se pre-rellena con un formato canónico que incluye folio de la Factura y folio del Pedido Interno (México). ** Para Perú, el formato del asunto y la numeración del folio fiscal (serie SUNAT F### + correlativo, distinta del folio mexicano) quedan pendientes de confirmar con PROQUIFA y su asesor peruano cuando se habilite la región. **
 - La sección Cliente del módulo (cabecera del Detalle) muestra etiquetas de clasificación del cliente que son datos preexistentes del Catálogo de Clientes y solo lectura desde este módulo.
 - Cobertura geográfica de esta fila: clientes con Región México exclusivamente. La habilitación para Perú depende de la integración con OSE/SUNAT autorizado (brecha mayor del proyecto) y se documenta en requisito independiente cuando esté disponible.
-- ** Pendiente clarificar con el cliente el origen del Lote del producto al momento de timbrar la Factura por Adelantado. En los XMLs de facturas reales el lote aparece en la descripción del concepto del CFDI, pero en el flujo operativo confirmado por el cliente el surtido del pedido (con asignación de lote) ocurre DESPUÉS del cobro y la facturación (la orden al proveedor se realiza después de cobrar). Por tanto, al momento de timbrar la Factura por Adelantado, el lote del producto NO debería estar disponible todavía. Pendiente decisión: ¿se omite el lote y se complementa posteriormente?, ¿se reserva lote anticipadamente?, ¿se factura sin lote y se ajusta con NC posterior? Decisión crítica para el desarrollo. **
+- **Decisión OBS-039:** ninguna Factura por Adelantado consigna lote ni pedimento. El pedimento ya se manejaba como N/A (comportamiento preexistente); el lote sigue la misma decisión — el surtido (asignación de lote en almacén) ocurre después del cobro y la facturación, por lo que el lote no está disponible al timbrar. Decisión cerrada y confirmada por el cliente.
 - ** Pendiente confirmar la política ante indisponibilidad del PAC TurboPac (reintento automático, encolamiento, fallback). **
 - ** Pendiente resolver formalmente la denominación canónica del rol operativo entre "Gestor de Cobranza" y "Analista de Cuentas por Cobrar". **
+
+---
+
+## Cambios
+
+| # | Fecha | Referencia | Descripción del cambio |
+|---|-------|------------|------------------------|
+| 1 | 2026-06-10 | OBS-039 | Regla 15: lote y pedimento excluidos de la descripción de conceptos de la Factura por Adelantado. Descripción actualizada a "catálogo + descripción + marca". Pendiente de lote cerrado — decisión: ninguna Factura por Adelantado consigna lote ni pedimento. |

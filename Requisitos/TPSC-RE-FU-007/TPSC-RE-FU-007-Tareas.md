@@ -6,6 +6,7 @@
 | **Nombre** | Notificación Regulatoria al Cliente en Cotización Definitiva |
 | **Total de tareas** | 4 |
 | **Revisión aplicada** | TPSC-RE-FU-007 Revision.md |
+| **Última actualización** | 2026-06-10 — OBS-017, OBS-018 |
 
 ---
 
@@ -97,8 +98,8 @@ Cotizar lo Cotizable — Generación de PDF de cotización definitiva
 **Consideraciones previas:**
 **Depende de Tarea 1.** La función `fnEsProductoControlado` ya debe cubrir los tres tipos de control, aunque la detección en código C# usa `ControlClave` directo del contexto (sin invocar la función).
 Confirmar Pendiente **P1**: texto definitivo de la leyenda para clientes México antes del UAT. Se implementa con texto provisional hasta que el cliente confirme.
-Confirmar Pendiente **P2**: texto y denominación DIGEMID para clientes Perú. Se implementa como placeholder hasta confirmación.
-Confirmar Pendiente **P4**: verificar las claves exactas de `Region.ClaveISO` para México y Perú en `catRegion` de la BD de QA antes de codificar el `switch`.
+Confirmar Pendiente **P4**: verificar la clave exacta de `Region.ClaveISO` para México en `catRegion` de la BD de QA antes de codificar el `switch`.
+> **OBS-018** — Perú excluido: la leyenda regulatoria aplica **solo a Región México**. El `switch` ya no incluye rama `PER`. El Pendiente P2 (DIGEMID) queda cancelado.
 
 **Descripción del problema:**
 El método `_CotizacionUnitaria` en `ArchivoBOCotizacionUnitariaExtensions` genera el PDF de cotización definitiva, pero no evalúa si la cotización contiene partidas de productos controlados ni agrega ninguna leyenda regulatoria al modelo enviado al DocumentBuilder.
@@ -140,10 +141,7 @@ private static string ObtenerLeyendaRegulatoria(Region region)
             return "Producto sujeto a regulación sanitaria. Para procesar el pedido " +
                    "se requiere: Licencia Sanitaria vigente y Aviso de Responsable Sanitario.";
 
-        case "PER":
-            // ⚠️ PENDIENTE P2: Confirmar denominación DIGEMID con el cliente
-            return "[PENDIENTE — Texto regulatorio DIGEMID para Perú]";
-
+        // OBS-018: Región Perú excluida — Sustancias Controladas no habilitadas en Perú (R16)
         default:
             return null;
     }
@@ -185,13 +183,13 @@ var quotationModel = new QuotationModel
 ```
 
 **Criterios de aceptación:**
-- [ ] Pendientes P1 (texto MEX) y P2 (texto PER) anotados como comentarios en código hasta confirmación del cliente
-- [ ] Pendiente P4 (clave ISO de Region) verificado en BD de QA antes del merge
+- [ ] Pendiente P1 (texto MEX) anotado como comentario en código hasta confirmación del cliente
+- [ ] Pendiente P4 (clave ISO de Region México) verificado en BD de QA antes del merge
 - [ ] `QuotationModel.RegulatoryNote` contiene el texto de leyenda cuando la cotización tiene ≥1 partida controlada (Mundial, Nacional u Origen)
 - [ ] `QuotationModel.RegulatoryNote` es `null` cuando la cotización no tiene partidas controladas
 - [ ] `QuotationModel.RegulatoryNote` es `null` en cotizaciones de investigación (no se toca `_CotizacionUnitariaInvestigacion`)
 - [ ] El texto para región MEX referencia Licencia Sanitaria y Aviso de Responsable Sanitario
-- [ ] El texto para región PER retorna el placeholder (o el texto DIGEMID si ya fue confirmado)
+- [ ] Para región PER (y cualquier otra): `ObtenerLeyendaRegulatoria` retorna `null` — no se genera leyenda (OBS-018)
 - [ ] La generación del PDF no lanza excepción cuando `RegulatoryNote` es null (R5)
 - [ ] Los proyectos `Logic.Pqf.Catalogos` y `Logic.Pqf.Logistica` compilan sin errores
 - [ ] PR aprobado por líder técnico
@@ -199,7 +197,7 @@ var quotationModel = new QuotationModel
 **Más información de la tarea:**
 - GAP-02, GAP-03 y GAP-04 del archivo `TPSC-RE-FU-007-Back.md`
 - Reglas R2, R3, R4 y R5 del requisito
-- Criterios B1, B2, B4, C1 y C2 del requisito
+- Criterios B1, B2, B4 y C1 del requisito (Criterio C2 Perú eliminado por OBS-018)
 
 **Recursos:**
 - Análisis de impacto backend: `Requisitos/TPSC-RE-FU-007/TPSC-RE-FU-007-Back.md`
@@ -263,7 +261,7 @@ public string? RegulatoryNote { get; set; }
 
 ## Tarea 4
 
-### TPSC-RE-FU-007  GAP-06  [ CREATE-PDF ] Agregar bloque Scriban `RegulatoryNote` en los 7 templates de cotización definitiva — DocumentBuilder
+### TPSC-RE-FU-007  GAP-06  [ CREATE-PDF ] Agregar bloque Scriban `RegulatoryNote` en los 6 templates de cotización definitiva México — DocumentBuilder
 
 **Aplicativos:**
 DocumentBuilder — API Resources / Templates
@@ -279,7 +277,9 @@ No se crean templates nuevos: los 7 templates COT ya están registrados en la ta
 
 **Descripción del problema:**
 Los archivos `*_COT_B.html` (body) de los templates de cotización definitiva no incluyen ningún bloque que renderice `RegulatoryNote`. Aunque el campo llegue en el JSON, sin el bloque Scriban la leyenda nunca aparece en el PDF generado.
-Se deben editar los 7 bodies de cotización definitiva — uno por cada empresa/región.
+Se deben editar los 6 bodies de cotización definitiva México.
+
+> **OBS-018** — El template `GOLPERU_PER_COT_B.html` queda **excluido**: la leyenda no aplica a Región Perú en R16.
 
 **Archivos a modificar:**
 ```
@@ -289,7 +289,6 @@ API\Resources\Templates\MUN_MEX_COT\MUN_MEX_COT_B.html
 API\Resources\Templates\PHS_MEX_COT\PHS_MEX_COT_B.html
 API\Resources\Templates\PRO_MEX_COT\PRO_MEX_COT_B.html
 API\Resources\Templates\ERVP_MEX_COT\ERVP_MEX_COT_B.html
-API\Resources\Templates\GOLPERU_PER_COT\GOLPERU_PER_COT_B.html
 ```
 
 **Cambios requeridos:**
@@ -319,9 +318,9 @@ Agregar el estilo CSS correspondiente en la sección `<style>` de cada template 
 
 **Criterios de aceptación:**
 - [ ] Pendiente P3 (ubicación de la leyenda en el PDF) confirmado por UX/Diseño antes de iniciar
-- [ ] Los 7 templates `*_COT_B.html` incluyen el bloque Scriban `RegulatoryNote`
+- [ ] Los 6 templates MEX `*_COT_B.html` incluyen el bloque Scriban `RegulatoryNote`
+- [ ] Template `GOLPERU_PER_COT_B.html` **no** se modifica (Perú excluido — OBS-018)
 - [ ] PDF generado para cotización definitiva MEX con controlados muestra la leyenda regulatoria visible
-- [ ] PDF generado para cotización definitiva PER con controlados muestra el texto DIGEMID (o placeholder)
 - [ ] PDF generado para cotización definitiva **sin** controlados no muestra la leyenda (bloque `{{- if -}}` la omite)
 - [ ] PDF generado para cotización de investigación no muestra la leyenda regulatoria (template `*_COT_INV_*` no se modifica)
 - [ ] La leyenda aparece una sola vez por documento (Criterio B3)

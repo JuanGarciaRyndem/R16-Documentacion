@@ -206,7 +206,7 @@ Crear los modelos DTO específicos para el timbrado de Factura por Adelantado.
 
 **Objetivos específicos:**
 - Crear `DTOs/TimbrarFAARequestDto.cs` con: IdProformaAdelanto, DatosReceptor, DatosEmisor, `Conceptos[]`, MetodoPago (default "PPD"), FormaPago (default "99"), TipoComprobante (default "I"), Moneda, TipoCambio
-- Crear `DTOs/ConceptoFAADto.cs` con: Cantidad, Descripcion, PrecioUnitario, Importe, ClaveUnidad, ClaveProdServ
+- Crear `DTOs/ConceptoFAADto.cs` con: Cantidad, Descripcion, PrecioUnitario, Importe, ClaveUnidad, ClaveProdServ — el campo Descripcion debe construirse como "catálogo + descripción + marca"; no incluir lote ni pedimento (OBS-039)
 - Crear `DTOs/TimbrarFAAResponseDto.cs` con: IdCFDI, UUID, Serie, Folio, FechaEmision, Total, XmlBase64, Exitoso, ErrorDescripcion, ErrorCodigo
 - Crear `DTOs/DatosReceptorDto.cs` con: RFC, RazonSocial, CP, RegimenFiscal, UsoCFDI
 - Crear `DTOs/DatosEmisorDto.cs` con: RFC, RazonSocial, RegimenFiscal, EmpresaClave
@@ -734,6 +734,7 @@ Servicio funcional que ejecuta el flujo completo de generación de factura con m
 - Si el timbrado es exitoso, persiste CFDI + archivos y actualiza tpProformaAdelanto
 - La factura es inmutable post-timbrado (rechaza reintentos de generación para misma proforma)
 - Validación inicial rechaza pedidos que no estén en estado PendienteGenerar
+- La descripción de cada concepto CFDI se construye como "catálogo + descripción + marca"; no se incluye lote ni pedimento (OBS-039)
 
 **Más información de la tarea:**
 Corresponde a GAP-10. Servicio de alta complejidad. Ver diagrama "Generar Factura" en Back.md.

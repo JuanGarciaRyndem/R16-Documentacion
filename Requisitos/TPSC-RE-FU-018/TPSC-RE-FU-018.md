@@ -61,7 +61,7 @@ Regla 6 — Visibilidad filtrada por cartera del usuario
 El listado muestra únicamente los clientes asignados a la cartera del usuario operativo (campo Cobrador del Catálogo de Clientes). Los clientes asignados a otros usuarios no aparecen en el listado.
 
 Regla 7 — Buscador único por Razón Social, identificador fiscal o pedido interno
-El buscador único de la pantalla busca por coincidencia parcial alfanumérica en: Razón Social, identificador fiscal (RFC o RUC) y número de Pedido Interno de los pedidos pendientes del cliente. El resultado de búsqueda son clientes (filas del listado agrupado), no pedidos individuales; si la búsqueda por pedido encuentra coincidencia, se retorna el cliente que contiene ese pedido. La búsqueda se ejecuta en tiempo real cuando el usuario deja de escribir (no requiere presionar Enter ni lupa).
+El buscador único de la pantalla busca por coincidencia parcial alfanumérica en: Razón Social, identificador fiscal (RFC o RUC) y número de Pedido Interno de los pedidos pendientes del cliente. El resultado de búsqueda son clientes (filas del listado agrupado), no pedidos individuales; si la búsqueda por pedido encuentra coincidencia, se retorna el cliente que contiene ese pedido. La búsqueda se ejecuta en tiempo real cuando el usuario deja de escribir (no requiere presionar Enter ni lupa). **El buscador ignora espacios al inicio y al final del texto ingresado (trim automático).**
 
 Regla 8 — Paginación
 Cuando el listado tiene un número de clientes superior al de elementos visibles por página, la pantalla ofrece paginación con numeración de páginas y navegación anterior/siguiente. El número de elementos por página se define por la implementación del módulo.
@@ -73,11 +73,10 @@ Cuando el usuario no tiene clientes con pedidos pendientes de Factura por Adelan
 
 ## Riesgos
 
-Riesgo 1 — Cliente con pendientes invisible por falta de Cobrador asignado en Catálogo
-Si un cliente tiene pedidos pendientes de Factura por Adelantado pero su campo Cobrador en el Catálogo de Clientes está vacío, el cliente no aparecerá en la bandeja de ningún usuario y los pendientes quedarán invisibles operativamente. Este riesgo se documenta de forma transversal en el proyecto (también aplica a Buzón de Cobros y Validar Cobro).
+Riesgo 1 — Brecha de timbrado para Perú
+Esta pantalla en sí es agnóstica al país, pero el módulo Factura por Adelantado completo depende de capacidad de timbrado fiscal por región. Para México existe integración con TurboPac. Para Perú la integración con OSE/SUNAT es una brecha mayor del proyecto documentada en TPSC-RE-FU-005 (Brecha 5). Mientras la brecha no esté habilitada, el sistema no debe generar pendientes de Factura por Adelantado para clientes Perú; hacerlo generaría pendientes huérfanos e inoperables que representan ruido operativo. Ver OBS-032/033.
 
-Riesgo 2 — Brecha de timbrado para Perú
-Esta pantalla en sí es agnóstica al país, pero el módulo Factura por Adelantado completo depende de capacidad de timbrado fiscal por región. Para México existe integración con TurboPac. Para Perú la integración con OSE/SUNAT es una brecha mayor del proyecto documentada en TPSC-RE-FU-005 (Brecha 5). Mientras la brecha no se resuelva, los clientes Perú no podrán completar el flujo de Factura por Adelantado aunque aparezcan en el listado.
+> Nota: el riesgo anterior de "cliente sin Cobrador invisible" (Riesgo 1 previo) quedó mitigado por FU-002 Regla 6: el campo Cobrador no puede quedar vacío tras la primera asignación. Eliminado por OBS-036.
 
 ---
 
@@ -133,7 +132,7 @@ Entonces deberá mostrar únicamente los clientes asignados a la cartera del usu
 Criterio C3 — Buscador por Razón Social, RFC/RUC o pedido interno
 Dado que el usuario ingresa texto en el buscador único de la pantalla,
 Cuando el sistema procesa la búsqueda,
-Entonces deberá realizar coincidencia parcial alfanumérica en los campos: Razón Social del cliente, identificador fiscal del cliente, y números de Pedido Interno de los pedidos pendientes del cliente. El resultado son filas del listado agrupado por cliente. Si la coincidencia se da por número de pedido interno, se retorna el cliente que contiene ese pedido.
+Entonces deberá realizar coincidencia parcial alfanumérica en los campos: Razón Social del cliente, identificador fiscal del cliente, y números de Pedido Interno de los pedidos pendientes del cliente. El resultado son filas del listado agrupado por cliente. Si la coincidencia se da por número de pedido interno, se retorna el cliente que contiene ese pedido. El sistema ignorará los espacios al inicio y al final del texto ingresado antes de ejecutar la búsqueda (trim automático). Ver OBS-041.
 
 Criterio C4 — Paginación con numeración y navegación anterior/siguiente
 Dado que el listado tiene más clientes que los visibles en una sola página,
@@ -169,6 +168,18 @@ Entonces deberá mostrar una vista de estado vacío con mensaje informativo y el
 - El ordenamiento por antigüedad del pendiente prioriza los casos más antiguos. No se implementan semáforos de prioridad ni alertas visuales adicionales (decisión de diseño: ligereza operativa sobre analítica visual).
 - ** Pendiente: denominación canónica del rol operativo entre "Gestor de Cobranza" (matriz cliente y otros requisitos del proyecto) y "Analista de Cuentas por Cobrar" (sesión de revisión de pantallas Factura por Adelantado 8-abr). Resolver antes del desarrollo. **
 - ** Pendiente: tipo de cambio aplicado a la conversión de Monto Total a USD. Definir con el cliente. **
-- La habilitación efectiva del módulo para clientes Perú depende de la resolución de la brecha de timbrado SUNAT (integración con OSE/SUNAT), documentada en TPSC-RE-FU-005 (Brecha 5). Mientras la brecha no se resuelva, esta pantalla podría mostrar pedidos de clientes Perú pero el flujo completo no podría cerrarse para ellos al timbrar.
-- Aplicabilidad uniforme a clientes México y Perú en esta pantalla; las diferencias por región surgen al momento del timbrado de la factura.
+- La habilitación efectiva del módulo para clientes Perú depende de la resolución de la brecha de timbrado SUNAT (integración con OSE/SUNAT), documentada en TPSC-RE-FU-005 (Brecha 5). Mientras la brecha no esté habilitada, **no se deben generar pendientes de Factura por Adelantado para clientes Perú**; generarlos produciría pendientes huérfanos que no podrían cerrarse y representarían ruido operativo (OBS-032/033).
+- Aplicabilidad uniforme a clientes México y Perú en esta pantalla una vez habilitada la facturación para Perú; las diferencias por región surgen al momento del timbrado de la factura.
+- **Distinción FxA vs Factura Anticipo (OBS-037):** La Factura por Adelantado es un apoyo al cliente y nunca aplica a pedidos con Sustancias Controladas (por implicación regulatoria). La Factura Anticipo es exclusiva de pedidos de clientes prepago con Sustancias Controladas y se genera desde el módulo Validar Cobro. Ambos términos no son intercambiables.
+
+---
+
+## Cambios
+
+| # | Fecha | Observación | Descripción del cambio |
+|---|-------|-------------|------------------------|
+| 1 | 2026-06-10 | OBS-032/033 | Riesgo Perú corregido: premisa "aparecen aunque no puedan cerrarse" eliminada. Ahora: mientras la brecha de timbrado Perú (OSE/SUNAT) no esté habilitada, no se generan pendientes de Perú para evitar huérfanos y ruido. Actualizado en Riesgo 1 (antes Riesgo 2) y Nota al final del documento. |
+| 2 | 2026-06-10 | OBS-036 | Riesgo 1 anterior ("cliente sin Cobrador invisible") eliminado: mitigado por FU-002 Regla 6 (Cobrador no puede quedar vacío tras primera asignación). Riesgo 2 renumerado a Riesgo 1. |
+| 3 | 2026-06-10 | OBS-037 | Nota agregada: distinción explícita entre Factura por Adelantado (apoyo al cliente, nunca con controlados) y Factura Anticipo (exclusiva prepago con controlados, desde Validar Cobro). |
+| 4 | 2026-06-10 | OBS-041 | Regla 7 y Criterio C3: buscador aplica trim automático (ignora espacios al inicio y al final del texto ingresado). |
 

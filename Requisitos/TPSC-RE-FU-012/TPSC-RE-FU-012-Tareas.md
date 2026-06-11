@@ -51,6 +51,7 @@ Documento de analisis con decision de aprovechabilidad del codigo/tablas existen
 - El INSERT del pendiente debe ser atomico con la tramitacion del pedido
 - Solo aplica cuando `tpPedido.FacturaPorAdelantado = 1`
 - Solo region Mexico
+- **Campos fiscales regionalizados (Regla 9 — sincronización matriz):** Los datos de facturación que se fijan varían por región. Para México: RFC, RazonSocial, UsoCFDI, MetodoPago, RegimenFiscal. Para Perú (fuera de alcance R16 FAA-Crédito): RUC, RazonSocial, TipoOperacion, CondicionPago SUNAT. La Forma de Pago y el correo de envío NO se incluyen en el Panel de Información de Facturación. Ver Back.md Sección C.
 
 ### Objetivo general
 Implementar la generacion del pendiente FAA dentro de la transaccion de tramitacion del pedido cuando FAA esta activa.

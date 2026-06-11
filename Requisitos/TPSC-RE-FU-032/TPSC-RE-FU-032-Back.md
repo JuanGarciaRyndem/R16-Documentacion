@@ -4,6 +4,12 @@
 **Módulo:** Notas de Crédito México — Módulo independiente (Tesorería)
 **Impacto:** Scripts BD ProquifaDotNet (2 ALTER TABLE + 2 DML catálogos) + Scripts BD ProquifaDotNetTimbrado (1 DML EmpresaFolio) + Scripts DocumentBuilder (4 DML DocumentTemplate) + Módulo NC Finanzas: wizard 4 pasos, construcción XML CFDI E CFDI 4.0, previsualización PDF, persistencia en MinIO, envío correo + Timbrado: generación CFDI E + DocumentBuilder: 4 templates PDF NC México + ETL SSIS: transferencia NC a PCconnect (Legacy).
 
+## Revisiones aplicadas
+
+| # | Cambio | Origen |
+|---|--------|--------|
+| 1 | **Criterio A5 agregado en B7:** Pantalla principal filtrada por cartera del Cobrador autenticado (JOIN `vUsuarioCartera`) | OBS-004 |
+
 ---
 
 ## Resumen
@@ -348,9 +354,12 @@ Finanzas retorna al frontend la respuesta con todos los datos de la NC timbrada 
 
 **Descripción:** Endpoints de consulta del módulo NC para la pantalla principal (agrupada por cliente) y el drill-down por cliente.
 
-**Pantalla principal — datos requeridos (Criterio A1):**
+**Criterio A5 — Visibilidad filtrada por cartera del Cobrador (OBS-004):**
+La pantalla principal solo muestra NCs de los clientes asignados al Cobrador autenticado. Se aplica el mismo patrón JOIN sobre `vUsuarioCartera` que usan los módulos Validar Cobro, Factura por Adelantado y Buzón de Pagos (ver TPSC-RE-FU-002 Módulos Consumidores).
+
+**Pantalla principal — datos requeridos (Criterio A1 + Criterio A5):**
 ```sql
--- Vista agrupada por cliente
+-- Vista agrupada por cliente, filtrada por cartera del Cobrador
 SELECT
     c.IdCliente,
     c.NombreCliente,
@@ -362,9 +371,15 @@ SELECT
 FROM dbo.fccNotaCredito nc
 INNER JOIN dbo.Cliente c ON nc.IdCliente = c.IdCliente
 INNER JOIN dbo.CFDIGenerada cg ON nc.IdCFDIGenerada = cg.IdCFDIGenerada
--- Filtros: Cliente, Moneda, Fecha
+-- Criterio A5 (OBS-004): filtrar por clientes en cartera del Cobrador autenticado
+INNER JOIN dbo.vUsuarioCartera vc ON vc.IdCliente = nc.IdCliente
+                                  AND vc.IdUsuario = @IdUsuarioCobrador
+                                  AND vc.Activo = 1
+-- Filtros adicionales: Moneda, Fecha
 GROUP BY c.IdCliente, c.NombreCliente, cg.Moneda
 ```
+
+> **Nota (Criterio A5):** El parámetro `@IdUsuarioCobrador` se obtiene del usuario autenticado en la sesión. Si el usuario no es Gestor de Cobranza, este filtro debe omitirse o definirse la política de visibilidad correspondiente (pendiente confirmar con funcional).
 
 **Drill-down por cliente — columnas (Criterio B2):**
 Fecha, Cobrador, Folio NC (acción → PDF), XML (descarga), Emisor, Monto+Moneda, Factura Asociada, Pedido Interno Asociado, Estado, Factura destino, Pedido destino.

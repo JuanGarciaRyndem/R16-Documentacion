@@ -17,6 +17,8 @@
 
 Habilitar la carga, visualización, reemplazo y eliminación de documentos PDF regulatorios (Licencia Sanitaria y Aviso de Responsable Sanitario) por cliente en el módulo Catálogo de Clientes, con acceso exclusivo para el rol Regulatorios. Los documentos se almacenan en MinIO y se referencian en BD mediante las tablas `Archivo` y `ArchivoCliente`. La presencia de ambos documentos es requisito bloqueante para pretramitar pedidos con sustancias controladas (TPSC-RE-FU-009).
 
+> **Alcance regional — OBS-007:** Esta funcionalidad aplica **únicamente a Región México**. Las Sustancias Controladas no están habilitadas para Región Perú en R16; por tanto, la sección de Documentos Regulatorios y su validación condicionante en Pretramitar Pedido no deben activarse para Perú.
+
 ---
 
 ## Reglas de Negocio (declarativas)
@@ -123,7 +125,7 @@ La tabla `catUsoArchivoSistema` debe contener los registros `LicenciaSanitaria` 
 | # | Pendiente | Responsable |
 |---|---|---|
 | P1 | Verificar existencia de registros `LicenciaSanitaria` y `AvisoResponsableSanitario` en `catUsoArchivoSistema` en BD de producción | DBA |
-| P2 | Confirmar denominación exacta de documentos para Perú (DIGEMID/SUNAT) y si requieren registros diferenciados en `catUsoArchivoSistema` | Funcional / Cliente |
+| ~~P2~~ | ~~Confirmar denominación exacta de documentos para Perú (DIGEMID/SUNAT) y si requieren registros diferenciados en `catUsoArchivoSistema`~~ | **Cerrado — OBS-007:** Perú fuera de alcance en R16. No aplica. |
 | P3 | Definir si la purga física de archivos en MinIO al eliminar/reemplazar entra en alcance R16 | Product Owner |
 | P4 | Confirmar bucket de MinIO y estructura de `FileKey` que se usará para documentos regulatorios de clientes | DBA / Infraestructura |
 
@@ -146,7 +148,7 @@ La tabla `catUsoArchivoSistema` debe contener los registros `LicenciaSanitaria` 
 
 | Módulo | Requisito | Dependencia |
 |---|---|---|
-| Pretramitar Pedido | TPSC-RE-FU-009 | Requiere `Activo = 1` para ambos tipos de documento del cliente para pedidos con sustancias controladas |
+| Pretramitar Pedido | TPSC-RE-FU-009 | Requiere `Activo = 1` para ambos tipos de documento del cliente para pedidos con sustancias controladas — **solo Región México** (OBS-007) |
 
 ---
 
@@ -156,5 +158,5 @@ La tabla `catUsoArchivoSistema` debe contener los registros `LicenciaSanitaria` 
 |---|---|---|
 | R1 | Documentos cargados pero vencidos legalmente | Revisión periódica offline por Regulatorios — el sistema no valida vigencia |
 | R2 | Eliminación accidental bloquea pretramitación de pedidos con sustancias controladas | Confirmación explícita antes de eliminar en UI (Criterio D2 del requisito) |
-| R3 | Denominación distinta en Perú (DIGEMID/SUNAT) puede requerir registros diferenciados | Pendiente P2 — confirmar con cliente antes de carga inicial |
+| ~~R3~~ | ~~Denominación distinta en Perú (DIGEMID/SUNAT) puede requerir registros diferenciados~~ | **Eliminado — OBS-007:** Perú fuera de alcance en R16. Si en una entrega futura se habilitan Sustancias Controladas para Perú, se deberá extender el modelo. |
 | R4 | Bucket o `FileKey` no definido para documentos regulatorios de clientes | Pendiente P4 — confirmar con DBA/Infraestructura |

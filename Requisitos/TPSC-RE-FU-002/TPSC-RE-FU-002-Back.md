@@ -1,4 +1,4 @@
-﻿# TPSC-RE-FU-002-Back — Análisis de Impacto Backend
+# TPSC-RE-FU-002-Back — Análisis de Impacto Backend
 **Requisito:** TPSC-RE-FU-002 — Asignación de Cobrador a Cliente (Catálogo de Clientes)
 **Proyecto:** ProquifaDotNet-R14
 **Branch:** develop-pack04
@@ -16,6 +16,9 @@
 | 3 | Referencias de criterios actualizadas a las 3 secciones definitivas: A (Visibilidad/edición), B (Selector), C (Filtrado bandeja) | Revisión — criterios reorganizados |
 | 4 | GAP-05 nuevo: exclusión del campo Cobrador en el alta de cliente desde **Cotizar lo Cotizable** | Revisión — agregado en Alcance `No aplica a` del requisito |
 | 5 | Criterios de aceptación técnica actualizados con referencias a Criterios C2 y C3 (redistribución dinámica y cliente sin cobrador) | Revisión — Criterio 7 anterior dividido en C2 + C3 |
+| 6 | **Regla 1 y GAP-04 ampliados:** Gerente de Tesorería también puede asignar Cobradores (además del Coordinador de Tesorería) | OBS-003 |
+| 7 | **Módulos consumidores:** se agrega Notas de Crédito al alcance de visibilidad por cartera | OBS-004 |
+| 8 | **Regla 4 matizada:** redistribución por pantalla/módulo — solo pendientes abiertos al nuevo cobrador; trabajo previo se conserva. Nuevo **Criterio C4** | OBS-005 |
 
 ---
 
@@ -23,12 +26,12 @@
 
 El requisito habilita el campo **"Cobrador"** en la sección Datos Generales del Catálogo de Clientes.
 
-- Solo el rol **Coordinador de Tesorería** (`GerenteDeTesoreria = true`) puede editarlo.
+- El rol **Coordinador de Tesorería** O **Gerente de Tesorería** puede editar el campo Cobrador (OBS-003 — pendiente confirmar campo exacto en `Usuario` para Gerente de Tesorería).
 - El selector muestra únicamente usuarios con rol **Gestor de Cobranza** (`AnalistaDeCuentasPorCobrar = 1`) activos.
 - La asignación se persiste en `ClienteCartera.IdUsuarioCobrador`.
-- El filtrado de bandeja es **dinámico**: al reasignar el Cobrador de un cliente, todos sus pendientes y pagos vigentes se redistribuyen inmediatamente a la bandeja del nuevo Cobrador (Regla 4 / Criterio C2).
+- El filtrado de bandeja es **dinámico por pantalla/módulo** (OBS-005): al reasignar el Cobrador, solo los pendientes **abiertos** (aún aparecen en su pantalla sin finalizar) pasan al nuevo Cobrador. El trabajo ya completado por el cobrador anterior permanece registrado donde fue ejecutado — no se reasigna ni se pierde (Regla 4 / Criterio C4). Un pendiente con avances parciales guardados (seguimiento registrado, un paso del wizard guardado) **no** se considera "trabajado" — sigue siendo reasignable.
 - El campo **no aplica** en el alta de cliente desde **Cotizar lo Cotizable** (ese flujo es solo para habilitar cotización, no para gestión del cliente).
-- Módulos consumidores: **Validar Cobro**, **Factura por Adelantado** y **Buzón de Pagos**.
+- Módulos consumidores: **Validar Cobro**, **Factura por Adelantado**, **Buzón de Pagos** y **Notas de Crédito** (OBS-004).
 
 ---
 
@@ -65,10 +68,10 @@ El requisito habilita el campo **"Cobrador"** en la sección Datos Generales del
 
 | Regla | Descripción de negocio | Implementación esperada | Estado actual |
 |-------|------------------------|------------------------|---------------|
-| **Regla 1** — Edición exclusiva del Coordinador de Tesorería | Solo `GerenteDeTesoreria = true` puede editar el campo Cobrador. | Validar rol en el endpoint de reasignación. Campo de solo lectura para otros roles. | ⚠️ No existe validación de rol en la operación de actualización de `IdUsuarioCobrador` |
+| **Regla 1** — Edición exclusiva del Coordinador de Tesorería **O Gerente de Tesorería** (OBS-003) | `GerenteDeTesoreria = true` (Coordinador) O el campo que mapee al Gerente de Tesorería (pendiente confirmar) puede editar el campo Cobrador. | Validar ambos roles en el endpoint de reasignación. Campo de solo lectura para otros roles. | ⚠️ No existe validación de rol en la operación de actualización de `IdUsuarioCobrador` |
 | **Regla 2** — Cobrador debe ser Gestor de Cobranza activo | Solo usuarios con `AnalistaDeCuentasPorCobrar = 1 AND Activo = 1` son asignables. | Método/endpoint que filtre el selector a Gestores de Cobranza activos. | ⚠️ No existe endpoint específico de solo Gestores de Cobranza |
 | **Regla 3** — Un solo Cobrador por cliente | Un único `IdUsuarioCobrador` por cartera en un momento dado. La asignación nueva reemplaza la anterior. | `ClienteCartera.IdUsuarioCobrador` es campo único por cartera. `ReasignarCobrador` sobreescribe el valor. | ✅ La estructura de BD lo garantiza |
-| **Regla 4** — Filtrado dinámico por cobrador actual | **Al reasignar el Cobrador, todos los pendientes y pagos vigentes del cliente se redistribuyen inmediatamente a la bandeja del nuevo Cobrador.** No hay distinción entre pendientes previos y nuevos. | El filtro en módulos usa JOIN a `ClienteCartera.IdUsuarioCobrador` en tiempo de consulta — el cambio de `IdUsuarioCobrador` surte efecto en la siguiente consulta de bandeja. No se requiere migración de registros. | ✅ El JOIN dinámico ya implementa este comportamiento. Solo requiere que `ReasignarCobrador` actualice `IdUsuarioCobrador` correctamente. |
+| **Regla 4** — Filtrado dinámico por cobrador actual (OBS-005) | **Al reasignar el Cobrador, solo los pendientes aún abiertos (que aún aparecen en la pantalla del cobrador sin haber sido finalizados) pasan al nuevo Cobrador.** El trabajo completado por el cobrador anterior permanece registrado donde fue ejecutado — no se reasigna ni se elimina (Criterio C4). | El filtro en módulos usa JOIN a `ClienteCartera.IdUsuarioCobrador` en tiempo de consulta — el cambio de `IdUsuarioCobrador` surte efecto en la siguiente consulta de bandeja de cada pantalla/módulo. No se requiere migración de registros. | ✅ El JOIN dinámico ya implementa este comportamiento por pantalla/módulo. Solo requiere que `ReasignarCobrador` actualice `IdUsuarioCobrador` correctamente. |
 | **Regla 5** — Cliente sin Cobrador invisible en bandejas | Los pendientes y pagos de clientes sin cobrador se registran pero no aparecen en ninguna bandeja. | El JOIN natural de módulos excluye registros donde `IdUsuarioCobrador IS NULL`. | ✅ El JOIN natural ya excluye estos casos |
 
 ---
@@ -169,8 +172,9 @@ public static Guid? ObtenerIdUsuarioCobradorPorCliente(Guid idCliente)
 `csharp
 /// <summary>
 /// Reasigna el Cobrador (Gestor de Cobranza) en la cartera activa de un cliente.
-/// Al actualizar IdUsuarioCobrador, todos los pendientes y pagos vigentes del cliente
-/// se redistribuyen inmediatamente a la bandeja del nuevo Cobrador (Regla 4 / Criterio C2).
+/// Al actualizar IdUsuarioCobrador, los pendientes aún abiertos en cada pantalla/módulo
+/// aparecerán en la bandeja del nuevo Cobrador en la siguiente consulta (Regla 4 / Criterio C2).
+/// El trabajo ya completado por el cobrador anterior no se reasigna (Criterio C4).
 /// </summary>
 public void ReasignarCobrador(Guid idCliente, Guid idNuevoCobrador)
 {
@@ -209,8 +213,9 @@ public void ReasignarCobrador(Guid idCliente, Guid idNuevoCobrador)
 /// <summary>
 /// Reasigna el Cobrador (Gestor de Cobranza) de un cliente.
 /// Solo debe ser invocado por usuarios con rol Coordinador de Tesorería (Regla 1).
-/// Al reasignar, todos los pendientes y pagos del cliente se redistribuyen
-/// dinámicamente a la bandeja del nuevo Cobrador (Regla 4 / Criterio C2).
+/// Al reasignar, los pendientes abiertos del cliente pasan al nuevo Cobrador
+/// en la siguiente consulta de cada pantalla/módulo (Regla 4 / Criterio C2).
+/// El trabajo completado por el cobrador anterior no se reasigna (Criterio C4).
 /// </summary>
 [HttpPut]
 [Route("ClienteCartera/ReasignarCobrador")]
@@ -224,12 +229,14 @@ public IHttpActionResult ReasignarCobrador(Guid idCliente, Guid idNuevoCobrador)
 
 ---
 
-### GAP-04 — Validación de rol Coordinador de Tesorería no implementada
-**Impacto:** Criterios A2 / A3 — Solo `GerenteDeTesoreria = true` puede editar el campo Cobrador y llamar el endpoint de reasignación.
+### GAP-04 — Validación de rol Coordinador de Tesorería / Gerente de Tesorería no implementada (OBS-003)
+**Impacto:** Criterios A2 / A3 — Solo usuarios con rol **Coordinador de Tesorería** (`GerenteDeTesoreria = true`) **O Gerente de Tesorería** (campo a confirmar en `Usuario`) pueden editar el campo Cobrador y llamar el endpoint de reasignación.
 **Estado actual:** No existe validación de rol en los endpoints de `ClienteCartera`.
-**Cambio requerido:** El endpoint `ReasignarCobrador` (GAP-03) debe validar que el usuario solicitante tiene `GerenteDeTesoreria = true`.
+**Cambio requerido:** El endpoint `ReasignarCobrador` (GAP-03) debe validar que el usuario solicitante tiene `GerenteDeTesoreria = true` o el campo correspondiente al Gerente de Tesorería.
 
 > **Pendiente P2:** Definir si la validación va en la capa BO (pasando `IdUsuarioSolicitante` como parámetro) o en un filtro de autorización del controller.
+>
+> **Pendiente OBS-003:** Confirmar qué campo de `Usuario` mapea al rol **Gerente de Tesorería** antes de implementar esta validación.
 
 ---
 
@@ -331,6 +338,7 @@ ORDER BY v.Nombre;
 | **Validar Cobro** | JOIN `vUsuarioCartera WHERE IdUsuario = @CobActual AND Activo = 1` | Verificar que el filtro esté implementado en la consulta de bandeja |
 | **Factura por Adelantado** | JOIN `vUsuarioCartera WHERE IdUsuario = @CobActual AND Activo = 1` | Verificar que el filtro esté implementado en la consulta de bandeja |
 | **Buzón de Pagos** | JOIN `vUsuarioCartera WHERE IdUsuario = @CobActual AND Activo = 1` | Verificar que el filtro esté implementado en la consulta de bandeja |
+| **Notas de Crédito** | JOIN `vUsuarioCartera WHERE IdUsuario = @CobActual AND Activo = 1` (OBS-004) | Ver TPSC-RE-FU-032 Criterio A5 (México) y TPSC-RE-FU-033 Criterio A3 (Perú — pendiente de alcance) |
 
 > Los cambios en los módulos consumidores se documentan en sus respectivos requisitos. Este documento cubre únicamente el Catálogo de Clientes y el campo Cobrador.
 
@@ -354,7 +362,8 @@ ORDER BY v.Nombre;
 - [ ] `ObtenerIdUsuarioCobradorPorCliente(idCliente)` retorna el `IdUsuarioCobrador` de la cartera activa del cliente, o `null` si no tiene asignación (Criterio A1).
 - [ ] `PUT /ClienteCartera/ReasignarCobrador` valida que el nuevo cobrador es un Gestor de Cobranza activo antes de guardar (Criterio B1 / Regla 2).
 - [ ] `PUT /ClienteCartera/ReasignarCobrador` actualiza `ClienteCartera.IdUsuarioCobrador` y `FechaUltimaActualizacion` (Criterio B2 / B3).
-- [ ] Tras la reasignación, la consulta de bandeja del nuevo Cobrador incluye al cliente; la del Cobrador anterior ya no lo incluye — redistribución dinámica sin migración de registros (Regla 4 / Criterio C2).
+- [ ] Tras la reasignación, la consulta de bandeja del nuevo Cobrador incluye al cliente en los pendientes abiertos; la del Cobrador anterior ya no lo incluye — redistribución dinámica por pantalla/módulo sin migración de registros (Regla 4 / Criterio C2 — OBS-005).
+- [ ] **Criterio C4 (OBS-005):** El trabajo completado por el cobrador anterior (registros finalizados en Validar Cobro, FxA, Buzón de Pagos, Notas de Crédito) permanece registrado bajo ese cobrador. No se reasigna ni se elimina. Solo los pendientes aún abiertos al momento de la reasignación pasan al nuevo cobrador.
 - [ ] Clientes sin `IdUsuarioCobrador` no aparecen en la bandeja de ningún Gestor de Cobranza (Regla 5 / Criterio C3).
-- [ ] Roles distintos de Coordinador de Tesorería no pueden invocar el endpoint de reasignación (Regla 1 / Criterio A2).
+- [ ] Roles distintos de Coordinador de Tesorería y Gerente de Tesorería no pueden invocar el endpoint de reasignación (Regla 1 / Criterio A2 — OBS-003).
 - [ ] El flujo de alta de cliente en Cotizar lo Cotizable no expone ni procesa el campo Cobrador (GAP-05).

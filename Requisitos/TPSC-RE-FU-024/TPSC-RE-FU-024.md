@@ -79,8 +79,8 @@ Tras completar la captura de un cobro, el sistema permite al usuario seleccionar
 **Regla 10 — Avance al Paso 2 con o sin captura nueva**
 Al presionar "Continuar", el sistema permite el avance al Paso 2 si existe al menos un cobro registrado (capturado en esta sesión o auto-guardado de sesión previa); no se requiere capturar un cobro nuevo en la sesión actual si ya hay cobros previos disponibles. El sistema bloquea el avance si no existe ningún cobro registrado para el cliente.
 
-**Regla 11 — Auto-guardado del Paso 1**
-Cuando el usuario avanza entre correos del listado, sale de la pantalla o navega a otra parte del sistema, el sistema auto-guarda el estado del Paso 1 (cobros capturados, selecciones de comprobantes, valores del formulario actual) para preservar el progreso. No existe botón de "Guardar" manual; el guardado es transparente al usuario.
+**Regla 11 — Auto-guardado y reanudación del wizard en el paso donde se quedó**
+Cuando el usuario avanza entre correos del listado, sale de la pantalla o navega a otra parte del sistema, el sistema auto-guarda el estado del Paso 1 (cobros capturados, selecciones de comprobantes, valores del formulario actual) para preservar el progreso. No existe botón de "Guardar" manual; el guardado es transparente al usuario. Al regresar al wizard del mismo cliente (desde "Realizar Cobros" en el listado principal), el sistema retoma la sesión desde el último paso activo en que se encontraba el usuario, no necesariamente desde el Paso 1. Si la sesión previa estaba en el Paso 2 o Paso 3, el wizard abre en ese paso directamente. Decisión confirmada por el cliente — OBS-048.
 
 **Regla 12 — Inmutabilidad del cobro confirmado**
 Una vez que un cobro fue capturado y confirmado por el usuario, el sistema no permite su edición posterior. Antes de confirmar el guardado definitivo del cobro, el sistema muestra una alerta de confirmación indicando que los datos no podrán modificarse después.
@@ -224,10 +224,10 @@ Entonces deberá poder editar libremente cualquiera de los valores antes de conf
 SECCIÓN F — AUTO-GUARDADO E INMUTABILIDAD
 ═══════════════════════════════════════════════════════════════
 
-**Criterio F1 — Auto-guardado del Paso 1**
+**Criterio F1 — Auto-guardado y reanudación del wizard en el paso donde se quedó**
 Dado que el usuario captura datos en el formulario,
 Cuando avanza entre correos del listado, sale de la pantalla o navega el sistema,
-Entonces el sistema deberá auto-guardar el estado del Paso 1 (cobros capturados, selecciones de comprobantes, valores del formulario actual). No existe botón "Guardar" manual; el guardado es transparente.
+Entonces el sistema deberá auto-guardar el estado del Paso 1 (cobros capturados, selecciones de comprobantes, valores del formulario actual). No existe botón "Guardar" manual; el guardado es transparente. Al regresar al wizard del mismo cliente, el sistema deberá retomar la sesión desde el último paso activo en que se encontraba el usuario: si la sesión previa había avanzado al Paso 2 o Paso 3, el wizard deberá abrirse directamente en ese paso sin forzar al usuario a recorrer los pasos anteriores nuevamente. Decisión confirmada por el cliente — OBS-048.
 
 **Criterio F2 — Captura de múltiples cobros antes de avanzar**
 Dado que el cliente tiene varios correos pendientes,
@@ -309,3 +309,11 @@ Entonces si existe al menos un cobro registrado (capturado en esta sesión o aut
 - ** Pendiente definir el alcance técnico de la asistencia automatizada propuesta para auto-completar el formulario (modelo de IA o motor de extracción, integración, precisión esperada, comportamiento ante baja confianza). No comprometido como alcance R16. **
 - ** Pendiente confirmar la fuente oficial del Tipo de Cambio del día para México (propuesta estándar fiscal: TC FIX publicado por Banxico en el DOF). Confirmar si PROQUIFA utiliza esta fuente o tiene una fuente propia. **
 - ** Pendiente resolver formalmente la denominación canónica del rol operativo entre "Gestor de Cobranza" y "Analista de Cuentas por Cobrar" (transversal). **
+
+---
+
+## Cambios
+
+| # | Fecha | Referencia | Descripción del cambio |
+|---|-------|------------|------------------------|
+| 1 | 2026-06-10 | OBS-048 | Regla 11 y Criterio F1 actualizados: el wizard reanuda desde el último paso activo al volver al cliente, no desde el Paso 1. |

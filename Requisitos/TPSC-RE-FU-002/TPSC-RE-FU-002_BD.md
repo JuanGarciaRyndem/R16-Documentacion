@@ -6,8 +6,8 @@
 
 ## Resumen Ejecutivo
 Asignar un Cobrador (Gestor de Cobranza) a cada cliente a traves de carteras para distribuir
-la carga operativa y habilitar visibilidad filtrada en Validar Cobro, Factura por Adelantado
-y Buzon de Pagos.
+la carga operativa y habilitar visibilidad filtrada en Validar Cobro, Factura por Adelantado,
+Buzón de Pagos y **Notas de Crédito** (OBS-004).
 
 ---
 
@@ -161,11 +161,13 @@ Considerar incluirlo para trazabilidad del cobrador en reasignaciones.
 
 | Rol en Requisito | Campo en Usuario | Columna en ClienteCartera |
 |------------------|-----------------|--------------------------|
-| Coordinador de Tesoreria | GerenteDeTesoreria | - (solo edita) |
-| Gestor de Cobranza | AnalistaDeCuentasPorCobrar | IdUsuarioCobrador |
+| Coordinador de Tesorería | `GerenteDeTesoreria` | — (solo edita Cobrador) |
+| **Gerente de Tesorería** | **Pendiente confirmar campo** (OBS-003) | — (solo edita Cobrador) |
+| Gestor de Cobranza | `AnalistaDeCuentasPorCobrar` | `IdUsuarioCobrador` |
 
-> PENDIENTE: Confirmar si AnalistaDeCuentasPorCobrar es exactamente el rol Gestor de Cobranza
-> o si se requiere un campo nuevo en la tabla Usuario.
+> **PENDIENTE (OBS-003):** Confirmar qué campo de `Usuario` mapea al rol **Gerente de Tesorería**. Si el campo `GerenteDeTesoreria` ya cubre este rol (y el Coordinador usa otro campo), actualizar el mapeo. Si se requiere un campo nuevo, incluirlo en el script de migración.
+>
+> **PENDIENTE:** Confirmar si `AnalistaDeCuentasPorCobrar` es exactamente el rol Gestor de Cobranza o si se requiere un campo nuevo en la tabla Usuario.
 
 ---
 
@@ -249,7 +251,7 @@ Considerar incluirlo para trazabilidad del cobrador en reasignaciones.
 
 | Regla | Descripcion | Implementacion |
 |-------|-------------|----------------|
-| Regla 1 | Solo Coordinador de Tesoreria edita Cobrador | Control en capa aplicacion |
+| Regla 1 | **Coordinador de Tesorería O Gerente de Tesorería** pueden editar el Cobrador de un cliente (OBS-003) | Validar ambos roles en capa aplicacion |
 | Regla 2 | Cobrador debe ser Gestor de Cobranza activo | WHERE AnalistaDeCuentasPorCobrar=1 AND Activo=1 |
 | Regla 3 | Un solo Cobrador por cliente | ClienteCartera.IdUsuarioCobrador campo unico por cartera |
 | Regla 4 | Filtrado dinamico por cobrador actual | JOIN via ClienteCarteraCliente - ClienteCartera |
@@ -263,7 +265,8 @@ Considerar incluirlo para trazabilidad del cobrador en reasignaciones.
 |-----|-------------|-----------------|
 | Mapeo exacto de rol | Confirmar si AnalistaDeCuentasPorCobrar = Gestor de Cobranza | Validar con equipo |
 | SP sin IdUsuarioCobrador | spDesactivarCarterasCliente no retorna cobrador en SELECT | Actualizar SP para incluirlo |
-| Historial de asignaciones | Fuera de alcance R16 | Documentar como deuda tecnica |
+| Historial de asignaciones | **Resuelto — OBS-005:** El trabajo ya realizado por el cobrador anterior permanece registrado en los módulos donde fue ejecutado (FxA, Validar Cobro, etc.). La reasignación opera por pantalla/módulo: solo los pendientes aún abiertos (no finalizados) pasan al nuevo cobrador. No se requiere migración de registros históricos. | Aplicado en criterio C4 del Back |
+| Campo Gerente de Tesorería | Confirmar qué campo de Usuario mapea al rol Gerente de Tesorería (OBS-003) | Validar con equipo antes de implementar GAP-04 |
 
 ---
 
@@ -273,7 +276,8 @@ Considerar incluirlo para trazabilidad del cobrador en reasignaciones.
 |--------|-----------------|
 | Validar Cobro | JOIN vUsuarioCartera WHERE IdUsuario = @CobActual |
 | Factura por Adelantado | JOIN vUsuarioCartera WHERE IdUsuario = @CobActual |
-| Buzon de Pagos | JOIN vUsuarioCartera WHERE IdUsuario = @CobActual |
+| Buzón de Pagos | JOIN vUsuarioCartera WHERE IdUsuario = @CobActual |
+| **Notas de Crédito** | JOIN vUsuarioCartera WHERE IdUsuario = @CobActual (OBS-004) — ver TPSC-RE-FU-032 Criterio A5 y TPSC-RE-FU-033 Criterio A3 |
 
 ---
 

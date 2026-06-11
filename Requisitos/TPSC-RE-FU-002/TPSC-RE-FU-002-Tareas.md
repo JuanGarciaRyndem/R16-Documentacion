@@ -9,14 +9,16 @@
 
 ### Cambios respecto a la versión anterior de Tareas
 
-| # | Cambio | Origen |
-|---|--------|--------|
-| 1 | Total de tareas: de 6 → **7** (nueva Tarea 7 por GAP-05) | Revisión — exclusión de Cobrador en Cotizar lo Cotizable |
-| 2 | Referencias de criterios actualizadas a secciones A/B/C definitivas del requisito | Revisión — criterios reorganizados |
-| 3 | Tarea 3 (ReasignarCobrador): se agrega nota de **Regla 4 dinámica** — la redistribución de bandeja es automática por JOIN, sin migración de registros | Revisión — decisión sobre Criterio C2 documentada |
-| 4 | Tarea 5 (endpoint ReasignarCobrador): se agrega referencia a Criterio C2 en descripción y criterios de aceptación | Revisión — Criterio C2 redistribución inmediata |
-| 5 | **Tarea 7 nueva** [ TPSC-RE-FU-002 ] [ SCOPE-VERIFY ] Verificar exclusión del campo Cobrador en alta de cliente desde Cotizar lo Cotizable (GAP-05) | Revisión — nuevo en Alcance `No aplica a` |
-| 6 | Cabecera completada con revisión aplicada y tabla de cambios | Mejora de trazabilidad |
+| #   | Cambio                                                                                                                                                | Origen                                                   |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| 1   | Total de tareas: de 6 → **7** (nueva Tarea 7 por GAP-05)                                                                                              | Revisión — exclusión de Cobrador en Cotizar lo Cotizable |
+| 2   | Referencias de criterios actualizadas a secciones A/B/C definitivas del requisito                                                                     | Revisión — criterios reorganizados                       |
+| 3   | Tarea 3 (ReasignarCobrador): se agrega nota de **Regla 4 dinámica** — la redistribución de bandeja es automática por JOIN, sin migración de registros | Revisión — decisión sobre Criterio C2 documentada        |
+| 4   | Tarea 5 (endpoint ReasignarCobrador): se agrega referencia a Criterio C2 en descripción y criterios de aceptación                                     | Revisión — Criterio C2 redistribución inmediata          |
+| 5   | **Tarea 7 nueva** [ TPSC-RE-FU-002 ] [ SCOPE-VERIFY ] Verificar exclusión del campo Cobrador en alta de cliente desde Cotizar lo Cotizable (GAP-05)   | Revisión — nuevo en Alcance `No aplica a`                |
+| 6   | Cabecera completada con revisión aplicada y tabla de cambios                                                                                          | Mejora de trazabilidad                                   |
+| 7   | **Tarea 3 actualizada:** Regla 4 matizada — redistribución solo aplica a pendientes abiertos por pantalla/módulo; trabajo completado no se reasigna. Nuevo **Criterio C4** en criterios de aceptación | OBS-005 |
+| 8   | **Tarea 5 actualizada:** GAP-04 ampliado — validación de rol incluye Gerente de Tesorería además del Coordinador de Tesorería. Criterio C4 agregado. Referencias a OBS-003/005 | OBS-003 / OBS-005 |
 
 ---
 
@@ -132,7 +134,7 @@ Para esta actividad están contempladas su construcción, pruebas unitarias, apr
 **Objetivo general:**
 Agregar el método `ReasignarCobrador(Guid idCliente, Guid idNuevoCobrador)` en `ClienteCarteraBO.cs` para encapsular la reasignación del Cobrador de un cliente con validación de negocio. Cumple **Criterios B2 / B3 / C2**.
 
-> **Regla 4 — Filtrado dinámico:** Al actualizar `IdUsuarioCobrador` en `ClienteCartera`, el filtrado de bandeja en los módulos consumidores refleja automáticamente el cambio en la siguiente consulta de bandeja — **no se requiere migración de registros de pendientes o pagos**. La redistribución es consecuencia directa del JOIN dinámico sobre el valor actual de `IdUsuarioCobrador`.
+> **Regla 4 — Filtrado dinámico por pantalla/módulo (OBS-005):** Al actualizar `IdUsuarioCobrador` en `ClienteCartera`, cada pantalla/módulo consumidor refleja el cambio en su siguiente consulta de bandeja — **no se requiere migración de registros**. Solo los pendientes **aún abiertos** (no finalizados) aparecen en la bandeja del nuevo Cobrador. El trabajo ya completado por el cobrador anterior permanece registrado donde fue ejecutado — no se reasigna ni se pierde (**Criterio C4**).
 
 **Objetivos específicos:**
 - Leer el análisis de impacto backend del requisito TPSC-RE-FU-002 (GAP-03)
@@ -143,7 +145,7 @@ Agregar el método `ReasignarCobrador(Guid idCliente, Guid idNuevoCobrador)` en 
 - Ejecutar pruebas unitarias: reasignación válida, cobrador inválido, cliente sin cartera
 
 **Resultado esperado:**
-El método reasigna el cobrador en la cartera activa del cliente. En la siguiente consulta de bandeja de cualquier módulo consumidor, el cliente aparece en la bandeja del nuevo Cobrador y deja de aparecer en la del anterior.
+El método reasigna el cobrador en la cartera activa del cliente. En la siguiente consulta de bandeja de cada módulo consumidor, los pendientes aún abiertos del cliente aparecen en la bandeja del nuevo Cobrador. El trabajo completado por el cobrador anterior no se reasigna.
 
 **Entregables:**
 - `ClienteCarteraBO.cs` con el nuevo método `ReasignarCobrador`
@@ -154,7 +156,8 @@ El método reasigna el cobrador en la cartera activa del cliente. En la siguient
 - [ ] El método actualiza `FechaUltimaActualizacion`
 - [ ] Lanza excepción si el nuevo cobrador no es un Gestor de Cobranza activo (Regla 2)
 - [ ] Lanza excepción si el cliente no tiene cartera activa
-- [ ] Tras la actualización, el JOIN dinámico de módulos redistribuye la bandeja automáticamente (Regla 4 / Criterio C2)
+- [ ] Tras la actualización, el JOIN dinámico de módulos redistribuye los pendientes abiertos por pantalla/módulo sin migración de registros (Regla 4 / Criterio C2 — OBS-005)
+- [ ] **Criterio C4 (OBS-005):** El trabajo completado por el cobrador anterior (registros finalizados) permanece registrado bajo ese cobrador — no se reasigna ni elimina
 - [ ] PR aprobado por líder técnico
 
 **Más información de la tarea:**
@@ -227,16 +230,17 @@ Catálogo de Clientes — WebApi.Catalogos
 Para esta actividad están contempladas su construcción, aprobación del líder técnico mediante PR y liberación en dev.
 
 **Objetivo general:**
-Agregar el endpoint `PUT /ClienteCartera/ReasignarCobrador` en `ClienteCarteraController.cs` para que el Coordinador de Tesorería pueda reasignar el Cobrador de un cliente desde PQF2. Al reasignar, la redistribución de bandeja en módulos consumidores es inmediata por el filtrado dinámico (Regla 4 / Criterio C2). Cumple **Criterios B2 / B3 / C2**.
+Agregar el endpoint `PUT /ClienteCartera/ReasignarCobrador` en `ClienteCarteraController.cs` para que el **Coordinador de Tesorería o Gerente de Tesorería** puedan reasignar el Cobrador de un cliente desde PQF2 (OBS-003). Al reasignar, los pendientes abiertos por pantalla/módulo pasan al nuevo Cobrador dinámicamente (Regla 4 / Criterio C2 — OBS-005). Cumple **Criterios B2 / B3 / C2 / C4**.
 
 **Objetivos específicos:**
 - Leer el análisis de impacto backend del requisito TPSC-RE-FU-002 (GAP-03 y GAP-04)
 - Agregar el endpoint `PUT /ClienteCartera/ReasignarCobrador` consumiendo el método implementado en la Tarea 3
-- Confirmar con Arquitectura la estrategia de validación de rol Coordinador de Tesorería (Pendiente P2): ¿en capa BO o filtro de autorización en controller?
-- Documentar el endpoint en Swagger indicando que solo el Coordinador de Tesorería puede invocarlo
+- Confirmar con Arquitectura la estrategia de validación de rol Coordinador/Gerente de Tesorería (Pendiente P2): ¿en capa BO o filtro de autorización en controller?
+- Confirmar qué campo de `Usuario` mapea al rol **Gerente de Tesorería** (Pendiente OBS-003) antes de implementar la validación
+- Documentar el endpoint en Swagger indicando los roles permitidos
 
 **Resultado esperado:**
-El endpoint permite al Coordinador de Tesorería reasignar el Cobrador de un cliente. En la siguiente consulta de bandeja, el cliente aparece en la bandeja del nuevo Cobrador y deja de aparecer en la del anterior (Criterio C2 — redistribución dinámica sin migración de registros).
+El endpoint permite al Coordinador o Gerente de Tesorería reasignar el Cobrador de un cliente. En la siguiente consulta de bandeja de cada módulo, los pendientes abiertos del cliente aparecen en la bandeja del nuevo Cobrador. El trabajo completado por el cobrador anterior no se reasigna (Criterio C4).
 
 **Entregables:**
 - `ClienteCarteraController.cs` con el nuevo endpoint
@@ -245,9 +249,10 @@ El endpoint permite al Coordinador de Tesorería reasignar el Cobrador de un cli
 
 **Criterios de aceptación:**
 - [ ] `PUT /ClienteCartera/ReasignarCobrador` actualiza `IdUsuarioCobrador` en la cartera activa del cliente (Criterio B2 / B3)
-- [ ] El endpoint valida que el solicitante tiene `GerenteDeTesoreria = true` (Criterio A2 / Regla 1)
-- [ ] Roles distintos al Coordinador de Tesorería reciben error de autorización (Criterio A3)
-- [ ] Tras la reasignación, el filtrado dinámico redistribuye la bandeja sin migración de registros (Regla 4 / Criterio C2)
+- [ ] El endpoint valida que el solicitante tiene rol **Coordinador de Tesorería** (`GerenteDeTesoreria = true`) O **Gerente de Tesorería** (campo a confirmar — OBS-003) (Criterio A2 / Regla 1)
+- [ ] Roles distintos a los autorizados reciben error de autorización (Criterio A3)
+- [ ] Tras la reasignación, el filtrado dinámico redistribuye pendientes abiertos por pantalla/módulo sin migración de registros (Regla 4 / Criterio C2 — OBS-005)
+- [ ] **Criterio C4 (OBS-005):** El trabajo completado por el cobrador anterior no se reasigna ni elimina
 - [ ] Decisión de arquitectura Pendiente P2 registrada y aprobada
 - [ ] Depende de Tarea 3 (método BO)
 - [ ] PR aprobado por líder técnico
@@ -256,6 +261,7 @@ El endpoint permite al Coordinador de Tesorería reasignar el Cobrador de un cli
 - Archivo a modificar: `WebApi.Catalogos\Controllers\Configuracion\Clientes\Cartera\ClienteCarteraController.cs`
 - GAPs documentados: GAP-03 y GAP-04 del archivo `TPSC-RE-FU-002-Back.md`
 - Pendiente P2: definir estrategia de validación de rol antes de implementar
+- Pendiente OBS-003: confirmar campo en `Usuario` para Gerente de Tesorería antes de implementar la validación de rol
 
 **Recursos:**
 - Análisis de impacto backend: `Requisitos/TPSC-RE-FU-002/TPSC-RE-FU-002-Back.md`

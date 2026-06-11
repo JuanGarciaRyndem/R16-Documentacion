@@ -18,7 +18,7 @@
 
 ## Requisito
 
-El sistema debe mantener un **Catálogo de Cuentas Bancarias del grupo PROQUIFA** con las cuentas vigentes de cada empresa emisora del grupo. El catálogo debe estar disponible como fuente única de consulta para los módulos del sistema que requieran información de las cuentas bancarias del grupo. El estado de cada cuenta debe poder distinguir entre cuentas que **existen vigentes** en sistema y cuentas que **ya no existen vigentes** (sin exponer el mecanismo técnico de borrado al consumidor).
+El sistema debe mantener un **Catálogo de Cuentas Bancarias del grupo PROQUIFA** con las cuentas vigentes de cada empresa emisora del grupo. El catálogo debe estar disponible como fuente única de consulta para los módulos del sistema que requieran información de las cuentas bancarias del grupo. El estado de cada cuenta debe poder distinguir entre cuentas que **existen vigentes** en sistema y cuentas que **ya no existen vigentes** (sin exponer el mecanismo técnico de borrado al consumidor). La baja de una cuenta es siempre **lógica**: el registro se conserva marcado como no vigente y nunca se elimina físicamente de la base de datos.
 
 ---
 
@@ -29,14 +29,13 @@ El sistema debe mantener un **Catálogo de Cuentas Bancarias del grupo PROQUIFA*
 - Catálogo único de cuentas bancarias del grupo PROQUIFA, mantenido por el área de Soporte a la Producción.
 - Empresas del grupo PROQUIFA México: Golocaer, Mungen, Proquifa, Proveedora Quimico Farmaceutica. Cada cuenta pertenece a una sola empresa emisora.
 - Consulta del catálogo desde cualquier módulo del sistema que requiera información de cuentas bancarias del grupo (alta de cliente, emisión de proforma, pantallas de Tesorería, Validar Cobro, integraciones que consuman el catálogo).
-- Estado de existencia vigente de cada cuenta: una cuenta existe vigente en sistema o no existe vigente.
-- ** Identificación automática de pagos entrantes desde Buzón de Pagos: pendiente confirmar si esta funcionalidad aplica como alcance R16 (depende de la propuesta de identificación automática con IA aún por confirmar con el cliente). **
+- Estado de existencia vigente de cada cuenta: una cuenta existe vigente en sistema o no existe vigente. La baja es lógica: el registro de la cuenta se conserva marcado como no vigente y nunca se elimina físicamente de la base de datos.
 
 ### No aplica a
 
 - Interfaz gráfica de usuario (UI) para alta, baja, modificación o consulta de cuentas bancarias: no se desarrolla en R16.
 - Gestión de cuentas bancarias de clientes (clientes externos): aplica solo a las cuentas del grupo PROQUIFA emisor.
-- Operaciones Perú: el modelo de cuentas bancarias para Golocaer S.A.C. no está definido en R16 (ver Riesgo 1).
+- Operaciones Perú: el catálogo de cuentas de Golocaer S.A.C. (Perú) forma parte del alcance de R16 (es necesario para validar cobros en Perú), pero su modelo —estructura de la cuenta conforme a normativa SUNAT— aún no está definido y se mantiene como brecha por resolver (ver Riesgo 1). Por ello, hasta que se defina el modelo, las cuentas Perú no pueden poblarse.
 
 ---
 
@@ -59,9 +58,7 @@ Cualquier módulo del sistema que requiera información de cuentas bancarias del
 ## Riesgos
 
 **Riesgo 1 — Modelo de cuentas bancarias Perú no definido**
-El catálogo R16 está diseñado para las empresas mexicanas del grupo. Golocaer S.A.C. (Perú) opera bajo normativa SUNAT con estructura potencialmente distinta. Mitigación: el modelo Perú queda fuera del alcance R16 y debe definirse en un release posterior.
-
-> ** Validar con el cliente cuándo se aborda el catálogo Perú. **
+El catálogo de cuentas de Golocaer S.A.C. (Perú) forma parte del alcance de R16, pero su modelo —estructura de la cuenta conforme a normativa SUNAT, potencialmente distinta de la mexicana— aún no está definido. Mientras el modelo Perú no se defina, las cuentas de Golocaer S.A.C. no pueden poblarse en el catálogo, lo que bloquea la validación de cobros en Perú. **Brecha prioritaria por resolver con el cliente.**
 
 **Riesgo 2 — Visibilidad restringida del catálogo no materializada en R16**
 Sin interfaz de usuario, los consumos al catálogo dependen completamente de la integridad de los datos cargados en BD. Errores manuales en BD impactan directamente todos los módulos consumidores sin posibilidad de validación por usuario final.
@@ -104,20 +101,27 @@ Sin interfaz de usuario, los consumos al catálogo dependen completamente de la 
 **Criterio C2 — Gestión por Soporte a la Producción**
 - **Dado** que se requiere alta, modificación o baja de una cuenta bancaria del grupo,
 - **Cuando** se solicita la operación,
-- **Entonces** la solicitud deberá canalizarse al área de Soporte a la Producción, que ejecuta la operación directamente en la base de datos del sistema.
+- **Entonces** la solicitud deberá canalizarse al área de Soporte a la Producción (equipo SAP), que ejecuta la operación directamente en la base de datos del sistema. En el caso de una baja, ésta se realiza a nivel lógico: el registro de la cuenta no se elimina de la base de datos, sino que se marca como no vigente, conservando el registro para trazabilidad histórica.
 
 ---
 
 ## Notas de Implementación
 
-- Referencia técnica: el catálogo se materializa en la tabla `CuentaBanco` de la BD PConnect. Campo `activo=1` identifica las cuentas vigentes; `activo=0` las que ya no están vigentes pero se conservan para trazabilidad histórica.
-- Área responsable del mantenimiento: **Soporte a la Producción (PROQUIFA)**. Ejecuta operaciones de alta, baja y modificación directamente en la base de datos del sistema.
-
-> ** Buzón de Pagos como consumidor del catálogo: el catálogo se incluyó como input del Buzón de Pagos pensando en la propuesta de identificación automática de pagos entrantes (mapeo de cuenta destino a empresa emisora vía IA). Si la propuesta de IA no se materializa como alcance R16, esta relación debe revisarse y posiblemente eliminarse del alcance. **
-
-> ** Estado del catálogo Perú: el modelo de cuentas bancarias para Golocaer S.A.C. queda fuera del alcance R16 y debe definirse en un release posterior con normativa SUNAT (ver Riesgo 1). **
+- Referencia técnica para implementación: el catálogo se materializa en la tabla `CuentaBanco` de la BD PConnect (referencia del sistema actual). Campo `activo=1` identifica las cuentas vigentes; `activo=0` las que ya no están vigentes pero se conservan para trazabilidad histórica de operaciones previas.
+- Área responsable del mantenimiento del catálogo: **Soporte a la Producción (PROQUIFA)**. El área ejecuta operaciones de alta, baja y modificación directamente en la base de datos del sistema. **Nota:** «equipo SAP» y «Soporte a la Producción» son el mismo actor en la documentación del proyecto.
+- **Estado del catálogo Perú:** el catálogo de cuentas de Golocaer S.A.C. forma parte del alcance de R16, pero su modelo (estructura conforme a normativa SUNAT) aún no está definido y es una brecha prioritaria por resolver. Mientras no se defina, las cuentas Perú no pueden poblarse (ver Riesgo 1).
+- La identificación automática de pagos entrantes con IA **NO** forma parte de R16: la asistencia con IA se limita a la captura de datos del cobro en Validar Cobro (ver TPSC-RE-FU-024).
 
 ### Pendientes operativos
 
 - Detalle completo de cuentas por empresa del grupo (banco, número, CLABE, moneda, códigos) — pendiente entrega completa por PROQUIFA.
-- Decisión sobre asignación manual vs automática (propuesta IA leyendo correos del Buzón de Pagos).
+
+---
+
+## Cambios
+
+| # | Fecha | Observación | Descripción del cambio |
+|---|-------|-------------|------------------------|
+| 1 | 2026-06-10 | OBS-001 | La baja de cuentas bancarias es siempre lógica. Se precisa en Requisito, Alcance "Aplica a" y Criterio C2: el registro se conserva marcado como no vigente; nunca se elimina físicamente. |
+| 2 | 2026-06-10 | OBS-002 | Se registra el sinónimo del proyecto: «equipo SAP» = «Soporte a la Producción» (mismo actor). Agregado en Criterio C2 y Notas de Implementación. La documentación de BD del catálogo es el entregable dirigido a ese equipo. |
+| 3 | 2026-06-10 | Revisión matriz | Alcance "No aplica a" Perú reformulado: el catálogo Golocaer S.A.C. SÍ es alcance R16 (necesario para cobros Perú), pero el modelo SUNAT no está definido — brecha prioritaria. Riesgo 1 actualizado en consecuencia. Pendiente de IA eliminado (no es alcance R16). |

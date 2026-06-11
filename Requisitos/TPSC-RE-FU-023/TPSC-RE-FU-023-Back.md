@@ -261,7 +261,7 @@ Response: QueryResultDto<ClienteValidarCobroDto>
 
 | `FieldName` | Tipo | Descripción |
 | ----------- | ---- | ----------- |
-| `textoBusqueda` | string | Nombre o RFC/RUC del cliente (LIKE) |
+| `textoBusqueda` | string | Nombre o RFC/RUC del cliente (LIKE) — trim automático aplicado al texto ingresado antes de ejecutar el filtrado (OBS-041) |
 
 > **Nota:** No hay filtros adicionales por región u otros criterios (Criterio B2 del requisito).
 > La región del usuario se resuelve del token de autenticación (IdentityServer), no como filtro explícito.
@@ -273,8 +273,10 @@ Response: QueryResultDto<ClienteValidarCobroDto>
 | --------------- | ------- |
 | `CobrosRecibidosPendientes` | COUNT `fccFolioPagoCliente.Activo=1` por cliente (Scaffold Finanzas) |
 | `ProformasFacturasPendientes` | COUNT `tpProformaPedido` con `MontoPendiente > 0` y `Cancelada=0` (Scaffold Finanzas) |
-| `SaldoPendienteTotal` | SUM `tpProformaPedido.MontoPendiente` por cliente (Scaffold Finanzas) |
+| `SaldoPendienteTotal` | SUM `tpProformaPedido.MontoPendiente` por cliente convertido a USD (OBS-046: el listado siempre se muestra dolarizado en USD, usando ConversorDivisas existente) |
 | `AccionContextual` | `REALIZAR_COBROS` si `CobrosRecibidosPendientes > 0`; `GESTIONAR_COBRANZA` si no |
+| `FechaCobroMasAntiguo` | MIN `fccFolioPagoCliente.FechaRecepcion` donde `Activo=1` por cliente — para ordenamiento por antigüedad (OBS-047) |
+| `TieneSlaVencido` | `true` si `FechaCobroMasAntiguo` lleva más de 72 horas sin procesar; se muestra indicador visual de alerta en UI (OBS-047) |
 
 **Componentes capa Finanzas (patrón Punchout):**
 - `Domain.Interfaces` → `IClienteValidarCobroQueryRepository` con `GetFilteredAsync(QueryInfo)`
@@ -331,9 +333,8 @@ UPDATE tpPedido SET FechaCancelacionPorFaltaPago = SYSUTCDATETIME(),
 
 ## Brechas
 
-> ⚠️ **BRECHA — Moneda del Saldo Pendiente total**
-> Confirmar si `SaldoPendienteTotal` se muestra dolarizado o en moneda del cliente.
-> El `ConversorDivisas` ya existe en ProquifaDotNet (`FacturasPendientesClienteObj`).
+> ✅ **BRECHA — Moneda del Saldo Pendiente total — Resuelta OBS-046**
+> Decisión OBS-046: el listado siempre se muestra dolarizado en USD. Usar `ConversorDivisas` existente en ProquifaDotNet (`FacturasPendientesClienteObj`) para convertir `MontoPendiente` a USD antes de sumar.
 
 > ⚠️ **BRECHA — spActualizarBuzonPagoLegacyLegacy al cancelar pedido**
 > Confirmar si la cancelación desde Validar Cobro dispara el SP de sincronización Legacy.
@@ -342,9 +343,8 @@ UPDATE tpPedido SET FechaCancelacionPorFaltaPago = SYSUTCDATETIME(),
 > `Logic.MailXslt/Cobranza/CorreoFCCPagoCliente.cs` ya existe. Confirmar si aplica a la
 > confirmación del cobro (RE-FU-024) o a otro flujo.
 
-> ⚠️ **BRECHA — Orden por defecto del listado y denominación del rol operativo**
-> Criterio B2 del requisito deja pendiente el orden por defecto del listado (alfabético,
-> antigüedad de cobros, mayor saldo pendiente).
+> ✅ **BRECHA — Orden por defecto del listado — Resuelta OBS-047**
+> Decisión OBS-047: el listado se ordena por antigüedad del cobro recibido más antiguo del cliente (MIN `fccFolioPagoCliente.FechaRecepcion`, ASC). Clientes sin cobros pendientes se ubican al final. Indicador SLA 72h cuando el cobro más antiguo lleva más de 72 horas sin procesar.
 
 > ⚠️ **BRECHA — Moneda del Saldo Pendiente Perú**
 > Para clientes Región Perú, confirmar denominación monetaria del `SaldoPendienteTotal`
