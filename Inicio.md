@@ -29,6 +29,15 @@ Documentación técnica del proyecto R16 de ProquifaDotNet. Cubre el análisis, 
 
 ---
 
+#### 🆕 Soluciones Nuevas
+
+- [ProquifaDotNet.Finanzas](Soluciones%20Nuevas/ProquifaDotNet.Finanzas.md)
+- [ProquifaDotNet.Timbrado](Soluciones%20Nuevas/ProquifaDotNet.Timbrado.md)
+- [ProquifaDotNet.LegacyBridge](Soluciones%20Nuevas/ProquifaDotNet.LegacyBridge.md)
+- [ProquifaDotNet.EnvioCorreo](Soluciones%20Nuevas/ProquifaDotNet.EnvioCorreo.md)
+
+---
+
 #### 🗂️ Diagramas
 
 - [01 — Flujo General de Tramitación](Diagramas/01%20-%20Flujo%20General%20de%20Tramitacion.md)
@@ -53,9 +62,40 @@ Documentación técnica del proyecto R16 de ProquifaDotNet. Cubre el análisis, 
 
 ---
 
+#### 🗄️ Base de Datos — Diagramas ER
+
+- [ER — ProquifaDotNet](Database/ER-ProquifaDotNet.md)
+- [ER — Finanzas](Database/ER-Finanzas.md)
+- [ER — Timbrado](Database/ER-Timbrado.md)
+- [ER — EnvioCorreo](Database/ER-EnvioCorreo.md)
+- [ER — LegacyBridge](Database/ER-LegacyBridge.md)
+- [ER — PCconnect](Database/ER-PCconnect.md)
+- [Script DDL — ProquifaDotNet](Database/ProquifaDotNet.sql)
+
+---
+
+#### 🔌 Endpoints
+
+- [Endpoints — ProquifaDotNet](Endpoints/Endpoints-ProquifaDotNet.md)
+- [Endpoints — Finanzas](Endpoints/Endpoints-Finanzas.md)
+- [Endpoints — Timbrado](Endpoints/Endpoints-Timbrado.md)
+- [Endpoints — EnvioCorreo](Endpoints/Endpoints-EnvioCorreo.md)
+- [Endpoints — LegacyBridge](Endpoints/Endpoints-LegacyBridge.md)
+
+---
+
 #### 📋 Requisitos
 
 - [Índice de Requisitos](Requisitos/Requisitos.MD)
+
+---
+
+#### 🔍 Revisión Matriz
+
+- [Observaciones del Cliente](Revisi%C3%B3n%20Matriz/Observaciones%20Cliente.md)
+- [Actualización de Matriz de Requisitos](Revisi%C3%B3n%20Matriz/Actualizacion%20de%20Matriz%20de%20Requisitos.md)
+- [Reporte Revisión Matriz 2026-05-26](Revisi%C3%B3n%20Matriz/Reporte_Revision_Matriz_2026-05-26.md)
+- [Tareas Modificadas](Revisi%C3%B3n%20Matriz/TareasModificadas.md)
 
 ---
 

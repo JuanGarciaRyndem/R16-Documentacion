@@ -163,6 +163,7 @@ ProquifaDotNet actúa como proxy/delegador invocando la API de `ProquifaDotNet.F
 | POST   | `/api/proforma/generar-pdf`              | `POST /api/proforma/generar-pdf`      | Genera PDF de proforma; ProquifaDotNet reenvía la solicitud a Finanzas | RE-016 |
 | GET    | `/api/proforma/{id}/pdf`                 | `GET /api/proforma/{id}/pdf`          | Descarga PDF histórico de proforma desde Finanzas/MinIO                | RE-016 |
 | POST   | `/api/factura-adelantado/listar` (proxy) | `POST /api/factura-adelantado/listar` | Expone listado FAA al frontend delegando a Finanzas                    | RE-018 |
+|        |                                          |                                       |                                                                        |        |
 
 ---
 
