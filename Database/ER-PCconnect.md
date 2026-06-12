@@ -1,0 +1,45 @@
+# PCconnect — Sistema Legado (ETL destino)
+
+Receptor de transferencias SSIS desde ProquifaDotNet. Mapeo de tablas NC México pendiente de documentación.
+
+```mermaid
+erDiagram
+    %% ============================================================
+    %% NOTA: La estructura detallada de las tablas de PCconnect
+    %% está pendiente de documentación (mapeo SSIS en definición).
+    %% Las entidades aquí mostradas son referencias conocidas del
+    %% proceso ETL descrito en TPSC-RE-FU-032.
+    %% ============================================================
+    NotaCreditoMX {
+        varchar IdNotaCredito PK "clave en PCconnect (pendiente)"
+        varchar Serie
+        varchar Folio
+        varchar UUID
+        varchar RFC_Emisor
+        varchar RFC_Receptor
+        decimal Monto
+        varchar Estado
+        varchar XML_CFDI
+        datetime FechaEmision
+        datetime FechaTimbrado
+    }
+    NotaCreditoPartidaMX {
+        varchar IdNotaCreditoPartida PK "pendiente"
+        varchar IdNotaCredito FK
+        varchar ClaveProdServ
+        varchar Descripcion
+        decimal Cantidad
+        decimal ValorUnitario
+        decimal Importe
+    }
+    CatalogoMotivosCancelacion {
+        varchar Clave PK "c_MotivoCancelacion SAT"
+        varchar Descripcion
+    }
+    %% Origen: ProquifaDotNet (via SSIS ETL al tramitar NC MX)
+    %% Destino: PCconnect
+    %% Frecuencia: al timbrar/cancelar NC México
+    %% Estado mapeo: PENDIENTE DE DOCUMENTACION
+    NotaCreditoMX ||--o{ NotaCreditoPartidaMX : "tiene"
+    CatalogoMotivosCancelacion ||--o{ NotaCreditoMX : "motivo cancelacion"
+```

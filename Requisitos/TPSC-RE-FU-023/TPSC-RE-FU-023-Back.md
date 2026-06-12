@@ -94,18 +94,28 @@ ALTER TABLE dbo.fccPagoCliente
         FOREIGN KEY (IdCatMoneda) REFERENCES dbo.catMoneda (IdCatMoneda);
 ```
 
-### A2 — ALTER TABLE tpPedido — Trazabilidad de Cancelación
+### A2 — ALTER TABLE tpPedido — Trazabilidad de Cancelación + CFDI (OBS-042)
 
 > **❌ PENDIENTE de ejecutar.** Los campos NO existen aún en tpPedido (verificado).
 
 ```sql
 -- ❌ PENDIENTE — ejecutar en ProquifaDotNet
+-- Trazabilidad cancelación por falta de pago
 ALTER TABLE dbo.tpPedido
     ADD FechaCancelacionPorFaltaPago datetime2 NULL;
 
 ALTER TABLE dbo.tpPedido
     ADD IdUsuarioCancelacion uniqueidentifier NULL;
+
+-- OBS-042: trazabilidad cancelación CFDI ante el SAT
+ALTER TABLE dbo.tpPedido
+    ADD FechaSolicitudCancelacion datetime2 NULL;
+
+ALTER TABLE dbo.tpPedido
+    ADD EstadoCancelacionCFDI varchar(50) NULL;
 ```
+
+> **OBS-042:** `FechaSolicitudCancelacion` y `EstadoCancelacionCFDI` se populan al ejecutar la cancelación del CFDI ante el SAT desde el modal Gestionar Cobranza (complementan `FechaCancelacionPorFaltaPago` que registra la cancelación del pedido). Son conceptos distintos: la cancelación del pedido y la cancelación del CFDI ante el SAT ocurren como pasos separados.
 
 ---
 
@@ -227,10 +237,16 @@ Cabecera: MontoTotalPendiente = SUM(MontoPendiente)
 Actualiza la fecha estimada de pago de uno o más pedidos desde el modal Gestionar Cobranza.
 
 ```
-Input: List<(IdTpProformaPedido, FechaPromesaPagoMonitoreoCobros)>
-Operación: UPDATE tpProformaPedido SET FechaPromesaPagoMonitoreoCobros = @fecha
+Input: List<(IdTpProformaPedido, FechaPromesaPagoMonitoreoCobros, IdUsuarioCambio, Motivo?)>
+Operación (por cada ítem):
+  1. Leer FechaPromesaPagoMonitoreoCobros actual de tpProformaPedido
+  2. UPDATE tpProformaPedido SET FechaPromesaPagoMonitoreoCobros = @fechaNueva
            WHERE IdTpProformaPedido = @id
+  3. INSERT fccFechaEstimadaPagoHistorial (IdTpProformaPedido, FechaEstimadaPagoAnterior,
+           FechaEstimadaPagaNueva, FechaCambio=SYSUTCDATETIME(), IdUsuarioCambio, Motivo)
 ```
+
+> **OBS-044:** El comando NO sobreescribe silenciosamente la fecha — cada cambio genera una fila en `fccFechaEstimadaPagoHistorial` con el valor anterior y el nuevo. El historial es append-only.
 
 **Endpoints expuestos:**
 
@@ -295,22 +311,25 @@ desde Finanzas via Scaffold EF Core. La cabecera del modal incluye `MontoTotalPe
 
 **Endpoint:** `GET /api/validar-cobro/proformas?idCliente={id}` (definido en B4)
 
-### C3 — Actualizar fecha estimada de pago
+### C3 — Actualizar fecha estimada de pago (OBS-044)
 
 **Capa:** `ProquifaDotNet.Finanzas` — vía Scaffold `tpProformaPedido` (B4).
 
 Actualiza `tpProformaPedido.FechaPromesaPagoMonitoreoCobros` directamente desde Finanzas
 via Scaffold EF Core mediante `UpdateFechaPromesaPagoCommand`.
 
+> **OBS-044:** El `UpdateFechaPromesaPagoCommand` guarda el **historial completo** de cambios en `fccFechaEstimadaPagoHistorial` (tabla nueva, ver A3 en _BD.md). Cada cambio genera un INSERT con el valor anterior y el nuevo — no se sobreescribe el registro. El endpoint debe exponer `IdUsuarioCambio` y opcionalmente `Motivo`.
+
 **Endpoint:** `PUT /api/validar-cobro/proformas/fecha-promesa` (definido en B4)
 
-### C4 — Cancelar pedido por falta de pago
+### C4 — Cancelar pedido por falta de pago + cancelación CFDI (OBS-042)
 
 **Capa:** `ProquifaDotNet` — endpoint dedicado en `tpPedidoController`.
 
 Requiere un endpoint nuevo en ProquifaDotNet para ejecutar la transacción de cancelación,
 ya que `tpPedido` no está en el Scaffold de Finanzas y contiene los campos de trazabilidad
-`FechaCancelacionPorFaltaPago` e `IdUsuarioCancelacion` (ALTER A2, pendiente de ejecutar).
+`FechaCancelacionPorFaltaPago`, `IdUsuarioCancelacion`, `FechaSolicitudCancelacion` y
+`EstadoCancelacionCFDI` (ALTER A2, pendiente de ejecutar).
 
 **Nuevo endpoint ProquifaDotNet:**
 
@@ -325,6 +344,14 @@ UPDATE tpPedido SET FechaCancelacionPorFaltaPago = SYSUTCDATETIME(),
                     IdUsuarioCancelacion = @idUsuario
     WHERE IdTpPedido = @idTpPedido
 ```
+
+> **OBS-042:** Adicionalmente, si el pedido tiene un CFDI asociado (`CFDIGenerada` con estado `Timbrada`), la cancelación del pedido debe:
+> 1. Cambiar el estado de `CFDIGenerada` a `CancelacionSolicitada` (o el estado que corresponda).
+> 2. Actualizar `tpPedido.FechaSolicitudCancelacion = SYSUTCDATETIME()` y `tpPedido.EstadoCancelacionCFDI = 'Pendiente'`.
+> 3. Enviar la solicitud de cancelación al SAT vía PAC (ProquifaDotNet.Timbrado).
+> 4. Actualizar `tpPedido.EstadoCancelacionCFDI` con el resultado del SAT (`'Cancelado'`, `'Rechazado'`, etc.).
+>
+> El flujo de cancelación CFDI puede ser asíncrono (CFDI 4.0 requiere aceptación del receptor). Considerar estados intermedios.
 
 > ⚠️ Pendiente confirmar si la cancelación dispara `spActualizarBuzonPagoLegacyLegacy`
 > u otras transferencias a Legacy.

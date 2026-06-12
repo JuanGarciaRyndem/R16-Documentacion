@@ -1,0 +1,282 @@
+---
+title: Finanzas — Cobros, Facturación y Notas de Crédito (tablas en ProquifaDotNet, scope ProquifaDotNet.Finanzas)
+---
+erDiagram
+
+    catTipoCFDI {
+        uniqueidentifier IdCatTipoCFDI PK
+        varchar Clave
+        varchar Descripcion
+        varchar TipoDocumentoSAT
+        uniqueidentifier IdRegion FK
+        bit Activo
+        datetime2 FechaRegistro
+    }
+
+    catTipoDocumentoFiscal {
+        uniqueidentifier IdCatTipoDocumentoFiscal PK
+        varchar Clave
+        varchar Descripcion
+        bit Activo
+        datetime2 FechaRegistro
+    }
+
+    catDocumentoFiscalCobroEstado {
+        uniqueidentifier IdCatDocumentoFiscalCobroEstado PK
+        varchar Clave
+        varchar Descripcion
+        bit Activo
+        datetime2 FechaRegistro
+    }
+
+    catFormaPagoSAT {
+        uniqueidentifier IdCatFormaPagoSAT PK
+        varchar Clave
+        varchar Descripcion
+        bit Activo
+        datetime2 FechaRegistro
+    }
+
+    catTipoOperacionSUNAT {
+        uniqueidentifier IdCatTipoOperacionSUNAT PK
+        varchar Clave
+        varchar Descripcion
+        bit Activo
+        datetime2 FechaRegistro
+    }
+
+    catMotivoCancelacionSAT {
+        uniqueidentifier IdCatMotivoCancelacionSAT PK
+        varchar Clave
+        varchar Descripcion
+        bit Activo
+        datetime2 FechaRegistro
+    }
+
+    catMotivoCreditoSUNAT09 {
+        uniqueidentifier IdCatMotivoCreditoSUNAT09 PK
+        varchar Clave
+        varchar Descripcion
+        varchar Modalidad
+        bit Activo
+        datetime2 FechaRegistro
+    }
+
+    catTipoInconsistenciaCobro {
+        uniqueidentifier IdCatTipoInconsistenciaCobro PK
+        varchar TipoInconsistencia
+        bit AplicaMarkPendienteCancelacion
+        bit Activo
+    }
+
+    CFDIGenerada {
+        uniqueidentifier IdCFDIGenerada PK
+        varchar RFCEmisor
+        varchar RFCReceptor
+        varchar Serie
+        varchar Folio
+        datetime2 FechaEmision
+        uniqueidentifier IdCatTipoCFDI FK
+        uniqueidentifier IdCFDIRelacionado FK
+        varchar UUID
+        bit Activo
+        datetime2 FechaRegistro
+    }
+
+    CFDIGeneradaConcepto {
+        uniqueidentifier IdCFDIGeneradaConcepto PK
+        uniqueidentifier IdCFDIGenerada FK
+        varchar ClaveProdServ
+        varchar Descripcion
+        decimal Cantidad
+        decimal ValorUnitario
+        decimal Importe
+        datetime2 FechaRegistro
+    }
+
+    CFDIGeneradaRelacionado {
+        uniqueidentifier IdCFDIGeneradaRelacionado PK
+        uniqueidentifier IdCFDIGenerada FK
+        varchar UUID
+        varchar ClaveTipoRelacion
+        datetime2 FechaRegistro
+    }
+
+    CFDICancelacion {
+        uniqueidentifier IdCFDICancelacion PK
+        uniqueidentifier IdCFDIGenerada FK
+        varchar ClaveMotivo
+        varchar UUID
+        datetime2 FechaSolicitud
+        varchar EstadoCancelacion
+        datetime2 FechaRegistro
+    }
+
+    fccFolioPagoCliente {
+        uniqueidentifier IdFCCFolioPagoCliente PK
+        uniqueidentifier IdCorreoRecibidoCliente FK
+        uniqueidentifier IdArchivo FK
+        varchar FolioIdentificado
+        decimal MontoIdentificado
+        uniqueidentifier IdCatMoneda FK
+        bit Procesado
+        datetime2 FechaRegistro
+    }
+
+    fccPagoCliente {
+        uniqueidentifier IdFCCPagoCliente PK
+        uniqueidentifier IdCliente FK
+        uniqueidentifier IdEmpresa FK
+        uniqueidentifier IdFCCFolioPagoCliente FK
+        decimal Monto
+        uniqueidentifier IdCatMoneda FK
+        decimal TipoCambio
+        varchar ReferenciaBancaria
+        bit Confirmado
+        datetime2 FechaConfirmacion
+        uniqueidentifier IdUsuarioConfirmacion FK
+        varchar Notas
+        bit Activo
+        datetime2 FechaRegistro
+    }
+
+    fccPagoFacturaPedido {
+        uniqueidentifier IdFCCPagoFacturaPedido PK
+        uniqueidentifier IdFCCPagoCliente FK
+        uniqueidentifier IdTPProformaPedido FK
+        decimal Monto
+        decimal MontoPendienteAnterior
+        int NumeroDeParcialidad
+        datetime2 FechaAplicacion
+    }
+
+    fccPagoFacturaAdelanto {
+        uniqueidentifier IdFCCPagoFacturaAdelanto PK
+        uniqueidentifier IdFCCPagoCliente FK
+        uniqueidentifier IdTPProformaPedido FK
+        uniqueidentifier IdTPProformaAdelanto FK
+        uniqueidentifier IdCFDIGenerada FK
+        decimal Monto
+        int NumeroParcialidad
+    }
+
+    fccDocumentoFiscalCobro {
+        uniqueidentifier IdFCCDocumentoFiscalCobro PK
+        uniqueidentifier IdFCCPagoFacturaPedido FK
+        uniqueidentifier IdFCCPagoFacturaAdelanto FK
+        uniqueidentifier IdCatTipoDocumentoFiscal FK
+        uniqueidentifier IdCatDocumentoFiscalCobroEstado FK
+        uniqueidentifier IdCatUsoCFDI FK
+        uniqueidentifier IdCatMetodoDePagoCFDI FK
+        uniqueidentifier IdCFDIGeneradaFactura FK
+        uniqueidentifier IdCFDIGeneradaComplemento FK
+        uniqueidentifier IdCatTipoOperacionSUNAT FK
+        uniqueidentifier IdCatCondicionesDePago FK
+        datetime2 FechaPagoCP
+        uniqueidentifier IdCatFormaPagoSAT FK
+        decimal TipoCambioP_CP
+        int NumParcialidad
+        decimal ImpSaldoAnt
+        decimal ImpPagado
+        decimal ImpSaldoInsoluto
+        decimal EquivalenciaDR
+        datetime2 FechaGeneracion
+        datetime2 FechaEnvio
+        bit Activo
+        datetime2 FechaRegistro
+    }
+
+    fccConfirmacionPedido {
+        uniqueidentifier IdFCCConfirmacionPedido PK
+        uniqueidentifier IdTPProformaPedido FK
+        uniqueidentifier IdUsuario FK
+        datetime2 FechaConfirmacion
+        bit Activo
+        datetime2 FechaRegistro
+    }
+
+    fccSaldoFavorCliente {
+        uniqueidentifier IdFCCSaldoFavorCliente PK
+        uniqueidentifier IdCliente FK
+        uniqueidentifier IdFCCPagoCliente FK
+        varchar TipoSaldo
+        decimal Monto
+        bit MXN
+        bit USD
+        decimal TipoCambio
+        bit Aplicado
+        uniqueidentifier IdFCCPagoFacturaPedido FK
+        varchar Observaciones
+        bit Activo
+        datetime2 FechaRegistro
+    }
+
+    fccNotaCredito {
+        uniqueidentifier IdFCCNotaCredito PK
+        uniqueidentifier IdTPProformaPedido FK
+        uniqueidentifier IdCFDI FK
+        uniqueidentifier IdCFDIGenerada FK
+        uniqueidentifier IdEmpresa FK
+        uniqueidentifier IdCliente FK
+        decimal Monto
+        varchar Serie
+        varchar Modalidad
+        varchar Motivo
+        varchar Estado
+        bit CancelarFacturaOrigen
+        uniqueidentifier IdCatMotivoCancelacionSAT FK
+        uniqueidentifier IdCFDIGeneradaFacturaOrigen FK
+        varchar ConceptoManual
+        varchar ObservacionesManual
+        uniqueidentifier IdArchivoXml FK
+        uniqueidentifier IdArchivoPdf FK
+        varchar ResponseCode
+        nvarchar ResponseDescription
+        decimal TipoCambioOrigen
+        uniqueidentifier IdFCCPagoCliente FK
+        bit Activo
+        datetime2 FechaRegistro
+    }
+
+    fccNotaCreditoPartida {
+        uniqueidentifier IdFCCNotaCreditoPartida PK
+        uniqueidentifier IdFCCNotaCredito FK
+        uniqueidentifier IdCFDIGeneradaConceptoOrigen FK
+        decimal CantidadNC
+        decimal Importe
+        decimal Subtotal
+        decimal IVA
+        decimal Total
+        datetime2 FechaRegistro
+    }
+
+    fccFechaEstimadaPagoHistorial {
+        uniqueidentifier IdFccFechaEstimadaPagoHistorial PK
+        uniqueidentifier IdTpProformaPedido FK
+        datetime2 FechaEstimadaPagoAnterior
+        datetime2 FechaEstimadaPagaNueva
+        datetime2 FechaCambio
+        uniqueidentifier IdUsuarioCambio FK
+        varchar Motivo
+    }
+
+    catTipoCFDI ||--o{ CFDIGenerada : "clasifica"
+    CFDIGenerada ||--o{ CFDIGeneradaConcepto : "tiene"
+    CFDIGenerada ||--o{ CFDIGeneradaRelacionado : "tiene"
+    CFDIGenerada ||--o{ CFDICancelacion : "tiene"
+    CFDIGenerada }o--o| CFDIGenerada : "relacionada con"
+    catTipoDocumentoFiscal ||--o{ fccDocumentoFiscalCobro : "clasifica"
+    catDocumentoFiscalCobroEstado ||--o{ fccDocumentoFiscalCobro : "estado"
+    catFormaPagoSAT ||--o{ fccDocumentoFiscalCobro : "forma de pago CP"
+    catTipoOperacionSUNAT ||--o{ fccDocumentoFiscalCobro : "tipo operacion Peru"
+    fccFolioPagoCliente ||--o{ fccPagoCliente : "origina"
+    fccPagoCliente ||--o{ fccPagoFacturaPedido : "aplica a"
+    fccPagoCliente ||--o{ fccPagoFacturaAdelanto : "aplica a"
+    fccPagoCliente ||--o{ fccSaldoFavorCliente : "genera"
+    fccPagoCliente ||--o{ fccNotaCredito : "asociado a"
+    fccPagoFacturaPedido ||--o{ fccDocumentoFiscalCobro : "genera"
+    fccPagoFacturaPedido ||--o{ fccSaldoFavorCliente : "referencia"
+    fccPagoFacturaAdelanto ||--o{ fccDocumentoFiscalCobro : "genera"
+    fccNotaCredito ||--o{ fccNotaCreditoPartida : "tiene"
+    catMotivoCancelacionSAT ||--o{ fccNotaCredito : "motivo cancelacion"
+    CFDIGeneradaConcepto ||--o{ fccNotaCreditoPartida : "concepto origen"

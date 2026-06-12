@@ -245,7 +245,7 @@ Documento de análisis con: lógica del SSIS existente documentada, diseño del 
 ## T6 — [ TPSC-RE-FU-012 ] [ SERV-COMPLEX-TRANSACT ] Implementación — Servicio aplicativo de transferencia Pedidos Crédito a Legacy
 
 ### Aplicativos
-- ProquifaDotNet
+- ProquifaDotNet.LegacyBridge  / ETLs SSIS
 
 ### Módulos
 - ETL — Migración transferencia Pedidos Crédito → Legacy (Implementación)
@@ -265,8 +265,10 @@ La lógica de transferencia de Pedidos Crédito a Legacy vive en el SSIS de PCco
 - Crear `EtlPedidoCreditoPayloadBuilder` que construya el objeto a enviar a Legacy:
   - Campos base: Pedido (folio, cliente, montos), Partidas (producto, piezas, precios).
   - Variante Pago contra entrega: incluir marca de detención si `catCondicionesDePago.Clave = 'pagocontraentrega'`.
+  - **OBS-024:** PCE (`catCondicionesDePago.Clave = 'pagocontraentrega'`) se traduce como **crédito** en el payload de Legacy, **NO como prepago**. Legacy procesa PCE como flujo de crédito independientemente del nombre de la condición.
   - Variante Controlados (RE-011): incluir flag si Legacy lo requiere según análisis T5.
   - Variante FAA (RE-012): payload idéntico al base (sin campos adicionales, FAA es paralelo).
+- **OBS-025:** PQF2 solo inserta datos planos en Legacy. La lógica de "Relacionar facturas" (asociación de facturas al pedido dentro de Legacy) es responsabilidad del proceso interno de Legacy — **el `EtlPedidoCreditoPayloadBuilder` no implementa esta lógica**.
 - Registrar el corte regional en el servicio: si `region.Clave != MEX`, retornar sin ejecutar (sin error, sin log de fallo innecesario).
 - Invocar el servicio post-commit en el punto de tramitación definido en T5 (`tpPedidoTramitarController` o equivalente), usando inyección de dependencias.
 - Registrar el stub en el contenedor de DI del proyecto.
@@ -289,6 +291,8 @@ El servicio stub está integrado en el flujo de tramitación de Pedidos Crédito
 - [ ] Para Perú: el servicio retorna sin ejecutar — sin error, sin log de fallo.
 - [ ] El builder genera el payload correcto para el flujo base (RE-010).
 - [ ] El builder incluye la marca de detención para Pago contra entrega (RE-010).
+- [ ] **OBS-024:** El builder traduce PCE (`catCondicionesDePago.Clave = 'pagocontraentrega'`) como **crédito** en Legacy, no como prepago.
+- [ ] **OBS-025:** El builder no implementa lógica de "Relacionar facturas" — esa responsabilidad recae en Legacy.
 - [ ] El builder contempla la variante de controlados (RE-011) según el análisis T5.
 - [ ] El builder genera el payload FAA idéntico al base (RE-012).
 - [ ] El stub logea `ETL_PENDIENTE` con contexto suficiente (IdPedido, Folio, Región).
@@ -310,7 +314,7 @@ El servicio stub está integrado en el flujo de tramitación de Pedidos Crédito
 ## T7 — [ TPSC-RE-FU-012 ] [ SERV-TRANSACT ] Integración — Canal definitivo y desactivación del SSIS de Pedidos Crédito
 
 ### Aplicativos
-- ProquifaDotNet / PCconnect
+- ProquifaDotNet.LegacyBridge  / ETLs SSIS / ProquifaDotNet / PCconnect
 
 ### Módulos
 - ETL — Migración transferencia Pedidos Crédito → Legacy (Integración y cierre)
@@ -321,6 +325,7 @@ El servicio stub está integrado en el flujo de tramitación de Pedidos Crédito
 - La implementación real se inyecta via DI sin cambiar el caller — esa es la ventaja del patrón stub.
 - Una vez validada la transferencia via aplicativo, el paquete SSIS de PCconnect debe desactivarse o retirarse según el plan acordado en T5.
 - **Perú no transfiere:** validar en pruebas que ningún pedido de región Perú genera registros en Legacy.
+- **OBS-025:** La integración E2E debe confirmar que "Relacionar facturas" **no es responsabilidad del aplicativo ProquifaDotNet** — es un proceso interno de Legacy. No replicar ni validar esta lógica en el canal real.
 
 ### Descripción del problema
 Con el stub funcionando en tramitación, esta tarea cierra la migración: implementa el canal real de transferencia, valida E2E en QA/staging contra Legacy real, y desactiva el SSIS de PCconnect para eliminar la fuente doble.

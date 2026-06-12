@@ -1,4 +1,4 @@
-﻿# Tareas BackEnd - TPSC-RE-FU-020
+# Tareas BackEnd - TPSC-RE-FU-020
 **Requisito:** Factura por Adelantado: Detalle Perú
 **Aplicativos:** ProquifaDotNet (.NET Framework 4.8) + ProquifaDotNet.Finanzas (.NET Core 10) + ProquifaDotNet.Timbrado (.NET Core 10, NUEVA)
 

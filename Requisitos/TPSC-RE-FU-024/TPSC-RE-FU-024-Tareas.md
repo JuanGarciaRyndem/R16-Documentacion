@@ -1,4 +1,4 @@
-﻿# Tareas BackEnd — TPSC-RE-FU-024
+# Tareas BackEnd — TPSC-RE-FU-024
 **Requisito:** Validar Cobro: Paso 1 México — Captura del Cobro
 **Aplicativos:** ProquifaDotNet (.NET Framework 4.8) + ProquifaDotNet.Finanzas (.NET Core 10)
 

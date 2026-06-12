@@ -42,12 +42,16 @@ CREATE TABLE dbo.ClienteDatosBancarios
     IdDatosBancarios         uniqueidentifier NOT NULL
         CONSTRAINT FK_ClienteDatosBancarios_DatosBancarios
             FOREIGN KEY REFERENCES dbo.DatosBancarios(IdDatosBancarios),
-    CodigoValidador          varchar(50)      NULL,
-    FechaRegistro            datetime         NOT NULL
+    CodigoValidador               varchar(50)      NULL,
+    -- OBS-014: historial del código anterior para trazabilidad de rotación
+    CodigoValidadorAnterior       varchar(50)      NULL,
+    FechaModificacionAnterior     datetime         NULL,
+    IdUsuarioModificacionAnterior uniqueidentifier NULL,
+    FechaRegistro                 datetime         NOT NULL
         CONSTRAINT DF_ClienteDatosBancarios_FechaRegistro    DEFAULT (GETDATE()),
-    FechaUltimaActualizacion datetime         NOT NULL
+    FechaUltimaActualizacion      datetime         NOT NULL
         CONSTRAINT DF_ClienteDatosBancarios_FechaActualizacion DEFAULT (GETDATE()),
-    Activo                   bit              NOT NULL
+    Activo                        bit              NOT NULL
         CONSTRAINT DF_ClienteDatosBancarios_Activo           DEFAULT (1)
 );
 
@@ -63,6 +67,7 @@ SELECT OBJECT_ID('dbo.ClienteDatosBancarios') AS TablaCreada;
 - [ ] FK `FK_ClienteDatosBancarios_Cliente` referencia `dbo.Cliente(IdCliente)`
 - [ ] FK `FK_ClienteDatosBancarios_DatosBancarios` referencia `dbo.DatosBancarios(IdDatosBancarios)`
 - [ ] Índice `IX_ClienteDatosBancarios` existe sobre `(IdCliente, IdDatosBancarios, Activo)`
+- [ ] Columnas de historial presentes: `CodigoValidadorAnterior varchar(50) NULL`, `FechaModificacionAnterior datetime NULL`, `IdUsuarioModificacionAnterior uniqueidentifier NULL` (OBS-014)
 - [ ] Script incluido en el formulario de control de scripts del release
 - [ ] PR aprobado por líder técnico y DBA
 
@@ -111,6 +116,26 @@ namespace Logic.Pqf.Catalogos.Clientes.DatosBancarios
         protected override Guid _GuardarOActualizar(ClienteDatosBancarios entity)
         {
             entity.FechaUltimaActualizacion = DateTime.Now;
+
+            // OBS-014: Rotación — preservar el código validador anterior al actualizar
+            if (entity.IdClienteDatosBancarios != Guid.Empty)
+            {
+                using (var db = new ProquifaDotNetEntities())
+                {
+                    var existente = db.ClienteDatosBancarios
+                        .FirstOrDefault(x => x.IdClienteDatosBancarios == entity.IdClienteDatosBancarios);
+
+                    if (existente != null
+                        && !string.IsNullOrEmpty(existente.CodigoValidador)
+                        && existente.CodigoValidador != entity.CodigoValidador)
+                    {
+                        entity.CodigoValidadorAnterior       = existente.CodigoValidador;
+                        entity.FechaModificacionAnterior     = existente.FechaUltimaActualizacion;
+                        // IdUsuarioModificacionAnterior se pasa desde la capa de API (contexto del usuario)
+                    }
+                }
+            }
+
             return base._GuardarOActualizar(entity);
         }
 
@@ -135,6 +160,8 @@ namespace Logic.Pqf.Catalogos.Clientes.DatosBancarios
 **Criterios de aceptación:**
 - [ ] La clase `ClienteDatosBancariosBO` compila sin errores
 - [ ] `GuardarOActualizar` persiste correctamente un registro con `IdCliente`, `IdDatosBancarios` y `CodigoValidador`
+- [ ] Al actualizar `CodigoValidador`, el código anterior se copia a `CodigoValidadorAnterior` con su fecha y usuario correspondientes (OBS-014)
+- [ ] Si `CodigoValidador` no cambia, los campos de historial no se modifican
 - [ ] `ObtenerCuentaActivaDelCliente` retorna el registro más reciente activo del cliente
 - [ ] `Desactivar` marca el registro con `Activo = false`
 - [ ] PR aprobado por líder técnico

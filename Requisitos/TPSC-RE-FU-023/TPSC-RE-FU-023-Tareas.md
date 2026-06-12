@@ -21,14 +21,15 @@
 | # | Clave | Título simple | Tipo | Aplicativo | Estado |
 |---|-------|--------------|------|-----------|--------|
 | 1 | UPDATE-TABL-CH | Agregar campos del wizard a fccPagoCliente | BD | ProquifaDotNet | ❌ Pendiente |
-| 2 | UPDATE-TABL-CH | Agregar trazabilidad de cancelación a tpPedido | BD | ProquifaDotNet | ❌ Pendiente |
+| 2 | UPDATE-TABL-CH | Agregar trazabilidad de cancelación + CFDI a tpPedido (OBS-042) | BD | ProquifaDotNet | ❌ Pendiente |
 | 3 | IMP-EXIST-SERVICE | Scaffold EF Core fccFolioPagoCliente, fccPagoCliente y tpProformaPedido en Finanzas | Back | ProquifaDotNet.Finanzas | ❌ Pendiente |
 | 4 | SIMPLE-CRUD | CQRS fccFolioPagoCliente — Query pendientes + Command cerrar pendiente | Back | ProquifaDotNet.Finanzas | ❌ Pendiente |
 | 5 | SIMPLE-CRUD | CQRS fccPagoCliente — Query cobro + Command upsert borrador | Back | ProquifaDotNet.Finanzas | ❌ Pendiente |
 | 6 | LIST-PAG-MULT-FILTER | Listado de clientes de Validar Cobro con acción contextual | Back | ProquifaDotNet.Finanzas | ❌ Pendiente |
 | 7 | LIST-NO-FILTER | Listado de pedidos pendientes para modal Gestionar Cobranza | Back | ProquifaDotNet.Finanzas | ❌ Pendiente |
-| 8 | SERV-SIMPLE-PUT | Actualizar fecha estimada de pago desde modal Gestionar Cobranza | Back | ProquifaDotNet.Finanzas | ❌ Pendiente |
-| 9 | SERV-TRANSACT | Cancelar pedido por falta de pago desde modal Gestionar Cobranza | Back | ProquifaDotNet + ProquifaDotNet.Finanzas | ❌ Pendiente |
+| 8 | SERV-SIMPLE-PUT | Actualizar fecha estimada de pago con historial (OBS-044) | Back | ProquifaDotNet.Finanzas | ❌ Pendiente |
+| 9 | SERV-TRANSACT | Cancelar pedido + CFDI por falta de pago (OBS-042) | Back | ProquifaDotNet + ProquifaDotNet.Finanzas | ❌ Pendiente |
+| 10 | UPDATE-TABL-CH | Crear tabla fccFechaEstimadaPagoHistorial (OBS-044) | BD | ProquifaDotNet | ❌ Pendiente |
 
 ---
 
@@ -98,37 +99,40 @@ Ver sección *"A1"* en `TPSC-RE-FU-023-Back.md` y sección *"3"* en `TPSC-RE-FU-
 
 **Consideraciones previas:**
 - `tpProformaPedido.Cancelada` (bit) ya existe — no requiere ALTER.
-- Los dos campos nuevos registran quién y cuándo canceló desde el modal Gestionar Cobranza.
-- Deben ser NULL para no romper registros existentes.
+- Los campos `FechaCancelacionPorFaltaPago` e `IdUsuarioCancelacion` registran quién y cuándo canceló el pedido desde el modal Gestionar Cobranza.
+- **OBS-042:** Adicionalmente se agregan `FechaSolicitudCancelacion` (datetime2 NULL) y `EstadoCancelacionCFDI` (varchar(50) NULL) para trazabilidad de la cancelación del CFDI ante el SAT. Son campos distintos de la cancelación del pedido.
+- Todos los campos deben ser NULL para no romper registros existentes.
 - Prerrequisito de la Tarea 9 (endpoint de cancelación en ProquifaDotNet).
 - Esta tarea es independiente de la Tarea 1 — puede ejecutarse en paralelo.
 
 **Objetivo general:**
-Agregar `FechaCancelacionPorFaltaPago` e `IdUsuarioCancelacion` a `tpPedido`
-para trazabilidad de la cancelación desde el modal Gestionar Cobranza.
+Agregar los 4 campos de trazabilidad a `tpPedido`: cancelación por falta de pago (`FechaCancelacionPorFaltaPago`, `IdUsuarioCancelacion`) y cancelación CFDI ante el SAT (`FechaSolicitudCancelacion`, `EstadoCancelacionCFDI` — OBS-042).
 
 **Objetivos específicos:**
 - `ALTER TABLE dbo.tpPedido ADD FechaCancelacionPorFaltaPago datetime2 NULL`
 - `ALTER TABLE dbo.tpPedido ADD IdUsuarioCancelacion uniqueidentifier NULL`
+- `ALTER TABLE dbo.tpPedido ADD FechaSolicitudCancelacion datetime2 NULL` (OBS-042)
+- `ALTER TABLE dbo.tpPedido ADD EstadoCancelacionCFDI varchar(50) NULL` (OBS-042)
 - Verificar SPs, vistas y triggers dependientes de `tpPedido`.
 
 **Resultado esperado:**
-`tpPedido` con ambos campos NULL disponibles para el endpoint de cancelación (Tarea 9).
+`tpPedido` con los 4 campos NULL disponibles para el endpoint de cancelación (Tarea 9).
 
 **Entregables:**
-- Script DDL: 2 ALTER TABLE tpPedido
+- Script DDL: 4 ALTER TABLE tpPedido
 - Script de validación y checklist de dependencias
 
 **Criterios de aceptación:**
-- Ambos campos existen como nullable en `tpPedido`.
+- Los 4 campos existen como nullable en `tpPedido`.
 - Sin errores en objetos dependientes tras el ALTER.
 - Registros existentes con NULL en los nuevos campos.
+- **OBS-042:** `FechaSolicitudCancelacion` y `EstadoCancelacionCFDI` incluidos en el script.
 
 **Más información de la tarea:**
-Ver sección *"A2"* en `TPSC-RE-FU-023-Back.md` y sección *"4"* en `TPSC-RE-FU-023_BD.md`.
+Ver sección *"A2"* en `TPSC-RE-FU-023-Back.md` y secciones *"4"* y *"5"* en `TPSC-RE-FU-023_BD.md`.
 
 **Recursos:**
-- `TPSC-RE-FU-023_BD.md` — Sección 4: ALTER tpPedido
+- `TPSC-RE-FU-023_BD.md` — Sección 4 y Sección 5 (OBS-042): ALTER tpPedido
 - `TPSC-RE-FU-023-Back.md` — Parte A, A2
 
 ---
@@ -483,44 +487,54 @@ Ver sección *"B4"* y *"C2"* en `TPSC-RE-FU-023-Back.md`.
 
 **Consideraciones previas:**
 - La Tarea 3 (Scaffold tpProformaPedido) debe estar completada.
+- La Tarea 10 (CREATE TABLE fccFechaEstimadaPagoHistorial) debe completarse antes de esta tarea.
 - `tpProformaPedido.FechaPromesaPagoMonitoreoCobros` ya existe en la tabla — solo es un UPDATE.
 - Se actualiza directamente vía Scaffold Finanzas — no vía API ProquifaDotNet.
 - Puede actualizar varios pedidos a la vez al presionar "Confirmar" en el modal.
 - La fecha puede enviarse como `null` para limpiarla.
 - Validar que los pedidos pertenecen a la cartera del usuario activo (por claims del token).
+- **OBS-044:** Cada cambio de fecha genera un INSERT en `fccFechaEstimadaPagoHistorial` con el valor anterior y el nuevo. No se sobreescribe el historial — es append-only.
 
 **Objetivo general:**
 `PUT /api/validar-cobro/proformas/fecha-promesa` en Finanzas que persiste
-`FechaPromesaPagoMonitoreoCobros` en `tpProformaPedido` para los pedidos enviados.
+`FechaPromesaPagoMonitoreoCobros` en `tpProformaPedido` y guarda el historial completo de cambios en `fccFechaEstimadaPagoHistorial` (OBS-044).
 
 **Objetivos específicos:**
 - Command + Handler: `UpdateFechaPromesaPagoCommand`.
-  - Input: `List<(Guid IdTpProformaPedido, DateTime? FechaPromesaPago)>`.
-  - Handler: UPDATE `tpProformaPedido.FechaPromesaPagoMonitoreoCobros` por cada pedido.
-  - Permitir fecha `null` para limpiar.
+  - Input: `List<(Guid IdTpProformaPedido, DateTime? FechaPromesaPago, Guid IdUsuarioCambio, string? Motivo)>`.
+  - Handler (por cada ítem):
+    1. Leer `FechaPromesaPagoMonitoreoCobros` actual.
+    2. UPDATE `tpProformaPedido.FechaPromesaPagoMonitoreoCobros = @fechaNueva`.
+    3. INSERT `fccFechaEstimadaPagoHistorial` (anterior, nueva, timestamp, usuario, motivo). (OBS-044)
+  - Permitir fecha `null` para limpiar (registrar en historial como `FechaEstimadaPagaNueva = null`).
+- Agregar `fccFechaEstimadaPagoHistorial` al Scaffold de Finanzas (después de Tarea 10).
 - Validar pertenencia de los pedidos a la cartera del usuario activo.
 - Registrar en Serilog con contexto usuario/módulo/operación.
 
 **Resultado esperado:**
-`FechaPromesaPagoMonitoreoCobros` actualizada en `tpProformaPedido` por los pedidos enviados.
+`FechaPromesaPagoMonitoreoCobros` actualizada y fila de historial insertada en `fccFechaEstimadaPagoHistorial` por cada cambio (OBS-044).
 
 **Entregables:**
 - Endpoint `PUT /api/validar-cobro/proformas/fecha-promesa`
-- `UpdateFechaPromesaPagoCommand` + Handler en Application
+- `UpdateFechaPromesaPagoCommand` + Handler en Application (con historial OBS-044)
 - DTO: `ActualizarFechaPromesaPagoRequestDto`
-- Pruebas unitarias del Handler
+- Pruebas unitarias del Handler (incluyendo que el historial se inserta)
 
 **Criterios de aceptación:**
 - `FechaPromesaPagoMonitoreoCobros` actualizada por cada pedido enviado.
 - Se permite `null` para limpiar la fecha.
 - Valida que pedidos pertenecen a la cartera del usuario activo.
 - Registra en Serilog con contexto.
+- **OBS-044:** Por cada cambio de fecha se inserta una fila en `fccFechaEstimadaPagoHistorial` con `FechaEstimadaPagoAnterior`, `FechaEstimadaPagaNueva`, `FechaCambio` (UTC), `IdUsuarioCambio` y `Motivo` opcional.
+- **OBS-044:** Si la fecha es `null` (limpiar), se registra `FechaEstimadaPagaNueva = null` en el historial.
+- **OBS-044:** El historial es append-only — nunca UPDATE ni DELETE sobre `fccFechaEstimadaPagoHistorial`.
 
 **Más información de la tarea:**
-Ver sección *"B4"* y *"C3"* en `TPSC-RE-FU-023-Back.md`.
+Ver sección *"B4"* y *"C3"* en `TPSC-RE-FU-023-Back.md`. Sección *"6"* en `TPSC-RE-FU-023_BD.md`.
 
 **Recursos:**
-- `TPSC-RE-FU-023-Back.md` — Parte B, B4 y Parte C, C3
+- `TPSC-RE-FU-023-Back.md` — Parte B, B4 y Parte C, C3 (OBS-044)
+- `TPSC-RE-FU-023_BD.md` — Sección 6 (OBS-044): CREATE TABLE fccFechaEstimadaPagoHistorial
 
 ---
 
@@ -533,20 +547,21 @@ Ver sección *"B4"* y *"C3"* en `TPSC-RE-FU-023-Back.md`.
 **Módulos:** Validar Cobro — Modal Gestionar Cobranza
 
 **Consideraciones previas:**
-- La Tarea 2 debe completarse (`FechaCancelacionPorFaltaPago` e `IdUsuarioCancelacion` en `tpPedido`).
+- La Tarea 2 debe completarse (4 campos nuevos en `tpPedido` incluyendo OBS-042).
 - La cancelación requiere un **endpoint nuevo en ProquifaDotNet** (`tpPedidoController`) ya que
   `tpPedido` no está en el Scaffold de Finanzas y la transacción toca ambas tablas
   (`tpProformaPedido` y `tpPedido`) en la misma BD.
 - Finanzas llama al endpoint de ProquifaDotNet vía API con el Id del pedido y el Id del usuario.
 - Acción inmediata al presionar "Cancelar Pedido" — no requiere confirmar el modal general.
 - El pedido cancelado sale del listado del modal y del listado principal (C1 y C2).
+- **OBS-042:** Si el pedido tiene un CFDI en estado `Timbrada`, la cancelación debe además: (1) cambiar el estado de `CFDIGenerada` a `CancelacionSolicitada`, (2) enviar solicitud de cancelación al SAT vía ProquifaDotNet.Timbrado, (3) actualizar `tpPedido.FechaSolicitudCancelacion` y `tpPedido.EstadoCancelacionCFDI`. Este flujo puede ser asíncrono (CFDI 4.0 requiere aceptación del receptor).
 - ⚠️ Confirmar si debe disparar `spActualizarBuzonPagoLegacyLegacy`
   (ver `CorreoRecibidoClienteToPagoBO.ActualizarBuzonPagoLegacy`).
 - Registrar en Serilog con contexto usuario/módulo/operación.
 
 **Objetivo general:**
 Crear el endpoint `PUT /api/pedidos/{idTpPedido}/cancelar-falta-pago` en ProquifaDotNet
-y el Command en Finanzas que lo invoca, para cancelar el pedido con trazabilidad completa.
+y el Command en Finanzas que lo invoca, para cancelar el pedido con trazabilidad completa (incluyendo cancelación CFDI ante el SAT — OBS-042).
 
 **Objetivos específicos:**
 - **ProquifaDotNet — endpoint nuevo:**
@@ -558,6 +573,11 @@ y el Command en Finanzas que lo invoca, para cancelar el pedido con trazabilidad
                         IdUsuarioCancelacion = @idUsuario
         WHERE IdTpPedido = @idTpPedido
     ```
+  - **OBS-042:** Si el pedido tiene CFDI en estado `Timbrada`:
+    - UPDATE `CFDIGenerada.Estado = 'CancelacionSolicitada'`
+    - UPDATE `tpPedido.FechaSolicitudCancelacion = SYSUTCDATETIME(), EstadoCancelacionCFDI = 'Pendiente'`
+    - Invocar API ProquifaDotNet.Timbrado para enviar cancelación al SAT.
+    - Actualizar `tpPedido.EstadoCancelacionCFDI` con el resultado (`'Cancelado'`, `'Rechazado'`, etc.)
   - Validar que el pedido existe y no está ya cancelado.
 - **ProquifaDotNet.Finanzas — Command:**
   - Command + Handler: `CancelarPedidoPorFaltaDePagoCommand`.
@@ -568,12 +588,11 @@ y el Command en Finanzas que lo invoca, para cancelar el pedido con trazabilidad
 - Endpoint Finanzas: `PUT /api/validar-cobro/pedidos/{idTpPedido}/cancelar-falta-pago`.
 
 **Resultado esperado:**
-Pedido cancelado con trazabilidad completa: `tpProformaPedido.Cancelada=1`,
-`tpPedido.FechaCancelacionPorFaltaPago` e `IdUsuarioCancelacion` poblados.
-El pedido no aparece en el listado del modal ni en el listado principal.
+Pedido cancelado con trazabilidad completa: `tpProformaPedido.Cancelada=1`, `tpPedido.FechaCancelacionPorFaltaPago` e `IdUsuarioCancelacion` poblados. Si aplica, CFDI cancelado ante el SAT con estado registrado en `tpPedido.FechaSolicitudCancelacion` y `EstadoCancelacionCFDI` (OBS-042).
 
 **Entregables:**
 - Endpoint nuevo en ProquifaDotNet: `PUT /api/pedidos/{idTpPedido}/cancelar-falta-pago`
+- Lógica OBS-042: integración con ProquifaDotNet.Timbrado para cancelación CFDI
 - `CancelarPedidoPorFaltaDePagoCommand` + Handler en Finanzas.Application
 - Endpoint en Finanzas.API: `PUT /api/validar-cobro/pedidos/{id}/cancelar-falta-pago`
 - Pruebas unitarias del Handler (incluyendo error en llamada a ProquifaDotNet)
@@ -584,10 +603,74 @@ El pedido no aparece en el listado del modal ni en el listado principal.
 - El pedido no aparece en el listado del modal ni en el listado principal.
 - Errores registrados en Serilog con contexto usuario/módulo/operación.
 - Retorna error si el pedido no existe o ya está cancelado.
+- **OBS-042:** Si el pedido tiene CFDI en estado `Timbrada`, se envía solicitud de cancelación al SAT y se actualiza `tpPedido.FechaSolicitudCancelacion` y `EstadoCancelacionCFDI`.
+- **OBS-042:** `CFDIGenerada.Estado` pasa a `CancelacionSolicitada` cuando se inicia la cancelación.
 
 **Más información de la tarea:**
 Ver sección *"C4"* en `TPSC-RE-FU-023-Back.md`.
 
 **Recursos:**
-- `TPSC-RE-FU-023-Back.md` — Parte C, C4
+- `TPSC-RE-FU-023-Back.md` — Parte C, C4 (OBS-042)
+- `TPSC-RE-FU-023_BD.md` — Sección 5 (OBS-042): ALTER tpPedido cancelación CFDI
 - `ProquifaDotNet-R14\L11.MailBot\Procesos\Pagos\CorreoRecibidoClienteToPagoBO.cs` — método `ActualizarBuzonPagoLegacy`
+
+---
+
+## TAREA 10
+
+**[ RE-FU-023 ] [UPDATE-TABL-CH] Crear tabla fccFechaEstimadaPagoHistorial (OBS-044)**
+
+**Aplicativos:** ProquifaDotNet
+
+**Módulos:** Base de Datos — Validar Cobro
+
+**Consideraciones previas:**
+- Tabla nueva — no existe en BD (OBS-044).
+- Es append-only: solo INSERT, nunca UPDATE ni DELETE.
+- Prerrequisito de la Tarea 8 (`UpdateFechaPromesaPagoCommand` con historial).
+- Independiente de las Tareas 1 y 2 — puede ejecutarse en paralelo.
+
+**Objetivo general:**
+Crear la tabla `fccFechaEstimadaPagoHistorial` para guardar el historial completo de cambios de `FechaPromesaPagoMonitoreoCobros` (FechaEstimadaPago) en `tpProformaPedido`. Cada cambio genera una fila nueva.
+
+**Objetivos específicos:**
+- Ejecutar script DDL:
+  ```sql
+  CREATE TABLE dbo.fccFechaEstimadaPagoHistorial (
+      IdFccFechaEstimadaPagoHistorial uniqueidentifier NOT NULL
+          CONSTRAINT PK_fccFechaEstimadaPagoHistorial PRIMARY KEY
+          CONSTRAINT DF_fccFechaEstimadaPagoHistorial_Id DEFAULT (NEWID()),
+      IdTpProformaPedido             uniqueidentifier NOT NULL
+          CONSTRAINT FK_fccFechaEstimadaPagoHistorial_ProformaPedido
+              FOREIGN KEY REFERENCES dbo.tpProformaPedido(IdTpProformaPedido),
+      FechaEstimadaPagoAnterior      datetime2        NULL,
+      FechaEstimadaPagaNueva         datetime2        NULL,
+      FechaCambio                    datetime2        NOT NULL
+          CONSTRAINT DF_fccFechaEstimadaPagoHistorial_FechaCambio DEFAULT (SYSUTCDATETIME()),
+      IdUsuarioCambio                uniqueidentifier NOT NULL,
+      Motivo                         varchar(300)     NULL
+  );
+
+  CREATE NONCLUSTERED INDEX IX_fccFechaEstimadaPagoHistorial_ProformaPedido
+      ON dbo.fccFechaEstimadaPagoHistorial (IdTpProformaPedido, FechaCambio DESC);
+  ```
+- Verificar FK a `tpProformaPedido` vigente en BD.
+
+**Resultado esperado:**
+Tabla `fccFechaEstimadaPagoHistorial` creada en ProquifaDotNet, lista para ser consumida por el Scaffold de Finanzas (Tarea 3/8).
+
+**Entregables:**
+- Script DDL: CREATE TABLE + índice
+- Script de validación post-creación
+
+**Criterios de aceptación:**
+- Tabla existe en BD con los 7 campos definidos.
+- FK a `tpProformaPedido` activa y sin errores.
+- Índice `IX_fccFechaEstimadaPagoHistorial_ProformaPedido` creado.
+- Registros de prueba pueden insertarse correctamente (sin UPDATE ni DELETE).
+
+**Más información de la tarea:**
+Ver sección *"6"* en `TPSC-RE-FU-023_BD.md` y OBS-044.
+
+**Recursos:**
+- `TPSC-RE-FU-023_BD.md` — Sección 6 (OBS-044): CREATE TABLE fccFechaEstimadaPagoHistorial

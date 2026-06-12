@@ -273,6 +273,45 @@ namespace WebApi.Controllers.Configuracion.Clientes
 
 ---
 
+### GAP-06 — Rotación de `CodigoValidador`: preservar historial al actualizar (OBS-014)
+
+**Archivo:** `Logic.Pqf.Catalogos\Clientes\DatosBancarios\ClienteDatosBancariosBO.cs`
+**Impacto:** Al actualizar `CodigoValidador`, el código anterior se pierde. Se requiere guardar el historial para trazabilidad.
+**Cambio requerido:** Antes de sobreescribir `CodigoValidador` en `_GuardarOActualizar`, copiar los valores actuales a los campos `CodigoValidadorAnterior`, `FechaModificacionAnterior` e `IdUsuarioModificacionAnterior`.
+
+```csharp
+// DESPUÉS — ClienteDatosBancariosBO.cs con lógica de rotación (OBS-014)
+protected override Guid _GuardarOActualizar(ClienteDatosBancarios entity)
+{
+    entity.FechaUltimaActualizacion = DateTime.Now;
+
+    // Rotación: si ya existe un registro previo con código validador, preservar el anterior
+    if (entity.IdClienteDatosBancarios != Guid.Empty)
+    {
+        using (var db = new ProquifaDotNetEntities())
+        {
+            var existente = db.ClienteDatosBancarios
+                .FirstOrDefault(x => x.IdClienteDatosBancarios == entity.IdClienteDatosBancarios);
+
+            if (existente != null
+                && !string.IsNullOrEmpty(existente.CodigoValidador)
+                && existente.CodigoValidador != entity.CodigoValidador)
+            {
+                entity.CodigoValidadorAnterior       = existente.CodigoValidador;
+                entity.FechaModificacionAnterior     = existente.FechaUltimaActualizacion;
+                entity.IdUsuarioModificacionAnterior = entity.IdUsuarioModificacionAnterior; // pasa desde la capa de API
+            }
+        }
+    }
+
+    return base._GuardarOActualizar(entity);
+}
+```
+
+> **Nota:** El campo `IdUsuarioModificacionAnterior` debe ser pasado desde el controller (contexto del usuario autenticado) al entity antes de llamar a `GuardarOActualizar`.
+
+---
+
 ## 4. Tablas y entidades del modelo de datos
 
 | Tabla BD | Entidad EF | Propiedades clave R16 | Descripción |

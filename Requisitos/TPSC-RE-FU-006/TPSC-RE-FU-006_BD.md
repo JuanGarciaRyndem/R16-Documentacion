@@ -61,10 +61,13 @@ tpProformaPedido.ReferenciaPago  ← referencia reconstruida dinámicamente (no 
 | `IdClienteDatosBancarios`  | uniqueidentifier | NO   | PK. Default: NEWID()                                  |
 | `IdCliente`                | uniqueidentifier | NO   | FK — `Cliente`                                        |
 | `IdDatosBancarios`         | uniqueidentifier | NO   | FK — `DatosBancarios` (cuenta del grupo PROQUIFA)     |
-| `CodigoValidador`          | varchar(50)      | NO   | Código validador capturado manualmente por el usuario |
-| `FechaRegistro`            | datetime         | NO   | Default: GETDATE()                                    |
-| `FechaUltimaActualizacion` | datetime         | NO   | Default: GETDATE()                                    |
-| `Activo`                   | bit              | NO   | 1 = Asignación activa, 0 = Eliminada. Default: 1      |
+| `CodigoValidador`               | varchar(50)      | NO   | Código validador capturado manualmente por el usuario                 |
+| `CodigoValidadorAnterior`       | varchar(50)      | SÍ   | Código validador previo antes de la última actualización (OBS-014)    |
+| `FechaModificacionAnterior`     | datetime         | SÍ   | Fecha en que se realizó la modificación anterior del código (OBS-014) |
+| `IdUsuarioModificacionAnterior` | uniqueidentifier | SÍ   | Usuario que realizó la modificación anterior del código (OBS-014)     |
+| `FechaRegistro`                 | datetime         | NO   | Default: GETDATE()                                                    |
+| `FechaUltimaActualizacion`      | datetime         | NO   | Default: GETDATE()                                                    |
+| `Activo`                        | bit              | NO   | 1 = Asignación activa, 0 = Eliminada. Default: 1                      |
 
 > **⚠️ Pendiente** — Confirmar longitud máxima de `CodigoValidador` con el cliente. Actualmente propuesto como `varchar(50)` — ajustar antes de ejecutar en producción.
 
@@ -82,8 +85,12 @@ CREATE TABLE dbo.ClienteDatosBancarios (
     IdDatosBancarios         uniqueidentifier NOT NULL
         CONSTRAINT FK_ClienteDatosBancarios_DatosBancarios
         FOREIGN KEY REFERENCES dbo.DatosBancarios(IdDatosBancarios),
-    CodigoValidador          varchar(50)      NOT NULL,   -- Pendiente definir longitud maxima con cliente
-    FechaRegistro            datetime         NOT NULL
+    CodigoValidador              varchar(50)      NOT NULL,   -- Pendiente definir longitud maxima con cliente
+    -- OBS-014: historial del código anterior para trazabilidad de rotación
+    CodigoValidadorAnterior      varchar(50)      NULL,
+    FechaModificacionAnterior    datetime         NULL,
+    IdUsuarioModificacionAnterior uniqueidentifier NULL,
+    FechaRegistro                datetime         NOT NULL
         CONSTRAINT DF_ClienteDatosBancarios_FechaRegistro    DEFAULT (GETDATE()),
     FechaUltimaActualizacion datetime         NOT NULL
         CONSTRAINT DF_ClienteDatosBancarios_FechaActualizacion DEFAULT (GETDATE()),

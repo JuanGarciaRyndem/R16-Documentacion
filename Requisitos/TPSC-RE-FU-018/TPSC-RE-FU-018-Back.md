@@ -272,6 +272,8 @@ tpPedido (FacturaPorAdelantado=1, Tramitado=1, Activo=1, Region=MEX)
 
 Filtro: tpProformaAdelanto.Activo=1 AND (IdCFDIGenerada IS NULL OR no enviada)
         AND tpPedido.IdRegion = @IdRegionMexico  -- OBS-032/033: FAA solo aplica para Mexico; clientes Peru se excluyen del listado
+        -- OBS-034: "no enviada" incluye los casos donde el CFDI ya fue timbrado pero el usuario AÚN NO ha ejecutado "Enviar Factura"
+        --          El envío de la factura es una acción EXPLÍCITA del usuario, NO automática post-timbrado.
 
 Agrupacion: GROUP BY Cliente
   COUNT(tpProformaAdelanto) AS FacturasPendientes
@@ -299,6 +301,18 @@ Buscador: TRIM(DatosFacturacionCliente.RazonSocial) LIKE / TRIM(RFC) LIKE / TRIM
 | ClienteCartera | IdUsuarioCobrador |
 | catMoneda | Para conversion a USD |
 | Region | MEX/PER |
+
+### Nota: Enviar Factura — acción explícita del usuario (OBS-034)
+
+> **OBS-034:** El envío de la factura al cliente es una **acción explícita del usuario**, NO ocurre de forma automática después del timbrado.
+>
+> Flujo esperado:
+> 1. ESAC/Cobrador abre el pendiente FAA y ejecuta el proceso de timbrado (genera CFDI).
+> 2. El sistema queda en estado "Timbrada — Pendiente de envío".
+> 3. El usuario revisa y hace clic en **"Enviar Factura"** explícitamente.
+> 4. Solo entonces se envía la factura al cliente (por correo, etc.).
+>
+> Las tareas de los requisitos RE-FU-019/020 deben respetar esta separación: timbrado y envío son dos pasos distintos con acción de usuario entre ellos.
 
 ### Nota: FAA vs Factura Anticipo — OBS-037
 

@@ -12,12 +12,16 @@
 
 ## Resumen Ejecutivo
 
-El requisito introduce una **validación automática** en el módulo Pretramitar Pedido que bloquea el avance hacia Tramitar Pedido cuando un pedido contiene sustancias controladas (Mundial, Nacional u Origen) y el cliente **no tiene registrados** los documentos regulatorios requeridos en su catálogo (`ArchivoCliente`).
+El requisito introduce una **validación de documentos regulatorios** en el módulo **Tramitar Pedido (L05)** cuando un pedido contiene sustancias controladas (Mundial, Nacional u Origen) y el cliente **no tiene registrados** los documentos regulatorios requeridos en su catálogo (`ArchivoCliente`).
 
-El impacto en BackEnd es **localizado** — se concentra en:
-1. Un script de BD para insertar catálogos y actualizar una función.
-2. Una nueva clase de validación en la capa de lógica de negocio.
-3. Integración de esa validación en el flujo existente de tramitación (`PretramitarPedidoTransaccionBO`).
+> **OBS-023:** La validación se mueve de `L04.PretramitarPedido` (VerificarPedidoTramitableBO) a **`L05.TramitarPedido` (TramitarPedidoBO)**. La lógica en `VerificarPedidoTramitableBO` ya NO llama a `ValidarDocumentosRegulatoriosBO`.
+
+El impacto en BackEnd incluye:
+1. Scripts BD: ALTER `ppPedido` (AceptaEntregasParciales) + ALTER `tpPedido` (IdPedidoOrigenControlado).
+2. Scripts BD para catálogos y función.
+3. Nueva clase `ValidarDocumentosRegulatoriosBO` en `L05.TramitarPedido\Validaciones\`.
+4. DTO extendido `ResultadoValidacionRegulatoria` con soporte para resultado parcial (partidas tramitables vs. retenidas).
+5. Bifurcación en `TramitarPedidoBO`: si `AceptaEntregasParciales=1`, tramitar elegibles + crear pedido hijo para controladas retenidas.
 
 ---
 
@@ -73,25 +77,33 @@ PretramitarPedidoTramitarController
             → Genera tpPedido(s)
 ```
 
-### 2.2 Punto de inserción de la validación regulatoria
+### 2.2 Punto de inserción de la validación regulatoria (OBS-023)
 
-La validación regulatoria debe ejecutarse **antes** de llamar a `TramitarPedidoBO.Process()`, dentro de `PretramitarPedidoTransaccionBO.PretramitarPedidoTransaccion()`, o bien dentro de `VerificarPedidoTramitableBO.Procesar()`.
+> **Cambio OBS-023:** La validación se ejecuta ahora en **`TramitarPedidoBO.Process()`** (L05), NO en `VerificarPedidoTramitableBO.Procesar()` (L04).
+> `VerificarPedidoTramitableBO` ya **no** llama a `ValidarDocumentosRegulatoriosBO`.
 
-**Opción recomendada:** Insertar en `VerificarPedidoTramitableBO.Procesar()` ya que es el punto centralizado de verificación pre-tramitación y se invoca desde `TramitarPedidoBO.Process()`.
+Dentro de `TramitarPedidoBO.Process()`, después de separar partidas controladas / no controladas:
+1. Llamar a `ValidarDocumentosRegulatoriosBO.ValidarConResultadoParcial(idPPPedido)`.
+2. Si resultado = todo válido → tramitar normalmente (flujo existente).
+3. Si resultado = controladas sin docs:
+   - Si `ppPedido.AceptaEntregasParciales = 1` → tramitar solo partidas no controladas + crear pedido hijo para las controladas retenidas (con `IdPedidoOrigenControlado` apuntando al padre).
+   - Si `ppPedido.AceptaEntregasParciales = 0` → bloquear completo (excepción con mensaje genérico).
 
-### 2.3 Componentes nuevos
+### 2.3 Componentes nuevos (OBS-023)
 
 | # | Archivo | Proyecto | Tipo | Descripción |
 |:-:|---------|----------|------|-------------|
-| 1 | `L04.PretramitarPedido\Validaciones\ValidarDocumentosRegulatoriosBO.cs` | `Logic.Pqf.Logistica` | **NUEVO** | Lógica de validación regulatoria |
-| 2 | `L04.PretramitarPedido\Validaciones\Models\ResultadoValidacionRegulatoria.cs` | `Logic.Pqf.Logistica` | **NUEVO** | DTO con resultado (bool Valido, string Mensaje) |
+| 1 | `L05.TramitarPedido\Validaciones\ValidarDocumentosRegulatoriosBO.cs` | `Logic.Pqf.Logistica` | **NUEVO** | Lógica de validación regulatoria — retorna resultado con detalle de partidas tramitables y retenidas |
+| 2 | `L05.TramitarPedido\Validaciones\Models\ResultadoValidacionRegulatoria.cs` | `Logic.Pqf.Logistica` | **NUEVO** | DTO extendido: `EsValido`, `Mensaje`, `PartidasTramitables`, `PartidasRetenidasPorControladas` |
+| 3 | `L05.TramitarPedido\Liberar\CrearPedidoHijoControladoBO.cs` | `Logic.Pqf.Logistica` | **NUEVO** | Crea pedido hijo (`tpPedido`) para las partidas controladas retenidas, con `IdPedidoOrigenControlado` = padre |
 
-### 2.4 Componentes existentes a modificar
+### 2.4 Componentes existentes a modificar (OBS-023)
 
 | # | Archivo | Proyecto | Cambio |
 |:-:|---------|----------|--------|
-| 1 | `L04.PretramitarPedido\Tramite\VerificarPedidoTramitableBO.cs` | `Logic.Pqf.Logistica` | Agregar llamada a `ValidarDocumentosRegulatoriosBO` dentro de `Procesar()` |
-| 2 | `Productos\ProductoBO.TipoExtensions.cs` | `Logic.Pqf.Catalogos` | **Evaluar** — Verificar que `ProductoMarcaFamilia.Controlado` cubre `origen`. Si no, ajustar lógica o usar query directa a catControl. |
+| 1 | `L05.TramitarPedido\Liberar\TramitarPedidoBO.cs` | `Logic.Pqf.Logistica` | Agregar bifurcación: llamar a `ValidarDocumentosRegulatoriosBO` + lógica de entrega parcial / pedido hijo |
+| 2 | `L04.PretramitarPedido\Tramite\VerificarPedidoTramitableBO.cs` | `Logic.Pqf.Logistica` | **QUITAR** la llamada a `ValidarDocumentosRegulatoriosBO` (si se había agregado) — ahora está en L05 |
+| 3 | `Productos\ProductoBO.TipoExtensions.cs` | `Logic.Pqf.Catalogos` | **Evaluar** — Verificar que `ProductoMarcaFamilia.Controlado` cubre `origen`. Si no, ajustar lógica o usar query directa a catControl. |
 
 ### 2.5 Lógica de `ValidarDocumentosRegulatoriosBO`
 

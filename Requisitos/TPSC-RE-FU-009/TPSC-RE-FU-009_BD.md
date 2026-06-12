@@ -6,9 +6,12 @@
 ---
 
 ## Resumen
-Validacion automatica al avanzar de Pretramitar Pedido a Tramitar Pedido.
-Bloquea si el cliente no tiene documentos regulatorios (Licencia Sanitaria + Aviso
-Responsable Sanitario MEX / equivalentes DIGEMID PER) registrados en ArchivoCliente.
+Validacion de documentos regulatorios al **Tramitar** el pedido (L05 — OBS-023: movida desde L04).
+Cuando el pedido tiene sustancias controladas y el cliente **no tiene** documentos regulatorios registrados:
+- Si `ppPedido.AceptaEntregasParciales = 1`: tramitar solo partidas elegibles + retener controladas sin docs + generar pedido hijo para las controladas retenidas.
+- Si `ppPedido.AceptaEntregasParciales = 0`: bloquear el tramitado completo.
+
+> **OBS-023:** La validación regulatoria se mueve de `L04.PretramitarPedido` (VerificarPedidoTramitableBO) a `L05.TramitarPedido` (TramitarPedidoBO). Se agrega bifurcación por entregas parciales.
 
 ---
 
@@ -32,11 +35,34 @@ Responsable Sanitario MEX / equivalentes DIGEMID PER) registrados en ArchivoClie
 
 ---
 
+## Cambios Estructurales (OBS-023)
+
+| Tabla | Campo | Tipo | Estado | Descripción |
+|-------|-------|------|--------|-------------|
+| `ppPedido` | `AceptaEntregasParciales` | `bit NOT NULL DEFAULT(0)` | ✨ NUEVO R16 | El usuario acepta que se tramiten solo las partidas elegibles, reteniendo las controladas sin documentación |
+| `tpPedido` | `IdPedidoOrigenControlado` | `uniqueidentifier NULL` | ✨ NUEVO R16 | FK al `tpPedido` padre cuando este pedido es un hijo generado para partidas controladas retenidas |
+
+**Scripts:**
+
+```sql
+-- OBS-023: bifurcación por entregas parciales
+ALTER TABLE dbo.ppPedido
+    ADD AceptaEntregasParciales bit NOT NULL
+        CONSTRAINT DF_ppPedido_AceptaEntregasParciales DEFAULT (0);
+
+ALTER TABLE dbo.tpPedido
+    ADD IdPedidoOrigenControlado uniqueidentifier NULL
+        CONSTRAINT FK_tpPedido_PedidoOrigenControlado
+            FOREIGN KEY REFERENCES dbo.tpPedido(IdTpPedido);
+```
+
+---
+
 ## Entidades Afectadas
 
 | Objeto | Tipo | Estado | Rol en Validacion |
 |--------|------|--------|-------------------|
-| ppPedido | Tabla | Existente | Cabecera del pedido - IdRegion, Tramitado |
+| ppPedido | Tabla | Existente + **ALTER** (OBS-023) | Cabecera del pedido - IdRegion, Tramitado, AceptaEntregasParciales |
 | ppPartidaPedido | Tabla | Existente | Partidas con IdProducto - detectar si es controlado |
 | MarcaFamilia | Tabla | Existente | Vincula Producto -> Familia |
 | Familia | Tabla | Existente | IdCatControl determina si es controlado |
@@ -62,7 +88,7 @@ Responsable Sanitario MEX / equivalentes DIGEMID PER) registrados en ArchivoClie
 
 ## Tablas Clave
 
-### ppPedido (cabecera - sin cambios estructurales)
+### ppPedido (cabecera — ALTER: AceptaEntregasParciales)
 
 | Columna | Tipo | Uso en Validacion |
 |---------|------|-------------------|
@@ -71,6 +97,13 @@ Responsable Sanitario MEX / equivalentes DIGEMID PER) registrados en ArchivoClie
 | Tramitado | bit | 0=En pretramitacion / 1=Tramitado |
 | IdContactoCliente | uniqueidentifier | -> ContactoCliente -> IdCliente |
 | IdCatEstadoPretramitacionPedido | uniqueidentifier | Estado del pedido |
+| **AceptaEntregasParciales** | **bit NOT NULL DEFAULT(0)** | **NUEVO OBS-023 — si 1: tramitar elegibles + retener controladas sin docs** |
+
+### tpPedido (ALTER: IdPedidoOrigenControlado — OBS-023)
+
+| Columna | Tipo | Uso |
+|---------|------|-----|
+| **IdPedidoOrigenControlado** | **uniqueidentifier NULL** | **NUEVO OBS-023 — FK al tpPedido padre cuando este pedido es hijo de partidas controladas retenidas** |
 
 ### ppPartidaPedido (partidas - sin cambios estructurales)
 

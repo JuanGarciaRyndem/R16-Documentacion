@@ -1,0 +1,105 @@
+# LegacyBridge — Flujos ETL a Legacy
+
+Entidades transferidas al sistema legado vía SSIS: Cotizaciones, Pedidos, Facturas, Notas de Crédito, PSC/PCC, Cobros.
+
+```mermaid
+erDiagram
+    %% ============================================================
+    %% LegacyBridge documenta los flujos ETL (SSIS) que transfieren
+    %% datos desde ProquifaDotNet al sistema legado.
+    %% Cada entidad representa los campos que viajan en la transferencia
+    %% según los requisitos R16. El sistema legado recibe estos datos
+    %% en sus propias tablas (estructura interna del legado no documentada aquí).
+    %% ============================================================
+    ETL_Cotizacion {
+        uniqueidentifier IdCotizacion FK "origen: ProquifaDotNet"
+        varchar FolioCotizacion
+        uniqueidentifier IdCliente FK
+        uniqueidentifier IdEmpresa FK
+        decimal MontoTotal
+        varchar Estado
+        varchar PDF_Referencia
+        datetime2 FechaTransferencia
+    }
+    ETL_CotizacionPartida {
+        uniqueidentifier IdCotizacionPartida FK "origen: ProquifaDotNet"
+        uniqueidentifier IdCotizacion FK
+        varchar ClaveProducto
+        int Cantidad
+        decimal PrecioUnitario
+        decimal Importe
+    }
+    ETL_Pedido {
+        uniqueidentifier IdTPPedido FK "origen: tpPedido"
+        varchar FolioPedidoInterno
+        uniqueidentifier IdCliente FK
+        uniqueidentifier IdEmpresa FK
+        varchar TipoPedido
+        varchar EstadoTransferencia
+        datetime2 FechaTransferencia
+    }
+    ETL_PedidoPartida {
+        uniqueidentifier IdPedidoPartida FK "origen: ProquifaDotNet"
+        uniqueidentifier IdTPPedido FK
+        varchar ClaveProducto
+        int Cantidad
+        decimal PrecioUnitario
+        decimal Importe
+    }
+    ETL_Factura {
+        uniqueidentifier IdCFDIGenerada FK "origen: CFDIGenerada"
+        varchar UUID
+        varchar Serie
+        varchar Folio
+        varchar RFC_Emisor
+        varchar RFC_Receptor
+        decimal Total
+        nvarchar XML_CFDI
+        varchar PDF_Referencia
+        datetime2 FechaEmision
+        datetime2 FechaTransferencia
+    }
+    ETL_NotaCredito {
+        uniqueidentifier IdFCCNotaCredito FK "origen: fccNotaCredito"
+        varchar UUID_NC
+        varchar Serie
+        varchar Folio
+        varchar UUID_FacturaOrigen
+        decimal Monto
+        varchar Modalidad
+        varchar Motivo
+        varchar Estado
+        nvarchar XML_CFDI_NC
+        varchar PDF_Referencia
+        datetime2 FechaEmision
+        datetime2 FechaTransferencia
+    }
+    ETL_PSC_Pendiente {
+        uniqueidentifier IdTPPedido FK "PSC: Pedido Sin Credito"
+        varchar TipoPendiente
+        varchar Estado
+        datetime2 FechaGeneracion
+        varchar ObservacionesLegado
+    }
+    ETL_PCC_Pendiente {
+        uniqueidentifier IdTPPedido FK "PCC: Pedido Con Credito"
+        varchar TipoPendiente
+        varchar Estado
+        datetime2 FechaGeneracion
+        varchar ObservacionesLegado
+    }
+    ETL_CobrosIngresados {
+        uniqueidentifier IdFCCPagoCliente FK "origen: fccPagoCliente"
+        uniqueidentifier IdCliente FK
+        decimal Monto
+        varchar ReferenciaBancaria
+        datetime2 FechaCobro
+        datetime2 FechaTransferencia
+    }
+    ETL_Cotizacion ||--o{ ETL_CotizacionPartida : "tiene"
+    ETL_Pedido ||--o{ ETL_PedidoPartida : "tiene"
+    ETL_Pedido ||--o| ETL_PSC_Pendiente : "genera (PSC)"
+    ETL_Pedido ||--o| ETL_PCC_Pendiente : "genera (PCC)"
+    ETL_Pedido ||--o{ ETL_Factura : "facturado en"
+    ETL_Factura ||--o{ ETL_NotaCredito : "origen de NC"
+```

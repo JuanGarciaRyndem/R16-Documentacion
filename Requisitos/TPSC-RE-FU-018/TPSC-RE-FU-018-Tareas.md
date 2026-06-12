@@ -548,6 +548,7 @@ Endpoint funcional de listado FAA paginado con filtros.
 - El buscador funciona con coincidencia parcial
 - El endpoint aparece documentado en Swagger
 - Al acceder al modulo FAA en Venta Interna, se muestra el listado agrupado por cliente con pendientes.
+- **OBS-034:** El listado incluye pendientes donde el CFDI ya fue timbrado pero el usuario aún no ha ejecutado "Enviar Factura". El envío es una acción explícita posterior al timbrado — **no se envía automáticamente**. El estado "timbrada — pendiente de envío" debe ser visible en el listado.
 
 **Mas informacion de la tarea:**
 Corresponde a GAP-13, GAP-15 y GAP-16.

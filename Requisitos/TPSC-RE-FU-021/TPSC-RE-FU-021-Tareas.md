@@ -1,4 +1,4 @@
-﻿# Tareas BackEnd - TPSC-RE-FU-021
+# Tareas BackEnd - TPSC-RE-FU-021
 **Requisito:** Diseño y generación de Documentos: Factura México
 **Aplicativos:** ProquifaDotNet (.NET Framework 4.8) + ProquifaDotNet.Finanzas (.NET Core 10) + DocumentBuilder
 

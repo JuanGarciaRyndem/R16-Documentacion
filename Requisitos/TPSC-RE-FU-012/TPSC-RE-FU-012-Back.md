@@ -151,6 +151,12 @@ Dependencia de TPSC-RE-FU-010 T3.
 
 Sin cambios respecto a RE-FU-010. La FAA es un proceso paralelo independiente.
 
+> **OBS-024 — PCE (Pago Contra Entrega) traduce como crédito en Legacy:**
+> Cuando `catCondicionesDePago.Clave = 'pagocontraentrega'`, el payload builder (`EtlPedidoCreditoPayloadBuilder`) debe traducirlo como **crédito** en Legacy, **NO como prepago**. Aunque el nombre sugiera pago adelantado, Legacy lo procesa como flujo de crédito.
+
+> **OBS-025 — PQF2 solo inserta datos planos; "Relacionar facturas" es responsabilidad de Legacy:**
+> El payload builder de PQF2 únicamente inserta los datos planos del pedido en Legacy. La lógica de "Relacionar facturas" (asociación de facturas a pedido dentro de Legacy) es responsabilidad del proceso interno de Legacy, **no del payload builder** de ProquifaDotNet.
+
 ---
 
 ## Dependencias

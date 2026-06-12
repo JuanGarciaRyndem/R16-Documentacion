@@ -34,6 +34,9 @@ Ambas tablas son referenciadas por todos los requisitos del módulo (023–029).
 | 7  | ALTER TABLE fccPagoCliente ADD IdCatMoneda uniqueidentifier NULL FK catMoneda | DDL       | ❌ Pendiente  |
 | 8  | FechaEstimadaPago (tpProformaPedido.FechaPromesaPagoMonitoreoCobros)          | Existente | —            |
 | 9  | Filtro cartera (ClienteCartera.IdUsuarioCobrador)                             | Existente | —            |
+| 10 | ALTER TABLE tpPedido ADD FechaSolicitudCancelacion datetime2 NULL (OBS-042)   | DDL       | ❌ Pendiente  |
+| 11 | ALTER TABLE tpPedido ADD EstadoCancelacionCFDI varchar(50) NULL (OBS-042)     | DDL       | ❌ Pendiente  |
+| 12 | CREATE TABLE fccFechaEstimadaPagoHistorial (OBS-044)                          | DDL       | ❌ Pendiente  |
 
 ---
 
@@ -301,6 +304,102 @@ WHERE TABLE_NAME = 'tpPedido'
 
 ---
 
+## 5. ALTER TABLE tpPedido — Trazabilidad Cancelación CFDI (OBS-042)
+
+> ❌ PENDIENTE de ejecutar. Campos `FechaSolicitudCancelacion` y `EstadoCancelacionCFDI` NO existen aún en `tpPedido`.
+
+**Propósito:** Registrar la fecha en que se solicitó la cancelación del CFDI ante el SAT y el estado actual de esa cancelación, para permitir trazabilidad completa del proceso de cancelación fiscal del pedido.
+
+```sql
+-- ❌ PENDIENTE — revisar objetos dependientes antes de ejecutar en ProquifaDotNet
+-- OBS-042: trazabilidad de cancelación CFDI
+
+ALTER TABLE dbo.tpPedido
+    ADD FechaSolicitudCancelacion datetime2 NULL;
+
+ALTER TABLE dbo.tpPedido
+    ADD EstadoCancelacionCFDI varchar(50) NULL;
+```
+
+**Diccionario de datos — campos nuevos en tpPedido (OBS-042)**
+
+| Columna                     | Tipo         | Nulo | Descripción                                                                               |
+|-----------------------------|--------------|------|-------------------------------------------------------------------------------------------|
+| `FechaSolicitudCancelacion` | datetime2    | SÍ   | Fecha y hora en que se envió la solicitud de cancelación del CFDI al SAT                  |
+| `EstadoCancelacionCFDI`     | varchar(50)  | SÍ   | Estado de la cancelación devuelto por el SAT / PAC (ej. "Pendiente", "Cancelado", "Rechazado") |
+
+**Consideraciones especiales**
+
+- Ambos campos NULL — no rompen registros existentes.
+- Se populan al ejecutar la cancelación del CFDI desde el módulo de Gestionar Cobranza (Tarea 9 de RE-FU-023).
+- `EstadoCancelacionCFDI` se actualiza si el SAT devuelve un estado asíncrono (cancelación en dos pasos CFDI 4.0).
+- Complementa `FechaCancelacionPorFaltaPago` + `IdUsuarioCancelacion` — son conceptos distintos: cancelación del pedido vs. cancelación del CFDI ante el SAT.
+
+---
+
+## 6. CREATE TABLE fccFechaEstimadaPagoHistorial (OBS-044)
+
+> ❌ PENDIENTE de crear. Tabla nueva para historial completo de cambios en FechaEstimadaPago.
+
+**Propósito:** Guardar el historial completo de cambios de `FechaPromesaPagoMonitoreoCobros` (FechaEstimadaPago) por proforma/pedido. Cada cambio genera una fila nueva — no se sobrescribe el valor anterior.
+
+```sql
+-- ❌ PENDIENTE — crear en ProquifaDotNet
+-- OBS-044: historial de FechaEstimadaPago
+
+CREATE TABLE dbo.fccFechaEstimadaPagoHistorial (
+    IdFccFechaEstimadaPagoHistorial uniqueidentifier NOT NULL
+        CONSTRAINT PK_fccFechaEstimadaPagoHistorial PRIMARY KEY
+        CONSTRAINT DF_fccFechaEstimadaPagoHistorial_Id DEFAULT (NEWID()),
+    IdTpProformaPedido             uniqueidentifier NOT NULL
+        CONSTRAINT FK_fccFechaEstimadaPagoHistorial_ProformaPedido
+            FOREIGN KEY REFERENCES dbo.tpProformaPedido(IdTpProformaPedido),
+    FechaEstimadaPagoAnterior      datetime2        NULL,
+    FechaEstimadaPagaNueva         datetime2        NULL,
+    FechaCambio                    datetime2        NOT NULL
+        CONSTRAINT DF_fccFechaEstimadaPagoHistorial_FechaCambio DEFAULT (SYSUTCDATETIME()),
+    IdUsuarioCambio                uniqueidentifier NOT NULL,
+    Motivo                         varchar(300)     NULL
+);
+```
+
+**Diccionario de datos**
+
+| Nombre de tabla                    | Descripción                                                              |
+|------------------------------------|--------------------------------------------------------------------------|
+| `fccFechaEstimadaPagoHistorial`    | Historial completo de cambios de la fecha estimada de pago por proforma  |
+
+| Columna                               | Tipo             | Nulo | Descripción                                                             |
+|---------------------------------------|------------------|------|-------------------------------------------------------------------------|
+| `IdFccFechaEstimadaPagoHistorial`     | uniqueidentifier | NO   | PK — DEFAULT NEWID()                                                    |
+| `IdTpProformaPedido`                  | uniqueidentifier | NO   | FK tpProformaPedido — proforma cuya fecha cambió                        |
+| `FechaEstimadaPagoAnterior`           | datetime2        | SÍ   | Valor previo de FechaPromesaPagoMonitoreoCobros (NULL si era primer valor) |
+| `FechaEstimadaPagaNueva`              | datetime2        | SÍ   | Nuevo valor asignado                                                    |
+| `FechaCambio`                         | datetime2        | NO   | Timestamp UTC del cambio — DEFAULT SYSUTCDATETIME()                     |
+| `IdUsuarioCambio`                     | uniqueidentifier | NO   | ID del usuario que realizó el cambio (trazabilidad)                     |
+| `Motivo`                              | varchar(300)     | SÍ   | Justificación opcional del cambio                                       |
+
+**Relaciones**
+
+| Tabla relacionada  | Columna FK              | Tipo de relación |
+|--------------------|-------------------------|------------------|
+| `tpProformaPedido` | `IdTpProformaPedido`    | N:1              |
+
+**Índices**
+
+| Nombre                                            | Columnas                            | Tipo       |
+|---------------------------------------------------|-------------------------------------|------------|
+| `PK_fccFechaEstimadaPagoHistorial`                | `IdFccFechaEstimadaPagoHistorial`   | PRIMARY KEY|
+| `IX_fccFechaEstimadaPagoHistorial_ProformaPedido` | `IdTpProformaPedido, FechaCambio`   | NONCLUSTERED (DESC) |
+
+**Consideraciones especiales**
+
+- Cada UPDATE a `tpProformaPedido.FechaPromesaPagoMonitoreoCobros` genera un INSERT en esta tabla (no se actualiza la fila existente).
+- `FechaEstimadaPagoAnterior = NULL` es válido para el primer registro (cuando no había fecha previa).
+- La tabla es append-only (solo INSERT, nunca UPDATE ni DELETE).
+
+---
+
 ## Ciclo de vida del flujo Validar Cobro
 
 ```
@@ -365,9 +464,11 @@ tpProformaPedido.IdCliente → Cliente
 
 | Tabla              | Momento                     | Operación                                                  |
 |--------------------|-----------------------------|------------------------------------------------------------|
-| `tpProformaPedido` | Al confirmar fecha en modal | UPDATE FechaPromesaPagoMonitoreoCobros                     |
+| `tpProformaPedido` | Al confirmar fecha en modal | UPDATE FechaPromesaPagoMonitoreoCobros (OBS-044: + INSERT historial) |
 | `tpProformaPedido` | Al cancelar pedido          | UPDATE Cancelada = 1                                       |
 | `tpPedido`         | Al cancelar pedido          | UPDATE FechaCancelacionPorFaltaPago, IdUsuarioCancelacion  |
+| `tpPedido`         | Al cancelar CFDI            | UPDATE FechaSolicitudCancelacion, EstadoCancelacionCFDI (OBS-042) |
+| `fccFechaEstimadaPagoHistorial` | Al cambiar fecha estimada pago | INSERT nueva fila (OBS-044) |
 
 ---
 
@@ -398,8 +499,8 @@ tpProformaPedido.IdCliente → Cliente
 |---|-----|------|--------|
 | 1 | Saldo Pendiente: dolarizado vs moneda cliente | Negocio | ✅ Resuelta OBS-046: siempre en USD. Usar ConversorDivisas existente. |
 | 2 | Orden del listado por defecto | Negocio | ✅ Resuelta OBS-047: ordenar por antigüedad del cobro recibido más antiguo (MIN fccFolioPagoCliente.FechaRecepcion, ASC). Clientes sin cobros al final. SLA 72h como indicador visual. |
-| 3 | Historial de cambios FechaPromesaPago | Negocio | Confirmar si aplica en R16 |
-| 4 | Cancelación propaga a proforma/factura | Negocio | Confirmar alcance |
+| 3 | Historial de cambios FechaPromesaPago | Negocio | ✅ Resuelta OBS-044: SÍ aplica. CREATE TABLE fccFechaEstimadaPagoHistorial. Cada cambio genera INSERT — no se sobreescribe. Ver sección 6. |
+| 4 | Cancelación propaga a proforma/factura | Negocio | ✅ Resuelta OBS-042: se agregan FechaSolicitudCancelacion + EstadoCancelacionCFDI en tpPedido para trazabilidad. Ver sección 5. |
 | 5 | Buzón de Cobros Perú sin datos | Operativo | Brechas modelo bancario Perú |
 | 6 | Rol: Gestor Cobranza vs Analista CxC | Negocio | Confirmar denominación |
 

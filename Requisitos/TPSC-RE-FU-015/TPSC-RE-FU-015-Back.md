@@ -6,6 +6,16 @@
 
 ---
 
+## ⛔ BLOQUEANTE — OBS-027: Transición de estados del pedido
+
+> **BLOQUEANTE — En espera de propuesta del cliente.**
+>
+> Se requiere el catálogo `catEstatusPedido` y el campo `IdEstatusPedido` en `tpPedido` para implementar la lógica de transición de estados durante el flujo de tramitación. Sin esta definición no es posible implementar la lógica de transición en Back (T7 de este requisito).
+>
+> **Las tareas T6 (BD) y T7 (Back) están BLOQUEADAS hasta recibir la propuesta del cliente sobre `catEstatusPedido`.**
+
+---
+
 ## Resumen
 
 Este requisito es la variante Prepago sin controlados donde el ESAC **activa Factura por Adelantado**. Comparte el flujo base de RE-FU-013/014 (proforma, previsualización, envío) con una diferencia clave:

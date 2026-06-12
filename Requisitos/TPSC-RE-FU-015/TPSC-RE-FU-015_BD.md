@@ -13,6 +13,20 @@ SIN CAMBIOS ESTRUCTURALES en BD.
 
 ---
 
+## ⛔ BLOQUEANTE — OBS-027: catEstatusPedido + IdEstatusPedido en tpPedido
+
+> **BLOQUEANTE — En espera de propuesta del cliente.**
+> 
+> Se requiere definir el catálogo `catEstatusPedido` y el campo `IdEstatusPedido` en `tpPedido` para gestionar el estatus del pedido durante el flujo de tramitación y vida del pedido. Sin esta definición no es posible implementar las tareas de BD relacionadas con la transición de estados del pedido (T6) ni la lógica de transición en Backend (T7).
+>
+> **Pendiente:**
+> - Propuesta del cliente con los estados necesarios para `catEstatusPedido` (clave, descripción, estados terminales, transiciones permitidas).
+> - Confirmación de si `IdEstatusPedido` aplica en `tpPedido`, `ppPedido`, o ambas.
+>
+> **Las tareas T6 y T7 de este requisito están BLOQUEADAS hasta recibir esta propuesta.**
+
+---
+
 ## Impacto en BD: SIN CAMBIOS ESTRUCTURALES
 
 > Todas las tablas necesarias ya existen (tpProformaAdelanto, tpProformaPedido).

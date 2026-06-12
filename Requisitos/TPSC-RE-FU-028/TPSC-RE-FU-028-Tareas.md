@@ -1070,6 +1070,8 @@ Endpoint `POST .../lineas/{idLinea}/timbrar` en Finanzas que ejecuta el escenari
 - Error PAC: la línea permanece en `PENDIENTE`; el detalle del error se retorna al cliente.
 - ⚠️ Tipo de relación SAT para FACTURA_ANTICIPO queda como parámetro configurable hasta resolver Brecha B1.
 - ⚠️ Política ante fallo del Complemento en cascada PPD queda documentada como Brecha B6.
+- **OBS-049:** El timbrado se procesa **línea por línea (uno a uno)** — no como proceso masivo. Cada CFDI se timbra en una llamada independiente al PAC. El endpoint `POST .../lineas/{idLinea}/timbrar` aplica a una sola línea por invocación.
+- **OBS-050:** Antes de ejecutar en producción (o en plan de pruebas con el PAC real), **verificar los límites de concurrencia del PAC (SAP)**. Incluir en el plan de pruebas la validación de los límites del PAC para evitar rechazos por volumen en escenarios de carga.
 
 **Más información de la tarea:**
 Ver sección *"Parte B / B4"* y Brechas B1 y B6 en `TPSC-RE-FU-028-Back.md`.

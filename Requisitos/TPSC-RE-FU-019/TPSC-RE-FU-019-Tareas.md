@@ -1,4 +1,4 @@
-﻿# Tareas BackEnd — TPSC-RE-FU-019
+# Tareas BackEnd — TPSC-RE-FU-019
 **Requisito:** Factura por Adelantado: Detalle México
 **Aplicativos:** ProquifaDotNet.Finanzas (.NET Core 10) + ProquifaDotNet.Timbrado (.NET Core 10)
 

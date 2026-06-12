@@ -1,4 +1,4 @@
-﻿# Tareas BackEnd - TPSC-RE-FU-022
+# Tareas BackEnd - TPSC-RE-FU-022
 **Requisito:** Diseño y generación de Documentos: Factura Perú
 **Aplicativos:** ProquifaDotNet (.NET Framework 4.8) + ProquifaDotNet.Finanzas (.NET Core 10) + DocumentBuilder
 

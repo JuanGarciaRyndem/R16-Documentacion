@@ -185,6 +185,44 @@ El pendiente FAA generado en la tramitación es consumido correctamente por el m
 
 ---
 
+---
+
+## T6 — [ TPSC-RE-FU-015 ] [UPDATE-TABL-CH] ⛔ BLOQUEANTE — Crear catálogo catEstatusPedido e IdEstatusPedido en tpPedido (OBS-027)
+
+> **⛔ BLOQUEANTE — OBS-027**
+>
+> Esta tarea está **BLOQUEADA** hasta recibir la propuesta del cliente sobre el catálogo `catEstatusPedido`.
+>
+> **Pendiente del cliente:**
+> - Definición de estados requeridos para `catEstatusPedido` (clave, descripción, estados terminales, transiciones permitidas).
+> - Confirmación de si `IdEstatusPedido` aplica en `tpPedido`, `ppPedido`, o ambas.
+>
+> **No iniciar desarrollo hasta que se resuelva el BLOQUEANTE.**
+>
+> Una vez desbloqueada, esta tarea incluirá:
+> - `CREATE TABLE dbo.catEstatusPedido` con los campos definidos por el cliente.
+> - `ALTER TABLE dbo.tpPedido ADD IdEstatusPedido uniqueidentifier NULL FK → catEstatusPedido`.
+> - Scripts DDL + DML (INSERT de catálogo) con los estados acordados.
+
+---
+
+## T7 — [ TPSC-RE-FU-015 ] [ALG-COMPLX-LOGIC] ⛔ BLOQUEANTE — Lógica de transición de estados del pedido (OBS-027)
+
+> **⛔ BLOQUEANTE — OBS-027**
+>
+> Esta tarea está **BLOQUEADA** hasta que T6 (catEstatusPedido + IdEstatusPedido) esté resuelta y desbloqueada.
+>
+> **Depende de:** T6 (catEstatusPedido definido por el cliente).
+>
+> **No iniciar desarrollo hasta que se resuelva el BLOQUEANTE.**
+>
+> Una vez desbloqueada, esta tarea incluirá:
+> - Lógica de transición de estados en `tpPedidoTramitarTransaccionBO.cs` (o la clase que aplique) usando `IdEstatusPedido` → `catEstatusPedido`.
+> - Validación de transiciones permitidas según el catálogo acordado.
+> - Actualización de `tpPedido.IdEstatusPedido` en los puntos del flujo definidos.
+
+---
+
 ## Resumen de tareas
 
 | # | Clave Catálogo | Título | Predecesora |
@@ -194,6 +232,8 @@ El pendiente FAA generado en la tramitación es consumido correctamente por el m
 | T3 | ALG-BASIC-LOGIC | Eliminar código de autorización para Factura por Adelantado | — |
 | T4 | ALG-BASIC-LOGIC | Bloquear datos de facturación al activar FAA | — |
 | T5 | ALG-BASIC-LOGIC | Vinculación del pendiente FAA con módulo de facturación (RE-FU-018/019/020) | T1 |
+| T6 | UPDATE-TABL-CH | ⛔ BLOQUEANTE — Crear catEstatusPedido + IdEstatusPedido en tpPedido (OBS-027) | — |
+| T7 | ALG-COMPLX-LOGIC | ⛔ BLOQUEANTE — Lógica de transición de estados del pedido (OBS-027) | T6 |
 
 ---
 
