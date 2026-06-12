@@ -1,6 +1,6 @@
 # R16M — Resumen Ejecutivo de Requisitos
 ### Proyecto R16 "Tramitar Pedidos sin Crédito" — PQF2 (ProQuiFaNet 2)
-> Formato ADP-FOR-13 v1.0 · Administrador: Irma Andrade Aguado · 35 requisitos TPSC-RE-FU-001 a TPSC-RE-FU-035
+> Formato ADP-FOR-13 v1.0 · Administrador: Irma Andrade Aguado · 35 requisitos R16A-RE-FU-001 a R16A-RE-FU-035
 
 ---
 
@@ -53,7 +53,7 @@
 
 **Identidad visual PE:** logo + paleta Golocaer S.A.C. — consistente en todos los documentos PE.
 
-### 5 Brechas Perú (referenciadas desde TPSC-RE-FU-005)
+### 5 Brechas Perú (referenciadas desde R16A-RE-FU-005)
 
 | # | Brecha | Estado |
 |---|---|---|
@@ -69,7 +69,7 @@
 
 ### 2.1 Catálogo de Clientes
 
-**TPSC-RE-FU-001** (aprox.)
+**R16A-RE-FU-001** (aprox.)
 
 - Ampliación de ficha cliente: datos fiscales **MX** (RFC, Régimen Fiscal SAT, Uso CFDI default, Método de Pago preferido) y **PE** (RUC, Régimen Tributario SUNAT, Condición de Pago, Tipo de Operación)
 - Modelo bancario: **CLABE 18 dígitos** (MX) · **CCI 20 dígitos** (PE)
@@ -81,7 +81,7 @@
 
 ### 2.2 Cotizar lo Cotizable
 
-**TPSC-RE-FU-002** (aprox.)
+**R16A-RE-FU-002** (aprox.)
 
 - Módulo existente con ajustes menores para R16
 - Genera **Proforma** (cotización formal) con folio **PRF-MMDDAA-Consecutivo** (contador global único para todo el grupo)
@@ -92,7 +92,7 @@
 
 ### 2.3 Pretramitar Pedido
 
-**TPSC-RE-FU-003** (aprox.)
+**R16A-RE-FU-003** (aprox.)
 
 - Revisión y validación documental previa a la tramitación
 - **Sustancias Controladas** (Mundial / Nacional / Origen): validación documental adicional obligatoria (permisos, licencias, autorizaciones según clasificación)
@@ -103,7 +103,7 @@
 
 ### 2.4 Tramitar Pedido — 6 Flujos
 
-**TPSC-RE-FU-004 a TPSC-RE-FU-009** (aprox. — 6 requisitos contiguos)
+**R16A-RE-FU-004 a R16A-RE-FU-009** (aprox. — 6 requisitos contiguos)
 
 | Flujo | Descripción |
 |---|---|
@@ -120,7 +120,7 @@
 - **FxA** (Factura por Adelantado): aplica cuando el cliente Prepago requiere factura antes de pagar; genera CFDI Ingreso (MX) / CPE tipo 01 (PE) anticipadamente
 - **Controlados MX**: generan **Factura Anticipo** (CFDI Ingreso, TipoRelacion=07) en lugar de Factura estándar, porque el pago se recibe antes de la entrega física; **pendiente confirmar uso de TipoRelacion=07 SAT**
 - **Controlados PE**: la factura peruana no depende de la DUA (trámite separado) → no requiere Factura Anticipo; se genera Factura electrónica normal
-- **Cancelación manual con factura emitida** (TPSC-RE-FU-023): detona cancelación fiscal; en PE se realizaría vía NC motivo 01 SUNAT
+- **Cancelación manual con factura emitida** (R16A-RE-FU-023): detona cancelación fiscal; en PE se realizaría vía NC motivo 01 SUNAT
 - **NEEC** (Nuevo Esquema de Empresas Certificadas): aplica a exportaciones MX
 
 ---
@@ -129,7 +129,7 @@
 
 #### 2.5.1 Funciones wizard MX
 
-**TPSC-RE-FU-0XX** (aprox. ~010–012)
+**R16A-RE-FU-0XX** (aprox. ~010–012)
 
 - Wizard para emitir CFDI Ingreso antes de recibir el cobro (pedidos Prepago con FxA)
 - El UUID de esta FxA se usa después como `DoctoRelacionado` en el Complemento de Pago cuando MetodoPago=PPD (en Validar Cobro Paso 3)
@@ -139,7 +139,7 @@
 - Conservación XML 5 años (Art. 30 CFF)
 - Identidad visual por empresa emisora MX
 
-#### 2.5.2 Funciones wizard PE — TPSC-RE-FU-020
+#### 2.5.2 Funciones wizard PE — R16A-RE-FU-020
 
 - Estructura funcional idéntica a MX; diferencias: CPE tipo 01, UBL 2.1, IGV 18%, RUC, Tipo de Operación catálogo 51, Condición de Pago; sin UUID/UsoCFDI/MetodoPago
 - **Análisis DUA**: la factura peruana de venta no depende del dato aduanero (la DUA es trámite separado); la Ley IGV permite facturar por el monto cobrado anticipadamente → no se requiere Factura Anticipo en PE
@@ -147,7 +147,7 @@
 - Empresa emisora única: Golocaer S.A.C.
 - **Pendientes**: modalidad emisión electrónica SUNAT (Brecha 5) · catálogo 51 Tipo de Operación parámetros · datos legales Golocaer S.A.C. (Brecha 4) · asesor fiscal peruano
 
-#### 2.5.3 PDF Factura México — TPSC-RE-FU-021
+#### 2.5.3 PDF Factura México — R16A-RE-FU-021
 
 Estructura completa del PDF representativo:
 
@@ -163,7 +163,7 @@ Estructura completa del PDF representativo:
 
 Aplica a las cuatro empresas emisoras MX con identidad visual diferenciada por empresa.
 
-#### 2.5.4 PDF Factura Perú — TPSC-RE-FU-022
+#### 2.5.4 PDF Factura Perú — R16A-RE-FU-022
 
 - **Encabezado**: logo Golocaer S.A.C.
 - **Emisor**: RUC, RS, domicilio fiscal
@@ -182,7 +182,7 @@ Aplica a las cuatro empresas emisoras MX con identidad visual diferenciada por e
 
 #### 2.6.1 Paso 1 — Captura del Cobro
 
-**TPSC-RE-FU-024** (MX) · **TPSC-RE-FU-025** (PE)
+**R16A-RE-FU-024** (MX) · **R16A-RE-FU-025** (PE)
 
 - Primer paso: el operador (Gestor de Cobranza) registra el cobro recibido del cliente
 - **Cabecera del cliente**: logo, Alias, etiquetas, RFC/RUC, razón social legal, moneda de facturación
@@ -202,7 +202,7 @@ Aplica a las cuatro empresas emisoras MX con identidad visual diferenciada por e
 
 #### 2.6.2 Paso 2 — Asociación
 
-**TPSC-RE-FU-026** (MX) · **TPSC-RE-FU-027** (PE)
+**R16A-RE-FU-026** (MX) · **R16A-RE-FU-027** (PE)
 
 - El operador asocia manualmente cobros ↔ proformas/facturas (relación **N:N**)
 - **Listado de cobros** del Paso 1 con selección múltiple (checkboxes); cobros con saldo a favor marcados con identificador visual
@@ -242,7 +242,7 @@ Aplica a las cuatro empresas emisoras MX con identidad visual diferenciada por e
 
 #### 2.6.3 Paso 3 — Facturación y Envío
 
-**TPSC-RE-FU-028** (MX) · **TPSC-RE-FU-029** (PE)
+**R16A-RE-FU-028** (MX) · **R16A-RE-FU-029** (PE)
 
 - El operador previsualiza, timbra y envía el documento fiscal de cada línea **individualmente** (sin acciones masivas)
 - Una línea por cada documento de la asociación que requiera emisión de documento fiscal
@@ -291,7 +291,7 @@ Aplica a las cuatro empresas emisoras MX con identidad visual diferenciada por e
 
 ### 2.7 Complemento de Pago
 
-#### 2.7.1 Complemento de Pago México — TPSC-RE-FU-030
+#### 2.7.1 Complemento de Pago México — R16A-RE-FU-030
 
 - Generado **automáticamente** al confirmar el cobro en Paso 3 de VC contra facturas PPD; no es módulo independiente; único disparador = Paso 3 VC
 - **Política R16**: un Complemento de Pago por factura cubierta (si el cobro cubre N facturas PPD → N Complementos de Pago independientes, cada uno con 1 Pago + 1 DoctoRelacionado)
@@ -322,7 +322,7 @@ Datos emisor/receptor · datos comprobante (serie, folio, versión 4.0, UUID, fe
 
 **Pendientes:** convención hora FechaPago (**validar asesor fiscal**) · soporte tasas IVA distintas al 16% (frontera 8%, 0%) · vigencia iconografía certificaciones · mecanismo reintento timbrado PAC (transversal) · plantilla cuerpo correo envío (PMO #31) · validación serie "P" foliador final
 
-#### 2.7.2 Complemento de Pago Perú — TPSC-RE-FU-031 *(FILA RESERVADA — sin contenido)*
+#### 2.7.2 Complemento de Pago Perú — R16A-RE-FU-031 *(FILA RESERVADA — sin contenido)*
 
 - SUNAT no tiene equivalente al Complemento de Pago SAT
 - ID reservado para preservar correspondencia 1:1 MX/PE del bloque de documentos
@@ -332,7 +332,7 @@ Datos emisor/receptor · datos comprobante (serie, folio, versión 4.0, UUID, fe
 
 ### 2.8 Notas de Crédito
 
-#### 2.8.1 Módulo NC México — TPSC-RE-FU-032
+#### 2.8.1 Módulo NC México — R16A-RE-FU-032
 
 - Módulo **independiente** de Validar Cobro (NC alimenta a VC; VC no genera ni cancela NCs); operado por **Tesorería**; aplica a clientes **prepago** en R16
 - NCs históricas pre-go-live **NO se importan** desde Legacy
@@ -372,11 +372,11 @@ Datos emisor/receptor · datos comprobante (serie, folio, versión 4.0, UUID, fe
 
 ---
 
-#### 2.8.2 Módulo NC Perú — TPSC-RE-FU-033
+#### 2.8.2 Módulo NC Perú — R16A-RE-FU-033
 
 > **⚠ Toda la mecánica fiscal SUNAT requiere validación con el asesor fiscal peruano de PROQUIFA antes de implementarse.**
 
-- Estructura funcional idéntica a MX (TPSC-RE-FU-032); diferencias: catálogos SUNAT, campos CPE tipo 07, mecánica anulación peruana
+- Estructura funcional idéntica a MX (R16A-RE-FU-032); diferencias: catálogos SUNAT, campos CPE tipo 07, mecánica anulación peruana
 - Empresa emisora única: Golocaer S.A.C.
 - NCs históricas pre-go-live NO se importan
 
@@ -426,9 +426,9 @@ Datos emisor/receptor · datos comprobante (serie, folio, versión 4.0, UUID, fe
 
 ---
 
-#### 2.8.3 PDF NC México — TPSC-RE-FU-034
+#### 2.8.3 PDF NC México — R16A-RE-FU-034
 
-- Generado al confirmar timbrado en Paso 3 del wizard NC MX (TPSC-RE-FU-032)
+- Generado al confirmar timbrado en Paso 3 del wizard NC MX (R16A-RE-FU-032)
 - CFDI tipo E, CFDI 4.0
 - **Identidad visual**: logo + paleta empresa emisora (Golocaer naranja, Mungen verde, Proquifa cyan, Proveedora cyan); iconografía certificaciones; consistente con Factura MX (FU-021) y Complemento de Pago MX (FU-030)
 
@@ -451,7 +451,7 @@ Envío PDF+XML al cliente tras timbrado exitoso; CC ESAC + analista CxC
 
 ---
 
-#### 2.8.4 PDF NC Perú — TPSC-RE-FU-035
+#### 2.8.4 PDF NC Perú — R16A-RE-FU-035
 
 > **⚠ Toda la mecánica fiscal SUNAT requiere validación con el asesor fiscal peruano antes de implementarse.**
 
@@ -487,7 +487,7 @@ Envío PDF+XML al cliente tras timbrado; CC ESAC
 
 ### 2.9 Buzón de Cobros — NUEVO módulo
 
-**TPSC-RE-FU-00X** (aprox. — ubicado entre los primeros requisitos del documento)
+**R16A-RE-FU-00X** (aprox. — ubicado entre los primeros requisitos del documento)
 
 - Nuevo módulo que integra correos de cobro clasificados por el **Mailbot**
 - El Mailbot agrega la categoría **"Cobro"** a las existentes (Cotización / Pedido / Otros)
@@ -525,4 +525,4 @@ Envío PDF+XML al cliente tras timbrado; CC ESAC
 
 ---
 
-*Resumen generado a partir de: `R16M_Matriz_de_Requisitos.md` (728 KB, 35 requisitos TPSC-RE-FU-001 a TPSC-RE-FU-035)*
+*Resumen generado a partir de: `R16M_Matriz_de_Requisitos.md` (728 KB, 35 requisitos R16A-RE-FU-001 a R16A-RE-FU-035)*

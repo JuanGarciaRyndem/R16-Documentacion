@@ -1,0 +1,123 @@
+﻿# Tramitación de pedidos Crédito con sustancias controladas
+
+| Campo | Valor |
+|---|---|
+| **ID** | R16A-RE-FU-011 |
+| **Nombre** | Tramitación de pedidos Crédito con sustancias controladas |
+| **Módulo** | Tramitar Pedido |
+| **Estatus** | Propuesto |
+| **Referencia Legacy** | R16.1M-RE-FU-010, R16.1M-RE-FU-011, R16.1M-RE-FU-013, R16.1M-RE-FU-014 |
+
+---
+
+## Historia de Usuario
+
+> Yo como **ESAC**, quiero tramitar pedidos de clientes con condición de pago Crédito que contienen sustancias controladas (Mundial, Nacional u Origen) sin opción de Factura por Adelantado ni Entrega con Remisión, para procesarlos por el flujo crédito regular respetando las restricciones regulatorias del producto controlado.
+
+---
+
+## Requisito
+
+El sistema debe permitir la tramitación de pedidos de clientes con condición de pago Crédito (incluyendo la variante Pago contra entrega) cuando el pedido contiene sustancias controladas tipo Mundial, Nacional u Origen, reutilizando el flujo de tramitación de pedidos crédito existente en PQF2. En este flujo el sistema deshabilita las opciones de Factura por Adelantado y Entrega con Remisión, genera la Confirmación de Pedido al cliente y transfiere el pedido al sistema Legacy con la información necesaria para continuar el ciclo de surtido, despacho y entrega.
+
+---
+
+## Alcance
+
+### Aplica a
+
+- Pedidos de clientes con condición de pago Crédito en las operaciones de México y Perú.
+- Pedidos con condición Crédito - Pago contra entrega.
+- Pedidos que contienen al menos una sustancia controlada clasificada como Mundial, Nacional u Origen.
+- Variante con sustancias controladas del flujo crédito preexistente en PQF2 (reuso del flujo regular, sin modificaciones funcionales salvo las restricciones específicas de productos controlados).
+- Operación en Perú: el flujo funcional opera idéntico al de México pero NO transfiere a Legacy al concluir; la operación termina en la confirmación interna en PQF2.
+
+### No aplica a
+
+- Pedidos de clientes con condición de pago Prepago (esos siguen un flujo distinto descrito en los requisitos del bloque Prepago).
+- Pedidos sin sustancias controladas (variante cubierta en requisito independiente del bloque Crédito).
+- Pedidos con activación de Factura por Adelantado (la combinación Factura por Adelantado + sustancias controladas no es permitida por regla regulatoria).
+- Pedidos con marca de Entrega con Remisión (la combinación Remisión + sustancias controladas no es permitida por regla regulatoria).
+- La validación de presencia de Licencia Sanitaria y Aviso de Responsable Sanitario del cliente, que ocurre en el módulo Pretramitar Pedido antes de llegar a Tramitar Pedido.
+- La validación de pago de pedidos Pago contra entrega; esa validación la ejecuta Legacy.
+
+---
+
+## Reglas de Negocio
+
+**Regla 1 — Reuso del flujo crédito preexistente con restricciones regulatorias**
+El módulo Tramitar Pedido aplica el flujo de tramitación de crédito existente en PQF2 para pedidos de clientes con condición de pago Crédito que contienen sustancias controladas tipo Mundial, Nacional u Origen, agregando las restricciones específicas que impone la presencia de sustancias controladas.
+
+**Regla 2 — Bloqueo de Factura por Adelantado y Entrega con Remisión**
+Para pedidos que contienen al menos una sustancia controlada tipo Mundial, Nacional u Origen, el sistema oculta las opciones de Factura por Adelantado y Entrega con Remisión, ya que su combinación con sustancias controladas no está permitida por regla regulatoria.
+
+**Regla 3 — Pago contra entrega se comporta como crédito normal**
+Los pedidos con condición de pago Crédito - Pago contra entrega que contienen sustancias controladas se procesan siguiendo el mismo flujo de un pedido Crédito normal con sustancias controladas. La detención por falta de validación de pago la ejecuta Legacy, no Tramitar Pedido.
+
+**Regla 4 — Operación Perú sin transferencia a Legacy**
+Para pedidos de clientes Crédito de la región Perú, al concluir el flujo de tramitación en PQF2 el sistema no envía el pedido al sistema Legacy. La operación termina con la confirmación interna en PQF2.
+
+**Regla 5 — Cierre del pendiente de Tramitar Pedido al completar la acción**
+Una vez ejecutada exitosamente la acción de tramitar, completado el envío del correo correspondiente al flujo y generados los pendientes derivados (si aplica), el sistema cierra y elimina el pendiente del pedido en la bandeja de Tramitar Pedido, de modo que el pedido ya no aparece como acción pendiente para el ESAC.
+
+---
+
+## Riesgos
+
+**Riesgo 1 — Detección incorrecta de sustancias controladas**
+La habilitación o bloqueo de las opciones Factura por Adelantado y Entrega con Remisión depende de que el sistema identifique correctamente la presencia de sustancias controladas en el pedido. Si la clasificación del producto en el catálogo es incorrecta o el sistema falla en detectar la presencia de un controlado dentro del pedido, podrían habilitarse opciones que violan la restricción regulatoria.
+
+---
+
+## Criterios de Aceptación
+
+### Sección A — Tramitación Crédito con controlados
+
+**Criterio A1 — Tramitación habilitada para Crédito con controlados sin Factura por Adelantado sin Remisión**
+- **Dado** que un pedido pertenece a un cliente Crédito en México o Perú, contiene al menos una sustancia controlada tipo Mundial, Nacional u Origen, y no requiere Factura por Adelantado ni Entrega con Remisión,
+- **Cuando** el ESAC opera el módulo Tramitar Pedido,
+- **Entonces** el sistema deberá permitir la tramitación siguiendo el flujo crédito existente, generar la Confirmación de Pedido al cliente y, salvo para Perú, transferir el pedido a Legacy para continuar el ciclo de venta.
+
+**Criterio A2 — Variante Pago contra entrega con controlados**
+- **Dado** que un pedido pertenece a un cliente con condición Crédito - Pago contra entrega y contiene sustancias controladas,
+- **Cuando** el ESAC opera el módulo Tramitar Pedido,
+- **Entonces** el sistema deberá tramitarlo aplicando el mismo flujo de un Crédito normal con controlados, sin candado en Tramitar Pedido.
+
+**Criterio A3 — Transferencia a Legacy con marca de detención (México)**
+- **Dado** que un pedido Crédito - Pago contra entrega con controlados se tramitó en PQF2 para un cliente de México,
+- **Cuando** el sistema transfiere el pedido al sistema Legacy,
+- **Entonces** deberá incluir en la transferencia la marca de detención que indica a Legacy que el pedido no debe entregarse hasta validar el pago.
+
+### Sección B — Restricciones regulatorias
+
+**Criterio B1 — No visualización de Factura por Adelantado y Entrega con Remisión**
+- **Dado** que el pedido contiene al menos una sustancia controlada Mundial, Nacional u Origen,
+- **Cuando** el ESAC visualiza las opciones disponibles en Tramitar Pedido,
+- **Entonces** el sistema deberá ocultar las opciones Factura por Adelantado y Entrega con Remisión.
+
+### Sección C — Cierre y transferencia
+
+**Criterio C1 — Cancelación del pedido**
+- **Dado** que un pedido tramitado tiene solicitud del cliente para cancelar,
+- **Cuando** el ESAC ejecuta la acción Cancelar pedido en Tramitar Pedido,
+- **Entonces** el sistema deberá presentar un modal de confirmación y requerir confirmación explícita antes de proceder.
+
+**Criterio C2 — Transferencia a Legacy de pedido tramitado (variante México)**
+- **Dado** que un pedido Crédito con controlados se ha tramitado exitosamente en la operación de México,
+- **Cuando** se completa la Confirmación de Pedido,
+- **Entonces** el sistema deberá transferir automáticamente a Legacy toda la información necesaria del pedido para que el sistema legado continúe el ciclo de surtido, despacho y entrega.
+
+**Criterio C3 — Operación Perú sin transferencia a Legacy**
+- **Dado** que un pedido Crédito con controlados se ha tramitado exitosamente para un cliente de la región Perú,
+- **Cuando** se completa la Confirmación de Pedido,
+- **Entonces** el sistema NO deberá ejecutar la transferencia a Legacy. La operación queda registrada únicamente en PQF2.
+
+---
+
+## Notas
+
+- Cubre dos requisitos del cliente sobre tramitación bajo condición Crédito - Pago contra entrega y la transferencia a Legacy con marca de detención.
+- La validación de Licencia Sanitaria y Aviso de Responsable Sanitario del cliente ocurre antes de llegar a Tramitar Pedido (responsabilidad del módulo Pretramitar Pedido), por lo que no se incluye como criterio en este requisito.
+- A diferencia del flujo Prepago, en Crédito la Confirmación de Pedido se genera dentro del módulo Tramitar Pedido.
+- La detención del pedido Pago contra entrega por falta de validación de pago es responsabilidad de Legacy.
+- Aplicable a las operaciones de México y Perú. En Perú no se transfiere a Legacy al concluir.

@@ -1,4 +1,4 @@
-# Reporte de Revisión de Requisitos — TPSC
+# Reporte de Revisión de Requisitos — R16A
 
 ---
 
@@ -11,7 +11,7 @@
 
 ---
 
-## TPSC-RE-FU-001
+## R16A-RE-FU-001
 
 **Estatus:** ✅ Atendido
 
@@ -45,7 +45,7 @@
 
 ---
 
-## TPSC-RE-FU-002
+## R16A-RE-FU-002
 
 **Estatus:** ✅ Atendido
 
@@ -70,7 +70,7 @@
 
 ---
 
-## TPSC-RE-FU-003
+## R16A-RE-FU-003
 
 **Estatus:** ✅ Atendido
 
@@ -84,13 +84,13 @@
 
 - Frase sobre apertura en pestaña nueva eliminada del Requisito y reformulada agnósticamente en **Criterio C1**: el sistema entrega el archivo al navegador y el comportamiento de apertura depende de la configuración del navegador y del usuario.
 - Frase sobre almacenamiento sin historial eliminada del Requisito y reformulada en **Regla 3 + Observaciones**: en pantalla solo se muestra la versión vigente; los archivos físicos en MinIO se mantienen sin purga automática (se conserva el mecanismo actual del backend).
-- **Criterio 8** (habilitación de pretramitación) eliminado de esta fila — pertenece al módulo Pretramitar Pedido (**TPSC-RE-FU-009**).
+- **Criterio 8** (habilitación de pretramitación) eliminado de esta fila — pertenece al módulo Pretramitar Pedido (**R16A-RE-FU-009**).
 - Reglas reescritas como enunciados declarativos: de 7 reglas *Cómo* pasaron a 5 reglas declarativas del *Qué*.
 - Criterios organizados en 5 secciones: **A** (Visibilidad y acceso), **B** (Carga y formato), **C** (Visualización), **D** (Reemplazo y eliminación), **E** (Alcance de validación).
 
 ---
 
-## TPSC-RE-FU-004
+## R16A-RE-FU-004
 
 **Estatus:** ✅ Atendido
 
@@ -110,14 +110,14 @@
 - Reglas reescritas como enunciados declarativos: de 7 pasaron a 6. Reglas 5 y 6 originales (catálogos de Tipo de Sociedad y Régimen Fiscal) consolidadas en una sola **Regla 5** con redacción agnóstica al catálogo específico, hasta resolver el pendiente con el cliente.
 - Criterios organizados en 5 secciones: **A** (Visualización y acceso), **B** (Validación RFC México), **C** (Validación RUC Perú), **D** (Selectores), **E** (Persistencia y consumo posterior).
 - Criterios D1 y D2 reformulados sin listar opciones literales: el catálogo se consulta al sistema según Región. La lista de opciones se gestiona como dato paramétrico.
-- Observación sobre catálogos PQF2 vs catálogos del cliente formalizada como pendiente en Observaciones. Se elaboró archivo adjunto `TPSC-RE-FU-004_Equivalencias_MX_PE.xlsx` con cruce de PQF2, archivo del cliente y catálogo SAT vigente.
+- Observación sobre catálogos PQF2 vs catálogos del cliente formalizada como pendiente en Observaciones. Se elaboró archivo adjunto `R16A-RE-FU-004_Equivalencias_MX_PE.xlsx` con cruce de PQF2, archivo del cliente y catálogo SAT vigente.
 - Riesgos renumerados consecutivamente (antes 1 y 3; ahora 1 y 2).
 - **Pendientes preservados:** confirmación del régimen Perú "Régimen para Personas Naturales" y homoclave del RFC.
 - **Nuevos pendientes formalizados:** validación local del RUC en PQF2, denominación oficial S.A.C.S. para Perú, consolidación de catálogos definitivos para ambas regiones.
 
 ---
 
-## TPSC-RE-FU-005
+## R16A-RE-FU-005
 
 **Estatus:** ✅ Atendido
 
@@ -150,7 +150,7 @@
 
 ---
 
-## TPSC-RE-FU-006
+## R16A-RE-FU-006
 
 **Estatus:** ✅ Atendido
 
@@ -158,7 +158,7 @@
 
 ---
 
-## TPSC-RE-FU-007
+## R16A-RE-FU-007
 
 **Estatus:** ✅ Atendido
 
@@ -180,7 +180,7 @@
 
 ---
 
-## TPSC-RE-FU-008
+## R16A-RE-FU-008
 
 **Estatus:** ✅ Atendido
 
@@ -209,7 +209,7 @@
 
 ---
 
-## TPSC-RE-FU-009
+## R16A-RE-FU-009
 
 **Estatus:** 🔲 No revisado
 
@@ -217,7 +217,7 @@
 
 ---
 
-## TPSC-RE-FU-010
+## R16A-RE-FU-010
 
 **Estatus:** 🔲 No revisado
 
@@ -233,13 +233,13 @@
 | Requisito | Estatus |
 |-----------|:-------:|
 | Observaciones generales | 🔄 En proceso |
-| TPSC-RE-FU-001 | ✅ Atendido |
-| TPSC-RE-FU-002 | ✅ Atendido |
-| TPSC-RE-FU-003 | ✅ Atendido |
-| TPSC-RE-FU-004 | ✅ Atendido |
-| TPSC-RE-FU-005 | ✅ Atendido |
-| TPSC-RE-FU-006 | ✅ Atendido |
-| TPSC-RE-FU-007 | ✅ Atendido |
-| TPSC-RE-FU-008 | ✅ Atendido |
-| TPSC-RE-FU-009 | 🔲 No revisado |
-| TPSC-RE-FU-010 | 🔲 No revisado |
+| R16A-RE-FU-001 | ✅ Atendido |
+| R16A-RE-FU-002 | ✅ Atendido |
+| R16A-RE-FU-003 | ✅ Atendido |
+| R16A-RE-FU-004 | ✅ Atendido |
+| R16A-RE-FU-005 | ✅ Atendido |
+| R16A-RE-FU-006 | ✅ Atendido |
+| R16A-RE-FU-007 | ✅ Atendido |
+| R16A-RE-FU-008 | ✅ Atendido |
+| R16A-RE-FU-009 | 🔲 No revisado |
+| R16A-RE-FU-010 | 🔲 No revisado |

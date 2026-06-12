@@ -8,7 +8,7 @@ erDiagram
     %% NOTA: La estructura detallada de las tablas de PCconnect
     %% está pendiente de documentación (mapeo SSIS en definición).
     %% Las entidades aquí mostradas son referencias conocidas del
-    %% proceso ETL descrito en TPSC-RE-FU-032.
+    %% proceso ETL descrito en R16A-RE-FU-032.
     %% ============================================================
     NotaCreditoMX {
         varchar IdNotaCredito PK "clave en PCconnect (pendiente)"

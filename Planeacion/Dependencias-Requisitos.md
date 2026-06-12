@@ -82,39 +82,39 @@ Tres requisitos que desbloquean la mayor cantidad de trabajo en cascada. Deben p
 
 ### Grupo 5 — Factura por Adelantado (FAA)
 
-| Req. | Nombre | Depende de | Bloquea a | Paralelo con |
-|------|--------|-----------|-----------|--------------|
-| RE-018 🔴 | FAA Listado — Crea Timbrado | RE-016 | **Todo el timbrado** (RE-019 a RE-035) | RE-017 |
-| RE-019 | FAA Detalle México (Generar CFDI) | RE-018, RE-016, RE-012, RE-015 | RE-020, RE-021, RE-023, RE-028, RE-030, RE-032 | RE-017, RE-020 (parcial) |
-| RE-020 | FAA Detalle Perú (CPE SUNAT) 🚫 | RE-018, RE-019, RE-005, RE-022 | RE-022, RE-029, RE-033 | RE-021 |
-| RE-021 | PDF Factura México | RE-018, RE-019 | RE-028, RE-030, RE-032, RE-034 | RE-017, RE-020, RE-022 |
-| RE-022 | PDF Factura Perú (CPE) 🚫 | RE-017, RE-019, RE-020, RE-005 | RE-029, RE-033, RE-035 | RE-021 |
+| Req.      | Nombre                            | Depende de                     | Bloquea a                                      | Paralelo con             |
+| --------- | --------------------------------- | ------------------------------ | ---------------------------------------------- | ------------------------ |
+| RE-018 🔴 | FAA Listado — Crea Timbrado       | RE-016                         | **Todo el timbrado** (RE-019 a RE-035)         | RE-017                   |
+| RE-019    | FAA Detalle México (Generar CFDI) | RE-018, RE-016, RE-012, RE-015 | RE-020, RE-021, RE-023, RE-028, RE-030, RE-032 | RE-017, RE-020 (parcial) |
+| RE-020    | FAA Detalle Perú (CPE SUNAT) 🚫   | RE-018, RE-019, RE-005, RE-022 | RE-022, RE-029, RE-033                         | RE-021                   |
+| RE-021    | PDF Factura México                | RE-018, RE-019                 | RE-028, RE-030, RE-032, RE-034                 | RE-017, RE-020, RE-022   |
+| RE-022    | PDF Factura Perú (CPE) 🚫         | RE-017, RE-019, RE-020, RE-005 | RE-029, RE-033, RE-035                         | RE-021                   |
 
 ---
 
 ### Grupo 6 — Validar Cobro
 
-| Req. | Nombre | Depende de | Bloquea a | Paralelo con |
-|------|--------|-----------|-----------|--------------|
-| RE-023 | Validar Cobro: Pantalla Principal | RE-008, RE-016, RE-019 | RE-024, RE-025, RE-026, RE-027, RE-028, RE-029 | RE-021, RE-022 |
-| RE-024 | Validar Cobro: Paso 1 México | RE-023, RE-008 | RE-026, RE-028 | RE-025 |
-| RE-025 | Validar Cobro: Paso 1 Perú 🚫 | RE-024 (infra), RE-006 (datos Perú) | RE-027, RE-029 | RE-024 |
-| RE-026 | Validar Cobro: Paso 2 México | RE-024 | RE-027, RE-028, RE-032 | RE-025 |
-| RE-027 | Validar Cobro: Paso 2 Perú | RE-025, RE-026 | RE-029, RE-033 | RE-026 |
-| RE-028 | Validar Cobro: Paso 3 México (Facturación) | RE-023, RE-024, RE-026, RE-019, RE-021, RE-004 | RE-030, NO-FU-003 (E1/E2/E3/E6) | RE-029, RE-032 |
-| RE-029 | Validar Cobro: Paso 3 Perú 🚫 | RE-025, RE-027, RE-028 (infra), RE-020, RE-022 | RE-033 | RE-028, RE-030 |
-| RE-030 | Complemento de Pago México | RE-028, RE-019, RE-021, RE-004 | NO-FU-003 (E4/E7) | RE-029, RE-032 |
+| Req.   | Nombre                                     | Depende de                                     | Bloquea a                                      | Paralelo con   |
+| ------ | ------------------------------------------ | ---------------------------------------------- | ---------------------------------------------- | -------------- |
+| RE-023 | Validar Cobro: Pantalla Principal          | RE-008, RE-016, RE-019                         | RE-024, RE-025, RE-026, RE-027, RE-028, RE-029 | RE-021, RE-022 |
+| RE-024 | Validar Cobro: Paso 1 México               | RE-023, RE-008                                 | RE-026, RE-028                                 | RE-025         |
+| RE-025 | Validar Cobro: Paso 1 Perú 🚫              | RE-024 (infra), RE-006 (datos Perú)            | RE-027, RE-029                                 | RE-024         |
+| RE-026 | Validar Cobro: Paso 2 México               | RE-024                                         | RE-027, RE-028, RE-032                         | RE-025         |
+| RE-027 | Validar Cobro: Paso 2 Perú                 | RE-025, RE-026                                 | RE-029, RE-033                                 | RE-026         |
+| RE-028 | Validar Cobro: Paso 3 México (Facturación) | RE-023, RE-024, RE-026, RE-019, RE-021, RE-004 | RE-030, NO-FU-003 (E1/E2/E3/E6)                | RE-029, RE-032 |
+| RE-029 | Validar Cobro: Paso 3 Perú 🚫              | RE-025, RE-027, RE-028 (infra), RE-020, RE-022 | RE-033                                         | RE-028, RE-030 |
+| RE-030 | Complemento de Pago México                 | RE-028, RE-019, RE-021, RE-004                 | NO-FU-003 (E4/E7)                              | RE-029, RE-032 |
 
 ---
 
 ### Grupo 7 — Notas de Crédito
 
-| Req. | Nombre | Depende de | Bloquea a | Paralelo con |
-|------|--------|-----------|-----------|--------------|
-| RE-032 | NC México | RE-019, RE-021, RE-028 (catálogo), RE-004 | RE-033, RE-034, NO-FU-003 (E5/E8) | RE-028, RE-029, RE-030 |
-| RE-033 | NC Perú 🚫 | RE-032 (ALTER tabla), RE-022, RE-029 | RE-035 | RE-034 |
-| RE-034 | PDF NC México | RE-021, RE-032 | NO-FU-003 (E8) | RE-033, RE-035 |
-| RE-035 | PDF NC Perú 🚫 | RE-022, RE-033 | — | RE-034 |
+| Req.   | Nombre         | Depende de                                | Bloquea a                         | Paralelo con           |
+| ------ | -------------- | ----------------------------------------- | --------------------------------- | ---------------------- |
+| RE-032 | NC México      | RE-019, RE-021, RE-028 (catálogo), RE-004 | RE-033, RE-034, NO-FU-003 (E5/E8) | RE-028, RE-029, RE-030 |
+| RE-033 | NC Perú 🚫     | RE-032 (ALTER tabla), RE-022, RE-029      | RE-035                            | RE-034                 |
+| RE-034 | PDF NC México  | RE-021, RE-032                            | NO-FU-003 (E8)                    | RE-033, RE-035         |
+| RE-035 | PDF NC Perú 🚫 | RE-022, RE-033                            | —                                 | RE-034                 |
 
 ---
 
@@ -143,10 +143,10 @@ Tres requisitos que desbloquean la mayor cantidad de trabajo en cascada. Deben p
 
 ### 🌊 Ola 3 — Tras completar RE-006, RE-009
 
-| Paralelo | Descripción |
-|----------|-------------|
-| RE-010 | Requiere RE-003, RE-006, RE-009 |
-| RE-013 | Requiere RE-006, RE-007, RE-010 (T3) — iniciar cuando RE-010 T3 esté disponible |
+| Paralelo | Descripción                                                                     |
+| -------- | ------------------------------------------------------------------------------- |
+| RE-010   | Requiere RE-003, RE-006, RE-009                                                 |
+| RE-013   | Requiere RE-006, RE-007, RE-010 (T3) — iniciar cuando RE-010 T3 esté disponible |
 
 ---
 
@@ -162,10 +162,10 @@ Tres requisitos que desbloquean la mayor cantidad de trabajo en cascada. Deben p
 
 ### 🌊 Ola 5 — Tras completar RE-011, RE-014
 
-| Paralelo | Descripción |
-|----------|-------------|
-| RE-012 | Requiere RE-010, RE-011 |
-| RE-015 | Requiere RE-013, RE-014 |
+| Paralelo  | Descripción                                        |
+| --------- | -------------------------------------------------- |
+| RE-012    | Requiere RE-010, RE-011                            |
+| RE-015    | Requiere RE-013, RE-014                            |
 | RE-016 🔴 | Requiere RE-006, RE-013, RE-014 — **HITO CRÍTICO** |
 
 ---
@@ -228,10 +228,10 @@ Tres requisitos que desbloquean la mayor cantidad de trabajo en cascada. Deben p
 
 ### 🌊 Ola 12 — Tras completar RE-028, RE-032
 
-| Paralelo | Descripción |
-|----------|-------------|
-| RE-030 | Requiere RE-028, RE-019, RE-021 |
-| RE-034 | Requiere RE-021, RE-032 |
+| Paralelo  | Descripción                                |
+| --------- | ------------------------------------------ |
+| RE-030    | Requiere RE-028, RE-019, RE-021            |
+| RE-034    | Requiere RE-021, RE-032                    |
 | RE-029 🚫 | Requiere RE-027, RE-028 + desbloqueo SUNAT |
 | RE-033 🚫 | Requiere RE-032, RE-029 + desbloqueo SUNAT |
 
