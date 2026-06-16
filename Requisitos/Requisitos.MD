@@ -76,13 +76,13 @@ Envío automático de notificación regulatoria al cliente al confirmar una coti
 
 ---
 
-### [R16A-RE-FU-008](R16A-RE-FU-008/R16A-RE-FU-008.md) — Buzón de Cobros
+### [R16A-RE-FU-008](R16A-RE-FU-008.md) — Buzón de Cobros
 
 Procesamiento automático de correos de cobro, cotización y pedido mediante el Mailbot con clasificación por Agente IA.
 
-- [Impacto en Base de Datos](R16A-RE-FU-008/R16A-RE-FU-008_BD.md)
-- [Impacto en Backend](R16A-RE-FU-008/R16A-RE-FU-008-Back.md)
-- [Tareas](R16A-RE-FU-008/R16A-RE-FU-008-Tareas.md)
+- [Impacto en Base de Datos](R16A-RE-FU-008_BD.md)
+- [Impacto en Backend](R16A-RE-FU-008-Back.md)
+- [Tareas](R16A-RE-FU-008-Tareas.md)
 
 ---
 
