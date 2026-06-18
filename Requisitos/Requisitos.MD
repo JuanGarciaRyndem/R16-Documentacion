@@ -76,13 +76,19 @@ Envío automático de notificación regulatoria al cliente al confirmar una coti
 
 ---
 
-### [R16A-RE-FU-008](R16A-RE-FU-008.md) — Buzón de Cobros
+### [R16A-RE-FU-008](R16A-RE-FU-008/R16A-RE-FU-008-v2_Propuesta2.md) — Buzón de Cobros
 
-Procesamiento automático de correos de cobro, cotización y pedido mediante el Mailbot con clasificación por Agente IA.
+Procesamiento automático de correos de cobro mediante Mailbot Worker (.NET 10) con Gmail Push Notifications (Google Cloud Pub/Sub) y clasificación por Agente IA. Gestiona el ciclo de vida del cobro desde la recepción del comprobante hasta la generación del pendiente en Validar Cobro. Incluye el catálogo `catCobroEstatus` y la columna `fccPagoCliente.IdCatCobroEstatus` para trazabilidad unificada del estatus del cobro.
 
-- [Impacto en Base de Datos](R16A-RE-FU-008_BD.md)
-- [Impacto en Backend](R16A-RE-FU-008-Back.md)
-- [Tareas](R16A-RE-FU-008-Tareas.md)
+- [Impacto en Base de Datos](R16A-RE-FU-008/R16A-RE-FU-008_BD.md)
+- [Impacto en Backend](R16A-RE-FU-008/R16A-RE-FU-008-P2-Back.md)
+- [Tareas](R16A-RE-FU-008/Tareas/)
+
+---
+
+### R16A-RE-FU-008-P1 — Buzón de Cobros: Propuesta 1 — Mailbot Worker n8n + RabbitMQ _(Cancelado)_
+
+Propuesta cancelada. Se optó por la Propuesta 2: Mailbot Worker .NET 10 con Gmail Push Notifications.
 
 ---
 

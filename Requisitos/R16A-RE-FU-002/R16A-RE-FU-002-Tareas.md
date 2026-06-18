@@ -9,16 +9,16 @@
 
 ### Cambios respecto a la versión anterior de Tareas
 
-| #   | Cambio                                                                                                                                                | Origen                                                   |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| 1   | Total de tareas: de 6 → **7** (nueva Tarea 7 por GAP-05)                                                                                              | Revisión — exclusión de Cobrador en Cotizar lo Cotizable |
-| 2   | Referencias de criterios actualizadas a secciones A/B/C definitivas del requisito                                                                     | Revisión — criterios reorganizados                       |
-| 3   | Tarea 3 (ReasignarCobrador): se agrega nota de **Regla 4 dinámica** — la redistribución de bandeja es automática por JOIN, sin migración de registros | Revisión — decisión sobre Criterio C2 documentada        |
-| 4   | Tarea 5 (endpoint ReasignarCobrador): se agrega referencia a Criterio C2 en descripción y criterios de aceptación                                     | Revisión — Criterio C2 redistribución inmediata          |
-| 5   | **Tarea 7 nueva** [ R16A-RE-FU-002 ] [ SCOPE-VERIFY ] Verificar exclusión del campo Cobrador en alta de cliente desde Cotizar lo Cotizable (GAP-05)   | Revisión — nuevo en Alcance `No aplica a`                |
-| 6   | Cabecera completada con revisión aplicada y tabla de cambios                                                                                          | Mejora de trazabilidad                                   |
-| 7   | **Tarea 3 actualizada:** Regla 4 matizada — redistribución solo aplica a pendientes abiertos por pantalla/módulo; trabajo completado no se reasigna. Nuevo **Criterio C4** en criterios de aceptación | OBS-005 |
-| 8   | **Tarea 5 actualizada:** GAP-04 ampliado — validación de rol incluye Gerente de Tesorería además del Coordinador de Tesorería. Criterio C4 agregado. Referencias a OBS-003/005 | OBS-003 / OBS-005 |
+| #   | Cambio                                                                                                                                                                                                | Origen                                                   |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| 1   | Total de tareas: de 6 → **7** (nueva Tarea 7 por GAP-05)                                                                                                                                              | Revisión — exclusión de Cobrador en Cotizar lo Cotizable |
+| 2   | Referencias de criterios actualizadas a secciones A/B/C definitivas del requisito                                                                                                                     | Revisión — criterios reorganizados                       |
+| 3   | Tarea 3 (ReasignarCobrador): se agrega nota de **Regla 4 dinámica** — la redistribución de bandeja es automática por JOIN, sin migración de registros                                                 | Revisión — decisión sobre Criterio C2 documentada        |
+| 4   | Tarea 5 (endpoint ReasignarCobrador): se agrega referencia a Criterio C2 en descripción y criterios de aceptación                                                                                     | Revisión — Criterio C2 redistribución inmediata          |
+| 5   | **Tarea 7 nueva** [ R16A-RE-FU-002 ] [ SCOPE-VERIFY ] Verificar exclusión del campo Cobrador en alta de cliente desde Cotizar lo Cotizable (GAP-05)                                                   | Revisión — nuevo en Alcance `No aplica a`                |
+| 6   | Cabecera completada con revisión aplicada y tabla de cambios                                                                                                                                          | Mejora de trazabilidad                                   |
+| 7   | **Tarea 3 actualizada:** Regla 4 matizada — redistribución solo aplica a pendientes abiertos por pantalla/módulo; trabajo completado no se reasigna. Nuevo **Criterio C4** en criterios de aceptación | OBS-005                                                  |
+| 8   | **Tarea 5 actualizada:** GAP-04 ampliado — validación de rol incluye Gerente de Tesorería además del Coordinador de Tesorería. Criterio C4 agregado. Referencias a OBS-003/005                        | OBS-003 / OBS-005                                        |
 
 ---
 

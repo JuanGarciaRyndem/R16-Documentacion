@@ -1,6 +1,6 @@
 # Tareas Back — R16A-RE-FU-012
 **Requisito:** Tramitacion de pedidos Credito con Factura por Adelantado
-**Total de tareas:** 7 (T5, T6, T7 agregadas 2026-06-11 — Migración transferencia Pedidos Crédito de SSIS a aplicativo, variantes RE-010/011/012)
+**Total de tareas:** 9 (T5, T6, T7 agregadas 2026-06-11 — Migración SSIS; T8 2026-06-16 — Validación VD; T9 2026-06-16 — Escenarios E2E flujo completo)
 
 ---
 
@@ -151,6 +151,147 @@ El pendiente FAA generado en la tramitacion es consumido correctamente por el mo
 
 ---
 
+## T8 — [ R16A-RE-FU-012 ] [ALG-BASIC-LOGIC] Validar flujo Venta Digital al tramitar pedido Crédito con FAA
+
+### Aplicativos
+- ProquifaDotNet
+- Venta Digital
+
+### Módulos
+- L05.TramitarPedido\Liberar
+- Extracto Venta Digital (`tpPedidoVD`, `tpPartidaPedidoVD`)
+
+### Consideraciones previas
+- El flujo de tramitación base (RE-FU-010) incluye como paso 12 el "Extracto Venta Digital": INSERT/UPDATE en `tpPedidoVD` y `tpPartidaPedidoVD`.
+- RE-012 extiende ese flujo con la variante FAA; se debe verificar que el paso de Venta Digital sigue ejecutándose correctamente independientemente de si FAA está activa o no.
+- **TaskScheduler en Venta Digital:** existe un job programado (Windows Task Scheduler) que depende de los datos escritos en `tpPedidoVD`/`tpPartidaPedidoVD`. Ese job realiza dos acciones:
+  1. **Procesamiento de Órdenes de Compra** — lee el extracto y genera/actualiza la Orden de Compra en Venta Digital.
+  2. **Transferencia de PDFs a Legacy** — toma los PDFs asociados al pedido y los transfiere al directorio configurado de Legacy.
+- Si el paso de Extracto Venta Digital se omite o genera datos incorrectos en el flujo FAA, el job de TaskScheduler falla silenciosamente, dejando la OC sin procesar y los PDFs sin transferir a Legacy.
+
+### Objetivo general
+Verificar que el paso de Extracto Venta Digital (INSERT/UPDATE en `tpPedidoVD`/`tpPartidaPedidoVD`) se ejecuta correctamente en el flujo de tramitación Crédito con FAA, garantizando que el job de TaskScheduler de Venta Digital pueda procesar la Orden de Compra y transferir los PDFs a Legacy sin errores.
+
+### Objetivos específicos
+- Rastrear en `tpPedidoTramitarTransaccionBO.cs` dónde se invoca el extracto Venta Digital y confirmar que la condición FAA=1 no lo omite ni lo cortocircuita.
+- Verificar que los campos requeridos por Venta Digital (`tpPedidoVD.OrdenDeCompra`, `tpPedidoVD.IdPedido`, `tpPartidaPedidoVD.*`) se populan correctamente cuando FAA=1.
+- Confirmar que el job de TaskScheduler puede leer y procesar el extracto generado (validar estructura de datos esperada vs. la que genera el flujo FAA).
+- Verificar que la transferencia de PDFs a Legacy funciona correctamente: el PDF de confirmación de pedido se genera antes de la factura (ya que FAA genera la confirmación inmediatamente, sin esperar la factura).
+- Documentar cualquier ajuste necesario si se detecta que el flujo FAA altera el extracto o el PDF de alguna forma.
+
+### Resultado esperado
+El job de TaskScheduler de Venta Digital procesa correctamente los pedidos tramitados con FAA: la Orden de Compra queda registrada en Venta Digital y los PDFs se transfieren a Legacy sin diferencias respecto al flujo base (RE-010).
+
+### Entregables
+- Reporte de validación: flujo FAA vs. flujo base en los datos escritos a `tpPedidoVD`/`tpPartidaPedidoVD`
+- Ajustes en `tpPedidoTramitarTransaccionBO.cs` si se detecta alguna omisión (entregable condicional)
+- Evidencia de que el job de TaskScheduler procesa correctamente el extracto FAA (queries o capturas)
+
+### Criterios de aceptación
+- [ ] El extracto Venta Digital se genera en `tpPedidoVD`/`tpPartidaPedidoVD` al tramitar con FAA=1 (igual que con FAA=0).
+- [ ] Los campos requeridos por el job de TaskScheduler están presentes y correctos.
+- [ ] El job de TaskScheduler procesa la Orden de Compra sin errores cuando el pedido tiene FAA=1.
+- [ ] Los PDFs se transfieren a Legacy correctamente (el PDF de confirmación de pedido se genera antes que la factura en el flujo FAA).
+- [ ] No se genera diferencia funcional entre FAA=1 y FAA=0 en los datos entregados a Venta Digital.
+
+### Más información de la tarea
+- El flujo base de Extracto Venta Digital se define en RE-FU-010, paso 12 (tablas `tpPedidoVD`, `tpPartidaPedidoVD`).
+- El job de TaskScheduler en Venta Digital opera sobre datos de `ppPedidoVD`/`ppPartidaPedidoVD` (pretramitado) y `tpPedidoVD`/`tpPartidaPedidoVD` (tramitado). Tiene dos responsabilidades: procesar la OC y transferir PDFs a Legacy.
+- En el flujo FAA la confirmación de pedido se genera inmediatamente (paso 6 en RE-012 Back.md), sin esperar la factura — esto afecta qué PDF está disponible para transferir a Legacy en el momento en que TaskScheduler se ejecuta.
+
+### Recursos
+- `R16A-RE-FU-010-Back.md` — paso 12 (Extracto Venta Digital), tablas `tpPedidoVD`/`tpPartidaPedidoVD`
+- `R16A-RE-FU-012-Back.md` — flujo tramitación Crédito con FAA, paso 7 (Transferencia Legacy)
+- `tpPedidoTramitarTransaccionBO.cs` — clase principal del flujo de tramitación
+
+---
+
+## T9 — [ R16A-RE-FU-012 ] [ALG-BASIC-LOGIC] Pruebas de flujo completo E2E — Tramitación Crédito con y sin FAA
+
+### Aplicativos
+- ProquifaDotNet
+- Venta Digital
+- Legacy
+
+### Módulos
+- L05.TramitarPedido\Liberar
+- Extracto Venta Digital
+- Transferencia Legacy
+
+### Consideraciones previas
+- Esta tarea valida impactos colaterales: cualquier modificación al flujo de tramitación Crédito debe demostrarse que no rompió el pipeline completo, desde el trigger hasta el último paso downstream.
+- No es suficiente validar solo la funcionalidad específica del requisito (pendiente FAA). El developer debe ejecutar todos los escenarios antes de solicitar revisión del PR.
+- Los escenarios cubren: flujo base sin FAA (no regresión RE-010), variantes de RE-011 (controlados, Perú, PCE) y la variante FAA de este requisito (RE-012).
+- Predecesoras: T1 (análisis código), T2 (pendiente FAA), T3 (validaciones), T4 (vinculación facturación), T8 (validación VD).
+
+### Escenarios de prueba
+
+| # | Escenario | FAA | Región | Controlados | PCE |
+|---|-----------|:---:|--------|:-----------:|:---:|
+| E1 | Crédito base — no regresión RE-010 | ✗ | MEX | ✗ | ✗ |
+| E2 | Crédito con FAA activa | ✓ | MEX | ✗ | ✗ |
+| E3 | Crédito FAA + región Perú (debe rechazarse) | ✓ | PER | ✗ | ✗ |
+| E4 | Crédito Pago Contra Entrega — no regresión RE-010 | ✗ | MEX | ✗ | ✓ |
+| E5 | Crédito con sustancias controladas — no regresión RE-011 | ✗ | MEX | ✓ | ✗ |
+| E6 | Crédito Perú base (sin transferencia Legacy) | ✗ | PER | ✗ | ✗ |
+| E7 | Cancelación de pedido tramitado | — | MEX | — | — |
+
+### Pipeline a verificar por escenario
+
+Para cada escenario aplicable, verificar que cada paso del pipeline se ejecutó correctamente:
+
+| Paso | Qué verificar | E1 | E2 | E3 | E4 | E5 | E6 | E7 |
+|------|--------------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
+| 1 | Folio de pedido asignado | ✓ | ✓ | — | ✓ | ✓ | ✓ | — |
+| 2 | PDF de confirmación generado correctamente | ✓ | ✓ | — | ✓ | ✓ | ✓ | — |
+| 3 | Correo de confirmación enviado al cliente | ✓ | ✓ | — | ✓ | ✓ | ✓ | — |
+| 4 | Extracto Venta Digital: registro en `tpPedidoVD` y `tpPartidaPedidoVD` | ✓ | ✓ | — | ✓ | ✓ | ✓ | — |
+| 5 | TaskScheduler VD: Orden de Compra procesada en Venta Digital | ✓ | ✓ | — | ✓ | ✓ | ✓ | — |
+| 6 | TaskScheduler VD: PDFs transferidos a Legacy | ✓ | ✓ | — | ✓ | ✓ | — | — |
+| 7 | Transferencia Legacy: Pedido + Partidas enviados | ✓ | ✓ | — | ✓ | ✓ | — | — |
+| 8 | Pendiente FAA generado (solo con FAA=1) | — | ✓ | — | — | — | — | — |
+| 9 | No se genera pendiente FAA (cuando FAA=0) | ✓ | — | — | ✓ | ✓ | ✓ | — |
+| 10 | BitácoraCRUD registrada por operación | ✓ | ✓ | — | ✓ | ✓ | ✓ | ✓ |
+| 11 | E3: error claro al intentar FAA en Perú | — | — | ✓ | — | — | — | — |
+| 12 | E4: PCE se traduce como crédito en Legacy (OBS-024) | — | — | — | ✓ | — | — | — |
+| 13 | E5: correo a Regulatory Affairs enviado | — | — | — | — | ✓ | — | — |
+| 14 | E6: ningún dato en Legacy para región Perú | — | — | — | — | — | ✓ | — |
+| 15 | E7: pedido cancelado no aparece en bandeja ESAC | — | — | — | — | — | — | ✓ |
+| 16 | E7: `tpPedidoVD` inactivado o marcado al cancelar | — | — | — | — | — | — | ✓ |
+
+### Objetivo general
+Garantizar que las modificaciones introducidas en RE-012 (pendiente FAA, validaciones, bloqueo datos facturación) no rompieron ningún paso del pipeline de tramitación Crédito en ninguna de sus variantes.
+
+### Resultado esperado
+Todos los escenarios ejecutados con evidencia. Los pasos del pipeline marcados como aplicables funcionan correctamente. No hay regresión en el flujo base ni en las variantes RE-010/RE-011.
+
+### Entregables
+- Documento o tabla de evidencias por escenario (query o captura por paso verificado)
+- Incidencias encontradas y su resolución
+- Confirmación explícita de que E7 (cancelación) actualiza correctamente `tpPedidoVD`
+
+### Criterios de aceptación
+- [ ] E1 — Flujo base Crédito sin FAA: los 10 pasos generales se completan sin errores.
+- [ ] E2 — FAA activa: pasos 1-10 completos + pendiente FAA generado (paso 8).
+- [ ] E3 — FAA en Perú: el sistema rechaza con error claro sin generar ningún registro downstream.
+- [ ] E4 — PCE: Legacy recibe la marca de crédito (no prepago) según OBS-024.
+- [ ] E5 — Controlados: correo a Regulatory Affairs enviado además del correo estándar.
+- [ ] E6 — Perú base: ningún dato llega a Legacy ni a TaskScheduler para transferencia.
+- [ ] E7 — Cancelación: pedido desaparece de bandeja ESAC; `tpPedidoVD` refleja el estado cancelado.
+- [ ] PR aprobado por líder técnico con evidencias adjuntas.
+
+### Más información de la tarea
+- El paso 16 (E7: impacto cancelación en `tpPedidoVD`) es una brecha identificada: no está documentado si el flujo de cancelación actualiza esta tabla. El developer debe confirmar el comportamiento actual y corregirlo si es necesario.
+- El paso 6 (TransferenciaPDFs vía TaskScheduler) depende de que el PDF esté disponible antes de que el job se ejecute — confirmar timing en ambiente de QA.
+
+### Recursos
+- `R16A-RE-FU-010-Back.md` — flujo base + paso 12 Extracto VD + Sección B Cancelación
+- `R16A-RE-FU-011-Back.md` — variantes controlados y Perú
+- `R16A-RE-FU-012-Back.md` — flujo FAA Crédito
+- `R16A-RE-FU-012-Tareas.md` — T8 (validación VD específica)
+
+---
+
 ## Resumen de tareas
 
 | # | Clave Catalogo | Titulo | Predecesora |
@@ -159,6 +300,11 @@ El pendiente FAA generado en la tramitacion es consumido correctamente por el mo
 | T2 | SERV-TRANSACT | Generacion de pendiente FAA en transaccion de tramitacion | T1 |
 | T3 | ALG-BASIC-LOGIC | Validaciones Back para Factura por Adelantado | T1 |
 | T4 | ALG-BASIC-LOGIC | Vinculacion del pendiente FAA con modulo de facturacion (RE-FU-018/019/020) | T2 |
+| T5 | QUERY-G | Análisis — Migración de transferencia Pedidos Crédito de SSIS a aplicativo | — |
+| T6 | SERV-COMPLEX-TRANSACT | Implementación — Servicio aplicativo de transferencia Pedidos Crédito a Legacy | T5 |
+| T7 | SERV-TRANSACT | Integración — Canal definitivo y desactivación del SSIS de Pedidos Crédito | T5, T6 |
+| T8 | ALG-BASIC-LOGIC | Validar flujo Venta Digital al tramitar pedido Crédito con FAA | T2 |
+| T9 | ALG-BASIC-LOGIC | Pruebas de flujo completo E2E — Tramitación Crédito con y sin FAA | T1,T2,T3,T4,T8 |
 
 ---
 
@@ -171,6 +317,7 @@ El pendiente FAA generado en la tramitacion es consumido correctamente por el mo
 | R16A-RE-FU-018 | Generacion de factura | Consume el pendiente FAA generado en T2 |
 | R16A-RE-FU-019 | Generacion de CFDI | Proceso posterior a factura |
 | R16A-RE-FU-020 | Timbrado fiscal (PAC) | Proceso posterior a CFDI |
+| Venta Digital | T8 | TaskScheduler lee `tpPedidoVD`/`tpPartidaPedidoVD` para procesar OC y transferir PDFs a Legacy |
 
 
 

@@ -22,23 +22,23 @@ Este requisito documenta el flujo **preexistente** de tramitacion de pedidos Cre
 
 ### Secuencia del flujo Credito (SinCredito = false)
 
-| Paso | Accion | Entidades afectadas |
-|------|--------|---------------------|
-| 1 | Validaciones de configuracion (condiciones de pago, region, ESAC) | `catCondicionesDePago`, `Cliente`, `Region`, `ClienteCarteraCliente` |
-| 2 | Validaciones de pedido confirmacion | `tpPedido`, `tpPartidaPedido` |
-| 3 | Generacion de folio interno | `VariableConfiguracion`, `RegionConsecutivoFoliosPedido` (Legacy SP) |
-| 4 | Generacion de PDF Pedido Confirmado | `Archivo` (MinIO) |
-| 5 | Registro de contactos notificados entrega | `tpPedidoContactoNotificadoEntrega` (INSERT) |
-| 6 | Actualizacion del pedido (Tramitado=1, Folio, FechaTramitacion) | `tpPedido` (UPDATE) |
-| 7 | Asignacion de stock y procesamiento de partidas | `tpPartidaPedido` (UPDATE) |
-| 8 | Creacion de pendientes de compra | `ocPendienteCompraProducto` (INSERT) |
-| 9 | Addenda Sanofi (si aplica) | `tpPartidaPedidoAddendaSanofi` (INSERT) |
-| 10 | Generacion de correo de confirmacion | `CorreoEnviado`, `ArchivoCorreoEnviado`, `tpPedidoCorreoEnviado` (INSERT) |
-| 11 | Pendiente de stock (si hay partidas con stock) | `tpPendienteStock` (INSERT) |
-| 12 | Extracto Venta Digital | `tpPedidoVD`, `tpPartidaPedidoVD` (INSERT/UPDATE) |
-| 13 | Seguimiento de partidas | `tpPartidaPedidoSeguimiento` (INSERT) |
-| 14 | Incremento de consecutivo Legacy (solo Mexico) | SP Legacy via `GeneradorFoliosPedido` |
-| 15 | Envio de correo via RabbitMQ/SendInBlue | Cola de mensajes |
+| Paso | Accion                                                            | Entidades afectadas                                                       |
+| ---- | ----------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| 1    | Validaciones de configuracion (condiciones de pago, region, ESAC) | `catCondicionesDePago`, `Cliente`, `Region`, `ClienteCarteraCliente`      |
+| 2    | Validaciones de pedido confirmacion                               | `tpPedido`, `tpPartidaPedido`                                             |
+| 3    | Generacion de folio interno                                       | `VariableConfiguracion`, `RegionConsecutivoFoliosPedido` (Legacy SP)      |
+| 4    | Generacion de PDF Pedido Confirmado                               | `Archivo` (MinIO)                                                         |
+| 5    | Registro de contactos notificados entrega                         | `tpPedidoContactoNotificadoEntrega` (INSERT)                              |
+| 6    | Actualizacion del pedido (Tramitado=1, Folio, FechaTramitacion)   | `tpPedido` (UPDATE)                                                       |
+| 7    | Asignacion de stock y procesamiento de partidas                   | `tpPartidaPedido` (UPDATE)                                                |
+| 8    | Creacion de pendientes de compra                                  | `ocPendienteCompraProducto` (INSERT)                                      |
+| 9    | Addenda Sanofi (si aplica)                                        | `tpPartidaPedidoAddendaSanofi` (INSERT)                                   |
+| 10   | Generacion de correo de confirmacion                              | `CorreoEnviado`, `ArchivoCorreoEnviado`, `tpPedidoCorreoEnviado` (INSERT) |
+| 11   | Pendiente de stock (si hay partidas con stock)                    | `tpPendienteStock` (INSERT)                                               |
+| 12   | Extracto Venta Digital                                            | `tpPedidoVD`, `tpPartidaPedidoVD` (INSERT/UPDATE)                         |
+| 13   | Seguimiento de partidas                                           | `tpPartidaPedidoSeguimiento` (INSERT)                                     |
+| 14   | Incremento de consecutivo Legacy (solo Mexico)                    | SP Legacy via `GeneradorFoliosPedido`                                     |
+| 15   | Envio de correo via RabbitMQ/SendInBlue                           | Cola de mensajes                                                          |
 
 ---
 

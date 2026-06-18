@@ -109,14 +109,14 @@ ProquifaDotNet (Venta Interna)     ProquifaDotNet.Finanzas          DocumentBuil
 
 ### Foliador Global PRF
 
-| Aspecto | Valor |
-|---------|-------|
-| Campo BD | tpProformaPedido.FolioProforma (varchar 80) + ConsecutivoProforma (int) |
-| Formato interno BD | MMDDAA-Consecutivo (ej: 031826-691) |
-| Formato visual PDF | PRF-MMDDAA-Consecutivo (prefijo PRF solo en render) |
-| Segmentación | Ninguna (global) |
-| Momento consumo | Al confirmar envío exitoso (sin huecos) |
-| Mecanismo | SQL SEQUENCE `dbo.SeqFolioProforma` |
+| Aspecto            | Valor                                                                   |
+| ------------------ | ----------------------------------------------------------------------- |
+| Campo BD           | tpProformaPedido.FolioProforma (varchar 80) + ConsecutivoProforma (int) |
+| Formato interno BD | MMDDAA-Consecutivo (ej: 031826-691)                                     |
+| Formato visual PDF | PRF-MMDDAA-Consecutivo (prefijo PRF solo en render)                     |
+| Segmentación       | Ninguna (global)                                                        |
+| Momento consumo    | Al confirmar envío exitoso (sin huecos)                                 |
+| Mecanismo          | SQL SEQUENCE `dbo.SeqFolioProforma`                                     |
 
 ### Persistencia del PDF (Minio)
 

@@ -229,12 +229,112 @@ dotnet ef dbcontext scaffold \
     catProceso \
     catDominioCorreoRecibidoPendiente \
     fccFolioPagoCliente \
+    catCobroEstatus \
     Region \
     MailbotEventoCorreo \
     MailbotClasificacionLog \
   --no-onconfiguring \
   --force
 ```
+
+---
+
+## Catálogo Nuevo: catCobroEstatus
+
+**Propósito:** Catálogo de estatus del ciclo de vida de un cobro (`fccPagoCliente`) desde que llega al Buzón hasta que se completa el Paso 3 de Validar Cobro. Permite consultar y filtrar cobros por su estado sin inferirlo de múltiples tablas.
+
+```sql
+CREATE TABLE [dbo].[catCobroEstatus] (
+    [IdCatCobroEstatus]  uniqueidentifier NOT NULL
+        CONSTRAINT [DF_catCobroEstatus_Id]        DEFAULT (NEWID()),
+    [Clave]              varchar(30)      NOT NULL,
+    [Descripcion]        varchar(120)     NOT NULL,
+    [Orden]              int              NOT NULL
+        CONSTRAINT [DF_catCobroEstatus_Orden]     DEFAULT (0),
+    [Activo]             bit              NOT NULL
+        CONSTRAINT [DF_catCobroEstatus_Activo]    DEFAULT (1),
+    [FechaRegistro]      datetime2        NOT NULL
+        CONSTRAINT [DF_catCobroEstatus_FechaReg]  DEFAULT (SYSUTCDATETIME()),
+    CONSTRAINT [PK_catCobroEstatus]
+        PRIMARY KEY CLUSTERED ([IdCatCobroEstatus]),
+    CONSTRAINT [UQ_catCobroEstatus_Clave]
+        UNIQUE ([Clave])
+);
+
+-- DML inicial
+INSERT INTO dbo.catCobroEstatus (Clave, Descripcion, Orden) VALUES
+    ('BORRADOR',           'Captura iniciada en Paso 1, no confirmada',                1),
+    ('CAPTURADO',          'Cobro confirmado en Paso 1, pendiente de asociar',         2),
+    ('ASOCIADO',           'Vinculado a proforma o factura en Paso 2',                 3),
+    ('SALDO_A_FAVOR',      'Cobro con residual disponible tras asociación',            4),
+    ('CON_INCONSISTENCIA', 'Marcado con inconsistencia en Paso 1 o Paso 2',            5),
+    ('COMPLETADO',         'Documentos fiscales generados y enviados en Paso 3',       6),
+    ('CANCELADO',          'Cancelado por falta de pago u otra razón operativa',       7);
+```
+
+### Diccionario de datos — catCobroEstatus
+
+| Nombre de tabla | Descripción |
+|---|---|
+| catCobroEstatus | Catálogo de estatus del ciclo de vida de un cobro en el wizard de Validar Cobro. |
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| IdCatCobroEstatus | uniqueidentifier PK | Identificador único del estatus |
+| Clave | varchar(30) UNIQUE | Clave textual usada en código: `BORRADOR`, `CAPTURADO`, `ASOCIADO`, `SALDO_A_FAVOR`, `CON_INCONSISTENCIA`, `COMPLETADO`, `CANCELADO` |
+| Descripcion | varchar(120) | Descripción legible del estatus |
+| Orden | int | Orden en el ciclo de vida para presentación |
+| Activo | bit | 1 = vigente, 0 = inactivo |
+| FechaRegistro | datetime2 | Fecha de inserción del registro |
+
+### Ciclo de vida del estatus
+
+```
+[Buzón de Cobros recibe correo clasificado como cobro]
+        ↓
+   BORRADOR  ←── Auto-guardado Paso 1 (fccPagoCliente.Confirmado = 0)
+        ↓  (usuario confirma cobro en Paso 1)
+   CAPTURADO ←── Confirmación Paso 1 (fccPagoCliente.Confirmado = 1)
+        ↓  (usuario asocia a documento en Paso 2)
+   ASOCIADO / SALDO_A_FAVOR
+        ↓  (usuario completa Paso 3 y se envía documento fiscal)
+   COMPLETADO
+```
+
+> En cualquier paso puede transicionar a `CON_INCONSISTENCIA` o `CANCELADO`.
+
+---
+
+## ALTER TABLE fccPagoCliente — Agregar IdCobroEstatus
+
+**Propósito:** Vincular cada cobro capturado con su estatus actual en el ciclo de vida.  
+El campo reemplaza el uso implícito del `bit Confirmado` para inferir estado, centralizando el estatus en un catálogo consultable.
+
+```sql
+-- Prerequisito: catCobroEstatus debe existir con sus datos iniciales
+
+ALTER TABLE dbo.fccPagoCliente
+    ADD [IdCatCobroEstatus] uniqueidentifier NOT NULL
+        CONSTRAINT [DF_fccPagoCliente_IdCatCobroEstatus]
+            DEFAULT (
+                (SELECT TOP 1 IdCatCobroEstatus
+                 FROM dbo.catCobroEstatus
+                 WHERE Clave = 'BORRADOR')
+            );
+
+ALTER TABLE dbo.fccPagoCliente
+    ADD CONSTRAINT [FK_fccPagoCliente_catCobroEstatus]
+        FOREIGN KEY ([IdCatCobroEstatus])
+        REFERENCES dbo.catCobroEstatus ([IdCatCobroEstatus]);
+
+-- Verificación
+SELECT c.name, c.column_id
+FROM sys.columns c
+WHERE c.object_id = OBJECT_ID('dbo.fccPagoCliente')
+  AND c.name = 'IdCatCobroEstatus';
+```
+
+> **Nota sobre `Confirmado` (bit):** El campo `Confirmado` ya definido en RE-023 puede coexistir con `IdCatCobroEstatus` por compatibilidad con código existente. A largo plazo, `IdCatCobroEstatus` es la fuente de verdad del estatus y `Confirmado` puede deprecarse.
 
 ---
 
@@ -335,10 +435,12 @@ SI mensaje falla al procesarse:
 
 | # | Paso | Script | Prioridad |
 |:-:|------|--------|:---------:|
-| 1 | `CREATE TABLE MailbotEventoCorreo` | Script sección Tablas Nuevas | 🔴 Alta |
-| 2 | `CREATE TABLE MailbotClasificacionLog` | Script sección Tablas Nuevas | 🔴 Alta |
-| 3 | Renombrar `'Pago'` → `'Cobro'` en `catClasificacionCorreoRecibido` | `UPDATE Clave='pago'` | 🔴 Alta |
-| 4 | `INSERT` proceso `'Cobros'` en `catProceso` | `INSERT INTO catProceso` | 🔴 Alta |
+| 1 | `CREATE TABLE catCobroEstatus` + DML inicial | Script sección Catálogo Nuevo | 🔴 Alta |
+| 2 | `ALTER TABLE fccPagoCliente` — ADD `IdCatCobroEstatus` FK | Script sección ALTER fccPagoCliente | 🔴 Alta |
+| 3 | `CREATE TABLE MailbotEventoCorreo` | Script sección Tablas Nuevas | 🔴 Alta |
+| 4 | `CREATE TABLE MailbotClasificacionLog` | Script sección Tablas Nuevas | 🔴 Alta |
+| 5 | Renombrar `'Pago'` → `'Cobro'` en `catClasificacionCorreoRecibido` | `UPDATE Clave='pago'` | 🔴 Alta |
+| 6 | `INSERT` proceso `'Cobros'` en `catProceso` | `INSERT INTO catProceso` | 🔴 Alta |
 
 ---
 

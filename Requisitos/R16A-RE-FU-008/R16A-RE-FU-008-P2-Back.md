@@ -222,28 +222,28 @@ dotnet ef dbcontext scaffold "Server=RYNL010;Database=ProquifaDotNet;..." \
 
 ### Tareas en ProquifaDotNet
 
-| # | Tarea | Clave Catalogo | Proyecto |
-|:-:|-------|---------------|---------|
-| T1 | Script BD: INSERT catProceso Cobros + INSERT/UPDATE catClasificacionCorreoRecibido Cobro + ALTER RegionConfiguracionMailBot (3 columnas) | `UPDATE-TABL-CH` | BD ProquifaDotNet |
-| T2 | Script BD: CREATE TABLE MailbotEventoCorreo + indices | `CREATE-TABL-CH` | BD ProquifaDotNet |
-| T3 | Script BD: CREATE TABLE MailbotClasificacionLog | `CREATE-TABL-CH` | BD ProquifaDotNet |
-| T4 | Ampliar modelo EF6: entidades MailbotEventoCorreo y MailbotClasificacionLog + DbSets en contexto | `UPDATE-TABL-CH` | `_Data\Mail` |
-| T5 | Crear BuzonCobrosBO.cs — lista paginada del Buzon de Cobros (filtro gestor + region) | `LIST-PAG-MULT-FILTER` | `Logic.Pqf.Catalogos` |
-| T6 | Crear BuzonCobrosBO.Reclasificar.cs — reclasificacion manual de correo | `SERV-SIMPLE-PUT` | `Logic.Pqf.Catalogos` |
-| T7 | Crear FolioPagoClienteBO.cs — generacion automatica de pendiente en Validar Cobro | `ALG-BASIC-LOGIC` | `Logic.Pqf.Catalogos` |
-| T8 | Crear FolioPagoClienteBO.Cierre.cs — cierre/eliminacion automatica del pendiente | `ALG-BASIC-LOGIC` | `Logic.Pqf.Catalogos` |
-| T9 | Crear endpoint GET /api/buzon/cobros — lista paginada + filtros | `LIST-PAG-MULT-FILTER` | `WebApi.Catalogos` |
-| T10 | Crear endpoint PUT /api/buzon/cobros/{id}/reclasificar | `SERV-SIMPLE-PUT` | `WebApi.Catalogos` |
-| T11 | Crear endpoint PUT /api/cobros/folio/{id}/cerrar | `SERV-SIMPLE-PUT` | `WebApi.Catalogos` |
-| T12 | Evaluar y actualizar spActualizarBuzonPagoLegacy si aplica | `BD-OBJ-CH` | BD ProquifaDotNet |
-| T25 | Crear BuzonCotizacionesBO — lista paginada del Buzón de Cotizaciones (filtro gestor + región) | `LIST-PAG-MULT-FILTER` | `Logic.Pqf.Catalogos` |
-| T26 | Crear BuzonCotizacionesBO.Reclasificar — reclasificación manual de correo de cotización | `SERV-SIMPLE-PUT` | `Logic.Pqf.Catalogos` |
-| T27 | Crear endpoint GET /api/buzon/cotizaciones — lista paginada con filtros | `LIST-PAG-MULT-FILTER` | `WebApi.Catalogos` |
-| T28 | Crear endpoint PUT /api/buzon/cotizaciones/{id}/reclasificar | `SERV-SIMPLE-PUT` | `WebApi.Catalogos` |
-| T29 | Crear BuzonPedidosBO — lista paginada del Buzón de Pedidos (filtro agente + región) | `LIST-PAG-MULT-FILTER` | `Logic.Pqf.Catalogos` |
-| T30 | Crear BuzonPedidosBO.Reclasificar — reclasificación manual de correo de pedido | `SERV-SIMPLE-PUT` | `Logic.Pqf.Catalogos` |
-| T31 | Crear endpoint GET /api/buzon/pedidos — lista paginada con filtros | `LIST-PAG-MULT-FILTER` | `WebApi.Catalogos` |
-| T32 | Crear endpoint PUT /api/buzon/pedidos/{id}/reclasificar | `SERV-SIMPLE-PUT` | `WebApi.Catalogos` |
+|  #  | Tarea                                                                                                                                    | Clave Catalogo         | Proyecto              |
+| :-: | ---------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- | --------------------- |
+| T1  | Script BD: INSERT catProceso Cobros + INSERT/UPDATE catClasificacionCorreoRecibido Cobro + ALTER RegionConfiguracionMailBot (3 columnas) | `UPDATE-TABL-CH`       | BD ProquifaDotNet     |
+| T2  | Script BD: CREATE TABLE MailbotEventoCorreo + indices                                                                                    | `CREATE-TABL-CH`       | BD ProquifaDotNet     |
+| T3  | Script BD: CREATE TABLE MailbotClasificacionLog                                                                                          | `CREATE-TABL-CH`       | BD ProquifaDotNet     |
+| T4  | Ampliar modelo EF6: entidades MailbotEventoCorreo y MailbotClasificacionLog + DbSets en contexto                                         | `UPDATE-TABL-CH`       | `_Data\Mail`          |
+| T5  | Crear BuzonCobrosBO.cs — lista paginada del Buzon de Cobros (filtro gestor + region)                                                     | `LIST-PAG-MULT-FILTER` | `Logic.Pqf.Catalogos` |
+| T6  | Crear BuzonCobrosBO.Reclasificar.cs — reclasificacion manual de correo                                                                   | `SERV-SIMPLE-PUT`      | `Logic.Pqf.Catalogos` |
+| T7  | Crear FolioPagoClienteBO.cs — generacion automatica de pendiente en Validar Cobro                                                        | `ALG-BASIC-LOGIC`      | `Logic.Pqf.Catalogos` |
+| T8  | Crear FolioPagoClienteBO.Cierre.cs — cierre/eliminacion automatica del pendiente                                                         | `ALG-BASIC-LOGIC`      | `Logic.Pqf.Catalogos` |
+| T9  | Crear endpoint GET /api/buzon/cobros — lista paginada + filtros                                                                          | `LIST-PAG-MULT-FILTER` | `WebApi.Catalogos`    |
+| T10 | Crear endpoint PUT /api/buzon/cobros/{id}/reclasificar                                                                                   | `SERV-SIMPLE-PUT`      | `WebApi.Catalogos`    |
+| T11 | Crear endpoint PUT /api/cobros/folio/{id}/cerrar                                                                                         | `SERV-SIMPLE-PUT`      | `WebApi.Catalogos`    |
+| T12 | Evaluar y actualizar spActualizarBuzonPagoLegacy si aplica                                                                               | `BD-OBJ-CH`            | BD ProquifaDotNet     |
+| T25 | Crear BuzonCotizacionesBO — lista paginada del Buzón de Cotizaciones (filtro gestor + región)                                            | `LIST-PAG-MULT-FILTER` | `Logic.Pqf.Catalogos` |
+| T26 | Crear BuzonCotizacionesBO.Reclasificar — reclasificación manual de correo de cotización                                                  | `SERV-SIMPLE-PUT`      | `Logic.Pqf.Catalogos` |
+| T27 | Crear endpoint GET /api/buzon/cotizaciones — lista paginada con filtros                                                                  | `LIST-PAG-MULT-FILTER` | `WebApi.Catalogos`    |
+| T28 | Crear endpoint PUT /api/buzon/cotizaciones/{id}/reclasificar                                                                             | `SERV-SIMPLE-PUT`      | `WebApi.Catalogos`    |
+| T29 | Crear BuzonPedidosBO — lista paginada del Buzón de Pedidos (filtro agente + región)                                                      | `LIST-PAG-MULT-FILTER` | `Logic.Pqf.Catalogos` |
+| T30 | Crear BuzonPedidosBO.Reclasificar — reclasificación manual de correo de pedido                                                           | `SERV-SIMPLE-PUT`      | `Logic.Pqf.Catalogos` |
+| T31 | Crear endpoint GET /api/buzon/pedidos — lista paginada con filtros                                                                       | `LIST-PAG-MULT-FILTER` | `WebApi.Catalogos`    |
+| T32 | Crear endpoint PUT /api/buzon/pedidos/{id}/reclasificar                                                                                  | `SERV-SIMPLE-PUT`      | `WebApi.Catalogos`    |
 
 ### Tareas en MailbotWorker (Nueva Solucion .NET 10)
 

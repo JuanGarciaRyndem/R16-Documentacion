@@ -46,11 +46,12 @@ Ciclo de vida del pendiente:
 |---|---|---|---|
 | `catClasificacionCorreoRecibido` | Catálogo | ✨ Existente + INSERT/UPDATE | Agregar o renombrar clasificación ‘Cobro’ con `AnalistaDeCuentasPorCobrar = 1` |
 | `catProceso` | Catálogo | ✨ Existente + INSERT | Agregar proceso ‘Cobros’ vinculado a la nueva clasificación |
+| `catCobroEstatus` | Catálogo | 🆕 NUEVO | Catálogo de estatus del ciclo de vida del cobro (BORRADOR → COMPLETADO) |
 | `CorreoRecibido` | Tabla | ✅ Existente — sin cambios | Correo entrante con `IdRegion` para segregación MEX/PER |
 | `CorreoRecibidoCliente` | Tabla | ✅ Existente — sin cambios | Clasificación + cliente + estado del correo |
 | `CorreoRecibidoEstatus` | Tabla | ✅ Existente — sin cambios | Estado de lectura y procesado del correo |
 | `fccFolioPagoCliente` | Tabla | ✅ Existente — sin cambios | Pendiente en Validar Cobro generado por correo clasificado |
-| `fccPagoCliente` | Tabla | ✅ Existente — sin cambios | Datos del cobro capturados en Validar Cobro |
+| `fccPagoCliente` | Tabla | ✨ Existente + ALTER | Agrega FK `IdCatCobroEstatus` para rastrear el estatus del cobro |
 | `ClienteCartera` | Tabla | ✅ Existente — sin cambios | `IdUsuarioCobrador` para filtrar bandeja del Gestor |
 | `ClienteCarteraCliente` | Tabla | ✅ Existente — sin cambios | Relación cliente-cartera para filtro de visibilidad |
 | `RegionConfiguracionMailBot` | Tabla | ✅ Existente — referencia | Configuración del Mailbot por región (MEX/PER) |
@@ -241,7 +242,103 @@ VALUES (
 
 ---
 
-## 7. RegionConfiguracionMailBot (Existente — referencia)
+## 7. catCobroEstatus (NUEVO — R16)
+
+**Propósito:** Catálogo de estatus del ciclo de vida de un cobro en `fccPagoCliente`, desde que se captura en el Buzón hasta que se completa el Paso 3 del wizard de Validar Cobro. Permite consultar y filtrar cobros por estado sin inferirlo de múltiples tablas o campos implícitos.
+
+```sql
+CREATE TABLE [dbo].[catCobroEstatus] (
+    [IdCatCobroEstatus]  uniqueidentifier NOT NULL
+        CONSTRAINT [DF_catCobroEstatus_Id]       DEFAULT (NEWID()),
+    [Clave]              varchar(30)      NOT NULL,
+    [Descripcion]        varchar(120)     NOT NULL,
+    [Orden]              int              NOT NULL
+        CONSTRAINT [DF_catCobroEstatus_Orden]    DEFAULT (0),
+    [Activo]             bit              NOT NULL
+        CONSTRAINT [DF_catCobroEstatus_Activo]   DEFAULT (1),
+    [FechaRegistro]      datetime2        NOT NULL
+        CONSTRAINT [DF_catCobroEstatus_FechaReg] DEFAULT (SYSUTCDATETIME()),
+    CONSTRAINT [PK_catCobroEstatus]
+        PRIMARY KEY CLUSTERED ([IdCatCobroEstatus]),
+    CONSTRAINT [UQ_catCobroEstatus_Clave]
+        UNIQUE ([Clave])
+);
+
+-- DML inicial
+INSERT INTO dbo.catCobroEstatus (Clave, Descripcion, Orden) VALUES
+    ('BORRADOR',           'Captura iniciada en Paso 1, no confirmada',             1),
+    ('CAPTURADO',          'Cobro confirmado en Paso 1, pendiente de asociar',      2),
+    ('ASOCIADO',           'Vinculado a proforma o factura en Paso 2',              3),
+    ('SALDO_A_FAVOR',      'Cobro con residual disponible tras asociación',         4),
+    ('CON_INCONSISTENCIA', 'Marcado con inconsistencia en Paso 1 o Paso 2',         5),
+    ('COMPLETADO',         'Documentos fiscales generados y enviados en Paso 3',    6),
+    ('CANCELADO',          'Cancelado por falta de pago u otra razón operativa',    7);
+```
+
+### Diccionario de datos — catCobroEstatus
+
+| Nombre de tabla | Descripción |
+|---|---|
+| catCobroEstatus | Catálogo de estatus del ciclo de vida del cobro en el wizard de Validar Cobro. |
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| IdCatCobroEstatus | uniqueidentifier PK | Identificador único del estatus |
+| Clave | varchar(30) UNIQUE | Clave textual: `BORRADOR`, `CAPTURADO`, `ASOCIADO`, `SALDO_A_FAVOR`, `CON_INCONSISTENCIA`, `COMPLETADO`, `CANCELADO` |
+| Descripcion | varchar(120) | Descripción legible del estatus |
+| Orden | int | Orden en el ciclo de vida para presentación |
+| Activo | bit | 1 = vigente |
+| FechaRegistro | datetime2 | Fecha de inserción |
+
+### Ciclo de vida
+
+```
+[Correo clasificado como Cobro → INSERT fccFolioPagoCliente]
+         ↓
+    BORRADOR      ← Auto-guardado Paso 1 (Confirmado=0)
+         ↓  (confirma cobro)
+    CAPTURADO     ← Paso 1 completo (Confirmado=1, folio COB-mmddaa-NNNN)
+         ↓  (asocia a documento en Paso 2)
+    ASOCIADO  o  SALDO_A_FAVOR
+         ↓  (Paso 3 genera y envía documento fiscal)
+    COMPLETADO
+
+    En cualquier punto → CON_INCONSISTENCIA  o  CANCELADO
+```
+
+---
+
+## 8. ALTER TABLE fccPagoCliente — Agregar IdCatCobroEstatus
+
+**Prerequisito:** `catCobroEstatus` debe existir con sus datos iniciales antes de ejecutar este script.
+
+```sql
+ALTER TABLE dbo.fccPagoCliente
+    ADD [IdCatCobroEstatus] uniqueidentifier NOT NULL
+        CONSTRAINT [DF_fccPagoCliente_IdCatCobroEstatus]
+            DEFAULT (
+                (SELECT TOP 1 IdCatCobroEstatus
+                 FROM dbo.catCobroEstatus
+                 WHERE Clave = 'BORRADOR')
+            );
+
+ALTER TABLE dbo.fccPagoCliente
+    ADD CONSTRAINT [FK_fccPagoCliente_catCobroEstatus]
+        FOREIGN KEY ([IdCatCobroEstatus])
+        REFERENCES dbo.catCobroEstatus ([IdCatCobroEstatus]);
+
+-- Verificación
+SELECT c.name, c.column_id
+FROM sys.columns c
+WHERE c.object_id = OBJECT_ID('dbo.fccPagoCliente')
+  AND c.name = 'IdCatCobroEstatus';
+```
+
+> **Nota sobre `Confirmado` (bit):** El campo `Confirmado` (definido en RE-023) puede coexistir con `IdCatCobroEstatus` por compatibilidad. `IdCatCobroEstatus` es la fuente de verdad del estado; `Confirmado` puede deprecarse a futuro.
+
+---
+
+## 9. RegionConfiguracionMailBot (Existente — referencia)
 
 **Propósito:** Configuración del Mailbot por región. Define las etiquetas y cuenta de correo monitoreada.
 
@@ -395,7 +492,14 @@ WHERE cat.Clave = 'pago'
 
 ---
 
-## Scripts de Cambio R16
+## Scripts de Cambio R16 — Orden de ejecución
+
+| # | Script | Tabla | Prioridad |
+|:-:|--------|-------|:---------:|
+| 1 | `CREATE TABLE catCobroEstatus` + DML inicial | Nueva | 🔴 Alta |
+| 2 | `ALTER TABLE fccPagoCliente` — ADD `IdCatCobroEstatus` | Existente | 🔴 Alta |
+| 3 | Decisión A o B: clasificación 'Cobro' en `catClasificacionCorreoRecibido` | Existente | 🔴 Alta |
+| 4 | INSERT proceso 'Cobros' en `catProceso` (si Opción B) | Existente | 🔴 Alta |
 
 > **⚠️ Decisión requerida antes del desarrollo**
 >
