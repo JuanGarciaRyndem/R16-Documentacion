@@ -6,7 +6,7 @@
 ## T1 - [ R16A-RE-FU-013 ] [ALG-COMPLX-LOGIC] Foliador lineal global de proforma
 
 ### Aplicativos
-- ProquifaDotNet
+- ProquifaDotNet.Finanzas
 
 ### Modulos
 - L05.TramitarPedido\Facturas\Fabrica

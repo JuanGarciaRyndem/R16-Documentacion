@@ -36,12 +36,12 @@ catUsoArchivoSistema  (Tipo de documento: LicenciaSanitaria, AvisoResponsableSan
 
 ## Entidades Afectadas
 
-| Objeto | Tipo | Impacto | Descripción |
-|---|---|---|---|
-| `ArchivoCliente` | Tabla existente | Lectura / Escritura | Vincula documentos PDF con un cliente y su tipo de uso |
-| `Archivo` | Tabla existente | Lectura / Escritura | Almacena la referencia al archivo físico en MinIO |
-| `catUsoArchivoSistema` | Catálogo existente | Lectura / Datos iniciales | Clasifica el tipo de documento (Licencia Sanitaria / Aviso) |
-| `Usuario` | Tabla existente | Lectura | Campo `GestorDeAsuntosRegulatorios` controla el acceso al rol Regulatorios |
+| Objeto                 | Tipo               | Impacto                   | Descripción                                                                |
+| ---------------------- | ------------------ | ------------------------- | -------------------------------------------------------------------------- |
+| `ArchivoCliente`       | Tabla existente    | Lectura / Escritura       | Vincula documentos PDF con un cliente y su tipo de uso                     |
+| `Archivo`              | Tabla existente    | Lectura / Escritura       | Almacena la referencia al archivo físico en MinIO                          |
+| `catUsoArchivoSistema` | Catálogo existente | Lectura / Datos iniciales | Clasifica el tipo de documento (Licencia Sanitaria / Aviso)                |
+| `Usuario`              | Tabla existente    | Lectura                   | Campo `GestorDeAsuntosRegulatorios` controla el acceso al rol Regulatorios |
 
 ---
 

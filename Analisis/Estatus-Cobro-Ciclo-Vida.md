@@ -42,11 +42,11 @@
 
 **Tabla:** lógica de presentación (no hay un campo de estado en BD para este nivel)
 
-| Estado contextual | Descripción | Condición |
-|---|---|---|
-| **"Realizar Cobros"** | El cliente tiene cobros recibidos pendientes de aplicar (folios en `fccFolioPagoCliente` activos). El botón abre el wizard en el último paso activo. | `fccFolioPagoCliente` con registros activos para el cliente |
-| **"Gestionar Cobranza"** | El cliente no tiene cobros recibidos pendientes, pero sí proformas o facturas por cobrar. El botón abre el modal de gestión de cobranza. | Sin `fccFolioPagoCliente` activos, pero con documentos pendientes |
-| **Sin acción / sin cliente en listado** | El cliente no tiene pendientes ni documentos por cobrar. No aparece en el listado. | Sin documentos pendientes de cobrar |
+| Estado contextual                       | Descripción                                                                                                                                          | Condición                                                         |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| **"Realizar Cobros"**                   | El cliente tiene cobros recibidos pendientes de aplicar (folios en `fccFolioPagoCliente` activos). El botón abre el wizard en el último paso activo. | `fccFolioPagoCliente` con registros activos para el cliente       |
+| **"Gestionar Cobranza"**                | El cliente no tiene cobros recibidos pendientes, pero sí proformas o facturas por cobrar. El botón abre el modal de gestión de cobranza.             | Sin `fccFolioPagoCliente` activos, pero con documentos pendientes |
+| **Sin acción / sin cliente en listado** | El cliente no tiene pendientes ni documentos por cobrar. No aparece en el listado.                                                                   | Sin documentos pendientes de cobrar                               |
 
 > **Cancelación desde listado:** El Gestor puede cancelar un pedido por falta de pago ("Cancelado por falta de pago") desde el modal de Gestionar Cobranza. Esto cambia el estado del pedido y lo saca del listado. La propagación a Legacy/cancelación fiscal es pendiente de definición (RE-023).
 
@@ -57,13 +57,13 @@
 **Tabla:** `fccPagoCliente`  
 **Campo de estado:** `Confirmado` (bit)
 
-| Estado | Valor | Descripción | Visualización en wizard |
-|---|---|---|---|
-| **Sin capturar** | No existe registro | El correo del buzón aún no tiene cobro capturado en esta sesión. | Identificador temporal "COB-N" (consecutivo de sesión) |
-| **Borrador** | `Confirmado = 0` | El formulario de captura fue auto-guardado pero el usuario no ha confirmado. Se puede sobreescribir. | "COB-N" temporal (sin folio definitivo) |
-| **Confirmado** | `Confirmado = 1` | El cobro fue capturado y confirmado. Genera folio definitivo `COB-mmddaa-NNNN`. Es inmutable (no se sobreescribe). | Folio `COB-mmddaa-NNNN`, fecha, monto + moneda |
-| **Saldo a favor** | `Confirmado = 1` + saldo residual | Cobro confirmado cuyo monto supera el adeudo asociado en Paso 2. La etiqueta del monto cambia a "Saldo a favor". | "Saldo a favor" con monto disponible |
-| **Con inconsistencia** | `Confirmado = 0 o 1` + registro en `fccInconsistenciaCobro` | El cobro tiene marcada una inconsistencia (comprobante inválido, datos incompletos, etc.). | Indicador visual de inconsistencia |
+| Estado                 | Valor                                                       | Descripción                                                                                                        | Visualización en wizard                                |
+| ---------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------ |
+| **Sin capturar**       | No existe registro                                          | El correo del buzón aún no tiene cobro capturado en esta sesión.                                                   | Identificador temporal "COB-N" (consecutivo de sesión) |
+| **Borrador**           | `Confirmado = 0`                                            | El formulario de captura fue auto-guardado pero el usuario no ha confirmado. Se puede sobreescribir.               | "COB-N" temporal (sin folio definitivo)                |
+| **Confirmado**         | `Confirmado = 1`                                            | El cobro fue capturado y confirmado. Genera folio definitivo `COB-mmddaa-NNNN`. Es inmutable (no se sobreescribe). | Folio `COB-mmddaa-NNNN`, fecha, monto + moneda         |
+| **Saldo a favor**      | `Confirmado = 1` + saldo residual                           | Cobro confirmado cuyo monto supera el adeudo asociado en Paso 2. La etiqueta del monto cambia a "Saldo a favor".   | "Saldo a favor" con monto disponible                   |
+| **Con inconsistencia** | `Confirmado = 0 o 1` + registro en `fccInconsistenciaCobro` | El cobro tiene marcada una inconsistencia (comprobante inválido, datos incompletos, etc.).                         | Indicador visual de inconsistencia                     |
 
 **Lógica del estado del wizard (OBS-048):**
 
@@ -118,15 +118,15 @@ Aplica cuando el documento fiscal emitido en Paso 3 es una **Factura con pago en
 
 ## Resumen de Estados por Tabla
 
-| Tabla | Campo de Estado | Valores |
-|---|---|---|
-| `fccFolioPagoCliente` | `Activo` (bit) | `1` = pendiente activo, `0` = cerrado |
-| `fccPagoCliente` | `Confirmado` (bit) | `0` = borrador, `1` = confirmado |
-| `fccPagoCliente` | (etiqueta UI) | Sin folio = "COB-N", con folio = "COB-mmddaa-NNNN", con residual = "Saldo a favor" |
-| `fccPagoFacturaPedido` / `fccPagoFacturaAdelanto` | (existencia del registro) | No existe = pendiente de asociar, existe = asociado |
-| `fccSaldoFavorCliente` | `Saldo` | > 0 = saldo a favor disponible, ≤ 0 = diferencia tolerancia |
-| `fccDocumentoFiscalCobro` | `IdCatDocumentoFiscalCobroEstado` | `PENDIENTE` → `GENERADO` → `ENVIADO` |
-| `tpPedido` | (campo pendiente de definir) | Normal, "Cancelado por falta de pago", "Pendiente de cancelación" |
+| Tabla                                             | Campo de Estado                   | Valores                                                                            |
+| ------------------------------------------------- | --------------------------------- | ---------------------------------------------------------------------------------- |
+| `fccFolioPagoCliente`                             | `Activo` (bit)                    | `1` = pendiente activo, `0` = cerrado                                              |
+| `fccPagoCliente`                                  | `Confirmado` (bit)                | `0` = borrador, `1` = confirmado                                                   |
+| `fccPagoCliente`                                  | (etiqueta UI)                     | Sin folio = "COB-N", con folio = "COB-mmddaa-NNNN", con residual = "Saldo a favor" |
+| `fccPagoFacturaPedido` / `fccPagoFacturaAdelanto` | (existencia del registro)         | No existe = pendiente de asociar, existe = asociado                                |
+| `fccSaldoFavorCliente`                            | `Saldo`                           | > 0 = saldo a favor disponible, ≤ 0 = diferencia tolerancia                        |
+| `fccDocumentoFiscalCobro`                         | `IdCatDocumentoFiscalCobroEstado` | `PENDIENTE` → `GENERADO` → `ENVIADO`                                               |
+| `tpPedido`                                        | (campo pendiente de definir)      | Normal, "Cancelado por falta de pago", "Pendiente de cancelación"                  |
 
 ---
 
