@@ -42,10 +42,12 @@ Nota: El Pdf no lleva el Folio, especificar con Robert que diseño se utiliza
 - [ ] Confirmar qué ocurre exactamente tras el envío exitoso además de:
   - Pendiente Validar Cobro activo
   - Cierre pendiente bandeja Tramitar Pedido
+	  - Se hace en finanzas hasta concluir validar cobro
   - ¿Cambios de estado en `tpPedido`? ¿Notificaciones internas?
 - [ ] Confirmar asunto del correo: Regla 7 dice `"Proforma" + FolioPedidoInterno` — verificar con cliente si el folio de pedido interno es el dato correcto o si debe incluirse también el folio de proforma
 	- Los folios sólo van en el asunto cuando se envían por correo.
 - [ ] Bloqueada por decisión de arquitectura y por T3
+	- Nota: Se hace en Finanzas
 
 ---
 
@@ -57,8 +59,8 @@ Sin pendientes de decisión — implementación directa.
 
 ## T6 — Verificación operación Perú
 
-- [ ] Confirmar en BD que existen registros `ProductoMarcaFamilia` con `Controlado = 1` para la región Perú
-- [ ] Confirmar en BD que `ConfiguracionSendinBlue` tiene configuración para la región Perú
+- [ ] ~~Confirmar en BD que existen registros `ProductoMarcaFamilia` con `Controlado = 1` para la región Perú~~
+- [ ] ~~Confirmar en BD que `ConfiguracionSendinBlue` tiene configuración para la región Perú~~
 
 ---
 
