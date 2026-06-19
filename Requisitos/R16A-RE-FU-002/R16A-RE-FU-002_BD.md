@@ -39,6 +39,7 @@ La asignacion de Cobrador NO es directa en Cliente sino a traves del modelo de C
 | Cliente | Tabla | Referenciada | Catalogo de clientes |
 | Usuario | Tabla | Referenciada - fuente del selector | Usuarios con rol Gestor de Cobranza |
 | Region | Tabla | Referenciada | Region asociada a cartera y cliente |
+| `catCobroEstatus` | Catálogo | 🆕 NUEVO | Catálogo de estatus del ciclo de vida del cobro — consumido por fccPagoCliente (RE-008) |
 
 ---
 
@@ -286,5 +287,85 @@ Considerar incluirlo para trazabilidad del cobrador en reasignaciones.
 | # | Riesgo | Mitigacion |
 |---|--------|------------|
 | 1 | Clientes sin cobrador quedan invisibles operativamente | Alerta al crear cliente sin asignar cartera |
+
+---
+
+## catCobroEstatus (NUEVO — R16)
+
+**Propósito:** Catálogo de estatus del ciclo de vida de un cobro en `fccPagoCliente`, desde que se captura en el Buzón hasta que se completa el Paso 3 del wizard de Validar Cobro. Centralizado en RE-002 como catálogo de dominio del módulo de cobranza; consumido por RE-008 (Buzón de Cobros) y RE-026 (Validar Cobro).
+
+```sql
+CREATE TABLE [dbo].[catCobroEstatus] (
+    [IdCatCobroEstatus]  uniqueidentifier NOT NULL
+        CONSTRAINT [DF_catCobroEstatus_Id]       DEFAULT (NEWID()),
+    [Clave]              varchar(30)      NOT NULL,
+    [Descripcion]        varchar(120)     NOT NULL,
+    [Orden]              int              NOT NULL
+        CONSTRAINT [DF_catCobroEstatus_Orden]    DEFAULT (0),
+    [Activo]             bit              NOT NULL
+        CONSTRAINT [DF_catCobroEstatus_Activo]   DEFAULT (1),
+    [FechaRegistro]      datetime2        NOT NULL
+        CONSTRAINT [DF_catCobroEstatus_FechaReg] DEFAULT (SYSUTCDATETIME()),
+    CONSTRAINT [PK_catCobroEstatus]
+        PRIMARY KEY CLUSTERED ([IdCatCobroEstatus]),
+    CONSTRAINT [UQ_catCobroEstatus_Clave]
+        UNIQUE ([Clave])
+);
+
+-- DML inicial
+INSERT INTO dbo.catCobroEstatus (Clave, Descripcion, Orden) VALUES
+    ('BORRADOR',           'Captura iniciada en Paso 1, no confirmada',             1),
+    ('CAPTURADO',          'Cobro confirmado en Paso 1, pendiente de asociar',      2),
+    ('ASOCIADO',           'Vinculado a proforma o factura en Paso 2',              3),
+    ('SALDO_A_FAVOR',      'Cobro con residual disponible tras asociación',         4),
+    ('CON_INCONSISTENCIA', 'Marcado con inconsistencia en Paso 1 o Paso 2',         5),
+    ('COMPLETADO',         'Documentos fiscales generados y enviados en Paso 3',    6),
+    ('CANCELADO',          'Cancelado por falta de pago u otra razón operativa',    7);
+```
+
+### Diccionario de datos — catCobroEstatus
+
+| Nombre de tabla | Descripción |
+|---|---|
+| catCobroEstatus | Catálogo de estatus del ciclo de vida del cobro en el wizard de Validar Cobro. |
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| IdCatCobroEstatus | uniqueidentifier PK | Identificador único del estatus |
+| Clave | varchar(30) UNIQUE | Clave textual: `BORRADOR`, `CAPTURADO`, `ASOCIADO`, `SALDO_A_FAVOR`, `CON_INCONSISTENCIA`, `COMPLETADO`, `CANCELADO` |
+| Descripcion | varchar(120) | Descripción legible del estatus |
+| Orden | int | Orden en el ciclo de vida para presentación |
+| Activo | bit | 1 = vigente |
+| FechaRegistro | datetime2 | Fecha de inserción |
+
+### Ciclo de vida
+
+```
+[Correo clasificado como Cobro → INSERT fccFolioPagoCliente]
+         ↓
+    BORRADOR      ← Auto-guardado Paso 1 (Confirmado=0)
+         ↓  (confirma cobro)
+    CAPTURADO     ← Paso 1 completo (Confirmado=1, folio COB-mmddaa-NNNN)
+         ↓  (asocia a documento en Paso 2)
+    ASOCIADO  o  SALDO_A_FAVOR
+         ↓  (Paso 3 genera y envía documento fiscal)
+    COMPLETADO
+
+    En cualquier punto → CON_INCONSISTENCIA  o  CANCELADO
+```
+
+### Relaciones
+
+| Tabla consumidora | Columna FK | Descripción |
+|---|---|---|
+| `fccPagoCliente` | `IdCatCobroEstatus` | Estatus actual del cobro — ver RE-008 `ALTER TABLE fccPagoCliente` |
+
+### Scripts de Cambio — catCobroEstatus
+
+| # | Script | Tabla | Prioridad |
+|:-:|--------|-------|:---------:|
+| 1 | `CREATE TABLE catCobroEstatus` + DML inicial | Nueva | 🔴 Alta |
+
+> **⚠️ Prerequisito para RE-008:** `catCobroEstatus` debe existir con sus datos iniciales antes de ejecutar el `ALTER TABLE fccPagoCliente ADD IdCatCobroEstatus` (definido en RE-008_BD).
 
 ---

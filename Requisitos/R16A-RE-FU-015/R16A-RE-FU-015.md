@@ -1,4 +1,4 @@
-﻿# Tramitación de pedidos Prepago con Factura por Adelantado
+# Tramitación de pedidos Prepago con Factura por Adelantado
 
 | Campo | Valor |
 |---|---|
@@ -207,6 +207,6 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 
 ## Cambios
 
-| # | Fecha | Observación | Descripción del cambio |
-|---|-------|-------------|------------------------|
-| 1 | 2026-06-10 | OBS-028 | El cliente confirma que el timbrado fiscal se genera en el módulo Factura por Adelantado. Confirmado/ya cubierto: el diseño vigente ya establece que el timbrado ocurre en el módulo Factura por Adelantado; FU-015 deja explícitamente fuera de su alcance la mecánica de facturación. Sin cambios estructurales. |
+| #   | Fecha      | Observación | Descripción del cambio                                                                                                                                                                                                                                                                                             |
+| --- | ---------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | 2026-06-10 | OBS-028     | El cliente confirma que el timbrado fiscal se genera en el módulo Factura por Adelantado. Confirmado/ya cubierto: el diseño vigente ya establece que el timbrado ocurre en el módulo Factura por Adelantado; FU-015 deja explícitamente fuera de su alcance la mecánica de facturación. Sin cambios estructurales. |
