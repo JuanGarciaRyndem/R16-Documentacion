@@ -172,7 +172,7 @@ Generación del documento Proforma para clientes de región México con branding
 
 ---
 
-### [R16A-RE-FU-017](R16A-RE-FU-017/R16A-RE-FU-017-Pendiente.md) — Diseño y Generación de Documentos: Proforma Perú
+### [R16A-RE-FU-017](R16A-RE-FU-017/R16A-RE-FU-017.md) — Diseño y Generación de Documentos: Proforma Perú
 
 Generación del documento Proforma para clientes de región Perú (Golocaer S.A.C.).
 

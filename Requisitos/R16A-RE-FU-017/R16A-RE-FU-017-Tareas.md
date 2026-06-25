@@ -236,7 +236,7 @@ Corresponde a GAP-09 y GAP-10 del documento de impacto Back.
 
 **Recursos:**
 - R16A-RE-FU-017-Back.md
-- R16A-RE-FU-017-Pendiente.md (criterios de aceptacion secciones A-H)
+- R16A-RE-FU-017.md (criterios de aceptacion secciones A-H)
 
 ---
 

@@ -25,7 +25,7 @@ La presencia de ambos documentos es requisito bloqueante para pretramitar pedido
 ```
 Cliente
     └── FK IdCliente
-ArchivoCliente  (IdCliente + IdArchivo + IdCatUsoArchivoSistema + Activo)
+x|  (IdCliente + IdArchivo + IdCatUsoArchivoSistema + Activo)
     └── FK IdArchivo
 Archivo  (FileKey, FileBucket → MinIO)
     └── FK IdCatUsoArchivoSistema

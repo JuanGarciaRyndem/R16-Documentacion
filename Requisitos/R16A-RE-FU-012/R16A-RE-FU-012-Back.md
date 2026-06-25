@@ -37,15 +37,15 @@ Este requisito reutiliza el flujo de tramitacion Credito existente (R16A-RE-FU-0
 
 ### Flujo al tramitar con FAA activa
 
-| Paso | Accion | Detalle |
-|------|--------|---------|
-| 1 | ESAC activa FAA en UI | Front envia `tpPedido.FacturaPorAdelantado = 1` |
-| 2 | Validaciones | FAA solo Mexico, sin controlados, datos facturacion vigentes |
-| 3 | Tramitacion normal | Flujo Credito completo (folio, PDF, partidas, correo) |
-| 4 | Genera pendiente FAA | INSERT en tabla de pendientes FAA (atomico con tramitacion) |
-| 5 | Bloquea datos facturacion | Se fijan del catalogo del cliente |
-| 6 | Confirmacion de Pedido | Se genera inmediatamente (no espera factura) |
-| 7 | Transferencia Legacy | Solo Mexico (independiente de FAA) |
+| Paso | Accion                    | Detalle                                                      |
+| ---- | ------------------------- | ------------------------------------------------------------ |
+| 1    | ESAC activa FAA en UI     | Front envia `tpPedido.FacturaPorAdelantado = 1`              |
+| 2    | Validaciones              | FAA solo Mexico, sin controlados, datos facturacion vigentes |
+| 3    | Tramitacion normal        | Flujo Credito completo (folio, PDF, partidas, correo)        |
+| 4    | Genera pendiente FAA      | INSERT en tabla de pendientes FAA (atomico con tramitacion)  |
+| 5    | Bloquea datos facturacion | Se fijan del catalogo del cliente                            |
+| 6    | Confirmacion de Pedido    | Se genera inmediatamente (no espera factura)                 |
+| 7    | Transferencia Legacy      | Solo Mexico (independiente de FAA)                           |
 
 ### Datos del pendiente FAA a generar
 

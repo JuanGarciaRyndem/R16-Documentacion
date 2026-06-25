@@ -4,8 +4,10 @@
 |-------|-------|
 | Requisito | R16A-RE-FU-006 — Referencia Bancaria de Cliente |
 | Rama | develop-pack04 |
-| Fecha | 2025-07 |
-| Revisión | v1.0 |
+| Fecha | 2026-06 (rev. tras OBS-013/014/015) |
+| Revisión | v2.0 |
+
+> **Cambio de modelo (v2.0):** la versión inicial asumía reconstrucción dinámica de la referencia. Tras OBS-013/014/015, la referencia se persiste en **dos niveles**: (1) referencia vigente del cliente en `ClienteDatosBancarios.ReferenciaVigente`, y (2) snapshot inmutable en `tpProformaPedido.ReferenciaPago` al generar el PDF. Esto cambia los GAP-03 y GAP-04 y agrega el GAP-07 (regeneración por cambio en `Cliente.Nombre`/`Clave`).
 
 ---
 
@@ -41,7 +43,9 @@
 | **R2** — Una o más cuentas por cliente | Relación N:N entre `Cliente` y `DatosBancarios`. | Tabla `ClienteDatosBancarios` con FK a ambos. | Tabla no existe |
 | **R3** — Código Validador por combinación cliente-cuenta | `CodigoValidador` único por `IdCliente + IdDatosBancarios`. | Campo `CodigoValidador` en `ClienteDatosBancarios`. | Tabla no existe |
 | **R4** — Persistencia INSERT/UPDATE | Guardar o actualizar combinación cliente-cuenta-CódValidador. | `_GuardarOActualizar` en `ClienteDatosBancariosBO`. | BO no existe |
-| **R5** — Referencia se reconstruye dinámicamente | No se almacena; se calcula al generar cada proforma. | Lógica en `tpProformaPedidoFactory` o extensión. `ReferenciaPago` ya existe en la entidad. | Existe en entidad pero se asigna `null` — pendiente implementar |
+| **R4-N1** — Referencia vigente del cliente | Persistir en `ClienteDatosBancarios.ReferenciaVigente`; armada al CREATE/UPDATE de la asignación. | Llamar `ReferenciaBancariaBO.Construir()` en `ClienteDatosBancariosBO._GuardarOActualizar` y persistir resultado. | Campo no existe; BO no existe |
+| **R4-N2** — Snapshot casado a la proforma | Copiar `ReferenciaVigente` a `tpProformaPedido.ReferenciaPago` al generar PDF. | En `tpProformaPedidoFactory`, **leer** `ReferenciaVigente` (no recalcular) y asignarla. | `ReferenciaPago` existe pero se asigna `null` |
+| **R5** — Generación al configurar cuenta + casado al PDF | Armar referencia al CREATE/UPDATE de cuenta, casar al PDF en firme. | Hook en escritura de `ClienteDatosBancarios` + lectura en `tpProformaPedidoFactory`. | No implementado |
 | **R6** — Referencia no-Banamex = nombre del cliente | `Cliente.Nombre` como cadena directa sin transformación. | `ReferenciaBancariaBO.Construir()` retorna `cliente.Nombre`. | BO no existe |
 | **R7** — Referencia Banamex = 7 segmentos | Concatenación determinista: 3 letras + 4 chars clave + código banco + P/D + CódValidador. | `ReferenciaBancariaBO.ConstruirBanamex()`. | BO no existe |
 | **R8** — Identificación Banamex por `Clave = "002"` | Cruce con `catBanco.Clave = "002"` (simplificación propuesta). | Consulta `catBanco` en el BO de referencia. | Pendiente confirmar con desarrollo |
@@ -54,8 +58,8 @@
 ### GAP-01 — Tabla `ClienteDatosBancarios` no existe
 
 **Archivo:** BD — nueva tabla
-**Impacto:** Reglas R2, R3 y R4 — sin la tabla no es posible persistir la relación cliente-cuenta ni el Código Validador.
-**Cambio requerido:** Crear la tabla (condicionado a confirmar longitud de `CodigoValidador` con cliente — Pendiente P2).
+**Impacto:** Reglas R2, R3, R4 (ambos niveles) — sin la tabla no es posible persistir la relación cliente-cuenta, el Código Validador, la referencia vigente ni el historial.
+**Cambio requerido:** Crear la tabla con todos los campos (referencia vigente + historial de un nivel). Ver DDL completo en `R16A-RE-FU-006_BD.md` sección 1.
 
 ```sql
 CREATE TABLE dbo.ClienteDatosBancarios
@@ -69,7 +73,14 @@ CREATE TABLE dbo.ClienteDatosBancarios
     IdDatosBancarios         uniqueidentifier NOT NULL
         CONSTRAINT FK_ClienteDatosBancarios_DatosBancarios
             FOREIGN KEY REFERENCES dbo.DatosBancarios(IdDatosBancarios),
-    CodigoValidador          varchar(50)      NULL,   -- longitud provisional; confirmar P2
+    CodigoValidador          varchar(50)      NOT NULL,   -- longitud provisional; confirmar P2
+    -- OBS-013: referencia vigente del cliente (Regla 4 nivel 1)
+    ReferenciaVigente        varchar(80)      NULL,
+    FechaReferenciaVigente   datetime         NULL,
+    -- OBS-014: historial de un nivel
+    CodigoValidadorAnterior      varchar(50)      NULL,
+    FechaModificacionAnterior    datetime         NULL,
+    IdUsuarioModificacionAnterior uniqueidentifier NULL,
     FechaRegistro            datetime         NOT NULL
         CONSTRAINT DF_ClienteDatosBancarios_FechaRegistro DEFAULT (GETDATE()),
     FechaUltimaActualizacion datetime         NOT NULL
@@ -78,17 +89,21 @@ CREATE TABLE dbo.ClienteDatosBancarios
         CONSTRAINT DF_ClienteDatosBancarios_Activo DEFAULT (1)
 );
 
+CREATE UNIQUE NONCLUSTERED INDEX UX_ClienteDatosBancarios_ClienteCuentaActiva
+    ON dbo.ClienteDatosBancarios (IdCliente, IdDatosBancarios)
+    WHERE Activo = 1;
+
 CREATE NONCLUSTERED INDEX IX_ClienteDatosBancarios
     ON dbo.ClienteDatosBancarios (IdCliente, IdDatosBancarios, Activo);
 ```
 
 ---
 
-### GAP-02 — `ClienteDatosBancariosBO` no existe (CRUD de la relación cliente-cuenta)
+### GAP-02 — `ClienteDatosBancariosBO` no existe (CRUD + armado de referencia vigente)
 
 **Archivo a crear:** `Logic.Pqf.Catalogos\Clientes\DatosBancarios\ClienteDatosBancariosBO.cs`
-**Impacto:** Regla R4 — no es posible insertar ni actualizar la relación cliente-cuenta-CódValidador.
-**Cambio requerido:** Crear BO usando el patrón `TablaGenericaBO<T>` del proyecto. Depende de GAP-01.
+**Impacto:** Reglas R4 (nivel 1) y R5 — no es posible insertar/actualizar la relación cliente-cuenta-CódValidador ni armar la `ReferenciaVigente` al guardar.
+**Cambio requerido:** Crear BO usando el patrón `TablaGenericaBO<T>`. Al guardar, invocar `ReferenciaBancariaBO.Construir()` y persistir el resultado en `ReferenciaVigente`. Combinar con la rotación de historial del Código Validador (GAP-06). Depende de GAP-01 y GAP-03.
 
 ```csharp
 // NUEVO — ClienteDatosBancariosBO.cs
@@ -102,6 +117,21 @@ namespace Logic.Pqf.Catalogos.Clientes.DatosBancarios
         protected override Guid _GuardarOActualizar(ClienteDatosBancarios entity)
         {
             entity.FechaUltimaActualizacion = DateTime.Now;
+
+            // Regla 4 nivel 1 — Armar y persistir ReferenciaVigente
+            using (var db = new ProquifaDotNetEntities())
+            {
+                var cliente = db.Cliente.FirstOrDefault(x => x.IdCliente == entity.IdCliente);
+                var cuenta  = db.DatosBancarios.FirstOrDefault(x => x.IdDatosBancarios == entity.IdDatosBancarios);
+
+                if (cliente != null && cuenta != null)
+                {
+                    var refBO = new ReferenciaBancariaBO();
+                    entity.ReferenciaVigente      = refBO.Construir(cliente, cuenta, entity.CodigoValidador);
+                    entity.FechaReferenciaVigente = DateTime.Now;
+                }
+            }
+
             return base._GuardarOActualizar(entity);
         }
     }
@@ -177,11 +207,11 @@ namespace Logic.Pqf.Catalogos.Clientes.DatosBancarios
 
 ---
 
-### GAP-04 — `tpProformaPedidoFactory` no inyecta `ReferenciaPago`
+### GAP-04 — `tpProformaPedidoFactory` no casa `ReferenciaPago` desde `ReferenciaVigente`
 
 **Archivo:** `Logic.Pqf.Logistica\L05.TramitarPedido\Facturas\Fabrica\tpProformaPedidoFactory.cs`
-**Impacto:** Regla R5 — el campo `ReferenciaPago` existe en `tpProformaPedido` pero se asigna `null`. La referencia nunca llega al PDF de la proforma.
-**Cambio requerido:** Invocar `ReferenciaBancariaBO.Construir()` antes de persistir la proforma.
+**Impacto:** Regla R4 nivel 2 / R5 / Criterio C1 — el campo `ReferenciaPago` existe en `tpProformaPedido` pero se asigna `null`. La referencia vigente persistida nunca se casa al PDF.
+**Cambio requerido:** **Leer** `ClienteDatosBancarios.ReferenciaVigente` de la asignación activa del cliente y copiarla a `ReferenciaPago` (snapshot inmutable). **NO recalcular** la referencia aquí — el cálculo vive en `ClienteDatosBancariosBO` al CREATE/UPDATE.
 
 ```csharp
 // ANTES — tpProformaPedidoFactory.cs (estado actual)
@@ -194,24 +224,18 @@ var tpProformaPedido = new tpProformaPedido
 ```
 
 ```csharp
-// DESPUÉS — tpProformaPedidoFactory.cs
-// 1. Obtener cuenta y código validador del cliente
+// DESPUÉS — tpProformaPedidoFactory.cs (R4 nivel 2)
+// 1. Obtener la asignacion activa del cliente para la cuenta seleccionada del pedido
 var clienteDatosBancariosBO = new ClienteDatosBancariosBO();
-var clienteCuenta = clienteDatosBancariosBO.ObtenerCuentaActivaDelCliente(tpPedido.IdCliente);
+var clienteCuenta = clienteDatosBancariosBO.ObtenerAsignacionActiva(
+    tpPedido.IdCliente,
+    tpPedido.IdDatosBancariosSeleccionada);   // ver DUDA-118 sobre seleccion de cuenta destino
 
-// 2. Construir la referencia
-string referenciaPago = null;
-if (clienteCuenta != null)
-{
-    var cuenta  = new TablaGenericaBO<DatosBancarios>().Obtener(clienteCuenta.IdDatosBancarios);
-    var refBO   = new ReferenciaBancariaBO();
-    referenciaPago = refBO.Construir(cliente, cuenta, clienteCuenta.CodigoValidador);
-}
-
+// 2. Casar la referencia vigente al PDF (snapshot inmutable)
 var tpProformaPedido = new tpProformaPedido
 {
     // ...
-    ReferenciaPago = referenciaPago,
+    ReferenciaPago = clienteCuenta?.ReferenciaVigente,   // OBS-013 — snapshot
     // ...
 };
 ```
@@ -312,11 +336,25 @@ protected override Guid _GuardarOActualizar(ClienteDatosBancarios entity)
 
 ---
 
+### GAP-07 — Regeneración de `ReferenciaVigente` por cambio en `Cliente.Nombre` o `Cliente.Clave`
+
+**Archivos involucrados:** `Logic.Pqf.Catalogos\Clientes\ClienteBO.cs` (o equivalente) + `ClienteDatosBancariosBO.cs`
+**Impacto:** Regla 4 nivel 1 — *"solo se regenera si cambia un dato fuente (banco, cuenta, Código Validador o **datos del cliente que la componen**)"*. Los segmentos S1-S3 dependen de `Cliente.Nombre` y S4 depende de `Cliente.Clave`. Si cambian, todas las asignaciones activas del cliente quedan con `ReferenciaVigente` obsoleta.
+**Cambio requerido:** Definir el mecanismo de regeneración en cascada. Tres opciones a evaluar con arquitectura:
+
+1. **Hook en `ClienteBO._GuardarOActualizar`** — detectar cambios en `Nombre`/`Clave`, recorrer asignaciones activas y regenerar `ReferenciaVigente` en cada una. Ventaja: transaccional; desventaja: acopla `ClienteBO` con `ClienteDatosBancariosBO`.
+2. **Trigger de BD `AFTER UPDATE` en `Cliente`** — calcular y actualizar en T-SQL. Ventaja: garantizado; desventaja: la lógica de armado queda duplicada en BD y en .NET.
+3. **Lazy regeneration en `tpProformaPedidoFactory`** — al casar al PDF, comparar timestamps; si `Cliente.FechaUltimaActualizacion > ReferenciaVigente.Fecha`, regenerar antes de copiar. Ventaja: simple, sin cascada; desventaja: nunca se actualiza el campo `ReferenciaVigente` en BD para clientes que no generan proforma.
+
+**Recomendación:** opción 1 (hook en `ClienteBO`) por consistencia transaccional. Documentar como decisión de diseño técnico.
+
+---
+
 ## 4. Tablas y entidades del modelo de datos
 
 | Tabla BD | Entidad EF | Propiedades clave R16 | Descripción |
 |----------|------------|-----------------------|-------------|
-| `ClienteDatosBancarios` | `ClienteDatosBancarios` | `IdClienteDatosBancarios` (PK), `IdCliente` (FK), `IdDatosBancarios` (FK), `CodigoValidador` | **NUEVA R16** — Relación N:N cliente-cuenta con CódValidador |
+| `ClienteDatosBancarios` | `ClienteDatosBancarios` | `IdClienteDatosBancarios` (PK), `IdCliente` (FK), `IdDatosBancarios` (FK), `CodigoValidador`, `ReferenciaVigente`, `CodigoValidadorAnterior` + audit | **NUEVA R16** — Relación N:N cliente-cuenta con referencia vigente persistida e historial de un nivel |
 | `DatosBancarios` | `DatosBancarios` | `IdDatosBancarios` (PK), `IdCatBanco` (FK), `IdCatMoneda` (FK) | Existente — cuenta bancaria del grupo PROQUIFA |
 | `catBanco` | `catBanco` | `IdCatBanco` (PK), `Clave` (002 = Banamex) | Existente — catálogo de bancos |
 | `catMoneda` | `catMoneda` | `IdCatMoneda` (PK), `ClaveMoneda` (MXN / USD) | Existente — determina P/D en segmento 6 |
@@ -358,11 +396,12 @@ ORDER BY LEN(c.Nombre) DESC;
 
 | # | Archivo | Tipo de cambio |
 |---|---------|----------------|
-| 1 | BD — nueva tabla `ClienteDatosBancarios` | CREATE TABLE + INDEX |
-| 2 | `Logic.Pqf.Catalogos\Clientes\DatosBancarios\ClienteDatosBancariosBO.cs` | Clase nueva — CRUD relación cliente-cuenta |
-| 3 | `Logic.Pqf.Catalogos\Clientes\DatosBancarios\ReferenciaBancariaBO.cs` | Clase nueva — algoritmo de referencia (Banamex / no-Banamex) |
-| 4 | `Logic.Pqf.Logistica\L05.TramitarPedido\Facturas\Fabrica\tpProformaPedidoFactory.cs` | Modificar — inyectar `ReferenciaPago` llamando a `ReferenciaBancariaBO` |
+| 1 | BD — nueva tabla `ClienteDatosBancarios` | CREATE TABLE con `ReferenciaVigente` + historial + índice filtrado por `Activo = 1` |
+| 2 | `Logic.Pqf.Catalogos\Clientes\DatosBancarios\ClienteDatosBancariosBO.cs` | Clase nueva — CRUD + armado/persistencia de `ReferenciaVigente` + rotación de historial |
+| 3 | `Logic.Pqf.Catalogos\Clientes\DatosBancarios\ReferenciaBancariaBO.cs` | Clase nueva — algoritmo de referencia (Banamex / no-Banamex), invocada desde el BO al CREATE/UPDATE |
+| 4 | `Logic.Pqf.Logistica\L05.TramitarPedido\Facturas\Fabrica\tpProformaPedidoFactory.cs` | Modificar — **leer** `ClienteDatosBancarios.ReferenciaVigente` y copiarla a `ReferenciaPago` (snapshot) |
 | 5 | `WebApi.Catalogos\Controllers\Configuracion\Clientes\ClienteDatosBancariosController.cs` | Controller nuevo — CRUD `/ClienteDatosBancarios` |
+| 6 | `Logic.Pqf.Catalogos\Clientes\ClienteBO.cs` (o equivalente) | Modificar — hook tras actualizar `Cliente`: si cambió `Nombre` o `Clave`, regenerar `ReferenciaVigente` de todas las asignaciones activas (GAP-07) |
 
 ---
 
@@ -383,24 +422,29 @@ ORDER BY LEN(c.Nombre) DESC;
 |---|-----------|-------------|
 | P1 | Confirmar lógica completa de identificación de Banamex (condición de moneda truncada en documento cliente). Propuesta: usar `catBanco.Clave = "002"`. | Desarrollo / Cliente |
 | P2 | Confirmar longitud máxima y formato del `CodigoValidador`. Longitud provisional: varchar(50). | Cliente / PMO |
-| P3 | Confirmar si el campo `Clave` existe en la tabla `Cliente` y su tipo de dato (para segmento 4 de la referencia Banamex). | Desarrollo |
+| P3 | Confirmar si el campo `Clave` existe en la tabla `Cliente` y su tipo de dato (para segmento 4 de la referencia Banamex). Si no existe, decidir entre agregarlo permanentemente o definir fuente alternativa (no depender de tabla ETL `Carga_ClientesR1` a largo plazo). | Desarrollo |
 | P4 | Validar con el cliente si la asignación de cuentas y captura del CódValidador debe restringirse al rol Coordinador de Tesorería. | Funcional / Cliente |
 | P5 | Confirmar si puede haber más de una cuenta bancaria activa por cliente y si se requiere tope máximo. | Funcional / Cliente |
 | P6 | Confirmar si la funcionalidad aplica para clientes de Perú. Modelo bancario PE no definido. | Funcional / Cliente |
 | P7 | Verificar longitud máxima de `Cliente.Nombre` en BD para asegurar que varchar(80) de `ReferenciaPago` en `tpProformaPedido` es suficiente. | Desarrollo |
+| P8 | Decidir mecanismo de regeneración de `ReferenciaVigente` ante cambio en `Cliente.Nombre` o `Cliente.Clave` (GAP-07: hook en `ClienteBO` vs trigger BD vs lazy). | Arquitectura |
+| P9 | Decidir cómo se selecciona la cuenta destino del pedido cuando el cliente tiene varias asignaciones activas (DUDA-118 — Mayra/Daniel). | Funcional / Cliente |
 
 ---
 
 ## 9. Criterios de aceptación técnica
 
-- [ ] La tabla `ClienteDatosBancarios` existe en BD con PK, FK a `Cliente` y FK a `DatosBancarios`.
-- [ ] El índice `IX_ClienteDatosBancarios (IdCliente, IdDatosBancarios, Activo)` existe.
-- [ ] `ClienteDatosBancariosBO` permite insertar, actualizar y consultar la relación cliente-cuenta.
-- [ ] El endpoint `PUT /ClienteDatosBancarios` guarda correctamente la combinación con su `CodigoValidador`.
+- [ ] La tabla `ClienteDatosBancarios` existe en BD con PK, FK a `Cliente` y FK a `DatosBancarios`, e incluye `ReferenciaVigente`, `FechaReferenciaVigente` y campos de historial.
+- [ ] Existen el índice filtrado `UX_ClienteDatosBancarios_ClienteCuentaActiva (IdCliente, IdDatosBancarios) WHERE Activo = 1` y el índice `IX_ClienteDatosBancarios (IdCliente, IdDatosBancarios, Activo)`.
+- [ ] `ClienteDatosBancariosBO` permite insertar, actualizar y consultar la relación cliente-cuenta y **arma + persiste** `ReferenciaVigente` al CREATE/UPDATE.
+- [ ] Al modificar el `CodigoValidador`, el BO rota el valor: actual → anterior, registrando `FechaModificacionAnterior` e `IdUsuarioModificacionAnterior` (OBS-014).
+- [ ] El endpoint `PUT /ClienteDatosBancarios` guarda correctamente la combinación con su `CodigoValidador` y devuelve `ReferenciaVigente` calculada.
 - [ ] `ReferenciaBancariaBO.Construir()` retorna `Cliente.Nombre` para cuentas de bancos distintos de Banamex.
 - [ ] `ReferenciaBancariaBO.Construir()` retorna la concatenación de 7 segmentos para cuentas de Banamex (`catBanco.Clave = "002"`).
 - [ ] Los 7 segmentos del algoritmo Banamex aplican correctamente el fallback "X" y padding de ceros.
-- [ ] `tpProformaPedidoFactory` asigna `ReferenciaPago` con la referencia construida (no `null`) cuando el cliente tiene cuenta asignada.
+- [ ] `tpProformaPedidoFactory` **lee** `ClienteDatosBancarios.ReferenciaVigente` y la copia a `ReferenciaPago` (no recalcula).
 - [ ] Una proforma generada para un cliente MEX con cuenta Banamex muestra la referencia de 7 segmentos en el PDF.
 - [ ] Una proforma generada para un cliente MEX con cuenta no-Banamex muestra el nombre del cliente como referencia.
+- [ ] Al cambiar `Cliente.Nombre` o `Cliente.Clave`, `ReferenciaVigente` se regenera en todas las asignaciones activas del cliente (GAP-07).
+- [ ] Las proformas ya emitidas conservan su `ReferenciaPago` original aunque después se regenere la `ReferenciaVigente` del cliente (snapshot inmutable).
 

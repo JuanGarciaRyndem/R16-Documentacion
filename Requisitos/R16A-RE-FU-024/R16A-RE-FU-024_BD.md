@@ -1,17 +1,22 @@
 # Impacto en BD — R16A-RE-FU-024
 **Requisito:** Validar Cobro: Paso 1 México — Captura del Cobro
 **Base de Datos:** ProquifaDotNet
-**Versión:** 1.1 (actualizado: se agrega IdCatMoneda detectado en pantalla)
+**Versión:** 1.2 (actualizado 2026-06-23: editabilidad del cobro hasta el timbrado — se agrega `BloqueadoPorTimbrado` y se redefine la semántica del campo `Confirmado`)
 
 ---
 
 ## Resumen
 Paso 1 del wizard de Validar Cobro: Captura del Cobro para Región México.
 El cobro se registra en `fccPagoCliente` (tabla existente).
-Se extiende la tabla con 5 campos nuevos (inmutabilidad + notas + moneda como FK).
+Se extiende la tabla con 5 campos agregados en RE-FU-023 (captura + notas + moneda como FK) y se suma **1 campo nuevo en RE-FU-024 (`BloqueadoPorTimbrado`) para reflejar el cambio de regla**: el cobro deja de ser inmutable al confirmar la captura y queda inmutable únicamente al timbrar el documento asociado en el Paso 3.
 Se crean 2 tablas nuevas (inconsistencias) y 1 SEQUENCE (foliador COB).
 
-> **✅ Los 5 campos de inmutabilidad+moneda ya fueron agregados en RE-FU-023 (ejecutados en BD).** La Tarea 1 de este requisito queda como referencia documental — no requiere ejecución.
+> **🔄 Cambio funcional 2026-06-23 — Editabilidad del cobro hasta el timbrado:**
+> La regla original "cobro inmutable al confirmar la captura" se actualizó a "cobro inmutable al timbrar el documento asociado en el Paso 3". El campo `Confirmado` mantiene su existencia física pero **cambia su semántica de negocio**: ahora significa "cobro capturado y persistido con folio COB" (estado de lectura con botón Editar), NO "cobro inmutable". La inmutabilidad ahora se determina por el nuevo campo `BloqueadoPorTimbrado` (bit), que el Paso 3 actualiza a `1` cuando se timbra el documento asociado al cobro. Mientras `BloqueadoPorTimbrado=0`, el usuario puede editar el cobro desde el Paso 1 vía botón Editar, aun si el cobro ya está asociado en el Paso 2.
+
+> **✅ Los 5 campos `Confirmado / FechaConfirmacion / IdUsuarioConfirmacion / Notas / IdCatMoneda` ya fueron agregados en RE-FU-023 (ejecutados en BD).** La Tarea 1 de este requisito queda como referencia documental — no requiere ejecución para esos 5 campos.
+>
+> **❌ El campo `BloqueadoPorTimbrado` es nuevo en RE-FU-024 y SÍ requiere ejecución (DDL pendiente).**
 >
 > `fccPagoCliente` ya existe con: `Folio`, `Monto`, `FechaPago`, `TipoDeCambio`,
 > `IdCatMedioDePago` (c_FormaPago SAT via ClaveFormaDePago), `CuentaOrdenante`,
@@ -26,22 +31,34 @@ Se crean 2 tablas nuevas (inconsistencias) y 1 SEQUENCE (foliador COB).
 
 ## Impacto en BD
 
-| #   | Cambio                                                                        | Tipo | Estado                   |
-| --- | ----------------------------------------------------------------------------- | ---- | ------------------------ |
-| 1   | ALTER TABLE fccPagoCliente ADD Confirmado bit NOT NULL DEFAULT(0)             | DDL  | ✅ Ejecutado en RE-FU-023 |
-| 2   | ALTER TABLE fccPagoCliente ADD FechaConfirmacion datetime2 NULL               | DDL  | ✅ Ejecutado en RE-FU-023 |
-| 3   | ALTER TABLE fccPagoCliente ADD IdUsuarioConfirmacion uniqueidentifier NULL    | DDL  | ✅ Ejecutado en RE-FU-023 |
-| 4   | ALTER TABLE fccPagoCliente ADD Notas varchar(500) NULL                        | DDL  | ✅ Ejecutado en RE-FU-023 |
-| 5   | ALTER TABLE fccPagoCliente ADD IdCatMoneda uniqueidentifier NULL FK catMoneda | DDL  | ✅ Ejecutado en RE-FU-023 |
-| 6   | CREATE TABLE catTipoInconsistenciaCobro                                       | DDL  | ❌ Pendiente              |
-| 7   | CREATE TABLE fccInconsistenciaCobro                                           | DDL  | ❌ Pendiente              |
-| 8   | CREATE SEQUENCE dbo.SeqFolioCobro                                             | DDL  | ❌ Pendiente              |
+| #   | Cambio                                                                                                | Tipo | Estado                   |
+| --- | ----------------------------------------------------------------------------------------------------- | ---- | ------------------------ |
+| 1   | ALTER TABLE fccPagoCliente ADD Confirmado bit NOT NULL DEFAULT(0) *(semántica: cobro capturado)*      | DDL  | ✅ Ejecutado en RE-FU-023 |
+| 2   | ALTER TABLE fccPagoCliente ADD FechaConfirmacion datetime2 NULL                                       | DDL  | ✅ Ejecutado en RE-FU-023 |
+| 3   | ALTER TABLE fccPagoCliente ADD IdUsuarioConfirmacion uniqueidentifier NULL                            | DDL  | ✅ Ejecutado en RE-FU-023 |
+| 4   | ALTER TABLE fccPagoCliente ADD Notas varchar(500) NULL                                                | DDL  | ✅ Ejecutado en RE-FU-023 |
+| 5   | ALTER TABLE fccPagoCliente ADD IdCatMoneda uniqueidentifier NULL FK catMoneda                         | DDL  | ✅ Ejecutado en RE-FU-023 |
+| 6   | **ALTER TABLE fccPagoCliente ADD BloqueadoPorTimbrado bit NOT NULL DEFAULT(0)** *(inmutabilidad)*     | DDL  | ❌ Pendiente RE-FU-024    |
+| 7   | **ALTER TABLE fccPagoCliente ADD FechaBloqueoTimbrado datetime2 NULL** *(trazabilidad del bloqueo)*   | DDL  | ❌ Pendiente RE-FU-024    |
+| 8   | CREATE TABLE catTipoInconsistenciaCobro                                                               | DDL  | ❌ Pendiente              |
+| 9   | CREATE TABLE fccInconsistenciaCobro                                                                   | DDL  | ❌ Pendiente              |
+| 10  | CREATE SEQUENCE dbo.SeqFolioCobro                                                                     | DDL  | ❌ Pendiente              |
 
 > **Nota #5 — IdCatMoneda:** La pantalla del Paso 1 (Captura del Cobro) muestra un combo
 > desplegable de Moneda (ej. "USD"). Esto requiere un FK a `catMoneda` para cargar las opciones.
 > Los flags `MXN`/`USD` existentes solo soportan 2 monedas y no sirven para PEN (Perú) ni combos.
 > Se agrega `IdCatMoneda` nullable para no romper registros existentes; los flags se mantienen
 > por compatibilidad con código legacy hasta que se unifique.
+
+> **Nota #6/#7 — BloqueadoPorTimbrado / FechaBloqueoTimbrado:** Nuevos campos en RE-FU-024
+> para implementar la regla actualizada de inmutabilidad. `BloqueadoPorTimbrado=0` indica que
+> el cobro está en modo lectura **editable** (botón Editar visible en el Paso 1, incluso si ya está
+> asociado en el Paso 2). `BloqueadoPorTimbrado=1` indica inmutabilidad real (sin botón Editar).
+> El flip de `0→1` lo dispara el Paso 3 al timbrar el documento asociado al cobro, mediante
+> UPDATE sobre todas las `fccPagoCliente` aplicadas a ese documento. `FechaBloqueoTimbrado`
+> registra el timestamp del bloqueo para trazabilidad. Para los cobros con etiqueta "Saldo a favor"
+> visibles en el Paso 1, `BloqueadoPorTimbrado=1` ya está poblado (corresponden a cobros
+> timbrados en sesiones previas).
 
 ---
 
@@ -68,11 +85,13 @@ Se crean 2 tablas nuevas (inconsistencias) y 1 SEQUENCE (foliador COB).
 | `Activo`                | bit                     | NO   | 1=activo; 0=inconsistencia (elimina pendiente del Buzón) | Existente           |
 | `FechaRegistro`         | datetime2(7)            | NO   | Auditoría: cuándo se creó el registro                    | Existente           |
 | `FechaUltimaActualizacion` | datetime2(7)         | NO   | Auditoría: cuándo se modificó por última vez             | Existente           |
-| `Confirmado`            | bit NOT NULL DEFAULT(0) | NO   | 0=borrador / 1=confirmado e inmutable                    | **NUEVO RE-FU-024** |
-| `FechaConfirmacion`     | datetime2               | SÍ   | Timestamp de confirmación del cobro                      | **NUEVO RE-FU-024** |
-| `IdUsuarioConfirmacion` | uniqueidentifier        | SÍ   | Quién confirmó el cobro (trazabilidad)                   | **NUEVO RE-FU-024** |
-| `Notas`                 | varchar(500)            | SÍ   | Notas opcionales del formulario del cobro                | **NUEVO RE-FU-024** |
-| `IdCatMoneda`           | uniqueidentifier        | SÍ   | FK catMoneda — moneda del cobro (combo UI Paso 1)        | **NUEVO RE-FU-024** |
+| `Confirmado`            | bit NOT NULL DEFAULT(0) | NO   | 0=borrador / 1=capturado (editable hasta timbrar)        | **RE-FU-023** (semántica redefinida en RE-FU-024) |
+| `FechaConfirmacion`     | datetime2               | SÍ   | Timestamp de captura inicial del cobro                   | **RE-FU-023** |
+| `IdUsuarioConfirmacion` | uniqueidentifier        | SÍ   | Quién capturó el cobro inicialmente (trazabilidad)       | **RE-FU-023** |
+| `Notas`                 | varchar(500)            | SÍ   | Notas opcionales del formulario del cobro                | **RE-FU-023** |
+| `IdCatMoneda`           | uniqueidentifier        | SÍ   | FK catMoneda — moneda del cobro (combo UI Paso 1)        | **RE-FU-023** |
+| `BloqueadoPorTimbrado`  | bit NOT NULL DEFAULT(0) | NO   | 0=editable vía botón Editar / 1=inmutable post-timbrado  | **NUEVO RE-FU-024** |
+| `FechaBloqueoTimbrado`  | datetime2               | SÍ   | Timestamp del bloqueo (Paso 3 timbró el doc. asociado)   | **NUEVO RE-FU-024** |
 
 ---
 
@@ -102,22 +121,28 @@ Se crean 2 tablas nuevas (inconsistencias) y 1 SEQUENCE (foliador COB).
 
 ---
 
-## DDL Cambios en fccPagoCliente (5 ALTERs)
+## DDL Cambios en fccPagoCliente (5 ALTERs ejecutados en RE-FU-023 + 2 ALTERs nuevos en RE-FU-024)
 
 ```sql
 -- Created by GitHub Copilot in SSMS - review carefully before executing
 -- Verificar objetos dependientes de fccPagoCliente antes de ejecutar
 
--- 1. Inmutabilidad: 0=borrador / 1=confirmado (cobro inmutable tras confirmación)
+-- ===================================================================
+-- Bloque A — ALTERs ejecutados en RE-FU-023 (✅ ya aplicados en BD)
+-- ===================================================================
+
+-- 1. Captura del cobro: 0=borrador (auto-guardado) / 1=capturado (editable hasta timbrar)
+--    NOTA RE-FU-024: la semántica del campo se actualiza. Ya NO implica inmutabilidad;
+--    indica únicamente que la captura fue finalizada y el cobro tiene folio COB.
 ALTER TABLE dbo.fccPagoCliente
     ADD Confirmado bit NOT NULL
         CONSTRAINT [DF_fccPagoCliente_Confirmado] DEFAULT (0);
 
--- 2. Timestamp de confirmación
+-- 2. Timestamp de captura inicial del cobro (no de inmutabilidad)
 ALTER TABLE dbo.fccPagoCliente
     ADD FechaConfirmacion datetime2 NULL;
 
--- 3. Trazabilidad: quién confirmó el cobro
+-- 3. Trazabilidad: quién capturó el cobro inicialmente
 ALTER TABLE dbo.fccPagoCliente
     ADD IdUsuarioConfirmacion uniqueidentifier NULL;
 
@@ -130,6 +155,20 @@ ALTER TABLE dbo.fccPagoCliente
     ADD IdCatMoneda uniqueidentifier NULL
         CONSTRAINT [FK_fccPagoCliente_CatMoneda]
             FOREIGN KEY REFERENCES dbo.catMoneda([IdCatMoneda]);
+
+-- ===================================================================
+-- Bloque B — ALTERs nuevos en RE-FU-024 (❌ pendientes de ejecutar)
+-- ===================================================================
+
+-- 6. Inmutabilidad real: 0=editable vía botón Editar / 1=inmutable post-timbrado
+--    Flip lo dispara el Paso 3 al timbrar el documento asociado al cobro.
+ALTER TABLE dbo.fccPagoCliente
+    ADD BloqueadoPorTimbrado bit NOT NULL
+        CONSTRAINT [DF_fccPagoCliente_BloqueadoPorTimbrado] DEFAULT (0);
+
+-- 7. Timestamp del bloqueo por timbrado (trazabilidad)
+ALTER TABLE dbo.fccPagoCliente
+    ADD FechaBloqueoTimbrado datetime2 NULL;
 ```
 
 ---
@@ -218,18 +257,23 @@ CREATE SEQUENCE dbo.SeqFolioCobro
 ```
 Estado pre-captura:   fccPagoCliente.Folio = NULL  →  UI muestra 'COB-N' (consecutivo sesión)
 Estado borrador:      fccPagoCliente.Folio = NULL  →  Confirmado = 0
-Estado confirmado:    fccPagoCliente.Folio = 'COB-mmddaa-NNNNNN'  →  Confirmado = 1
+Estado capturado:     fccPagoCliente.Folio = 'COB-mmddaa-NNNNNN'  →  Confirmado = 1, BloqueadoPorTimbrado = 0  (editable via botón Editar)
+Estado inmutable:     fccPagoCliente.Folio = 'COB-mmddaa-NNNNNN'  →  Confirmado = 1, BloqueadoPorTimbrado = 1  (post-timbrado Paso 3, sin botón Editar)
 ```
 
 ---
 
 ## Ciclo de vida del registro fccPagoCliente
 
-| Estado | `Confirmado` | `Folio` | `Activo` | `IdCatMoneda` |
-|--------|-------------|---------|----------|--------------|
-| Auto-guardado (borrador) | 0 | NULL | 1 | Poblado al seleccionar moneda |
-| Cobro confirmado | 1 | COB-mmddaa-NNNNNN | 1 | Poblado |
-| Inconsistencia marcada | 1 | COB-mmddaa-NNNNNN | 0 | Poblado |
+| Estado                         | `Confirmado` | `BloqueadoPorTimbrado` | `Folio`             | `Activo` | `IdCatMoneda`                | Acciones UI Paso 1                 |
+| ------------------------------ | ------------ | ---------------------- | ------------------- | -------- | ---------------------------- | ---------------------------------- |
+| Auto-guardado (borrador)       | 0            | 0                      | NULL                | 1        | Poblado al seleccionar       | Edición continua del formulario    |
+| Cobro capturado (editable)     | 1            | 0                      | COB-mmddaa-NNNNNN   | 1        | Poblado                      | Lectura + **botón Editar visible** |
+| Cobro inmutable (post-timbrar) | 1            | 1                      | COB-mmddaa-NNNNNN   | 1        | Poblado                      | Solo lectura (sin botón Editar)    |
+| Saldo a favor (post-timbrar)   | 1            | 1                      | COB-mmddaa-NNNNNN   | 1        | Poblado                      | Solo lectura (sin botón Editar)    |
+| Inconsistencia marcada         | 1            | 0 o 1                  | COB-mmddaa-NNNNNN   | 0        | Poblado                      | Lectura (Editar según bloqueo)     |
+
+> El flip `BloqueadoPorTimbrado = 0 → 1` lo dispara el Paso 3 al timbrar el documento al que se aplicó el cobro (un cobro puede estar asociado a uno o más documentos; en cuanto se timbra **cualquiera**, el cobro queda inmutable).
 
 ---
 
@@ -242,7 +286,7 @@ Estado confirmado:    fccPagoCliente.Folio = 'COB-mmddaa-NNNNNN'  →  Confirmad
 | `CorreoRecibido` | Asunto, Cuerpo, Fecha, Hora | Detalle del correo |
 | `ArchivoCorreoRecibido` | IdArchivo, NombreArchivo | Adjuntos del correo |
 | `Archivo` | FileKey | Visualizar adjunto seleccionado |
-| `fccPagoCliente` | Folio, Monto, FechaPago, Confirmado, IdCatMoneda | Cobros capturados |
+| `fccPagoCliente` | Folio, Monto, FechaPago, Confirmado, BloqueadoPorTimbrado, IdCatMoneda | Cobros capturados (Confirmado + BloqueadoPorTimbrado determinan si se muestra el botón Editar) |
 | `Cliente` | Nombre, Alias | Cabecera del wizard |
 | `DatosFacturacionCliente` | RFC, RazonSocial, IdCatMoneda | Cabecera + moneda facturación |
 | `catMedioDePago` | MedioDePago, ClaveFormaDePago | Combo forma de pago SAT |
@@ -257,8 +301,10 @@ Estado confirmado:    fccPagoCliente.Folio = 'COB-mmddaa-NNNNNN'  →  Confirmad
 
 | Tabla | Momento | Operación |
 |-------|---------|-----------|
-| `fccPagoCliente` | Auto-guardado | INSERT (nuevo) / UPDATE (existente) con `Confirmado=0` |
-| `fccPagoCliente` | Confirmar cobro | UPDATE: `Folio`, `Confirmado=1`, `FechaConfirmacion`, `IdUsuarioConfirmacion`, `IdCatMoneda` |
+| `fccPagoCliente` | Auto-guardado del borrador | INSERT (nuevo) / UPDATE (existente) con `Confirmado=0`. Guardia: solo si `BloqueadoPorTimbrado=0`. |
+| `fccPagoCliente` | Finalización de la captura | UPDATE: `Folio`, `Confirmado=1`, `FechaConfirmacion`, `IdUsuarioConfirmacion`, `IdCatMoneda`. **NO toca `BloqueadoPorTimbrado` (sigue en 0, el cobro queda editable vía botón Editar).** |
+| `fccPagoCliente` | Edición del cobro vía botón Editar (Paso 1) | UPDATE de los campos del formulario (Monto, FechaPago, IdCatMedioDePago, CuentaOrdenante, IdDatosBancarios, IdCatMoneda, TipoDeCambio, IdArchivo, Notas). Guardia: solo si `BloqueadoPorTimbrado=0`. **No se regenera el Folio.** |
+| `fccPagoCliente` | Timbrado del documento asociado (Paso 3) | UPDATE: `BloqueadoPorTimbrado=1`, `FechaBloqueoTimbrado=SYSUTCDATETIME()`. Disparado desde el flujo del Paso 3 sobre todas las `fccPagoCliente` aplicadas al documento timbrado. |
 | `fccInconsistenciaCobro` | Confirmar inconsistencia modal | INSERT |
 
 ---
@@ -284,6 +330,7 @@ Estado confirmado:    fccPagoCliente.Folio = 'COB-mmddaa-NNNNNN'  →  Confirmad
 | R16A-RE-FU-023 | Pantalla principal VC — lista cobros pendientes |
 | R16A-RE-FU-025 | Paso 1 Perú — reutiliza toda esta estructura sin DDL nuevo |
 | R16A-RE-FU-026 | Paso 2 México — extiende `catTipoInconsistenciaCobro` y lee `fccPagoCliente` |
+| Paso 3 (Facturación y Envío) | Dispara el UPDATE `BloqueadoPorTimbrado=1` sobre las `fccPagoCliente` aplicadas al documento timbrado (hace efectiva la inmutabilidad del cobro) |
 
 ---
 

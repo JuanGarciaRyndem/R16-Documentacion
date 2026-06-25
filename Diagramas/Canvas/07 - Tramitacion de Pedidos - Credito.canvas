@@ -7,7 +7,6 @@
 		{"id":"n11","type":"text","text":"❓ Selecciona Factura por Adelantado?","x":300,"y":460,"width":280,"height":80,"color":"#ffdac1"},
 		{"id":"nota","type":"text","text":"📌 Escenario A y B:\nCliente credito con controlados\no sin FA → flujo directo sin cambios","x":1240,"y":270,"width":300,"height":100,"color":"#ffffb5"},
 		{"id":"n04","type":"text","text":"⚠️ Gestionar Intramitable","x":820,"y":160,"width":280,"height":60,"color":"#ffb7b2"},
-		{"id":"n16","type":"text","text":"❌ Muestra error de TurboPac\nUsuario corrige datos","x":1260,"y":700,"width":280,"height":60,"color":"#ffb7b2"},
 		{"id":"n20","type":"text","text":"🔓 Desbloquea pendiente en Tramitar Pedido","x":760,"y":1280,"width":280,"height":60,"color":"#c7ceea"},
 		{"id":"n21","type":"text","text":"📝 Genera Folio PI","x":760,"y":1380,"width":280,"height":60,"color":"#c7ceea"},
 		{"id":"n22","type":"text","text":"🔄 Tramitar Pedido","x":760,"y":1480,"width":280,"height":60,"color":"#c7ceea"},
@@ -25,7 +24,8 @@
 		{"id":"n07","type":"text","text":"🔄 Tramitar Pedido","x":-200,"y":590,"width":280,"height":60,"color":"#c7ceea"},
 		{"id":"n08","type":"text","text":"📤 Genera Confirmacion de Pedido","x":-200,"y":690,"width":280,"height":60,"color":"#ffdac1"},
 		{"id":"n09","type":"text","text":"🔁 Transfiere pedido a Legacy","x":-200,"y":790,"width":280,"height":60,"color":"#c7ceea"},
-		{"id":"n10","type":"text","text":"✅ Fin - Pedido en Legacy","x":-200,"y":890,"width":280,"height":60,"color":"#b5ead7"}
+		{"id":"n10","type":"text","text":"✅ Fin - Pedido en Legacy","x":-200,"y":890,"width":280,"height":60,"color":"#b5ead7"},
+		{"id":"n16","type":"text","text":"❌ Muestra error de TurboPac\nUsuario corrige datos","x":1300,"y":830,"width":280,"height":60,"color":"#ffb7b2"}
 	],
 	"edges":[
 		{"id":"e01","fromNode":"n01","fromSide":"bottom","toNode":"n02","toSide":"top"},

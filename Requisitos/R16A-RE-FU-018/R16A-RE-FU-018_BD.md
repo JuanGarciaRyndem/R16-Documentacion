@@ -175,31 +175,31 @@ Se comunica con ProquifaDotNet.Finanzas via API.
 ### Tabla: CFDI
 **Proposito:** Documento fiscal generado y timbrado. Almacena XML y referencia Minio.
 
-| Columna | Tipo | Nulo | Default | Descripcion |
-|---------|------|------|---------|-------------|
-| IdCFDI | uniqueidentifier | NO | NEWID() | PK |
-| IdTipoDocumentoFiscal | uniqueidentifier | NO | - | FK -> TipoDocumentoFiscal |
-| UUID | varchar(36) | SI | - | UUID del timbrado (asignado por PAC) |
-| Serie | varchar(25) | SI | - | Serie del CFDI |
-| Folio | varchar(40) | SI | - | Folio del CFDI |
-| FechaEmision | datetime2(7) | SI | - | Fecha de emision |
-| RFCEmisor | varchar(13) | NO | - | RFC de la empresa emisora |
-| RFCReceptor | varchar(50) | NO | - | RFC/RUC del cliente receptor |
-| Total | decimal(18,2) | NO | - | Monto total del documento |
-| Moneda | varchar(5) | NO | - | Clave moneda (MXN/USD/PEN) |
-| TipoCambio | decimal(18,6) | SI | - | Tipo de cambio aplicado |
-| MetodoPago | varchar(5) | SI | - | Clave SAT metodo pago (PUE/PPD) |
-| FormaPago | varchar(5) | SI | - | Clave SAT forma pago (03/99/etc) |
-| UsoCFDI | varchar(10) | SI | - | Clave SAT uso CFDI (G03/P01/etc) |
-| XmlContent | varchar(max) | SI | - | XML completo del CFDI timbrado |
-| MinioFileKey | varchar(600) | SI | - | Path del XML en Minio |
-| MinioBucket | varchar(100) | SI | - | Bucket en Minio |
-| EstatusTimbrado | varchar(30) | NO | 'Pendiente' | Pendiente/Enviado/Timbrado/Error |
-| MensajeError | varchar(max) | SI | - | Detalle del error si fallo |
-| Intentos | int | NO | 0 | Contador de reintentos |
-| CreatedAt | datetime2(7) | NO | SYSUTCDATETIME() | Fecha creacion |
-| UpdatedAt | datetime2(7) | NO | SYSUTCDATETIME() | Fecha actualizacion |
-| IsActive | bit | NO | 1 | Activo |
+| Columna               | Tipo             | Nulo | Default          | Descripcion                          |
+| --------------------- | ---------------- | ---- | ---------------- | ------------------------------------ |
+| IdCFDI                | uniqueidentifier | NO   | NEWID()          | PK                                   |
+| IdTipoDocumentoFiscal | uniqueidentifier | NO   | -                | FK -> TipoDocumentoFiscal            |
+| UUID                  | varchar(36)      | SI   | -                | UUID del timbrado (asignado por PAC) |
+| Serie                 | varchar(25)      | SI   | -                | Serie del CFDI                       |
+| Folio                 | varchar(40)      | SI   | -                | Folio del CFDI                       |
+| FechaEmision          | datetime2(7)     | SI   | -                | Fecha de emision                     |
+| RFCEmisor             | varchar(13)      | NO   | -                | RFC de la empresa emisora            |
+| RFCReceptor           | varchar(50)      | NO   | -                | RFC/RUC del cliente receptor         |
+| Total                 | decimal(18,2)    | NO   | -                | Monto total del documento            |
+| Moneda                | varchar(5)       | NO   | -                | Clave moneda (MXN/USD/PEN)           |
+| TipoCambio            | decimal(18,6)    | SI   | -                | Tipo de cambio aplicado              |
+| MetodoPago            | varchar(5)       | SI   | -                | Clave SAT metodo pago (PUE/PPD)      |
+| FormaPago             | varchar(5)       | SI   | -                | Clave SAT forma pago (03/99/etc)     |
+| UsoCFDI               | varchar(10)      | SI   | -                | Clave SAT uso CFDI (G03/P01/etc)     |
+| XmlContent            | varchar(max)     | SI   | -                | XML completo del CFDI timbrado       |
+| MinioFileKey          | varchar(600)     | SI   | -                | Path del XML en Minio                |
+| MinioBucket           | varchar(100)     | SI   | -                | Bucket en Minio                      |
+| EstatusTimbrado       | varchar(30)      | NO   | 'Pendiente'      | Pendiente/Enviado/Timbrado/Error     |
+| MensajeError          | varchar(max)     | SI   | -                | Detalle del error si fallo           |
+| Intentos              | int              | NO   | 0                | Contador de reintentos               |
+| CreatedAt             | datetime2(7)     | NO   | SYSUTCDATETIME() | Fecha creacion                       |
+| UpdatedAt             | datetime2(7)     | NO   | SYSUTCDATETIME() | Fecha actualizacion                  |
+| IsActive              | bit              | NO   | 1                | Activo                               |
 
 ---
 
@@ -344,11 +344,11 @@ Se comunica con ProquifaDotNet.Finanzas via API.
 
 ## Dependencias
 
-| Requisito | Relacion |
-|-----------|----------|
-| R16A-RE-FU-012 | Genera pendiente FAA para Credito con FAA |
-| R16A-RE-FU-015 | Genera pendiente FAA para Prepago con FAA |
-| R16A-RE-FU-005 | Timbrado Peru (brecha) |
+| Requisito      | Relacion                                     |
+| -------------- | -------------------------------------------- |
+| R16A-RE-FU-012 | Genera pendiente FAA para Credito con FAA    |
+| R16A-RE-FU-015 | Genera pendiente FAA para Prepago con FAA    |
+| R16A-RE-FU-005 | Timbrado Peru (brecha)                       |
 | R16A-RE-FU-016 | Proforma MEX (flujo previo a FAA en Prepago) |
 
 ---

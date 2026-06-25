@@ -4,35 +4,42 @@
 
 ---
 
-> **Orden de ejecución sugerido:** BD ProquifaDotNet (5 ALTERs + CREATE tablas + SEQUENCE) → Endpoints Finanzas (catálogos → listado cobros → detalle correo → auto-guardado → confirmación → TC → modal inconsistencia)
-> **Dependencias externas:** `fccFolioPagoCliente` / `CorreoRecibidoCliente` / `ArchivoCorreoRecibido` ya existentes (RE-FU-008). Tarea 1 (BD) es prerrequisito de todas las tareas de Finanzas.
+> **Orden de ejecución sugerido:** BD ProquifaDotNet (ALTERs RE-FU-023 ya ejecutados + **2 ALTERs nuevos RE-FU-024 — BloqueadoPorTimbrado y FechaBloqueoTimbrado** + CREATE tablas + SEQUENCE) → Endpoints Finanzas (catálogos → listado cobros → detalle correo → auto-guardado → finalización captura → **edición del cobro** → TC → modal inconsistencia → estado wizard).
+> **Dependencias externas:** `fccFolioPagoCliente` / `CorreoRecibidoCliente` / `ArchivoCorreoRecibido` ya existentes (RE-FU-008). Tareas 1 y 1B (BD) son prerrequisitos de todas las tareas de Finanzas.
+
+> **🔄 Cambio funcional 2026-06-23 — Editabilidad del cobro hasta el timbrado:**
+> Se agregan dos tareas nuevas: **Tarea 1B (BD)** para crear los campos `BloqueadoPorTimbrado` y `FechaBloqueoTimbrado` en `fccPagoCliente`, y **Tarea 13 (Back)** para el endpoint de edición del cobro vía botón Editar. Se actualizan las tareas existentes 6 (listado: flag `puedeEditar`), 8 (auto-guardado: guardia cambia a `BloqueadoPorTimbrado`) y 9 (finalización de la captura: ya no aplica inmutabilidad, sin alerta de confirmación).
 
 ---
 
 ## Resumen de tareas
 
-| # | Clave | Título simple | Tipo | Aplicativo |
-|---|-------|--------------|------|-----------|
-| 1 | UPDATE-TABL-CH | Agregar campos de inmutabilidad, notas y moneda (IdCatMoneda) a fccPagoCliente | BD | ProquifaDotNet |
-| 2 | CREATE-TABL-CH | Crear tabla catTipoInconsistenciaCobro con datos iniciales | BD | ProquifaDotNet |
-| 3 | CREATE-TABL-M | Crear tabla fccInconsistenciaCobro | BD | ProquifaDotNet |
-| 4 | BD-OBJ-CH | Crear SEQUENCE SeqFolioCobro para foliador COB-mmddaa | BD | ProquifaDotNet |
-| 5 | LIST-NO-FILTER | Endpoint y servicio — Catálogos del formulario Paso 1 (monedas, medios de pago, cuentas destino) | Back | ProquifaDotNet.Finanzas |
-| 6 | LIST-NO-FILTER | Endpoint y servicio — Listado de cobros del cliente (Paso 1) | Back | ProquifaDotNet.Finanzas |
-| 7 | ALG-BASIC-LOGIC | Endpoint y servicio — Detalle del correo y adjuntos para selección de comprobante | Back | ProquifaDotNet.Finanzas |
-| 8 | SERV-SIMPLE-PUT | Endpoint y servicio — Auto-guardado del cobro en borrador (Paso 1) | Back | ProquifaDotNet.Finanzas |
-| 9 | SERV-TRANSACT | Endpoint y servicio — Confirmación del cobro con folio COB e inmutabilidad | Back | ProquifaDotNet.Finanzas |
-| 10 | ALG-COMPLX-LOGIC | Servicio — Tipo de Cambio del día automático para el cobro (México) | Back | ProquifaDotNet.Finanzas |
-| 11 | SERV-SIMPLE-PUT | Endpoint y servicio — Modal de inconsistencia del cobro (Paso 1) | Back | ProquifaDotNet.Finanzas |
-| 12 | ALG-BASIC-LOGIC | Endpoint y servicio — Estado del wizard para reanudación (OBS-048) | Back | ProquifaDotNet.Finanzas |
+| #   | Clave            | Título simple                                                                                       | Tipo | Aplicativo               |
+| --- | ---------------- | --------------------------------------------------------------------------------------------------- | ---- | ------------------------ |
+| 1   | UPDATE-TABL-CH   | Agregar campos de captura, notas y moneda (IdCatMoneda) a fccPagoCliente *(referencia RE-FU-023)*   | BD   | ProquifaDotNet           |
+| 1B  | UPDATE-TABL-CH   | **Agregar campos BloqueadoPorTimbrado y FechaBloqueoTimbrado a fccPagoCliente (RE-FU-024)**         | BD   | ProquifaDotNet           |
+| 2   | CREATE-TABL-CH   | Crear tabla catTipoInconsistenciaCobro con datos iniciales                                          | BD   | ProquifaDotNet           |
+| 3   | CREATE-TABL-M    | Crear tabla fccInconsistenciaCobro                                                                  | BD   | ProquifaDotNet           |
+| 4   | BD-OBJ-CH        | Crear SEQUENCE SeqFolioCobro para foliador COB-mmddaa                                               | BD   | ProquifaDotNet           |
+| 5   | LIST-NO-FILTER   | Endpoint y servicio — Catálogos del formulario Paso 1 (monedas, medios de pago, cuentas destino)    | Back | ProquifaDotNet.Finanzas  |
+| 6   | LIST-NO-FILTER   | Endpoint y servicio — Listado de cobros del cliente (Paso 1) *(incluye flag `puedeEditar`)*         | Back | ProquifaDotNet.Finanzas  |
+| 7   | ALG-BASIC-LOGIC  | Endpoint y servicio — Detalle del correo y adjuntos para selección de comprobante                   | Back | ProquifaDotNet.Finanzas  |
+| 8   | SERV-SIMPLE-PUT  | Endpoint y servicio — Auto-guardado del cobro en borrador (Paso 1)                                  | Back | ProquifaDotNet.Finanzas  |
+| 9   | SERV-TRANSACT    | Endpoint y servicio — Finalización de la captura con folio COB *(sin inmutabilidad, sin alerta)*    | Back | ProquifaDotNet.Finanzas  |
+| 10  | ALG-COMPLX-LOGIC | Servicio — Tipo de Cambio del día automático para el cobro (México)                                 | Back | ProquifaDotNet.Finanzas  |
+| 11  | SERV-SIMPLE-PUT  | Endpoint y servicio — Modal de inconsistencia del cobro (Paso 1)                                    | Back | ProquifaDotNet.Finanzas  |
+| 12  | ALG-BASIC-LOGIC  | Endpoint y servicio — Estado del wizard para reanudación (OBS-048)                                  | Back | ProquifaDotNet.Finanzas  |
+| 13  | SERV-SIMPLE-PUT  | **Endpoint y servicio — Edición del cobro vía botón Editar (mientras no esté timbrado) (RE-FU-024)** | Back | ProquifaDotNet.Finanzas  |
 
 ---
 
 ## TAREA 1
 
 > **✅ EJECUTADO EN RE-FU-023** — Los 5 campos fueron incorporados al CREATE TABLE de RE-FU-023 y ejecutados en BD (verificado RYNL010). Esta tarea queda como referencia documental. No requiere ejecución.
+>
+> **Nota de actualización RE-FU-024:** La semántica del campo `Confirmado` cambia (deja de implicar inmutabilidad — ahora significa "cobro capturado y persistido con folio COB"). La inmutabilidad real se gestiona con los nuevos campos `BloqueadoPorTimbrado` y `FechaBloqueoTimbrado`, agregados en la **Tarea 1B** de este requisito.
 
-**[ RE-FU-024 ] [UPDATE-TABL-CH] Agregar campos de inmutabilidad, notas y moneda (IdCatMoneda) a fccPagoCliente**
+**[ RE-FU-024 ] [UPDATE-TABL-CH] Agregar campos de captura, notas y moneda (IdCatMoneda) a fccPagoCliente**
 
 **Aplicativos:** ProquifaDotNet
 
@@ -40,12 +47,12 @@
 
 **Consideraciones previas:**
 - ✅ Los 5 campos ya existen en `fccPagoCliente` (ejecutados en RE-FU-023):
-  - `Confirmado bit NOT NULL DEFAULT(0)`
-  - `FechaConfirmacion datetime2 NULL`
-  - `IdUsuarioConfirmacion uniqueidentifier NULL`
+  - `Confirmado bit NOT NULL DEFAULT(0)` *(semántica RE-FU-024: cobro capturado, no inmutable)*
+  - `FechaConfirmacion datetime2 NULL` *(timestamp de la captura inicial)*
+  - `IdUsuarioConfirmacion uniqueidentifier NULL` *(quién capturó el cobro inicialmente)*
   - `Notas varchar(500) NULL`
   - `IdCatMoneda uniqueidentifier NULL` con FK activa hacia `catMoneda.IdCatMoneda`
-- Es **prerrequisito** de todas las tareas de Finanzas del Paso 1 (Tareas 5-11) — prerrequisito ya cumplido.
+- Es **prerrequisito** de todas las tareas de Finanzas del Paso 1 (Tareas 5-13) — prerrequisito ya cumplido.
 
 **Objetivo general:**
 ~~Extender `fccPagoCliente` con los 5 campos.~~ **Ya ejecutado en RE-FU-023.**
@@ -64,11 +71,58 @@
 **Criterios de aceptación:** ✅ Verificados en BD (RYNL010).
 
 **Más información de la tarea:**
-Ver sección *"Parte A / A1"* en `R16A-RE-FU-024-Back.md` y sección *"DDL Cambios en fccPagoCliente"* en `R16A-RE-FU-024_BD.md`.
+Ver sección *"Parte A / A1 / Bloque A"* en `R16A-RE-FU-024-Back.md` y sección *"DDL Cambios en fccPagoCliente"* en `R16A-RE-FU-024_BD.md`.
 
 **Recursos:**
 - `R16A-RE-FU-024_BD.md` — Sección DDL + tabla completa post-R16
 - `R16A-RE-FU-024-Back.md` — Parte A, sección A1
+
+---
+
+## TAREA 1B
+
+**[ RE-FU-024 ] [UPDATE-TABL-CH] Agregar campos BloqueadoPorTimbrado y FechaBloqueoTimbrado a fccPagoCliente**
+
+**Aplicativos:** ProquifaDotNet
+
+**Módulos:** Base de Datos — Validar Cobro Paso 1
+
+**Consideraciones previas:**
+- Tarea NUEVA en RE-FU-024 derivada del cambio funcional del 2026-06-23 (editabilidad del cobro hasta el timbrado).
+- Los campos deben existir antes de ejecutar las Tareas 6, 8, 9 y 13 de Finanzas.
+- `BloqueadoPorTimbrado` se mantiene en `0` mientras el documento asociado (factura/proforma) no haya sido timbrado en el Paso 3. El flip a `1` lo dispara el flujo del Paso 3.
+- Para cobros existentes en BD (si los hubiera), el `DEFAULT(0)` deja inicialmente todos como editables. **Pendiente confirmar con PROQUIFA** si existen cobros ya timbrados en BD que deban inicializarse con `BloqueadoPorTimbrado=1` mediante un UPDATE de migración.
+- No requiere índice nuevo (las consultas del Paso 1 filtran por `IdCliente` que ya tiene índice).
+
+**Objetivo general:**
+Agregar a `fccPagoCliente` los 2 campos que implementan la inmutabilidad post-timbrado y permiten distinguir cobros editables (botón Editar visible) de cobros inmutables.
+
+**Objetivos específicos:**
+- `ALTER TABLE dbo.fccPagoCliente ADD BloqueadoPorTimbrado bit NOT NULL CONSTRAINT [DF_fccPagoCliente_BloqueadoPorTimbrado] DEFAULT (0)`
+- `ALTER TABLE dbo.fccPagoCliente ADD FechaBloqueoTimbrado datetime2 NULL`
+- Validar que el `DEFAULT (0)` no rompe registros existentes.
+- Confirmar con PROQUIFA si se requiere UPDATE de migración para cobros ya timbrados existentes.
+
+**Resultado esperado:**
+Tabla `fccPagoCliente` extendida con `BloqueadoPorTimbrado` y `FechaBloqueoTimbrado`, lista para las guardias del auto-guardado, el endpoint de edición y el flag `puedeEditar` del listado.
+
+**Entregables:**
+- Script DDL: 2 ALTER TABLE.
+- Script de validación (estructura post-ALTER + verificación de valores DEFAULT en registros existentes).
+- (Si aplica) Script DML de migración para cobros ya timbrados existentes.
+
+**Criterios de aceptación:**
+- Los 2 campos existen en `fccPagoCliente` con tipos y DEFAULT definidos.
+- Registros existentes no se ven afectados (`BloqueadoPorTimbrado=0`, `FechaBloqueoTimbrado=NULL`).
+- Ningún objeto dependiente presenta errores tras el ALTER.
+
+**Más información de la tarea:**
+Ver sección *"Parte A / A1 / Bloque B"* en `R16A-RE-FU-024-Back.md` y sección *"DDL Cambios en fccPagoCliente"* (Bloque B) en `R16A-RE-FU-024_BD.md`.
+
+**Recursos:**
+- `R16A-RE-FU-024_BD.md` — DDL Bloque B + ciclo de vida actualizado
+- `R16A-RE-FU-024-Back.md` — Parte A, sección A1 (Bloque B)
+- `R16A-RE-FU-024.md` — Regla 12 actualizada (editabilidad hasta el timbrado), Criterios B3, F3, F4
 
 ---
 ## TAREA 2
@@ -258,39 +312,41 @@ Ver sección *"Parte B / B3"* en `R16A-RE-FU-024-Back.md`.
 **Módulos:** Validar Cobro — Paso 1 México
 
 **Consideraciones previas:**
-- Tareas 1-4 deben estar ejecutadas.
+- Tareas 1, **1B**, 2, 3, 4 deben estar ejecutadas.
 - Dos bloques: capturados (`Confirmado=1`) arriba y sin capturar abajo.
-- Si un cobro tiene saldo a favor (del Paso 2), etiqueta `esSaldoAFavor=true` en el DTO.
+- Si un cobro tiene saldo a favor (del Paso 2), etiqueta `esSaldoAFavor=true` en el DTO. Por construcción, todo cobro con saldo a favor visible en el Paso 1 está timbrado (`BloqueadoPorTimbrado=1`).
+- **Actualización RE-FU-024:** el DTO debe exponer el flag `puedeEditar` calculado como `Confirmado && !BloqueadoPorTimbrado`, para que el Front condicione la visibilidad del botón Editar del Paso 1.
 
 **Objetivo general:**
-Implementar en Finanzas el endpoint que retorna el listado de cobros del cliente para el panel izquierdo del Paso 1, ordenado en dos bloques.
+Implementar en Finanzas el endpoint que retorna el listado de cobros del cliente para el panel izquierdo del Paso 1, ordenado en dos bloques, incluyendo el flag de editabilidad.
 
 **Objetivos específicos:**
 - `GET /api/validar-cobro/clientes/{idCliente}/cobros` en Finanzas.
 - Crear `GetValidarCobroPaso1CobroListQuery` + Handler.
-- Bloque 1 (capturados): `fccPagoCliente.Confirmado=1`, ordenados por `FechaPago ASC`, con folio, fecha, monto y `catMoneda.ClaveMoneda`.
+- Bloque 1 (capturados): `fccPagoCliente.Confirmado=1`, ordenados por `FechaPago ASC`, con folio, fecha, monto, `catMoneda.ClaveMoneda` y flag `puedeEditar`.
 - Bloque 2 (sin capturar): correos del Buzón sin cobro confirmado, ordenados por `FechaRecepcion ASC`.
-- DTO: `ValidarCobroPaso1ItemDto` (estado, folio, fecha, monto, claveMoneda, esSaldoAFavor).
+- DTO: `ValidarCobroPaso1ItemDto` (estado, folio, fecha, monto, claveMoneda, esSaldoAFavor, **puedeEditar**, **bloqueadoPorTimbrado**, **fechaBloqueoTimbrado**).
 
 **Resultado esperado:**
-Endpoint `GET /api/validar-cobro/clientes/{idCliente}/cobros` en Finanzas que retorna el listado de dos bloques para el panel izquierdo del Paso 1.
+Endpoint `GET /api/validar-cobro/clientes/{idCliente}/cobros` en Finanzas que retorna el listado de dos bloques para el panel izquierdo del Paso 1 y permite al Front decidir cuándo mostrar el botón Editar.
 
 **Entregables:**
 - Endpoint + Query + Handler: `GetValidarCobroPaso1CobroListQuery`
-- DTO: `ValidarCobroPaso1ItemDto`
-- Pruebas unitarias
+- DTO: `ValidarCobroPaso1ItemDto` (con flag `puedeEditar`)
+- Pruebas unitarias (incluyendo casos: capturado editable, capturado bloqueado por timbrado, saldo a favor)
 
 **Criterios de aceptación:**
-- Bloque 1: cobros confirmados ordenados por `FechaPago ASC` con moneda desde `IdCatMoneda → catMoneda.ClaveMoneda`.
-- Bloque 2: correos sin cobro confirmado ordenados por `FechaRecepcion ASC`.
-- Items capturados en modo solo lectura (sin edición).
+- Bloque 1: cobros capturados ordenados por `FechaPago ASC` con moneda desde `IdCatMoneda → catMoneda.ClaveMoneda`.
+- Bloque 2: correos sin cobro capturado ordenados por `FechaRecepcion ASC`.
+- Items en modo lectura. `puedeEditar=true` solo si `Confirmado=1 AND BloqueadoPorTimbrado=0`.
+- Items con `esSaldoAFavor=true` retornan siempre `puedeEditar=false`.
 
 **Más información de la tarea:**
-Ver sección *"Parte B / B1"* en `R16A-RE-FU-024-Back.md`. Ver criterios B1, B2, B3 en `R16A-RE-FU-024.md`.
+Ver sección *"Parte B / B1"* en `R16A-RE-FU-024-Back.md`. Ver criterios B1, B2, B3 y regla 12 actualizada en `R16A-RE-FU-024.md`.
 
 **Recursos:**
 - `R16A-RE-FU-024-Back.md` — Parte B, sección B1
-- `R16A-RE-FU-024_BD.md` — Tablas leídas
+- `R16A-RE-FU-024_BD.md` — Tablas leídas + ciclo de vida
 
 ---
 
@@ -348,33 +404,35 @@ Ver sección *"Parte B / B2"* en `R16A-RE-FU-024-Back.md`. Ver criterios C1, C2,
 
 **Consideraciones previas:**
 - Auto-guardado transparente: sin botón "Guardar" manual.
-- Si no existe `fccPagoCliente`: INSERT con `Confirmado=0`, `Folio=NULL`, `IdCatMoneda=@Id`.
+- Si no existe `fccPagoCliente`: INSERT con `Confirmado=0`, `BloqueadoPorTimbrado=0`, `Folio=NULL`, `IdCatMoneda=@Id`.
 - Si existe con `Confirmado=0`: UPDATE con datos actuales incluido `IdCatMoneda`.
-- Guardia: si `Confirmado=1`, no sobreescribir.
-- Tarea 1 es prerrequisito.
+- **Guardia actualizada RE-FU-024:** si `BloqueadoPorTimbrado=1`, no sobreescribir (cobro inmutable post-timbrado). Si `Confirmado=1 AND BloqueadoPorTimbrado=0`, la edición debe canalizarse por el endpoint de edición (Tarea 13), no por este auto-guardado.
+- Tareas 1 y 1B son prerrequisitos.
 - **OBS-048:** El estado del cobro en borrador (`Confirmado=0`) es la señal que usa el endpoint de estado del wizard (Tarea 12) para determinar que el cliente tiene el Paso 1 en progreso y reanudarlo ahí. El auto-guardado es el mecanismo que persiste ese estado.
 
 **Objetivo general:**
-Implementar en Finanzas el endpoint de auto-guardado que persiste el formulario del cobro como borrador de forma transparente, incluyendo la moneda seleccionada (`IdCatMoneda`).
+Implementar en Finanzas el endpoint de auto-guardado que persiste el formulario del cobro como borrador de forma transparente, incluyendo la moneda seleccionada (`IdCatMoneda`), respetando la guardia de inmutabilidad por timbrado.
 
 **Objetivos específicos:**
 - `PUT /api/validar-cobro/clientes/{idCliente}/cobros/{idFCCFolioPagoCliente}/borrador`
 - Crear `AutoGuardarCobroBorradorCommand` + Handler.
 - DTO de request: `AutoGuardarCobroBorradorRequestDto` (monto, fechaPago, idCatMedioDePago, cuentaOrdenante, idDatosBancarios, **idCatMoneda**, tipoCambio, notas, idArchivo).
-- Guardia de inmutabilidad: no actualizar si `Confirmado=1`.
+- **Guardia por timbrado:** no actualizar si `BloqueadoPorTimbrado=1` (retorna 409 Conflict).
+- Guardia por estado capturado: no actualizar si `Confirmado=1` (la modificación va por Tarea 13 / endpoint Editar).
 
 **Resultado esperado:**
-Endpoint `PUT .../borrador` que auto-guarda el cobro sin requerir acción del usuario, preservando todos los campos del formulario incluyendo la moneda seleccionada.
+Endpoint `PUT .../borrador` que auto-guarda el cobro sin requerir acción del usuario, preservando todos los campos del formulario incluyendo la moneda seleccionada, sin tocar cobros bloqueados por timbrado ni cobros ya capturados.
 
 **Entregables:**
 - Endpoint + Command + Handler: `AutoGuardarCobroBorradorCommand`
 - DTO: `AutoGuardarCobroBorradorRequestDto`
-- Pruebas unitarias (incluyendo guardia de inmutabilidad)
+- Pruebas unitarias (incluyendo guardia por timbrado y guardia por captura finalizada)
 
 **Criterios de aceptación:**
-- INSERT correcto si no existe cobro, con `IdCatMoneda` poblado.
+- INSERT correcto si no existe cobro, con `IdCatMoneda` poblado y `BloqueadoPorTimbrado=0`.
 - UPDATE correcto si existe con `Confirmado=0`, actualizando `IdCatMoneda`.
-- Si `Confirmado=1`, el endpoint retorna sin modificar el registro.
+- Si `BloqueadoPorTimbrado=1`, el endpoint NO modifica el registro y retorna 409 Conflict.
+- Si `Confirmado=1`, el endpoint NO modifica el registro (la edición debe canalizarse por Tarea 13).
 
 **Más información de la tarea:**
 Ver sección *"Parte B / B4"* en `R16A-RE-FU-024-Back.md`. Ver criterios F1, F2 en `R16A-RE-FU-024.md`.
@@ -387,48 +445,50 @@ Ver sección *"Parte B / B4"* en `R16A-RE-FU-024-Back.md`. Ver criterios F1, F2 
 
 ## TAREA 9
 
-**[ RE-FU-024 ] [SERV-TRANSACT] Endpoint y servicio — Confirmación del cobro con folio COB e inmutabilidad**
+**[ RE-FU-024 ] [SERV-TRANSACT] Endpoint y servicio — Finalización de la captura del cobro con folio COB (sin inmutabilidad, sin alerta)**
 
 **Aplicativos:** ProquifaDotNet.Finanzas
 
 **Módulos:** Validar Cobro — Paso 1 México
 
 **Consideraciones previas:**
-- Tarea 4 (SEQUENCE) debe existir antes.
-- Flujo en Finanzas: (1) validar comprobante seleccionado, (2) validar campos obligatorios (incluido `IdCatMoneda`), (3) calcular folio COB, (4) alerta de confirmación al Front.
-- UPDATE en ProquifaDotNet incluye `IdCatMoneda` en el SET del cobro confirmado.
-- Guardia `Confirmado=0` en el WHERE del UPDATE.
+- Tarea 4 (SEQUENCE) y Tarea 1B (`BloqueadoPorTimbrado`) deben existir antes.
+- Flujo en Finanzas: (1) validar comprobante seleccionado, (2) validar campos obligatorios (incluido `IdCatMoneda`), (3) calcular folio COB. **No se muestra alerta de confirmación al Front** (la captura no es inmutable hasta el timbrado del documento asociado).
+- UPDATE en ProquifaDotNet incluye `IdCatMoneda` en el SET del cobro capturado. **NO toca `BloqueadoPorTimbrado` (permanece en 0)**: el cobro queda editable vía botón Editar (Tarea 13) hasta el timbrado.
+- Guardia `Confirmado=0` en el WHERE del UPDATE (este endpoint solo finaliza borradores, no recaptura).
 
 **Objetivo general:**
-Implementar en Finanzas el endpoint transaccional que confirma el cobro: genera folio COB-mmddaa-NNNNNN, persiste `Confirmado=1` con trazabilidad e `IdCatMoneda`, haciendo el cobro inmutable.
+Implementar en Finanzas el endpoint transaccional que finaliza la captura del cobro: genera folio COB-mmddaa-NNNNNN, persiste `Confirmado=1` con trazabilidad e `IdCatMoneda`. **El cobro NO queda inmutable** — la inmutabilidad se aplica en el Paso 3 al timbrar el documento asociado (ver Tarea 1B y endpoint B10).
 
 **Objetivos específicos:**
-- `POST /api/validar-cobro/clientes/{idCliente}/cobros/{idFCCFolioPagoCliente}/confirmar`
-- Crear `ConfirmarCobroCommand` + Handler.
+- `POST /api/validar-cobro/clientes/{idCliente}/cobros/{idFCCFolioPagoCliente}/finalizar-captura`
+- Crear `FinalizarCapturaCobroCommand` + Handler.
 - Validar en Finanzas: comprobante seleccionado + `IdCatMoneda` obligatorio + demás campos requeridos.
 - Calcular folio con `NEXT VALUE FOR SeqFolioCobro`.
-- UPDATE en ProquifaDotNet: `Folio=@Folio, Confirmado=1, FechaConfirmacion=..., IdUsuarioConfirmacion=..., IdCatMoneda=@IdCatMoneda WHERE Confirmado=0`.
+- UPDATE en ProquifaDotNet: `Folio=@Folio, Confirmado=1, FechaConfirmacion=..., IdUsuarioConfirmacion=..., IdCatMoneda=@IdCatMoneda WHERE Confirmado=0`. **No tocar `BloqueadoPorTimbrado`.**
+- Sin alerta de confirmación al Front (la captura no es definitiva hasta el timbrado).
 
 **Resultado esperado:**
-Endpoint `POST .../confirmar` que confirma el cobro con folio definitivo, moneda registrada e inmutabilidad garantizada.
+Endpoint `POST .../finalizar-captura` que finaliza la captura con folio definitivo y moneda registrada, dejando el cobro en modo lectura **editable** vía botón Editar (`Confirmado=1, BloqueadoPorTimbrado=0`).
 
 **Entregables:**
-- Endpoint + Command + Handler: `ConfirmarCobroCommand`
-- Pruebas unitarias (fallo si comprobante no seleccionado, fallo si `IdCatMoneda` nulo, fallo si ya `Confirmado=1`)
+- Endpoint + Command + Handler: `FinalizarCapturaCobroCommand`
+- Pruebas unitarias (fallo si comprobante no seleccionado, fallo si `IdCatMoneda` nulo, fallo si ya `Confirmado=1`, verificación de `BloqueadoPorTimbrado=0` post-finalización)
 
 **Criterios de aceptación:**
 - `Confirmado=1`, `FechaConfirmacion`, `IdUsuarioConfirmacion`, `Folio` y `IdCatMoneda` poblados.
+- `BloqueadoPorTimbrado` permanece en `0` tras la finalización.
 - Folio en formato `COB-mmddaa-NNNNNN`.
-- Error si `IdCatMoneda` es nulo al confirmar.
-- Error si el cobro ya tiene `Confirmado=1`.
-- El cobro no puede editarse tras la confirmación.
+- Error si `IdCatMoneda` es nulo al finalizar.
+- Error si el cobro ya tiene `Confirmado=1` (no recapturar).
+- Tras la finalización, el cobro puede editarse vía Tarea 13 mientras `BloqueadoPorTimbrado=0`.
 
 **Más información de la tarea:**
-Ver sección *"Parte B / B5"* en `R16A-RE-FU-024-Back.md`. Ver criterios F3, F4 y regla 12 en `R16A-RE-FU-024.md`.
+Ver sección *"Parte B / B5"* en `R16A-RE-FU-024-Back.md`. Ver criterios F3, F4 y regla 12 actualizada en `R16A-RE-FU-024.md`.
 
 **Recursos:**
 - `R16A-RE-FU-024-Back.md` — Parte B, sección B5
-- `R16A-RE-FU-024_BD.md` — Lógica del Folio COB + ciclo de vida
+- `R16A-RE-FU-024_BD.md` — Lógica del Folio COB + ciclo de vida actualizado
 
 ---
 
@@ -565,3 +625,58 @@ Ver sección *"Parte B / B8"* en `R16A-RE-FU-024-Back.md`. Ver Regla 11 y Criter
 **Recursos:**
 - `R16A-RE-FU-024-Back.md` — Parte B, sección B8
 - `R16A-RE-FU-024.md` — Regla 11, Criterio F1
+
+---
+
+## TAREA 13
+
+**[ RE-FU-024 ] [SERV-SIMPLE-PUT] Endpoint y servicio — Edición del cobro vía botón Editar (mientras no esté timbrado)**
+
+**Aplicativos:** ProquifaDotNet.Finanzas
+
+**Módulos:** Validar Cobro — Paso 1 México
+
+**Consideraciones previas:**
+- Tarea NUEVA en RE-FU-024 derivada del cambio funcional del 2026-06-23.
+- Prerrequisito: Tarea 1B (campos `BloqueadoPorTimbrado` y `FechaBloqueoTimbrado`) y Tarea 9 (un cobro debe estar capturado para poder editarse).
+- Se ejecuta al presionar el botón **Editar** del item del listado del Paso 1, disponible solo cuando `puedeEditar=true` (flag retornado por Tarea 6).
+- Aplica aun si el cobro ya está asociado en el Paso 2 (no requiere desasociar para editar).
+- Si el usuario cambia `IdCatMoneda` o `FechaPago`, el handler debe **recalcular TC** invocando al servicio de la Tarea 10 (`TipoCambioMexicoService`).
+- NO regenerar `Folio` (el folio capturado se mantiene).
+- La validación de comprobante seleccionado sigue siendo obligatoria.
+- **Impacto en Paso 2 (RE-FU-026):** si el cobro editado ya estaba aplicado a un documento, las conversiones operativas pueden quedar desactualizadas; el detalle de la re-evaluación se documenta en RE-FU-026.
+
+**Objetivo general:**
+Implementar en Finanzas el endpoint que permite editar todos los campos de un cobro capturado mientras el documento asociado no haya sido timbrado, respetando la inmutabilidad por timbrado y recalculando TC si la moneda o fecha cambian.
+
+**Objetivos específicos:**
+- `PUT /api/validar-cobro/clientes/{idCliente}/cobros/{idFCCPagoCliente}/editar`
+- Crear `EditarCobroCommand` + Handler.
+- Validar `Confirmado=1` (solo cobros capturados son editables aquí) y `BloqueadoPorTimbrado=0` (sino retornar `409 Conflict`).
+- DTO de request: `EditarCobroRequestDto` (monto, fechaPago, idCatMedioDePago, cuentaOrdenante, idDatosBancarios, idCatMoneda, idArchivo, notas).
+- Recalcular TC si cambió `IdCatMoneda` o `FechaPago`.
+- UPDATE en ProquifaDotNet sobre todos los campos editables + `FechaUltimaActualizacion=SYSUTCDATETIME()`. Guardia en WHERE: `Confirmado=1 AND BloqueadoPorTimbrado=0`.
+
+**Resultado esperado:**
+Endpoint `PUT .../editar` que permite corregir errores de captura sobre un cobro capturado y editable, manteniendo su folio y dejando el cobro listo para ser re-aplicado/validado en Paso 2 si ya estaba asociado.
+
+**Entregables:**
+- Endpoint + Command + Handler: `EditarCobroCommand`
+- DTO: `EditarCobroRequestDto`
+- Pruebas unitarias: éxito en edición de cobro editable, 409 si `BloqueadoPorTimbrado=1`, recálculo de TC al cambiar moneda/fecha, error si comprobante no seleccionado, error si campos obligatorios vacíos.
+
+**Criterios de aceptación:**
+- El endpoint actualiza todos los campos editables del cobro cuando `Confirmado=1 AND BloqueadoPorTimbrado=0`.
+- Si `BloqueadoPorTimbrado=1`, retorna `409 Conflict` con código de error estandarizado y no modifica el registro.
+- El folio (`Folio`) no se regenera.
+- Si el usuario cambió la moneda o la fecha, el `TipoDeCambio` queda recalculado vía servicio de Tarea 10.
+- La validación de comprobante sigue siendo obligatoria (error 400 si no hay `IdArchivo`).
+- `FechaUltimaActualizacion` queda actualizada.
+
+**Más información de la tarea:**
+Ver sección *"Parte B / B9"* en `R16A-RE-FU-024-Back.md`. Ver Regla 12 actualizada y Criterios B3, F3, F4 en `R16A-RE-FU-024.md`.
+
+**Recursos:**
+- `R16A-RE-FU-024-Back.md` — Parte B, sección B9 (Editar) y B10 (bloqueo por timbrado disparado desde Paso 3)
+- `R16A-RE-FU-024_BD.md` — Ciclo de vida del registro + tablas escritas runtime
+- `R16A-RE-FU-024.md` — Regla 12, Criterios B3, F3, F4

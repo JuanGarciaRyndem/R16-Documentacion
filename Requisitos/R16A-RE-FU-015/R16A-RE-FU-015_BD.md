@@ -1,4 +1,4 @@
-﻿# Impacto en BD - Tramitacion Pedidos Prepago sin Controlados con FAA
+# Impacto en BD - Tramitacion Pedidos Prepago sin Controlados con FAA
 **Requisito:** R16A-RE-FU-015
 **Base de Datos:** ProquifaDotNet
 **Version:** 1.0

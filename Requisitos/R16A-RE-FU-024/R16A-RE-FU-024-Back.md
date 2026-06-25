@@ -2,17 +2,20 @@
 **Requisito:** Validar Cobro: Paso 1 México — Captura del Cobro
 **Aplicativos:** ProquifaDotNet (.NET Framework 4.8) + ProquifaDotNet.Finanzas (.NET Core 10)
 **Módulo:** Validar Cobro — Wizard Paso 1 (México)
-**Impacto:** Scripts BD ProquifaDotNet (ALTER fccPagoCliente x5 + CREATE catTipoInconsistenciaCobro + CREATE fccInconsistenciaCobro + CREATE SEQUENCE SeqFolioCobro) + Endpoints Finanzas: listado cobros, detalle correo, captura/autoguardado/confirmación cobro, foliador COB, TC del día, modal inconsistencia + llamadas entre APIs (Finanzas → ProquifaDotNet)
+**Impacto:** Scripts BD ProquifaDotNet (ALTER fccPagoCliente x5 RE-FU-023 + **ALTER fccPagoCliente x2 NUEVOS RE-FU-024 (BloqueadoPorTimbrado, FechaBloqueoTimbrado)** + CREATE catTipoInconsistenciaCobro + CREATE fccInconsistenciaCobro + CREATE SEQUENCE SeqFolioCobro) + Endpoints Finanzas: listado cobros, detalle correo, captura/autoguardado/finalización cobro, **edición del cobro mientras no esté timbrado**, foliador COB, TC del día, modal inconsistencia + llamadas entre APIs (Finanzas → ProquifaDotNet)
+
+> **🔄 Cambio funcional 2026-06-23 — Editabilidad del cobro hasta el timbrado:**
+> La regla "cobro inmutable al confirmar" se actualizó a "cobro inmutable al timbrar el documento asociado en el Paso 3". Impacto en Back: (1) nuevo campo BD `BloqueadoPorTimbrado` + `FechaBloqueoTimbrado` en `fccPagoCliente`; (2) el endpoint de finalización de la captura (B5) ya no aplica inmutabilidad, solo genera folio COB y marca `Confirmado=1`; (3) **nuevo endpoint B9 — Editar cobro** que permite UPDATE del formulario completo mientras `BloqueadoPorTimbrado=0` (aun si el cobro ya está asociado en Paso 2); (4) el listado de cobros (B1) debe retornar el flag `puedeEditar` para que la UI condicione el botón Editar; (5) las guardias de los endpoints de auto-guardado y edición evalúan `BloqueadoPorTimbrado` en lugar de `Confirmado`; (6) el flip de `BloqueadoPorTimbrado=1` lo dispara el Paso 3 al timbrar el documento asociado (UPDATE sobre todas las `fccPagoCliente` aplicadas a ese documento).
 
 ---
 
 ## Resumen
 
-Este requisito implementa la **primera pantalla del wizard de Validar Cobro (Paso 1 - Captura del Cobro) para Región México** en ProquifaDotNet.Finanzas. El usuario revisa los correos del Buzón del cliente, selecciona el comprobante de pago adjunto y captura los datos del cobro (folio, monto, fecha, forma de pago SAT, cuenta origen/destino, **moneda via combo catMoneda**, TC del día). Un cobro confirmado es inmutable. Permite capturar múltiples cobros en la misma sesión con auto-guardado transparente.
+Este requisito implementa la **primera pantalla del wizard de Validar Cobro (Paso 1 - Captura del Cobro) para Región México** en ProquifaDotNet.Finanzas. El usuario revisa los correos del Buzón del cliente, selecciona el comprobante de pago adjunto y captura los datos del cobro (folio, monto, fecha, forma de pago SAT, cuenta origen/destino, **moneda via combo catMoneda**, TC del día). Un cobro capturado se guarda en modo lectura y permanece **editable mediante botón Editar mientras el documento asociado no haya sido timbrado en el Paso 3**, aun si el cobro ya está asociado en el Paso 2. Al timbrar el documento asociado, el cobro queda inmutable (sin botón Editar). Permite capturar múltiples cobros en la misma sesión con auto-guardado transparente.
 
 > **OBS-048 — Reanudación del wizard en el último paso activo:** Al ingresar al wizard para un cliente, Finanzas evalúa el estado actual del flujo (via `GET /api/validar-cobro/clientes/{idCliente}/estado-wizard`) y redirige al último paso activo donde el usuario se encontraba, no necesariamente al Paso 1. Si el Paso 1 ya tiene cobros confirmados pero el Paso 2 está pendiente, el wizard abre en el Paso 2 directamente.
 
-El impacto en BD (ProquifaDotNet) es **moderado**: 5 ALTER en `fccPagoCliente` (inmutabilidad + notas + **IdCatMoneda FK**) + 2 tablas nuevas + 1 SEQUENCE. El impacto en servicios (Finanzas) es **alto**: orquestación completa del Paso 1.
+El impacto en BD (ProquifaDotNet) es **moderado**: 5 ALTER ya ejecutados en RE-FU-023 (Confirmado + FechaConfirmacion + IdUsuarioConfirmacion + Notas + IdCatMoneda) + **2 ALTER nuevos en RE-FU-024 (BloqueadoPorTimbrado + FechaBloqueoTimbrado)** + 2 tablas nuevas + 1 SEQUENCE. El impacto en servicios (Finanzas) es **alto**: orquestación completa del Paso 1 más un nuevo endpoint de edición del cobro post-captura.
 
 ### Distribución de responsabilidades
 
@@ -42,20 +45,26 @@ El impacto en BD (ProquifaDotNet) es **moderado**: 5 ALTER en `fccPagoCliente` (
 
 ## Parte A — Base de Datos (ProquifaDotNet)
 
-### A1 — ALTER TABLE fccPagoCliente (5 campos nuevos)
+### A1 — ALTER TABLE fccPagoCliente (5 campos RE-FU-023 + 2 campos nuevos RE-FU-024)
 
 ```sql
 -- Created by GitHub Copilot in SSMS - review carefully before executing
 
--- 1. Inmutabilidad: 0=borrador / 1=confirmado
+-- =========================================================
+-- Bloque A: ALTERs RE-FU-023 (✅ ya ejecutados en BD)
+-- =========================================================
+
+-- 1. Captura del cobro: 0=borrador (auto-guardado) / 1=capturado (editable hasta timbrar)
+--    NOTA RE-FU-024: la semántica del campo cambia. Ya NO implica inmutabilidad,
+--    indica únicamente que la captura fue finalizada y el cobro tiene folio COB.
 ALTER TABLE dbo.fccPagoCliente
     ADD Confirmado bit NOT NULL CONSTRAINT [DF_fccPagoCliente_Confirmado] DEFAULT (0);
 
--- 2. Timestamp de confirmación
+-- 2. Timestamp de captura inicial del cobro
 ALTER TABLE dbo.fccPagoCliente
     ADD FechaConfirmacion datetime2 NULL;
 
--- 3. Trazabilidad: quién confirmó el cobro
+-- 3. Trazabilidad: quién capturó el cobro inicialmente
 ALTER TABLE dbo.fccPagoCliente
     ADD IdUsuarioConfirmacion uniqueidentifier NULL;
 
@@ -69,11 +78,27 @@ ALTER TABLE dbo.fccPagoCliente
     ADD IdCatMoneda uniqueidentifier NULL
         CONSTRAINT [FK_fccPagoCliente_CatMoneda]
             FOREIGN KEY REFERENCES dbo.catMoneda([IdCatMoneda]);
+
+-- =========================================================
+-- Bloque B: ALTERs NUEVOS RE-FU-024 (❌ pendientes de ejecutar)
+-- =========================================================
+
+-- 6. Inmutabilidad real del cobro: 0=editable vía botón Editar / 1=inmutable post-timbrado
+--    Flip lo dispara el Paso 3 al timbrar el documento asociado al cobro.
+ALTER TABLE dbo.fccPagoCliente
+    ADD BloqueadoPorTimbrado bit NOT NULL
+        CONSTRAINT [DF_fccPagoCliente_BloqueadoPorTimbrado] DEFAULT (0);
+
+-- 7. Trazabilidad del bloqueo por timbrado
+ALTER TABLE dbo.fccPagoCliente
+    ADD FechaBloqueoTimbrado datetime2 NULL;
 ```
 
 > **Motivo de IdCatMoneda:** La pantalla del Paso 1 muestra "Moneda*" como combo desplegable
 > (ej. "USD" seleccionado). Los flags `MXN`/`USD` bit no soportan combos ni monedas adicionales
 > como PEN (Perú). Se agrega `IdCatMoneda FK catMoneda` nullable para el combo de la UI.
+
+> **Motivo de BloqueadoPorTimbrado / FechaBloqueoTimbrado (RE-FU-024):** Implementan la regla actualizada de inmutabilidad. `BloqueadoPorTimbrado=0` significa que el cobro está en modo lectura **editable** (botón Editar visible aun si ya está asociado en Paso 2). `BloqueadoPorTimbrado=1` significa inmutabilidad real (sin botón Editar). El Paso 3 actualiza estos campos al timbrar el documento asociado al cobro.
 
 ### A2 — CREATE TABLE catTipoInconsistenciaCobro
 
@@ -149,10 +174,13 @@ CREATE SEQUENCE dbo.SeqFolioCobro
 
 **Datos (vía API ProquifaDotNet):** `fccFolioPagoCliente`, `CorreoRecibidoCliente`, `fccPagoCliente`, `catMoneda`
 
-| Estado item | Muestra | Ordenamiento |
-|-------------|---------|-------------|
-| Capturado (`Confirmado=1`) | Folio COB-mmddaa-NNNN, fecha, monto + moneda | Por `FechaPago ASC` |
-| Sin capturar | Etiqueta temporal "COB-N" | Por `FechaRecepcion ASC` del correo |
+| Estado item | Muestra | Ordenamiento | `puedeEditar` (flag DTO) |
+|-------------|---------|-------------|--------------------------|
+| Capturado editable (`Confirmado=1 AND BloqueadoPorTimbrado=0`) | Folio COB-mmddaa-NNNN, fecha, monto + moneda | Por `FechaPago ASC` | `true` (UI muestra botón Editar) |
+| Capturado inmutable (`Confirmado=1 AND BloqueadoPorTimbrado=1`) | Folio COB-mmddaa-NNNN, fecha, monto + moneda; o etiqueta "Saldo a favor" si aplica | Por `FechaPago ASC` | `false` (UI NO muestra botón Editar) |
+| Sin capturar | Etiqueta temporal "COB-N" | Por `FechaRecepcion ASC` del correo | N/A |
+
+> El DTO `ValidarCobroPaso1ItemDto` debe exponer el flag `puedeEditar` para que el Front condicione la visibilidad del botón Editar. Cálculo en el Handler: `puedeEditar = Confirmado && !BloqueadoPorTimbrado`.
 
 ---
 
@@ -183,21 +211,21 @@ CREATE SEQUENCE dbo.SeqFolioCobro
 **Descripción:** Endpoint `PUT` en Finanzas que persiste el estado del formulario como borrador (`Confirmado=0`) de forma transparente. Incluye `IdCatMoneda` seleccionada.
 
 **Operación (vía API ProquifaDotNet):**
-- Si no existe `fccPagoCliente`: `INSERT` con `Confirmado=0`, `Folio=NULL`, `IdCatMoneda=@IdMoneda`
+- Si no existe `fccPagoCliente`: `INSERT` con `Confirmado=0`, `BloqueadoPorTimbrado=0`, `Folio=NULL`, `IdCatMoneda=@IdMoneda`
 - Si existe con `Confirmado=0`: `UPDATE` con todos los datos del formulario incluido `IdCatMoneda`
-- Guardia: si `Confirmado=1`, no sobreescribe
+- **Guardia (RE-FU-024 actualizada):** si `BloqueadoPorTimbrado=1`, no sobreescribe (cobro inmutable post-timbrado). Si `Confirmado=1 AND BloqueadoPorTimbrado=0`, el auto-guardado del borrador no aplica (el cobro ya fue capturado); para modificar usar el endpoint B9 (Editar).
 
 ---
 
-### B5 — Confirmación del cobro (inmutabilidad + folio COB)
+### B5 — Finalización de la captura del cobro (folio COB)
 
-**Descripción:** Endpoint `POST` en Finanzas que confirma el cobro. Valida selección de comprobante, genera folio COB con `SeqFolioCobro`, y hace el cobro inmutable con `Confirmado=1`.
+**Descripción:** Endpoint `POST` en Finanzas que finaliza la captura del cobro. Valida selección de comprobante, genera folio COB con `SeqFolioCobro`, marca el cobro como capturado con `Confirmado=1`. **NO aplica inmutabilidad** — el cobro queda editable vía botón Editar (endpoint B9) hasta el timbrado del documento asociado.
 
 **Flujo antes de llamar a ProquifaDotNet:**
 1. Validar comprobante seleccionado (adjunto marcado como oficial)
 2. Validar campos obligatorios completos (incluido `IdCatMoneda`)
 3. Calcular folio: `'COB-' + FORMAT(FechaPago,'MMddyy') + '-' + LPAD(NEXT VALUE FOR SeqFolioCobro, 6, '0')`
-4. Mostrar alerta al Front (los datos no podrán modificarse)
+4. **Sin alerta de confirmación al Front** (el cobro permanece editable hasta el timbrado).
 
 **Operación (vía API ProquifaDotNet):**
 ```sql
@@ -208,7 +236,8 @@ SET Folio                 = @FolioGenerado,
     IdUsuarioConfirmacion = @IdUsuarioActivo,
     IdCatMoneda           = @IdCatMoneda
 WHERE IdFCCPagoCliente    = @Id
-  AND Confirmado          = 0;  -- guardia de inmutabilidad
+  AND Confirmado          = 0;  -- guardia: solo finalizar borradores, no recapturar
+-- NOTA: BloqueadoPorTimbrado permanece en 0 — el cobro queda editable hasta el timbrado.
 ```
 
 ---
@@ -268,6 +297,75 @@ WHERE IdFCCPagoCliente    = @Id
 
 ---
 
+### B9 — Edición del cobro capturado (botón Editar — RE-FU-024)
+
+**Descripción:** Endpoint `PUT` en Finanzas que permite **editar un cobro ya capturado** (`Confirmado=1`) mientras el documento asociado al cobro NO haya sido timbrado (`BloqueadoPorTimbrado=0`). Disparado por el botón "Editar" del item del listado del Paso 1. Aplica aun si el cobro ya está asociado en el Paso 2 (no requiere desasociar para editar).
+
+**Endpoint:** `PUT /api/validar-cobro/clientes/{idCliente}/cobros/{idFCCPagoCliente}/editar`
+
+**Flujo en Finanzas:**
+1. Cargar el cobro y verificar `Confirmado=1`
+2. Verificar `BloqueadoPorTimbrado=0` (si está bloqueado, retornar `409 Conflict — Cobro inmutable por timbrado`)
+3. Si el usuario cambia `IdCatMoneda` o `FechaPago`, **recalcular TC** vía B6 (`TipoCambioMexicoService`)
+4. Validar comprobante seleccionado (sigue siendo obligatorio) y campos obligatorios
+5. NO regenerar `Folio` (el folio se mantiene)
+6. Persistir cambios vía UPDATE en ProquifaDotNet
+
+**Campos editables:** `Monto`, `FechaPago`, `IdCatMedioDePago`, `CuentaOrdenante`, `IdDatosBancarios`, `IdCatMoneda`, `TipoDeCambio` (recalculado, no editable directamente), `IdArchivo` (comprobante seleccionado), `Notas`.
+
+**Operación (vía API ProquifaDotNet):**
+```sql
+UPDATE dbo.fccPagoCliente
+SET Monto                    = @Monto,
+    FechaPago                = @FechaPago,
+    IdCatMedioDePago         = @IdCatMedioDePago,
+    CuentaOrdenante          = @CuentaOrdenante,
+    IdDatosBancarios         = @IdDatosBancarios,
+    IdCatMoneda              = @IdCatMoneda,
+    TipoDeCambio             = @TipoCambioRecalculado,
+    IdArchivo                = @IdArchivoComprobante,
+    Notas                    = @Notas,
+    FechaUltimaActualizacion = SYSUTCDATETIME()
+WHERE IdFCCPagoCliente       = @Id
+  AND Confirmado             = 1
+  AND BloqueadoPorTimbrado   = 0;  -- guardia: solo editable si NO timbrado
+```
+
+**Respuestas:**
+
+| Código | Caso |
+|--------|------|
+| `200 OK` | Cobro actualizado correctamente |
+| `404 Not Found` | El cobro no existe |
+| `409 Conflict` | `BloqueadoPorTimbrado=1` (documento asociado ya timbrado, cobro inmutable) |
+| `400 Bad Request` | Validación fallida (comprobante no seleccionado, campos obligatorios vacíos, etc.) |
+
+> **Impacto en Paso 2:** si el cobro editado ya estaba asociado a una proforma/factura en el Paso 2, las conversiones operativas (montos aplicados, TC) deben re-evaluarse en cliente. El servicio del Paso 2 debe revalidar al consultar el cobro o al confirmar la asociación. **Detalle de re-evaluación: ver RE-FU-026 (Paso 2 México).**
+
+---
+
+### B10 — Bloqueo del cobro al timbrar el documento asociado (disparado desde Paso 3)
+
+**Descripción:** Operación interna invocada desde el flujo de timbrado del Paso 3 (Facturación y Envío). Al timbrarse exitosamente el documento (factura/proforma) que tiene cobros aplicados, el servicio del Paso 3 dispara un UPDATE sobre TODAS las `fccPagoCliente` aplicadas a ese documento para marcarlas como inmutables.
+
+**Operación (vía API ProquifaDotNet):**
+```sql
+-- Para todas las fccPagoCliente aplicadas al documento timbrado @IdDocumento
+UPDATE pc
+SET pc.BloqueadoPorTimbrado = 1,
+    pc.FechaBloqueoTimbrado = SYSUTCDATETIME()
+FROM dbo.fccPagoCliente pc
+INNER JOIN <tabla_aplicacion_paso2> ap ON ap.IdFCCPagoCliente = pc.IdFCCPagoCliente
+WHERE ap.IdDocumento           = @IdDocumentoTimbrado
+  AND pc.BloqueadoPorTimbrado  = 0;  -- evitar re-bloqueo
+```
+
+> La tabla de aplicación del Paso 2 (`<tabla_aplicacion_paso2>`) se define en RE-FU-026 (Paso 2 México). Aquí se documenta solo el efecto sobre `fccPagoCliente`.
+
+> **Idempotencia:** la guardia `BloqueadoPorTimbrado=0` evita doble bloqueo si el Paso 3 reintenta. El UPDATE no debe re-disparar lógica adicional sobre cobros ya bloqueados.
+
+---
+
 ## Brechas
 
 > ⚠️ **BRECHA — Catálogo de Tipos de Inconsistencia del Paso 1 pendiente (Riesgo 1)**
@@ -281,3 +379,9 @@ WHERE IdFCCPagoCliente    = @Id
 
 > ⚠️ **BRECHA — Flags MXN/USD vs IdCatMoneda**
 > Pendiente confirmar si los flags `MXN`/`USD` existentes se deprecan o conviven con `IdCatMoneda`.
+
+> ⚠️ **BRECHA — Re-evaluación del Paso 2 al editar un cobro asociado (RE-FU-024)**
+> Cuando el cobro se edita vía B9 (Editar) y ya estaba asociado a uno o varios documentos en el Paso 2, las conversiones operativas dependientes del cobro (monto aplicado, TC, residual, saldo) pueden quedar desactualizadas. Pendiente definir en RE-FU-026 (Paso 2 México) el mecanismo de re-evaluación: recalcular automáticamente al consultar, exigir reconfirmar la asociación al usuario, o emitir evento/notificación al usuario del Paso 2.
+
+> ⚠️ **BRECHA — Disparador del bloqueo desde Paso 3 (RE-FU-024)**
+> La tabla de aplicación del Paso 2 (`<tabla_aplicacion_paso2>`) referenciada en el UPDATE de B10 se define formalmente en RE-FU-026. La invocación de B10 desde el flujo del Paso 3 debe cubrirse en el requisito correspondiente de Paso 3 (aún no asignado).

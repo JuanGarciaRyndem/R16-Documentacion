@@ -50,16 +50,16 @@ Este requisito es la variante Prepago sin controlados donde el ESAC **activa Fac
 
 ## Análisis — Flujo compartido con RE-FU-013/014
 
-| Componente | Se desarrolla en | Aplica a RE-FU-015 |
-|------------|------------------|--------------------|
-| Foliador lineal global | RE-FU-013 T1 | Sí — mismo foliador |
-| Verificar por empresa | RE-FU-013 T2 | Sí — misma verificación |
-| Previsualización PDF | RE-FU-013 T3 | Sí — mismo endpoint |
-| Envío correo proforma | RE-FU-013 T4 | Sí — mismo endpoint |
-| Verificación Perú | RE-FU-013 T6 | Sí — misma verificación |
-| Vinculación PDF (RE-FU-016/017) | RE-FU-013 T7 | Sí — misma vinculación |
-| Validación Remisión Prepago | RE-FU-014 T1 | Sí — misma validación |
-| Datos facturación solo lectura | RE-FU-014 T2 | Sí — misma validación |
+| Componente                      | Se desarrolla en | Aplica a RE-FU-015      |
+| ------------------------------- | ---------------- | ----------------------- |
+| Foliador lineal global          | RE-FU-013 T1     | Sí — mismo foliador     |
+| Verificar por empresa           | RE-FU-013 T2     | Sí — misma verificación |
+| Previsualización PDF            | RE-FU-013 T3     | Sí — mismo endpoint     |
+| Envío correo proforma           | RE-FU-013 T4     | Sí — mismo endpoint     |
+| Verificación Perú               | RE-FU-013 T6     | Sí — misma verificación |
+| Vinculación PDF (RE-FU-016/017) | RE-FU-013 T7     | Sí — misma vinculación  |
+| Validación Remisión Prepago     | RE-FU-014 T1     | Sí — misma validación   |
+| Datos facturación solo lectura  | RE-FU-014 T2     | Sí — misma validación   |
 
 ---
 

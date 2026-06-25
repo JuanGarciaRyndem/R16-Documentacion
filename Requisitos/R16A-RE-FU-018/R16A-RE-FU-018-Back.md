@@ -159,31 +159,31 @@ ProquifaDotNet.Timbrado/
 
 #### Application - Servicios
 
-| Servicio | Responsabilidad |
-|----------|----------------|
+| Servicio        | Responsabilidad                                                                 |
+| --------------- | ------------------------------------------------------------------------------- |
 | TimbradoService | Orquesta: validar request, crear CFDI, llamar SAP, almacenar XML, registrar log |
-| CfdiService | CRUD de CFDIs + consultas con QueryInfo + listado paginado |
+| CfdiService     | CRUD de CFDIs + consultas con QueryInfo + listado paginado                      |
 
 #### Infrastructure - Integraciones
 
-| Integracion | Componente | Descripcion |
-|-------------|-----------|-------------|
-| SAP (PAC) | SapTimbradoClient | Llamada HTTP al proveedor de timbrado para generar CFDI |
-| Minio | MinioStorageService | Almacenamiento de XML timbrados (bucket 'timbrado') |
-| RabbitMQ | RabbitMQClient + Worker | Cola para reintentos asincronos de timbrado fallido |
-| Brevo | BrevoEmailService | Notificaciones de errores criticos de timbrado |
-| IdentityServer | Autenticacion | Validacion de tokens desde Finanzas |
-| Serilog | Logs | Contexto: usuario, modulo, operacion, IdCFDI |
+| Integracion    | Componente              | Descripcion                                             |
+| -------------- | ----------------------- | ------------------------------------------------------- |
+| SAP (PAC)      | SapTimbradoClient       | Llamada HTTP al proveedor de timbrado para generar CFDI |
+| Minio          | MinioStorageService     | Almacenamiento de XML timbrados (bucket 'timbrado')     |
+| RabbitMQ       | RabbitMQClient + Worker | Cola para reintentos asincronos de timbrado fallido     |
+| Brevo          | BrevoEmailService       | Notificaciones de errores criticos de timbrado          |
+| IdentityServer | Autenticacion           | Validacion de tokens desde Finanzas                     |
+| Serilog        | Logs                    | Contexto: usuario, modulo, operacion, IdCFDI            |
 
 #### API - Endpoints
 
-| Metodo | Endpoint | Descripcion |
-|--------|----------|-------------|
-| POST | /api/timbrado/timbrar | Recibe solicitud de timbrado, retorna CFDI generado |
-| POST | /api/timbrado/cancelar | Solicita cancelacion de CFDI ante SAP |
-| GET | /api/cfdi/{id} | Consulta CFDI por Id |
-| GET | /api/cfdi/{id}/xml | Descarga XML desde Minio |
-| POST | /api/cfdi/listar | Listado paginado con QueryInfo |
+| Metodo | Endpoint               | Descripcion                                         |
+| ------ | ---------------------- | --------------------------------------------------- |
+| POST   | /api/timbrado/timbrar  | Recibe solicitud de timbrado, retorna CFDI generado |
+| POST   | /api/timbrado/cancelar | Solicita cancelacion de CFDI ante SAP               |
+| GET    | /api/cfdi/{id}         | Consulta CFDI por Id                                |
+| GET    | /api/cfdi/{id}/xml     | Descarga XML desde Minio                            |
+| POST   | /api/cfdi/listar       | Listado paginado con QueryInfo                      |
 
 ---
 
@@ -225,9 +225,9 @@ Nuevo modulo en la solucion Finanzas que expone el endpoint de listado agrupado 
 
 ### Endpoint Listado FAA
 
-| Metodo | Endpoint | Descripcion |
-|--------|----------|-------------|
-| POST | /api/factura-adelantado/listar | Listado agrupado por cliente, paginado, filtrado por cartera |
+| Metodo | Endpoint                       | Descripcion                                                  |
+| ------ | ------------------------------ | ------------------------------------------------------------ |
+| POST   | /api/factura-adelantado/listar | Listado agrupado por cliente, paginado, filtrado por cartera |
 
 ### Request
 

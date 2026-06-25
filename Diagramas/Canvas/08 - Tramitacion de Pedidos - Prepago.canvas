@@ -43,7 +43,6 @@
 		{"id":"n42","type":"text","text":"💰 Validar Pago - max 72 hrs","x":1020,"y":1220,"width":280,"height":60,"color":"#ffffb5"},
 		{"id":"n43","type":"text","text":"❓ Pago valido?","x":1020,"y":1320,"width":280,"height":60,"color":"#ffdac1"},
 		{"id":"n34","type":"text","text":"🧾 Pendiente en Facturar por Adelantado","x":1020,"y":520,"width":280,"height":60,"color":"#ffc8dd"},
-		{"id":"n35","type":"text","text":"🔑 Solicita codigo de autorizacion","x":1020,"y":620,"width":280,"height":60,"color":"#ffc8dd"},
 		{"id":"n36","type":"text","text":"⚙️ Intenta timbrar con TurboPac","x":1020,"y":720,"width":280,"height":60,"color":"#c7ceea"},
 		{"id":"n37","type":"text","text":"❓ Timbrado exitoso?","x":1020,"y":820,"width":280,"height":60,"color":"#ffdac1"},
 		{"id":"n39","type":"text","text":"📄 Genera Factura Normal PPD","x":1020,"y":920,"width":280,"height":60,"color":"#ffc8dd"},
@@ -89,8 +88,6 @@
 		{"id":"e34","fromNode":"n31","fromSide":"bottom","toNode":"n32","toSide":"top"},
 		{"id":"e35","fromNode":"n32","fromSide":"bottom","toNode":"n33","toSide":"top"},
 		{"id":"e36","fromNode":"n20","fromSide":"right","toNode":"n34","toSide":"left","label":"Con FA"},
-		{"id":"e37","fromNode":"n34","fromSide":"bottom","toNode":"n35","toSide":"top"},
-		{"id":"e38","fromNode":"n35","fromSide":"bottom","toNode":"n36","toSide":"top"},
 		{"id":"e39","fromNode":"n36","fromSide":"bottom","toNode":"n37","toSide":"top"},
 		{"id":"e40","fromNode":"n37","fromSide":"right","toNode":"n38","toSide":"left","label":"No"},
 		{"id":"e41","fromNode":"n38","fromSide":"top","toNode":"n36","toSide":"right","label":"reintenta"},
@@ -107,6 +104,7 @@
 		{"id":"e52","fromNode":"n47","fromSide":"bottom","toNode":"n48","toSide":"top"},
 		{"id":"e53","fromNode":"n48","fromSide":"bottom","toNode":"n49","toSide":"top"},
 		{"id":"e54","fromNode":"n49","fromSide":"bottom","toNode":"n50","toSide":"top"},
-		{"id":"e55","fromNode":"n50","fromSide":"bottom","toNode":"n51","toSide":"top"}
+		{"id":"e55","fromNode":"n50","fromSide":"bottom","toNode":"n51","toSide":"top"},
+		{"id":"7ac3bb0cfabaab1a","fromNode":"n34","fromSide":"bottom","toNode":"n36","toSide":"top"}
 	]
 }

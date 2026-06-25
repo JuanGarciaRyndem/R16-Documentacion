@@ -16,6 +16,8 @@
 
 El sistema debe generar un PDF de Proforma al tramitar un pedido Prepago sin Factura por Adelantado para clientes con Región Perú, con un diseño estandarizado equivalente al de la Proforma México pero adaptado a la normativa fiscal SUNAT. Dado que la única empresa emisora del grupo operando en Perú es Golocaer S.A.C., el branding del documento es único. El PDF se genera bajo demanda durante el flujo previo al envío al cliente y, al confirmarse el envío, se persiste como artefacto histórico inmutable accesible desde el módulo Validar Cobro.
 
+> **⚠️ Precondición (OBS-032)** — La generación de Proforma Perú está condicionada a que la **facturación / timbrado Perú** esté habilitada productivamente (resolución de las brechas SUNAT B1–B5 y el módulo de timbrado peruano). Mientras la facturación Perú no esté habilitada, no se genera Proforma Perú ni pendientes asociados en Tramitar Pedido/Factura por Adelantado, para evitar ruido operativo. Esta dependencia debe respetarse en el ruteo del flujo previo a invocar este requisito.
+
 ---
 
 ## Alcance
@@ -38,13 +40,17 @@ El sistema debe generar un PDF de Proforma al tramitar un pedido Prepago sin Fac
 - Otras empresas del grupo PROQUIFA. Solo Golocaer S.A.C. opera actualmente en Perú; las cuatro empresas del grupo México (Golocaer S.A. de C.V., Mungen S.A. de C.V., Proquifa S.A. de C.V., Proveedora Quimico Farmaceutica S.A. de C.V.) no emiten proformas para clientes Perú.
 - Régimen de Detracciones SUNAT (SPOT). ** Bajo análisis preliminar, los productos típicos de PROQUIFA NO están en los anexos sujetos a detracción de la R.S. 183-2004/SUNAT. La aplicabilidad final debe confirmarse con asesor contable peruano antes de habilitar el módulo productivamente. **
 - Régimen de Percepciones SUNAT del IGV. ** Bajo análisis preliminar, Golocaer S.A.C. NO está designada por SUNAT como Agente de Percepción y sus productos no están en el Apéndice 1 de la Ley N° 29173. La aplicabilidad final debe confirmarse con asesor contable peruano antes de habilitar el módulo productivamente. **
+- Generación de Proforma Perú mientras la facturación / timbrado Perú no esté habilitada productivamente (OBS-032). En ese estado, los pedidos Prepago de clientes Perú no disparan Proforma ni pendientes en Tramitar Pedido / Factura por Adelantado, evitando ruido operativo. La habilitación de este requisito está gobernada por las brechas B1–B5 y la disponibilidad del timbrado SUNAT.
 
 ---
 
 ## Reglas de Negocio
 
+Regla 0 — Precondición: facturación Perú habilitada (OBS-032)
+La generación de Proforma Perú depende de que la facturación Perú (timbrado SUNAT y catálogos asociados) esté habilitada productivamente. Mientras esa precondición no se cumpla, ningún flujo del sistema invoca este requisito y no se generan Proformas Perú ni pendientes derivados. Esto evita ruido operativo (proformas o pendientes Perú sin proceso fiscal de cierre) y se alinea con el ajuste solicitado por el cliente.
+
 Regla 1 — Generación únicamente en pedidos Prepago sin Factura por Adelantado para clientes Perú
-El sistema genera el PDF de Proforma con el diseño estandarizado para Perú únicamente cuando el pedido es en modalidad Prepago sin Factura por Adelantado y el cliente tiene Región = Perú. Los pedidos Crédito (con o sin Factura por Adelantado) y los pedidos Prepago con Factura por Adelantado no generan Proforma.
+Cumplida la Regla 0, el sistema genera el PDF de Proforma con el diseño estandarizado para Perú únicamente cuando el pedido es en modalidad Prepago sin Factura por Adelantado y el cliente tiene Región = Perú. Los pedidos Crédito (con o sin Factura por Adelantado) y los pedidos Prepago con Factura por Adelantado no generan Proforma.
 
 Regla 2 — Empresa emisora única Golocaer S.A.C.
 La empresa emisora del documento para clientes Perú es siempre Golocaer S.A.C., única empresa del grupo PROQUIFA operando en Perú. No hay diferenciación por empresa emisora como en México. ** Pendiente confirmar con el cliente. **
@@ -331,28 +337,29 @@ Texto exacto del disclaimer validado por asesor legal peruano. Propuesta documen
 B5 — Régimen de Detracciones y Percepciones
 Confirmación formal por asesor contable peruano de que los productos típicos de PROQUIFA NO están sujetos a Detracción (R.S. 183-2004/SUNAT) y de que Golocaer S.A.C. NO sería Agente de Percepción para sus productos (Ley N° 29173).
 
-B7 — Certificaciones aplicables a Golocaer S.A.C. Perú
+B6 — Certificaciones aplicables a Golocaer S.A.C. Perú
 ISO 9001 o equivalente, métodos de pago aceptados (medios peruanos), y cualquier otra certificación de calidad vigente en el mercado peruano.
 
-B8 — Catálogos farmacéuticos aplicables a Perú
+B7 — Catálogos farmacéuticos aplicables a Perú
 Lista definitiva de logos del pie inferior aplicables a Golocaer S.A.C. Perú. Confirmados como aplicables: USP, EDQM, Microbiologics. NO aplica: FEUM. Otros logos (APACOR, CHATA Biosystems, Pharmaffiliates) pendientes de confirmar.
 
-B10 — Título canónico del documento en Perú
+B8 — Título canónico del documento en Perú
 Confirmar si el título es "Proforma" o "Factura Proforma" (ambos términos se usan indistintamente en la práctica comercial peruana).
 
-B11 — Nomenclatura del monto en letra para soles peruanos
+B9 — Nomenclatura del monto en letra para soles peruanos
 Confirmar si la nomenclatura aceptada es "SOLES" (oficial desde 2015) o "NUEVOS SOLES" (denominación previa que aún aparece en algunas implementaciones).
 
-B12 — Tipo de cambio aplicado en Perú
+B10 — Tipo de cambio aplicado en Perú
 Confirmar si para Perú aplica el tipo de cambio SUNAT publicado (compra/venta) o un tipo de cambio interno corporativo.
 
-Mientras estas brechas no se resuelvan, el cliente Perú no puede recibir Proforma productiva con el formato adaptado. Se recomienda al cliente programar sesión específica para resolución integral del modelo Perú.
+Mientras estas brechas no se resuelvan, el cliente Perú no puede recibir Proforma productiva con el formato adaptado. Se recomienda al cliente programar sesión específica para resolución integral del modelo Perú. La precondición operativa de OBS-032 (no generar Proforma Perú mientras la facturación Perú no esté habilitada) sigue vigente hasta el cierre de B1–B5 + módulo de timbrado SUNAT.
 
 
 ---
 
 ## Cambios
 
-| # | Fecha | Observación | Descripción del cambio |
-|---|-------|-------------|------------------------|
-| 1 | 2026-06-10 | OBS-032 | Revisado en contexto de OBS-032 (pendientes Perú sin timbrado). Este requisito es sobre el PDF de Proforma Perú y no genera pendientes de Factura por Adelantado directamente; la corrección OBS-032 se aplica al módulo FU-018 (listado FxA). Sin cambios de contenido en este archivo. |
+| #   | Fecha      | Observación | Descripción del cambio                                                                                                                                                                                                                                                                   |
+| --- | ---------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | 2026-06-10 | OBS-032     | Revisado inicialmente en contexto de OBS-032: la corrección principal se aplicó en FU-018 (listado FxA). Sin cambios de contenido en este archivo en esa primera pasada. |
+| 2   | 2026-06-25 | OBS-032     | Incorporación explícita de la precondición OBS-032 en el cuerpo del requisito: se agrega nota de precondición en "Requisito Funcional", nueva viñeta en Alcance / No aplica a, y Regla 0 — la generación de Proforma Perú depende de que la facturación / timbrado Perú esté habilitada productivamente; mientras no lo esté, no se generan Proformas Perú ni pendientes asociados, evitando ruido operativo. Renumeración de brechas a secuencia continua B1–B10. |

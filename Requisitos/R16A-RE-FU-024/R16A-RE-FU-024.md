@@ -14,7 +14,7 @@
 
 ## Requisito Funcional
 
-El sistema debe contar con la primera pantalla del wizard de Validar Cobro (Paso 1 - Captura del Cobro) para clientes con Región México, donde el usuario revisa el correo y el comprobante de pago recibidos y captura los datos del cobro. El sistema contempla asistencia automatizada propuesta para el llenado del formulario a partir del análisis del correo y el comprobante, funcionalidad cuyo alcance técnico queda pendiente de definición. Un cobro capturado y confirmado no puede editarse posteriormente. La estructura UI de esta pantalla se reutiliza idénticamente para clientes Región Perú; las diferencias entre regiones son exclusivamente los catálogos de opciones y se documentan en requisito independiente.
+El sistema debe contar con la primera pantalla del wizard de Validar Cobro (Paso 1 — Captura del Cobro) para clientes con Región México, donde el usuario revisa el correo y el comprobante de pago recibidos y captura los datos del cobro. El sistema contempla asistencia automatizada propuesta para el llenado del formulario a partir del análisis del correo y el comprobante, funcionalidad cuyo alcance técnico queda pendiente de definición. Un cobro capturado se guarda en modo lectura y, mientras el documento asociado no haya sido timbrado, presenta un botón **Editar** que permite modificar el formulario completo del cobro (monto, fecha, forma de pago, cuentas, moneda, comprobante seleccionado, notas) para corregir errores de captura, aun si el cobro ya está asociado en el Paso 2. La inmutabilidad del cobro se alcanza al timbrar el documento asociado en el Paso 3: a partir de ese momento el cobro queda solo lectura y desaparece el botón Editar. Los cobros con saldo a favor visibles en el Paso 1 corresponden a cobros ya timbrados en sesiones previas, por lo que tampoco presentan botón Editar. La estructura UI de esta pantalla se reutiliza idénticamente para clientes Región Perú; las diferencias entre regiones son exclusivamente los catálogos de opciones y se documentan en requisito independiente.
 
 ---
 
@@ -33,7 +33,7 @@ El sistema debe contar con la primera pantalla del wizard de Validar Cobro (Paso
 - Selección obligatoria del comprobante de pago entre los adjuntos del correo antes de poder continuar.
 - Captura de múltiples cobros del cliente en la misma sesión del Paso 1 antes de avanzar al Paso 2.
 - Auto-guardado del Paso 1 para preservar lo capturado si el usuario sale o navega entre pantallas.
-- Inmutabilidad del cobro una vez confirmado: no se puede editar posteriormente (alerta de confirmación antes del guardado definitivo).
+- Editabilidad del cobro hasta el timbrado: un cobro capturado se guarda en modo lectura y presenta un botón **Editar** mientras el documento asociado no haya sido timbrado (aun si ya está asociado en el Paso 2). Al timbrar en el Paso 3 el cobro queda inmutable y sin botón Editar. Los cobros con "Saldo a favor" visibles en el Paso 1 corresponden a cobros ya timbrados y tampoco presentan botón Editar.
 - Marcado de inconsistencias del cobro mediante modal: tipo de inconsistencia (combo del catálogo de tipos de inconsistencia) y comentario opcional.
 - Las inconsistencias del Paso 1 aplican únicamente al cobro como tal (datos incompletos, comprobante inválido, formato incorrecto, etc.). Las inconsistencias relativas a la relación entre el cobro y una proforma o factura (como "Pago Incompleto Vencido") se documentan en el Paso 2 cuando ya hay contexto del documento a cobrar.
 - Navegación: Cancelar (regresa al listado principal de Validar Cobro) o Continuar (avanza al Paso 2 con los cobros capturados).
@@ -43,7 +43,7 @@ El sistema debe contar con la primera pantalla del wizard de Validar Cobro (Paso
 - Wizard de Validar Cobro para Región Perú: se documenta en requisito independiente con la misma estructura UI pero catálogos específicos de Perú (Forma de Pago SUNAT, cuentas destino Golocaer Perú, fuente del TC SBS, etc.).
 - Catálogo de Tipos de Inconsistencia (definición de las opciones del combo): ** pendiente del lado de PROQUIFA (Tesorería). **
 - Detalle técnico de la asistencia automatizada propuesta (modelo de IA, motor de extracción de datos, integraciones técnicas): ** pendiente de definición, no está comprometido como alcance R16. **
-- Edición posterior de un cobro ya capturado y confirmado: NO se permite.
+- Edición de un cobro cuyo documento asociado ya fue timbrado en el Paso 3: NO se permite (el cobro queda inmutable a partir del timbrado).
 
 ---
 
@@ -82,8 +82,8 @@ Al presionar "Continuar", el sistema permite el avance al Paso 2 si existe al me
 **Regla 11 — Auto-guardado y reanudación del wizard en el paso donde se quedó**
 Cuando el usuario avanza entre correos del listado, sale de la pantalla o navega a otra parte del sistema, el sistema auto-guarda el estado del Paso 1 (cobros capturados, selecciones de comprobantes, valores del formulario actual) para preservar el progreso. No existe botón de "Guardar" manual; el guardado es transparente al usuario. Al regresar al wizard del mismo cliente (desde "Realizar Cobros" en el listado principal), el sistema retoma la sesión desde el último paso activo en que se encontraba el usuario, no necesariamente desde el Paso 1. Si la sesión previa estaba en el Paso 2 o Paso 3, el wizard abre en ese paso directamente. Decisión confirmada por el cliente — OBS-048.
 
-**Regla 12 — Inmutabilidad del cobro confirmado**
-Una vez que un cobro fue capturado y confirmado por el usuario, el sistema no permite su edición posterior. Antes de confirmar el guardado definitivo del cobro, el sistema muestra una alerta de confirmación indicando que los datos no podrán modificarse después.
+**Regla 12 — Editabilidad del cobro hasta el timbrado e inmutabilidad post-timbrado**
+Un cobro capturado se guarda en modo lectura. Mientras el documento asociado (factura/proforma con el cobro aplicado) NO haya sido timbrado en el Paso 3, el item del listado del Paso 1 presenta un botón **Editar** que abre el formulario del cobro en modo edición y permite modificar cualquier dato del cobro (monto recibido, fecha del cobro, forma de pago, cuenta origen, cuenta destino, moneda, tipo de cambio recalculado según moneda, comprobante de pago seleccionado, notas del cobro). La edición está disponible incluso si el cobro ya está asociado en el Paso 2, para permitir la corrección de errores de captura sin necesidad de eliminar la asociación. Al confirmarse el timbrado del documento asociado en el Paso 3, el cobro queda inmutable, se elimina el botón Editar y el sistema muestra el cobro únicamente en modo lectura. Los cobros visibles en el Paso 1 con etiqueta "Saldo a favor" provienen de cobros ya timbrados en sesiones previas y, por lo tanto, tampoco presentan botón Editar. El sistema no requiere alerta de confirmación al guardar la captura del cobro (la captura no es definitiva hasta el timbrado).
 
 **Regla 13 — Marcado de inconsistencia mediante modal**
 Al presionar "Marcar Inconsistencia en Cobro", el sistema abre el modal "Inconsistencia de Pago" con dos campos: Tipo de Inconsistencia (combo del catálogo de tipos de inconsistencia) y Comentario adicional (opcional, texto libre). Botones del modal: Cancelar y Confirmar Inconsistencia.
@@ -133,10 +133,10 @@ Dado el listado del Paso 1,
 Cuando el sistema lo presenta al usuario,
 Entonces deberá ordenarlo en dos bloques visualmente continuos: primero los items capturados (ordenados por Fecha del Cobro de la más antigua a la más reciente) y después los items sin capturar (COB-N, ordenados por fecha de llegada del correo al Buzón de la más antigua a la más reciente). Al confirmar la captura de un item, éste se desplaza al bloque de capturados según su Fecha del Cobro.
 
-**Criterio B3 — Modo lectura del item capturado**
+**Criterio B3 — Modo lectura del item capturado con botón Editar condicionado al estado de timbrado**
 Dado un item del listado en estado capturado,
 Cuando el sistema lo renderiza,
-Entonces deberá mostrarlo en modo lectura solamente. El sistema no deberá ofrecer acción de edición sobre los datos del cobro capturado (consistente con la regla de inmutabilidad post-confirmación).
+Entonces deberá mostrarlo en modo lectura. Si el documento asociado al cobro NO ha sido timbrado en el Paso 3, el item deberá presentar un botón **Editar** que abre el formulario del cobro en modo edición y permite modificar cualquier dato (monto, fecha, forma de pago, cuentas, moneda, comprobante, notas), aun si el cobro ya está asociado en el Paso 2. Si el documento asociado ya fue timbrado o si el item corresponde a un cobro con "Saldo a favor" (cobro timbrado previamente), el sistema NO deberá ofrecer el botón Editar y el item permanecerá únicamente en lectura, consistente con la regla de inmutabilidad post-timbrado.
 
 ═══════════════════════════════════════════════════════════════
 SECCIÓN C — DETALLE DEL CORREO Y SELECCIÓN DEL COMPROBANTE
@@ -221,7 +221,7 @@ Cuando el usuario revisa los datos,
 Entonces deberá poder editar libremente cualquiera de los valores antes de confirmar. La asistencia es propuesta, no obligatoria. El usuario tiene la última palabra sobre los datos capturados.
 
 ═══════════════════════════════════════════════════════════════
-SECCIÓN F — AUTO-GUARDADO E INMUTABILIDAD
+SECCIÓN F — AUTO-GUARDADO, EDITABILIDAD HASTA EL TIMBRADO E INMUTABILIDAD POST-TIMBRADO
 ═══════════════════════════════════════════════════════════════
 
 **Criterio F1 — Auto-guardado y reanudación del wizard en el paso donde se quedó**
@@ -234,15 +234,15 @@ Dado que el cliente tiene varios correos pendientes,
 Cuando el usuario finaliza la captura de un cobro,
 Entonces el sistema deberá permitir al usuario seleccionar otro correo del listado y capturar el siguiente cobro. El Paso 2 se activa solo al presionar "Continuar".
 
-**Criterio F3 — Alerta de confirmación antes de guardar definitivamente un cobro**
-Dado que el usuario termina la captura de un cobro,
-Cuando indica que desea confirmar,
-Entonces el sistema deberá mostrar una alerta de confirmación indicando que los datos del cobro no podrán modificarse después. El usuario debe confirmar explícitamente para que el cobro se guarde como inmutable.
+**Criterio F3 — Edición de un cobro capturado mientras el documento asociado no haya sido timbrado**
+Dado un cobro ya capturado y guardado en el listado del Paso 1,
+Cuando el documento asociado a ese cobro aún NO ha sido timbrado en el Paso 3 (sin importar si el cobro ya está asociado en el Paso 2 o todavía no),
+Entonces el item deberá presentar un botón **Editar** que al presionarse abre el formulario del cobro en modo edición y permite modificar todos los campos del cobro (monto recibido, fecha del cobro, forma de pago, cuenta origen, cuenta destino, moneda, tipo de cambio recalculado según la moneda, selección de comprobante de pago, notas del cobro). Al guardar los cambios el item regresa a modo lectura y los nuevos valores se reflejan en cualquier asociación vigente del Paso 2. El sistema no deberá exigir alerta de confirmación al guardar (la captura no es definitiva hasta el timbrado).
 
-**Criterio F4 — Inmutabilidad del cobro confirmado**
-Dado que un cobro fue capturado y confirmado por el usuario,
-Cuando el usuario intenta editarlo posteriormente,
-Entonces el sistema no deberá permitir la edición.
+**Criterio F4 — Inmutabilidad del cobro al timbrar el documento asociado**
+Dado un cobro asociado a un documento que ha sido timbrado en el Paso 3,
+Cuando el usuario regresa al Paso 1 o consulta el listado de cobros del cliente,
+Entonces el sistema NO deberá ofrecer botón Editar para ese cobro y el item permanecerá únicamente en modo lectura. Aplica el mismo comportamiento a los cobros con etiqueta "Saldo a favor" visibles en el Paso 1, ya que provienen de cobros timbrados previamente.
 
 ═══════════════════════════════════════════════════════════════
 SECCIÓN G — MODAL DE INCONSISTENCIA DE PAGO
@@ -299,7 +299,7 @@ Entonces si existe al menos un cobro registrado (capturado en esta sesión o aut
 - ** DUDA ABIERTA — Moneda base del TC capturado: actualmente se utiliza MXN como moneda base de todas las conversiones (consistente con la regla SAT del CFDI). Pendiente validar con asesor fiscal y PROQUIFA si esta es la opción correcta o si en algún escenario operativo conviene capturar el TC en sentido distinto (por ejemplo, vs moneda de facturación del cliente). **
 - Asistencia automatizada propuesta: funcionalidad exploratoria para auto-completar los datos del formulario a partir del correo y el comprobante. No está comprometida como alcance R16; el alcance técnico queda pendiente de definición. El usuario siempre tiene la última palabra sobre los valores capturados.
 - Auto-guardado del Paso 1: el progreso se preserva si el usuario sale o navega entre pantallas. No existe botón "Guardar" manual; el guardado es transparente al usuario.
-- Inmutabilidad del cobro una vez confirmado: una vez que el usuario confirma la captura de un cobro (con alerta previa de confirmación), el cobro no puede editarse posteriormente.
+- Editabilidad del cobro hasta el timbrado: un cobro capturado se guarda en modo lectura y, mientras el documento asociado no haya sido timbrado en el Paso 3, presenta un botón **Editar** que permite modificar el formulario completo del cobro (monto, fecha, forma de pago, cuentas, moneda, comprobante, notas) para corregir errores de captura, aun si el cobro ya está asociado en el Paso 2. Al timbrar en el Paso 3, el cobro queda inmutable y se elimina el botón Editar. Los cobros con etiqueta "Saldo a favor" en el Paso 1 corresponden a cobros ya timbrados en sesiones previas y, por lo tanto, tampoco presentan botón Editar.
 - Captura de múltiples cobros antes de avanzar: el usuario puede capturar varios cobros del cliente en la misma sesión del Paso 1 sin avanzar al Paso 2 hasta que decida explícitamente.
 - Modal "Inconsistencia de Pago" del Paso 1: permite marcar inconsistencias intrínsecas del cobro (datos incompletos, comprobante inválido, formato incorrecto, monto ilegible, etc.). Tipo de inconsistencia (combo) y comentario opcional. El catálogo de tipos del Paso 1 está pendiente de definición por PROQUIFA (Tesorería).
 - Las inconsistencias del Paso 1 aplican únicamente al cobro como tal. Las inconsistencias derivadas de la relación entre el cobro y un documento a cobrar (proforma o factura), como "Pago Incompleto Vencido", se marcan en el Paso 2 (Asociación), no aquí.
@@ -317,3 +317,4 @@ Entonces si existe al menos un cobro registrado (capturado en esta sesión o aut
 | # | Fecha | Referencia | Descripción del cambio |
 |---|-------|------------|------------------------|
 | 1 | 2026-06-10 | OBS-048 | Regla 11 y Criterio F1 actualizados: el wizard reanuda desde el último paso activo al volver al cliente, no desde el Paso 1. |
+| 2 | 2026-06-23 | Actualización funcional | Cambio en la editabilidad del cobro del Paso 1: la inmutabilidad pasa de "al confirmar la captura" a "al timbrar". Un cobro capturado se guarda en modo lectura y, mientras el documento asociado no haya sido timbrado, presenta un botón **Editar** que permite editar el formulario completo (monto, fecha, forma de pago, cuentas, moneda, comprobante, notas) aun si ya está asociado en el Paso 2. Al timbrar en el Paso 3 queda inmutable y sin botón Editar. Los cobros con "Saldo a favor" visibles en el Paso 1 corresponden a cobros ya timbrados y tampoco presentan botón Editar. Afecta: Requisito Funcional, Regla 12, Criterios B3, F3, F4 y encabezado de la Sección F. |

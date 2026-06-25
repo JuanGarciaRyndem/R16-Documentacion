@@ -158,11 +158,11 @@
 
 | OBS | Descripción | Archivos modificados |
 |-----|-------------|----------------------|
-| OBS-032 | Revisado. El texto problemático ("podría mostrar pedidos Perú") pertenecía a RE-018, no a este archivo. Sin cambios de contenido en RE-017. | R16A-RE-FU-017-Pendiente.md |
+| OBS-032 | Revisado. El texto problemático ("podría mostrar pedidos Perú") pertenecía a RE-018, no a este archivo. Sin cambios de contenido en RE-017 en la primera pasada; en revisión posterior se incorporó la precondición OBS-032 al cuerpo del requisito y el archivo se renombró de `R16A-RE-FU-017-Pendiente.md` a `R16A-RE-FU-017.md` (2026-06-25). | R16A-RE-FU-017.md |
 
 ### Tareas afectadas
 
-- [x] **R16A-RE-FU-017-Pendiente.md** — Sección Cambios agregada (OBS-032 revisado, sin cambio de contenido)
+- [x] **R16A-RE-FU-017.md** — Sección Cambios agregada (OBS-032 revisado en primera pasada; precondición incorporada al cuerpo y archivo renombrado a `.md` en revisión 2026-06-25)
 - [x] **R16A-RE-FU-017-Back.md** — Sin cambios requeridos (OBS-032 no afecta a RE-017; el texto pertenecía a RE-018)
 - [x] **R16A-RE-FU-017-Tareas.md** — Sin cambios requeridos
 

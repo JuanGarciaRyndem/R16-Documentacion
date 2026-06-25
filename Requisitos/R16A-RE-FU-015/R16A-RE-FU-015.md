@@ -1,11 +1,11 @@
 # Tramitación de pedidos Prepago con Factura por Adelantado
 
-| Campo | Valor |
-|---|---|
-| **ID** | R16A-RE-FU-015 |
-| **Nombre** | Tramitación de pedidos Prepago con Factura por Adelantado |
-| **Módulo** | Tramitar Pedido |
-| **Estatus** | Propuesto |
+| Campo                 | Valor                                                                                                      |
+| --------------------- | ---------------------------------------------------------------------------------------------------------- |
+| **ID**                | R16A-RE-FU-015                                                                                             |
+| **Nombre**            | Tramitación de pedidos Prepago con Factura por Adelantado                                                  |
+| **Módulo**            | Tramitar Pedido                                                                                            |
+| **Estatus**           | Propuesto                                                                                                  |
 | **Referencia Legacy** | R16.1M-RE-FU-001, R16.1M-RE-FU-002, R16.1M-RE-FU-003, R16.1M-RE-FU-004, R16.1M-RE-FU-007, R16.1M-RE-FU-015 |
 
 ---
