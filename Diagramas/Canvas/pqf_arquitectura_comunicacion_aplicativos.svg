@@ -1,0 +1,195 @@
+<svg viewBox="0 0 1200 820" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto;font-family:ui-sans-serif,system-ui,sans-serif">
+  <title id="title">Arquitectura de comunicación entre aplicativos PQF</title>
+  <desc id="desc">Diagrama de componentes con carriles PQF, Finanzas, EnvioCorreo y Timbrado. Servicio de auditoría Bitácora arriba (flechas rojas hacia arriba); LegacyBridge abajo (flechas cian hacia abajo). Externos Brevo y PAC dentro de los carriles.</desc>
+
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6b7280"/>
+    </marker>
+    <marker id="arrAccent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c84f31"/>
+    </marker>
+    <marker id="arrReturn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrBitacora" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/>
+    </marker>
+    <marker id="arrLegacy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0891b2"/>
+    </marker>
+  </defs>
+
+  <style>
+    .lane-bg { fill: #f5f4ef; stroke: #d8d6cf; stroke-width: 1; rx: 8; }
+    .lane-header { fill: #e8e6dd; stroke: #d8d6cf; stroke-width: 1; rx: 8; }
+    .lane-title { font-size: 14px; font-weight: 600; fill: #1f1e1c; }
+    .node { fill: #ffffff; stroke: #c8c6bf; stroke-width: 1.2; rx: 6; }
+    .node-accent { fill: #ffffff; stroke: #c84f31; stroke-width: 1.6; rx: 6; }
+    .node-ext { fill: #efede5; stroke: #b8b6af; stroke-width: 1.2; stroke-dasharray: 4 3; rx: 6; }
+    .node-label { font-size: 12px; font-weight: 500; fill: #1f1e1c; text-anchor: middle; }
+    .node-label-sm { font-size: 11px; font-weight: 500; fill: #1f1e1c; text-anchor: middle; }
+    .edge-label { font-size: 10px; fill: #6b7280; font-style: italic; }
+    .edge-label-accent { font-size: 10px; fill: #c84f31; font-style: italic; font-weight: 600; }
+    .edge-label-return { font-size: 10px; fill: #2563eb; font-style: italic; font-weight: 600; }
+    .edge { stroke: #6b7280; stroke-width: 1.4; fill: none; }
+    .edge-accent { stroke: #c84f31; stroke-width: 1.6; fill: none; }
+    .edge-return { stroke: #2563eb; stroke-width: 1.6; fill: none; stroke-dasharray: 6 3; }
+    .edge-bitacora { stroke: #dc2626; stroke-width: 1.8; fill: none; }
+    .edge-legacy { stroke: #0891b2; stroke-width: 1.8; fill: none; }
+    .section-label { font-size: 11px; font-weight: 600; fill: #6b7280; text-transform: uppercase; letter-spacing: 0.06em; }
+    .legend-text { font-size: 11px; fill: #4b4a48; }
+  </style>
+
+  <!-- ============== Bitácora (servicio de auditoría arriba) ============== -->
+  <text x="120" y="22" class="section-label">Auditoría / Bitácora</text>
+  <line x1="40" y1="28" x2="1160" y2="28" stroke="#d8d6cf" stroke-width="1"/>
+  <rect x="500" y="40" width="200" height="58" class="node"/>
+  <text x="600" y="63" class="node-label">PQF.Bitacora</text>
+  <text x="600" y="85" class="node-label-sm" fill="#6b7280">EP Guardar</text>
+
+  <!-- ============== Lane headers ============== -->
+  <rect x="40" y="130" width="220" height="36" class="lane-header"/>
+  <text x="150" y="153" class="lane-title" text-anchor="middle">PQF</text>
+
+  <rect x="290" y="130" width="220" height="36" class="lane-header"/>
+  <text x="400" y="153" class="lane-title" text-anchor="middle">PQF.Finanzas</text>
+
+  <rect x="540" y="130" width="260" height="36" class="lane-header"/>
+  <text x="670" y="153" class="lane-title" text-anchor="middle">PQF.EnvioCorreo</text>
+
+  <rect x="940" y="130" width="220" height="36" class="lane-header"/>
+  <text x="1050" y="153" class="lane-title" text-anchor="middle">PQF.Timbrado</text>
+
+  <!-- ============== Lane bodies (cajas café) ============== -->
+  <rect x="40" y="172" width="220" height="430" class="lane-bg"/>
+  <rect x="290" y="172" width="220" height="430" class="lane-bg"/>
+  <rect x="540" y="172" width="260" height="430" class="lane-bg"/>
+  <rect x="940" y="172" width="220" height="430" class="lane-bg"/>
+
+  <!-- PQF: EP -> Folio -->
+  <rect x="70" y="270" width="160" height="46" class="node-accent"/>
+  <text x="150" y="290" class="node-label">EP → Folio</text>
+  <text x="150" y="306" class="node-label-sm" fill="#6b7280">(Consecutivo)</text>
+
+  <!-- PQF.Finanzas: Enviar Proforma -->
+  <rect x="320" y="270" width="160" height="46" class="node-accent"/>
+  <text x="400" y="290" class="node-label">Enviar Proforma</text>
+  <text x="400" y="306" class="node-label-sm" fill="#6b7280">(tpPedido)</text>
+
+  <!-- PQF.Finanzas: Solicitar Timbrado / Gestion CFDI -->
+  <rect x="320" y="410" width="160" height="46" class="node-accent"/>
+  <text x="400" y="430" class="node-label">Solicitar Timbrado</text>
+  <text x="400" y="446" class="node-label-sm" fill="#6b7280">(CFDI / NC / CDP)</text>
+
+  <!-- PQF.EnvioCorreo: EnviarInmediato -->
+  <rect x="565" y="220" width="210" height="38" class="node"/>
+  <text x="670" y="244" class="node-label">EnviarInmediato</text>
+
+  <!-- PQF.EnvioCorreo: Encolar Envio (Rabbit) -->
+  <rect x="565" y="340" width="210" height="46" class="node"/>
+  <text x="670" y="360" class="node-label">Encolar Envío</text>
+  <text x="670" y="376" class="node-label-sm" fill="#6b7280">(Rabbit)</text>
+
+  <!-- PQF.Timbrado: nodo principal -->
+  <rect x="975" y="380" width="150" height="46" class="node-accent"/>
+  <text x="1050" y="408" class="node-label">PQF.Timbrado</text>
+
+  <!-- External: Brevo -->
+  <rect x="565" y="500" width="210" height="46" class="node-ext"/>
+  <text x="670" y="520" class="node-label">Brevo</text>
+  <text x="670" y="535" class="node-label-sm" fill="#6b7280">(externo)</text>
+
+  <!-- External: PAC -->
+  <rect x="975" y="500" width="170" height="46" class="node-ext"/>
+  <text x="1060" y="520" class="node-label">PAC Autorizado</text>
+  <text x="1060" y="535" class="node-label-sm" fill="#6b7280">(Proquifa)</text>
+
+  <!-- ============== Sistema legado (abajo) ============== -->
+  <text x="120" y="635" class="section-label">Sistema legado</text>
+  <line x1="40" y1="642" x2="1160" y2="642" stroke="#d8d6cf" stroke-width="1"/>
+
+  <!-- PQF.LegacyBridge -->
+  <rect x="500" y="655" width="210" height="58" class="node"/>
+  <text x="605" y="678" class="node-label">PQF.LegacyBridge</text>
+  <text x="605" y="700" class="node-label-sm" fill="#6b7280">Rabbit (Encolar)</text>
+
+  <!-- =============== Edges del flujo principal =============== -->
+
+  <!-- PQF -> PQF.Finanzas (tpPedido) -->
+  <path d="M 230 293 L 320 293" class="edge" marker-end="url(#arr)"/>
+  <text x="245" y="286" class="edge-label">tpPedido</text>
+
+  <!-- PQF.Finanzas (Solicitar Timbrado) -> PQF.Timbrado -->
+  <path d="M 480 425 C 700 410, 870 400, 975 400" class="edge-accent" marker-end="url(#arrAccent)"/>
+  <text x="620" y="395" class="edge-label-accent">Finanzas solicita timbrado</text>
+
+  <!-- PQF.Timbrado -> PQF.Finanzas (retorno CFDI) -->
+  <path d="M 975 420 C 780 460, 620 460, 480 445" class="edge-return" marker-end="url(#arrReturn)"/>
+  <text x="640" y="475" class="edge-label-return">Retorno CFDI</text>
+
+  <!-- PQF.Finanzas (Enviar Proforma) -> Encolar Envio -->
+  <path d="M 480 300 C 520 330, 540 350, 565 363" class="edge" marker-end="url(#arr)"/>
+
+  <!-- EnviarInmediato -> Brevo -->
+  <path d="M 670 258 C 760 300, 800 410, 740 500" class="edge" marker-end="url(#arr)"/>
+
+  <!-- Encolar Envio -> Brevo -->
+  <path d="M 670 386 L 670 500" class="edge" marker-end="url(#arr)"/>
+
+  <!-- PQF.Timbrado -> PAC -->
+  <path d="M 1060 426 L 1060 500" class="edge" marker-end="url(#arr)"/>
+  <text x="1070" y="470" class="edge-label">Invoca PAC</text>
+
+  <!-- =============== Flechas Carril -> Bitácora (rojo, hacia arriba) =============== -->
+
+  <!-- PQF (carril) -> Bitácora -->
+  <path d="M 130 172 C 130 130, 350 110, 510 98" class="edge-bitacora" marker-end="url(#arrBitacora)"/>
+
+  <!-- PQF.Finanzas (carril) -> Bitácora -->
+  <path d="M 400 172 L 560 100" class="edge-bitacora" marker-end="url(#arrBitacora)"/>
+
+  <!-- PQF.EnvioCorreo (carril) -> Bitácora -->
+  <path d="M 670 172 L 640 100" class="edge-bitacora" marker-end="url(#arrBitacora)"/>
+
+  <!-- PQF.Timbrado (carril) -> Bitácora -->
+  <path d="M 1050 172 C 1050 130, 850 105, 690 98" class="edge-bitacora" marker-end="url(#arrBitacora)"/>
+
+  <!-- =============== Flechas Carril -> LegacyBridge (cian, hacia abajo) =============== -->
+
+  <!-- PQF (carril) -> LegacyBridge -->
+  <path d="M 180 602 C 280 625, 420 655, 550 658" class="edge-legacy" marker-end="url(#arrLegacy)"/>
+
+  <!-- PQF.Finanzas (carril) -> LegacyBridge -->
+  <path d="M 440 602 C 480 625, 540 650, 600 655" class="edge-legacy" marker-end="url(#arrLegacy)"/>
+
+  <!-- Legend -->
+  <g transform="translate(40, 745)">
+    <rect x="0" y="0" width="14" height="14" class="node-accent"/>
+    <text x="22" y="11" class="legend-text">Nodo principal</text>
+
+    <rect x="135" y="0" width="14" height="14" class="node"/>
+    <text x="157" y="11" class="legend-text">Servicio interno</text>
+
+    <rect x="270" y="0" width="14" height="14" class="node-ext"/>
+    <text x="292" y="11" class="legend-text">Servicio externo</text>
+
+    <line x1="400" y1="7" x2="430" y2="7" class="edge-accent" marker-end="url(#arrAccent)"/>
+    <text x="438" y="11" class="legend-text">Finanzas → Timbrado</text>
+
+    <line x1="570" y1="7" x2="600" y2="7" class="edge-return" marker-end="url(#arrReturn)"/>
+    <text x="608" y="11" class="legend-text">Retorno CFDI</text>
+
+    <line x1="685" y1="7" x2="715" y2="7" class="edge-bitacora" marker-end="url(#arrBitacora)"/>
+    <text x="723" y="11" class="legend-text">Carril → Bitácora (↑)</text>
+
+    <line x1="855" y1="7" x2="885" y2="7" class="edge-legacy" marker-end="url(#arrLegacy)"/>
+    <text x="893" y="11" class="legend-text">Carril → LegacyBridge (↓)</text>
+
+    <line x1="1040" y1="7" x2="1070" y2="7" class="edge" marker-end="url(#arr)"/>
+    <text x="1078" y="11" class="legend-text">Flujo / mensaje</text>
+  </g>
+
+  <!-- Footer hint -->
+  <text x="600" y="795" text-anchor="middle" class="legend-text" font-style="italic">Bitácora (arriba) recibe los eventos de auditoría de cada carril · LegacyBridge (abajo) propaga al sistema legado vía Rabbit · Flujo funcional fluye horizontalmente entre carriles</text>
+</svg>

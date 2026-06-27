@@ -1,0 +1,27 @@
+{
+	"nodes":[
+		{"id":"bitacora","type":"text","text":"📋 PQF.Bitacora\n(EP Guardar — auditoría)","x":380,"y":-300,"width":280,"height":80,"color":"#ffb7b2"},
+		{"id":"legacy","type":"text","text":"🔌 PQF.LegacyBridge\nRabbit (Encolar) → sistema legado","x":-120,"y":400,"width":320,"height":80,"color":"#ffffb5"},
+		{"id":"envinm","type":"text","text":"📨 PQF.EnvioCorreo\nEnviarInmediato\n📥 PQF.EnvioCorreo\nEncolar Envío (Rabbit)","x":340,"y":360,"width":280,"height":270,"color":"#b5ead7"},
+		{"id":"brevo","type":"text","text":"📧 Brevo\n(servicio externo)","x":340,"y":700,"width":280,"height":80,"color":"#d3d3d3"},
+		{"id":"proforma","type":"text","text":"📄 PQF.Finanzas\nProforma (tpPedido)\nFactura por Adelantado\nValidación de Cobro\nNota de Credito\nSolicitar Timbrado (CFDI / NC / CDP)","x":380,"y":-90,"width":280,"height":250,"color":"#ffc8dd"},
+		{"id":"epfolio","type":"text","text":"🔢 PQF\nPedido (Tramitar Pedido)\nEP → Folio (Consecutivo)","x":-120,"y":-90,"width":280,"height":250,"color":"#c7ceea"},
+		{"id":"timbrado","type":"text","text":"🏛️ PQF.Timbrado","x":820,"y":-90,"width":280,"height":250,"color":"#ffdac1"},
+		{"id":"pac","type":"text","text":"🏦 PAC Autorizado de Proquifa\n(servicio externo)","x":1140,"y":180,"width":280,"height":80,"color":"#d3d3d3"}
+	],
+	"edges":[
+		{"id":"f7","fromNode":"timbrado","fromSide":"right","toNode":"pac","toSide":"top","label":"Invoca PAC"},
+		{"id":"b1","fromNode":"epfolio","fromSide":"top","toNode":"bitacora","toSide":"bottom","color":"1","label":"audita"},
+		{"id":"b2","fromNode":"proforma","fromSide":"top","toNode":"bitacora","toSide":"bottom","color":"1","label":"audita"},
+		{"id":"b3","fromNode":"envinm","fromSide":"right","toNode":"bitacora","toSide":"right","color":"1","label":"audita"},
+		{"id":"b4","fromNode":"timbrado","fromSide":"top","toNode":"bitacora","toSide":"right","color":"1","label":"audita"},
+		{"id":"1c22a1aff2001ad3","fromNode":"proforma","fromSide":"bottom","toNode":"legacy","toSide":"top","color":"4"},
+		{"id":"81990a1bfec7a080","fromNode":"epfolio","fromSide":"right","toNode":"proforma","toSide":"left","color":"2"},
+		{"id":"c252689d3d6884c8","fromNode":"envinm","fromSide":"bottom","toNode":"brevo","toSide":"top"},
+		{"id":"679feb02c2c5509d","fromNode":"epfolio","fromSide":"right","toNode":"envinm","toSide":"top","color":"#516ee1"},
+		{"id":"56c3031d330d3bb1","fromNode":"epfolio","fromSide":"bottom","toNode":"legacy","toSide":"top","color":"4"},
+		{"id":"9873d9ae55a6ad25","fromNode":"proforma","fromSide":"bottom","toNode":"envinm","toSide":"top","color":"#516ee1"},
+		{"id":"42c80e4762d5473a","fromNode":"timbrado","fromSide":"bottom","toNode":"legacy","toSide":"top","color":"4"},
+		{"id":"513f154d02ab57e9","fromNode":"proforma","fromSide":"right","toNode":"timbrado","toSide":"left","color":"3"}
+	]
+}
