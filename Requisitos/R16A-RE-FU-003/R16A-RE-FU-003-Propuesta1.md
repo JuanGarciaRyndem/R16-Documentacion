@@ -81,19 +81,19 @@ Archivo                              (FileKey, FileBucket → MinIO — existent
 
 **Propósito:** Catálogo de tipos de documento permitidos, scopeados por dominio de entidad, con metadata para UI (mimeTypes, orden, tamaño máximo).
 
-| Columna | Tipo | Nulo | Descripción |
-|---|---|---|---|
-| `IdCatalogoTipoDocumento` | `uniqueidentifier` | NO | PK. Default `NEWID()` |
-| `Clave` | `varchar(80)` | NO | Identificador lógico (`LicenciaSanitaria`, `AvisoResponsableSanitario`, `FichaTecnica`, …) |
-| `Nombre` | `varchar(200)` | NO | Nombre para mostrar en UI |
-| `Descripcion` | `varchar(500)` | SÍ | Descripción extendida (tooltips / ayuda) |
-| `IdcatDominioEntidad` | `uniqueidentifier` | NO | FK → `catDominioEntidad`. Define a qué dominio aplica este tipo |
-| `FormatoAceptado` | `varchar(500)` | NO | Lista de mimeTypes separados por coma (p. ej. `application/pdf,image/jpeg,image/png`). El Frontend usa este campo para configurar el input file y validación. |
-| `Orden` | `int` | NO | Orden de despliegue en pantalla (UI lista por dominio) |
-| `TamanioMaximoKB` | `int` | NO | Tamaño máximo aceptado en KB. `0` = sin límite |
-| `Activo` | `bit` | NO | Default `1` |
-| `FechaRegistro` | `datetime` | NO | Default `GETDATE()` |
-| `FechaUltimaActualizacion` | `datetime` | NO | Default `GETDATE()` |
+| Columna                    | Tipo               | Nulo | Descripción                                                                                                                                                   |
+| -------------------------- | ------------------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `IdCatalogoTipoDocumento`  | `uniqueidentifier` | NO   | PK. Default `NEWID()`                                                                                                                                         |
+| `Clave`                    | `varchar(80)`      | NO   | Identificador lógico (`LicenciaSanitaria`, `AvisoResponsableSanitario`, `FichaTecnica`, …)                                                                    |
+| `Nombre`                   | `varchar(200)`     | NO   | Nombre para mostrar en UI                                                                                                                                     |
+| `Descripcion`              | `varchar(500)`     | SÍ   | Descripción extendida (tooltips / ayuda)                                                                                                                      |
+| `IdcatDominioEntidad`      | `uniqueidentifier` | NO   | FK → `catDominioEntidad`. Define a qué dominio aplica este tipo                                                                                               |
+| `FormatoAceptado`          | `varchar(500)`     | NO   | Lista de mimeTypes separados por coma (p. ej. `application/pdf,image/jpeg,image/png`). El Frontend usa este campo para configurar el input file y validación. |
+| `Orden`                    | `int`              | NO   | Orden de despliegue en pantalla (UI lista por dominio)                                                                                                        |
+| `TamanioMaximoKB`          | `int`              | NO   | Tamaño máximo aceptado en KB. `0` = sin límite                                                                                                                |
+| `Activo`                   | `bit`              | NO   | Default `1`                                                                                                                                                   |
+| `FechaRegistro`            | `datetime`         | NO   | Default `GETDATE()`                                                                                                                                           |
+| `FechaUltimaActualizacion` | `datetime`         | NO   | Default `GETDATE()`                                                                                                                                           |
 
 **Índices:**
 - `PK_CatalogoTipoDocumento` (Clustered): `IdCatalogoTipoDocumento`

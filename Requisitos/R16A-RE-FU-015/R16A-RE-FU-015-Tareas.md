@@ -1,6 +1,6 @@
 # Tareas Back — R16A-RE-FU-015
 **Requisito:** Tramitación de pedidos Prepago con Factura por Adelantado
-**Total de tareas:** 9 (T8 2026-06-16 — Validación VD; T9 2026-06-16 — Escenarios E2E flujo completo)
+**Total de tareas:** 9 (T2 obsoleta tras actualización de requisito — ver nota; T8 2026-06-16 — Validación VD; T9 2026-06-16 — Escenarios E2E flujo completo)
 
 ---
 
@@ -14,10 +14,11 @@
 - L05.TramitarPedido\Facturas\Anticipos
 
 ### Consideraciones previas
-- El pendiente se genera al confirmar el envío exitoso del correo de proforma
+- **Actualización de requisito:** este flujo ya no genera proforma, PDF ni correo (ver Alcance — "No aplica a" en `R16A-RE-FU-015.md`). El pendiente se genera directamente al confirmar la acción de tramitar, sin proforma previa
 - INSERT en `tpProformaAdelanto` con datos del pedido/cliente/empresa/monto
 - Debe ser atómico con la transacción de tramitación
 - La entidad `tpProformaAdelanto` ya existe como CrudBO
+- Como no se genera proforma, tampoco existe `MontoPendiente` que pudiera disparar un pendiente en Validar Cobro — no hay lógica de supresión que desarrollar (ver criterio de aceptación abajo, antes cubierto por T2, ahora obsoleta)
 
 ### Objetivo general
 Implementar la generación del pendiente en el módulo Factura por Adelantado al tramitar un pedido Prepago con FAA activada.
@@ -27,56 +28,28 @@ Implementar la generación del pendiente en el módulo Factura por Adelantado al
 - INSERT en `tpProformaAdelanto` con: IdCliente, IdEmpresa, Monto, FolioPedido, DatosFacturación, Estado=Pendiente
 - Asegurar atomicidad con la transacción de tramitación
 - `IdCFDIGenerada = NULL` (pendiente de emisión por módulo FAA)
+- Confirmar que no se genera ningún registro de proforma (`tpProformaPedido`) ni pendiente en Validar Cobro como efecto colateral
 
 ### Resultado esperado
-Al tramitar un pedido Prepago con FAA=1, se genera automáticamente un pendiente en el módulo Factura por Adelantado con todos los datos necesarios para la emisión posterior de la factura.
+Al tramitar un pedido Prepago con FAA=1, se genera automáticamente un pendiente en el módulo Factura por Adelantado con todos los datos necesarios para la emisión posterior de la factura, sin generar proforma, PDF, correo ni pendiente en Validar Cobro.
 
 ### Entregables
 - Modificación de `tpPedidoTramitarTransaccionBO.cs`
 - Lógica de INSERT en `tpProformaAdelanto`
 
 ### Criterios de aceptación
-- Pendiente FAA se genera al confirmar envío del correo
+- Pendiente FAA se genera directamente al tramitar (sin proforma previa)
 - Contiene todos los datos requeridos (cliente, empresa, monto, datos facturación)
 - Es atómico con la transacción
 - No se genera si FAA=0
 - IdCFDIGenerada queda NULL (pendiente emisión)
+- No se genera ningún registro de proforma (`tpProformaPedido`) ni pendiente en Validar Cobro al tramitar (criterio heredado de T2, ahora obsoleta)
 
 ---
 
-## T2 — [ R16A-RE-FU-015 ] [ALG-COMPLX-LOGIC] No generar pendiente Validar Cobro cuando FAA está activa
+## ~~T2 — [ R16A-RE-FU-015 ] [ALG-COMPLX-LOGIC] No generar pendiente Validar Cobro cuando FAA está activa~~ (OBSOLETA)
 
-### Aplicativos
-- ProquifaDotNet
-
-### Módulos
-- L05.TramitarPedido\Liberar
-
-### Consideraciones previas
-- En flujo normal (RE-FU-014), al tramitar se genera pendiente Validar Cobro (MontoPendiente > 0)
-- Con FAA=1, el pendiente VC NO debe generarse al tramitar
-- El pendiente VC lo generará el módulo FAA cuando emita la factura PPD (RE-FU-018/019/020)
-
-### Objetivo general
-Ajustar la lógica de tramitación para que cuando FAA=1, NO se genere el pendiente en Validar Cobro.
-
-### Objetivos específicos
-- Identificar dónde se genera el pendiente Validar Cobro en el flujo actual
-- Agregar condición: si `FacturaPorAdelantado=1` -> omitir generación de pendiente VC
-- Verificar que `tpProformaPedido.MontoPendiente` se maneja correctamente (puede quedar > 0 pero sin disparar pendiente VC)
-- Documentar que el pendiente VC será responsabilidad del módulo FAA
-
-### Resultado esperado
-Al tramitar con FAA=1, no se genera pendiente en Validar Cobro. El pendiente VC se generará posteriormente al emitir la factura.
-
-### Entregables
-- Ajuste en lógica de tramitación
-- Documentación del cambio de comportamiento
-
-### Criterios de aceptación
-- Con FAA=1: NO hay pendiente en Validar Cobro al tramitar
-- Con FAA=0: SÍ se genera pendiente en Validar Cobro (comportamiento normal)
-- El cambio no afecta otros flujos (Crédito, Prepago sin FAA)
+> ⚠️ **Obsoleta tras actualización del requisito.** El requisito ya no genera proforma en este flujo (ver Alcance — "No aplica a" en `R16A-RE-FU-015.md`), por lo que nunca existe un `tpProformaPedido.MontoPendiente` que pudiera disparar un pendiente en Validar Cobro — no hay nada que suprimir. La verificación de que no se genera pendiente VC queda como criterio de aceptación dentro de T1. Se conserva esta entrada solo para trazabilidad; no requiere desarrollo independiente.
 
 ---
 
@@ -132,7 +105,7 @@ La activación de FAA no requiere código de autorización.
 Implementar el bloqueo y fijación de datos de facturación al activar Factura por Adelantado.
 
 ### Objetivos específicos
-- Al tramitar con FAA=1: tomar datos de `DatosFacturacionCliente` vigente y fijarlos en el pedido/proforma
+- Al tramitar con FAA=1: tomar datos de `DatosFacturacionCliente` vigente y fijarlos en el pedido/pendiente FAA (ya no en una proforma — este flujo no la genera)
 - Agregar validación en endpoint de edición: si `FacturaPorAdelantado=1` -> rechazar con error
 - Los datos fijados quedan inmutables desde Tramitar Pedido
 
@@ -162,6 +135,7 @@ Los datos de facturación se fijan al activar FAA y no pueden editarse posterior
 - La emisión de factura, CFDI y timbrado se desarrollan en RE-FU-018, RE-FU-019 y RE-FU-020
 - Esta tarea asegura que el pendiente generado en T1 sea consumible por esos módulos
 - Mismo patrón que RE-FU-012 T4
+- A diferencia de RE-FU-012/013, en este flujo el pendiente se puebla directamente desde pedido/partidas/cliente, sin un objeto de proforma intermedio — confirmar que esto no genera diferencias de datos frente a lo que espera RE-FU-018
 
 ### Objetivo general
 Vincular el proceso de generación del pendiente FAA con el flujo de facturación desarrollado en RE-FU-018/019/020.
@@ -241,7 +215,7 @@ El pendiente FAA generado en la tramitación es consumido correctamente por el m
   1. **Procesamiento de Órdenes de Compra** — lee el extracto y genera/actualiza la Orden de Compra en Venta Digital.
   2. **Transferencia de PDFs a Legacy** — toma los PDFs asociados al pedido y los transfiere al directorio configurado de Legacy.
 - Si el paso de Extracto Venta Digital se omite o genera datos incorrectos en el flujo FAA Prepago, el job de TaskScheduler falla silenciosamente, dejando la OC sin procesar y los PDFs sin transferir a Legacy.
-- A diferencia de RE-012 (Crédito), en Prepago FAA no se genera Confirmación de Pedido inmediatamente — se debe revisar cuál PDF está disponible para transferir en el momento en que TaskScheduler se ejecuta.
+- **Actualización de requisito:** este flujo ya no genera proforma, PDF ni correo en ningún punto de Tramitar Pedido (ver Alcance — "No aplica a" en `R16A-RE-FU-015.md`). La pregunta abierta deja de ser "cuál PDF está disponible" y pasa a ser **si existe algún documento en absoluto para transferir**, o si TaskScheduler debe operar sin ninguno para este flujo.
 
 ### Objetivo general
 Verificar que el paso de Extracto Venta Digital (INSERT/UPDATE en `tpPedidoVD`/`tpPartidaPedidoVD`) se ejecuta correctamente en el flujo de tramitación Prepago con FAA, garantizando que el job de TaskScheduler de Venta Digital pueda procesar la Orden de Compra y transferir los PDFs a Legacy sin errores.
@@ -250,15 +224,15 @@ Verificar que el paso de Extracto Venta Digital (INSERT/UPDATE en `tpPedidoVD`/`
 - Rastrear en `tpPedidoTramitarTransaccionBO.cs` dónde se invoca el extracto Venta Digital y confirmar que la condición FAA=1 en Prepago no lo omite ni lo cortocircuita.
 - Verificar que los campos requeridos por Venta Digital (`tpPedidoVD.OrdenDeCompra`, `tpPedidoVD.IdPedido`, `tpPartidaPedidoVD.*`) se populan correctamente cuando FAA=1 en Prepago.
 - Confirmar que el job de TaskScheduler puede leer y procesar el extracto generado (validar estructura de datos esperada vs. la que genera el flujo FAA Prepago).
-- Clarificar qué PDF está disponible para transferir a Legacy en el flujo Prepago con FAA: en RE-015 el pendiente Validar Cobro no se genera al tramitar (T2), y la confirmación de pedido puede diferir del flujo base — confirmar qué PDF transfiere TaskScheduler en este caso.
-- Documentar cualquier ajuste necesario si se detecta que el flujo FAA Prepago altera el extracto o el PDF de alguna forma.
+- Clarificar si existe algún documento disponible para transferir a Legacy en el flujo Prepago con FAA: en RE-015 no se genera proforma, PDF ni correo, y el pendiente Validar Cobro tampoco se genera al tramitar (criterio heredado en T1) — confirmar si TaskScheduler debe operar sin documento en este caso, o si existe algún otro artefacto que deba transferir.
+- Documentar cualquier ajuste necesario si se detecta que el flujo FAA Prepago altera el extracto o deja a TaskScheduler sin documento que transferir.
 
 ### Resultado esperado
 El job de TaskScheduler de Venta Digital procesa correctamente los pedidos tramitados con FAA Prepago: la Orden de Compra queda registrada en Venta Digital y los PDFs se transfieren a Legacy sin diferencias respecto al flujo base.
 
 ### Entregables
 - Reporte de validación: flujo FAA Prepago vs. flujo base en los datos escritos a `tpPedidoVD`/`tpPartidaPedidoVD`
-- Aclaración del PDF disponible para transferencia a Legacy en el flujo Prepago con FAA
+- Aclaración de si existe algún documento disponible para transferencia a Legacy en el flujo Prepago con FAA (o si TaskScheduler debe operar sin ninguno)
 - Ajustes en `tpPedidoTramitarTransaccionBO.cs` si se detecta alguna omisión (entregable condicional)
 - Evidencia de que el job de TaskScheduler procesa correctamente el extracto FAA Prepago
 
@@ -266,8 +240,8 @@ El job de TaskScheduler de Venta Digital procesa correctamente los pedidos trami
 - [ ] El extracto Venta Digital se genera en `tpPedidoVD`/`tpPartidaPedidoVD` al tramitar Prepago con FAA=1 (igual que con FAA=0).
 - [ ] Los campos requeridos por el job de TaskScheduler están presentes y correctos.
 - [ ] El job de TaskScheduler procesa la Orden de Compra sin errores cuando el pedido tiene FAA=1 (Prepago).
-- [ ] Los PDFs se transfieren a Legacy correctamente — está aclarado cuál PDF corresponde en el flujo FAA Prepago.
-- [ ] No se genera diferencia funcional entre FAA=1 y FAA=0 en los datos entregados a Venta Digital.
+- [ ] Está aclarado si TaskScheduler transfiere algún documento a Legacy en el flujo FAA Prepago, o si opera sin ninguno (ya no se genera proforma/PDF en este flujo).
+- [ ] No se genera diferencia funcional entre FAA=1 y FAA=0 en los datos entregados a Venta Digital (fuera de la ausencia de documento).
 
 ### Más información de la tarea
 - El flujo base de Extracto Venta Digital se define en RE-FU-010, paso 12 (tablas `tpPedidoVD`, `tpPartidaPedidoVD`).
@@ -286,15 +260,15 @@ El job de TaskScheduler de Venta Digital procesa correctamente los pedidos trami
 
 | # | Clave Catálogo | Título | Predecesora |
 |---|----------------|--------|-------------|
-| T1 | SERV-TRANSACT | Generación de pendiente FAA al tramitar con Factura por Adelantado | — |
-| T2 | ALG-COMPLX-LOGIC | No generar pendiente Validar Cobro cuando FAA está activa | T1 |
+| T1 | SERV-TRANSACT | Generación de pendiente FAA al tramitar con Factura por Adelantado (incluye criterios de T2) | — |
+| T2 | ALG-COMPLX-LOGIC | ~~No generar pendiente Validar Cobro cuando FAA está activa~~ (OBSOLETA — ver T1) | — |
 | T3 | ALG-BASIC-LOGIC | Eliminar código de autorización para Factura por Adelantado | — |
 | T4 | ALG-BASIC-LOGIC | Bloquear datos de facturación al activar FAA | — |
 | T5 | ALG-BASIC-LOGIC | Vinculación del pendiente FAA con módulo de facturación (RE-FU-018/019/020) | T1 |
 | T6 | UPDATE-TABL-CH | ⛔ BLOQUEANTE — Crear catEstatusPedido + IdEstatusPedido en tpPedido (OBS-027) | — |
 | T7 | ALG-COMPLX-LOGIC | ⛔ BLOQUEANTE — Lógica de transición de estados del pedido (OBS-027) | T6 |
-| T8 | ALG-BASIC-LOGIC | Validar flujo Venta Digital al tramitar pedido Prepago con FAA | T1 |
-| T9 | ALG-BASIC-LOGIC | Pruebas de flujo completo E2E — Tramitación Prepago con y sin FAA | T1,T2,T3,T4,T8 |
+| T8 | ALG-BASIC-LOGIC | Validar flujo Venta Digital al tramitar pedido Prepago con FAA (sin PDF disponible) | T1 |
+| T9 | ALG-BASIC-LOGIC | Pruebas de flujo completo E2E — Tramitación Prepago con y sin FAA | T1,T3,T4,T8 |
 
 ---
 
@@ -315,7 +289,7 @@ El job de TaskScheduler de Venta Digital procesa correctamente los pedidos trami
 - Esta tarea valida impactos colaterales: cualquier modificación al flujo de tramitación Prepago debe demostrarse que no rompió el pipeline completo, incluyendo los módulos que dependen de él (Venta Digital, Legacy, Validar Cobro).
 - El flujo Prepago tiene particularidades que lo diferencian de Crédito: el pendiente Validar Cobro se genera (o no) según FAA, y no hay transferencia directa a Legacy como en Crédito — confirmar qué sí transfiere TaskScheduler.
 - Los escenarios cubren: flujo base Prepago sin FAA (no regresión RE-014), FAA activa, bloqueo de datos de facturación y reglas de negocio específicas de Prepago.
-- Predecesoras: T1 (pendiente FAA), T2 (supresión VC), T3 (sin código autorización), T4 (bloqueo datos), T8 (validación VD).
+- Predecesoras: T1 (pendiente FAA, incluye verificación de no generación de proforma/VC), T3 (sin código autorización), T4 (bloqueo datos), T8 (validación VD).
 
 ### Escenarios de prueba
 
@@ -335,19 +309,21 @@ Para cada escenario aplicable, verificar que cada paso del pipeline se ejecutó 
 | Paso | Qué verificar                                                              | E1  | E2  | E3  | E4  | E5  | E6  |
 | ---- | -------------------------------------------------------------------------- | :-: | :-: | :-: | :-: | :-: | :-: |
 | 1    | Folio de pedido asignado                                                   |  ✓  |  ✓  |  ✓  |  —  |  ✓  |  ✓  |
-| 2    | PDF de proforma generado (RE-016/017)                                      |  ✓  |  ✓  |  ✓  |  —  |  ✓  |  ✓  |
-| 3    | Correo de proforma enviado al cliente                                      |  ✓  |  ✓  |  ✓  |  —  |  ✓  |  ✓  |
+| 2    | PDF de proforma generado (RE-016/017) — solo aplica al flujo base RE-014, ya no aplica a E2-E6 (actualización de requisito) |  ✓  |  —  |  —  |  —  |  —  |  —  |
+| 3    | Correo de proforma enviado al cliente — solo aplica al flujo base RE-014, ya no aplica a E2-E6 (actualización de requisito) |  ✓  |  —  |  —  |  —  |  —  |  —  |
 | 4    | Pendiente Validar Cobro generado (solo FAA=0)                              |  ✓  |  —  |  —  |  —  |  —  |  —  |
 | 5    | Pendiente VC NO generado (FAA=1)                                           |  —  |  ✓  |  ✓  |  —  |  ✓  |  ✓  |
 | 6    | Extracto Venta Digital: `tpPedidoVD` y `tpPartidaPedidoVD`                 |  ✓  |  ✓  |  ✓  |  —  |  ✓  |  ✓  |
 | 7    | TaskScheduler VD: Orden de Compra procesada                                |  ✓  |  ✓  |  ✓  |  —  |  ✓  |  ✓  |
-| 8    | TaskScheduler VD: PDFs transferidos (confirmar cuál PDF aplica en Prepago) |  ✓  |  ✓  |  —  |  —  |  —  |  —  |
+| 8    | TaskScheduler VD: documento transferido a Legacy (E2-E6: ⚠️ punto abierto — ya no hay PDF disponible, ver T8) |  ✓  |  ⚠️  |  —  |  —  |  —  |  —  |
 | 9    | Pendiente FAA generado en `tpProformaAdelanto` (solo FAA=1)                |  —  |  ✓  |  ✓  |  —  |  ✓  |  ✓  |
 | 10   | Datos de facturación fijados del catálogo vigente                          |  —  |  ✓  |  ✓  |  —  |  —  |  —  |
 | 11   | Error al intentar editar datos con FAA activa (E4)                         |  —  |  —  |  —  |  ✓  |  —  |  —  |
 | 12   | Activación sin solicitar código de autorización (E5)                       |  —  |  —  |  —  |  —  |  ✓  |  —  |
 | 13   | Pendiente FAA consumible por módulo RE-018 (E6)                            |  —  |  —  |  —  |  —  |  —  |  ✓  |
 | 14   | BitácoraCRUD registrada                                                    |  ✓  |  ✓  |  ✓  |  ✓  |  ✓  |  ✓  |
+
+> **Nota (pasos 2, 3, 8):** tras la actualización de requisito, este flujo ya no genera proforma, PDF ni correo (ver Alcance — "No aplica a" en `R16A-RE-FU-015.md`). El punto abierto del paso 8 (E2-E6) se traslada a T8: confirmar si TaskScheduler debe operar sin ningún documento para transferir a Legacy en el flujo FAA Prepago.
 
 ### Objetivo general
 Garantizar que las modificaciones introducidas en RE-015 (supresión pendiente VC, pendiente FAA, bloqueo datos, eliminación código autorización) no rompieron ningún paso del pipeline de tramitación Prepago ni los módulos dependientes.
@@ -372,7 +348,7 @@ Todos los escenarios ejecutados con evidencia. Los pasos del pipeline marcados c
 - [ ] PR aprobado por líder técnico con evidencias adjuntas.
 
 ### Más información de la tarea
-- **Diferencia clave vs. RE-012:** en Prepago la confirmación de pedido no se genera inmediatamente — se emite la proforma. El PDF disponible para Legacy en el momento de tramitación es el de proforma, no el de confirmación. Confirmar si TaskScheduler lo transfiere en el mismo momento o espera a la factura.
+- **Diferencia clave vs. RE-012:** en Prepago con FAA (tras la actualización de requisito) no se genera ni proforma ni confirmación de pedido en Tramitar Pedido — no hay ningún PDF disponible en ese momento. Confirmar si TaskScheduler debe operar sin documento para este flujo, o si debe esperar a un artefacto generado posteriormente por el módulo de facturación (RE-018/019/020).
 - El paso 13 (E6) valida la integración hacia adelante: RE-015 pone el pendiente, RE-018 lo consume. Si el contrato de datos tiene diferencias, ambos requisitos se ven afectados.
 
 ### Recursos
@@ -389,9 +365,9 @@ Todos los escenarios ejecutados con evidencia. Los pasos del pipeline marcados c
 | Requisito | Tarea relacionada | Relación |
 |-----------|-------------------|----------|
 | R16A-RE-FU-010 | Cancelación | Endpoint de cancelación se desarrolla en RE-FU-010 |
-| R16A-RE-FU-013 | T1-T4, T6, T7 | Foliador, previsualización, envío correo, empresa, Perú, vinculación PDF |
+| R16A-RE-FU-013 | T6 (Perú) | Única parte del flujo base de RE-013 aún compartida — foliador, previsualización, envío de correo y vinculación PDF ya NO aplican (actualización de requisito) |
 | R16A-RE-FU-014 | T1, T2 | Validación Remisión Prepago, datos facturación solo lectura |
-| R16A-RE-FU-016 | Generación PDF | PDF de proforma en DocumentBuilder |
-| R16A-RE-FU-017 | Template PDF | Template de proforma en DocumentBuilder |
 | R16A-RE-FU-018/019/020 | Módulo FAA | Consume el pendiente generado en T1 |
-| Venta Digital | T8 | TaskScheduler lee `tpPedidoVD`/`tpPartidaPedidoVD` para procesar OC y transferir PDFs a Legacy |
+| Venta Digital | T8 | TaskScheduler lee `tpPedidoVD`/`tpPartidaPedidoVD` para procesar OC y transferir documentos a Legacy — pendiente confirmar comportamiento sin PDF disponible |
+
+> R16A-RE-FU-016/017 (generación de PDF/template de proforma) **ya no aplican** a este requisito — el requisito actualizado no genera proforma en este flujo.

@@ -2,7 +2,7 @@
 
 Endpoints del aplicativo principal ProquifaDotNet (WebApi.Catalogos / WebApi.Logistica). Incluye controllers existentes y nuevos/modificados por el proyecto R16.
 
-> **Base URL:** `https://{servidor}/api/` (WebApi.Catalogos) y `https://{servidor}/logistica/` (WebApi.Logistica)
+> **Base URL:** `https://{servidor}/Catalogos/` (WebApi.Catalogos) y `https://{servidor}/logistica/` (WebApi.Logistica)
 > **Autenticación:** IdentityServer (token JWT en header `Authorization: Bearer {token}`)
 
 ---
@@ -15,12 +15,10 @@ Endpoints del aplicativo principal ProquifaDotNet (WebApi.Catalogos / WebApi.Log
 - [RE-004 — Régimen Fiscal y Tipo de Sociedad Mercantil](#re-004--régimen-fiscal-y-tipo-de-sociedad-mercantil)
 - [RE-005 — Catálogos CFDI con Filtro de Región](#re-005--catálogos-cfdi-con-filtro-de-región)
 - [RE-006 — Datos Bancarios del Cliente](#re-006--datos-bancarios-del-cliente)
-- [RE-008 — Buzón de Cobros (Mailbot)](#re-008--buzón-de-cobros-mailbot)
 - [RE-009 — Pretramitar Pedido](#re-009--pretramitar-pedido)
 - [RE-010 — Tramitar Pedido (Crédito) — Cancelación](#re-010--tramitar-pedido-crédito--cancelación)
 - [RE-016/018 — Delegación a Finanzas (ApiCallerFinanzas)](#re-016018--delegación-a-finanzas-apicallerfinanzas)
 - [RE-023 — Cancelar Pedido por Falta de Pago](#re-023--cancelar-pedido-por-falta-de-pago)
-- [NO-FU-002 — Bitácora Transaccional](#no-fu-002--bitácora-transaccional)
 
 ---
 
@@ -113,23 +111,6 @@ Endpoints del aplicativo principal ProquifaDotNet (WebApi.Catalogos / WebApi.Log
 | GET | `/vClienteDatosBancarios` | Vista de consulta de datos bancarios del cliente (incluye datos del banco) | `?idCliente={guid}` | `List<vClienteDatosBancariosDto>` | Existente |
 | GET | `/DatosBancarios` | CRUD de cuentas bancarias del grupo | `?id={guid}` | `DatosBancariosDto` | Existente |
 
----
-
-## RE-008 — Buzón de Cobros (Mailbot)
-
-**Controllers nuevos** en `WebApi.Logistica\Controllers\Procesos\Mailbot\`
-
-| Método | Ruta                                        | Descripción                                                                                            | Parámetros entrada                                         | Respuesta                                | Estado         |
-| ------ | ------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- | ---------------------------------------- | -------------- |
-| POST   | `/BuzonCobros`                              | Listado paginado del Buzón de Cobros filtrado por `IdUsuarioCobrador` y región del usuario autenticado | Body: `QueryInfo`                                          | `QueryResult<BuzonCobrosItemDto>`        | **Nuevo**      |
-| POST   | `/BandejaCoordenadorTesoreria`              | Listado de la bandeja del Coordinador de Tesorería; acceso restringido por rol                         | Body: `QueryInfo`                                          | `QueryResult<BandejaCoordenadorItemDto>` | **Nuevo**      |
-| GET    | `/api/buzon/cobros`                         | Lista paginada del Buzón de Cobros con filtros; patrón REST                                            | Body: `QueryInfo` (filtros, paginación)                    | `QueryResult<BuzonCobrosItemDto>`        | **Nuevo** (P2) |
-| PUT    | `/api/buzon/cobros/{id}/reclasificar`       | Reclasifica correo del Buzón de Cobros a otro buzón                                                    | `id` en path; Body: `{ IdCatClasificacionCorreoRecibido }` | `204 NoContent`                          | **Nuevo** (P2) |
-| PUT    | `/api/cobros/folio/{id}/cerrar`             | Cierra pendiente del Buzón al vincular cobro a proforma/factura                                        | `id` en path                                               | `204 NoContent`                          | **Nuevo** (P2) |
-| GET    | `/api/buzon/cotizaciones`                   | Lista paginada del Buzón de Cotizaciones con filtros                                                   | Body: `QueryInfo`                                          | `QueryResult<BuzonCotizacionesItemDto>`  | **Nuevo** (P2) |
-| PUT    | `/api/buzon/cotizaciones/{id}/reclasificar` | Reclasifica correo del Buzón de Cotizaciones                                                           | `id` en path; Body: `{ IdCatClasificacionCorreoRecibido }` | `204 NoContent`                          | **Nuevo** (P2) |
-| GET    | `/api/buzon/pedidos`                        | Lista paginada del Buzón de Pedidos con filtros                                                        | Body: `QueryInfo`                                          | `QueryResult<BuzonPedidosItemDto>`       | **Nuevo** (P2) |
-| PUT    | `/api/buzon/pedidos/{id}/reclasificar`      | Reclasifica correo del Buzón de Pedidos                                                                | `id` en path; Body: `{ IdCatClasificacionCorreoRecibido }` | `204 NoContent`                          | **Nuevo** (P2) |
 
 ---
 
@@ -154,54 +135,28 @@ Endpoints del aplicativo principal ProquifaDotNet (WebApi.Catalogos / WebApi.Log
 
 ---
 
-## RE-016/018 — Delegación a Finanzas (ApiCallerFinanzas)
-
-ProquifaDotNet actúa como proxy/delegador invocando la API de `ProquifaDotNet.Finanzas` a través del cliente HTTP `ApiCallerFinanzas`. El frontend consume estos endpoints de ProquifaDotNet, que internamente delegan la lógica a Finanzas.
-
-| Método | Ruta (ProquifaDotNet)                    | Delegado a (Finanzas)                 | Descripción                                                            | Req.   |
-| ------ | ---------------------------------------- | ------------------------------------- | ---------------------------------------------------------------------- | ------ |
-| POST   | `/api/proforma/generar-pdf`              | `POST /api/proforma/generar-pdf`      | Genera PDF de proforma; ProquifaDotNet reenvía la solicitud a Finanzas | RE-016 |
-| GET    | `/api/proforma/{id}/pdf`                 | `GET /api/proforma/{id}/pdf`          | Descarga PDF histórico de proforma desde Finanzas/MinIO                | RE-016 |
-| POST   | `/api/factura-adelantado/listar` (proxy) | `POST /api/factura-adelantado/listar` | Expone listado FAA al frontend delegando a Finanzas                    | RE-018 |
-|        |                                          |                                       |                                                                        |        |
-
----
-
-## RE-023 — Cancelar Pedido por Falta de Pago
+# RE-023 — Cancelar Pedido por Falta de Pago
 
 **Controller:** `tpPedidoController` (extensión)
 
-| Método | Ruta | Descripción | Parámetros entrada | Respuesta | Estado |
-|--------|------|-------------|-------------------|-----------|--------|
-| PUT | `/api/pedidos/{idTpPedido}/cancelar-falta-pago` | Cancela pedido por falta de pago: UPDATE `tpProformaPedido.Cancelada=1`, registra `tpPedido.FechaCancelacionPorFaltaPago`, solicita cancelación CFDI si hay factura vigente | `idTpPedido` en path | `204 NoContent` ó error con detalle | **Nuevo** |
-
----
-
-## NO-FU-002 — Bitácora Transaccional
-
-**Controller nuevo:** `BitacoraTransaccionController` (extensión de `BitacoraCRUDController`)
-
-| Método | Ruta | Descripción | Parámetros entrada | Respuesta | Estado |
-|--------|------|-------------|-------------------|-----------|--------|
-| GET | `/BitacoraTransaccion/{idBitacoraTransaccion}` | Retorna encabezado de transacción más lista de `BitacoraCRUD` vinculados | `idBitacoraTransaccion` en path (guid) | `BitacoraTransaccionDetalleDto` | **Nuevo** |
-| GET | `/BitacoraTransaccion` | Historial de transacciones por registro principal; filtra por tabla origen e Id del registro | `?tablaOrigen={string}&idRegistroOrigen={guid}` | `List<BitacoraTransaccionDto>` | **Nuevo** |
+| Método | Ruta                                        | Descripción                                                                                                                                                                 | Parámetros entrada   | Respuesta                           | Estado    |
+| ------ | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- | ----------------------------------- | --------- |
+| PUT    | `/pedidos/{idTpPedido}/cancelar-falta-pago` | Cancela pedido por falta de pago: UPDATE `tpProformaPedido.Cancelada=1`, registra `tpPedido.FechaCancelacionPorFaltaPago`, solicita cancelación CFDI si hay factura vigente | `idTpPedido` en path | `204 NoContent` ó error con detalle | **Nuevo** |
 
 ---
 
 ## Resumen de Controllers afectados por R16
 
-| Controller | Módulo | Nuevos endpoints | Modificados | Req. |
-|---|---|---|---|---|
-| `vEmpresaDatosBancariosController` | Catálogos/Empresas | 2 | — | RE-001 |
-| `ClienteCarteraController` | Catálogos/Clientes | 1 (`ReasignarCobrador`) | — | RE-002 |
-| `UsuarioController` | Catálogos/Usuarios | 1 (`GestoresDeCobranza`) | — | RE-002 |
-| `ArchivoClienteController` | Catálogos/Clientes | 3 | — | RE-003 |
-| `catRegimenFiscalController` | Catálogos | 1 (`PorRegion`) | — | RE-004 |
-| `catTipoSociedadMercantilController` | Catálogos | 1 (`PorRegion`) | — | RE-004 |
-| `catMetodoDePagoCFDI` / `catUsoCFDI` / `catMedioDePago` | Catálogos | — | 3 (filtro región) | RE-005 |
-| `ClienteDatosBancariosController` | Catálogos/Clientes | 4 | — | RE-006 |
-| `BuzonCobrosController` | Logística/Mailbot | 5 | — | RE-008 |
-| `BandejaCoordenadorTesoreriaController` | Logística/Mailbot | 1 | — | RE-008 |
-| `tpPedidoCancelacionController` | Logística/Pedidos | 1 | — | RE-010 |
-| `tpPedidoController` | Logística/Pedidos | 1 (`cancelar-falta-pago`) | — | RE-023 |
-| `BitacoraTransaccionController` | Transversal | 2 | — | NO-FU-002 |
+| Controller                                              | Módulo             | Nuevos endpoints          | Modificados       | Req.      |
+| ------------------------------------------------------- | ------------------ | ------------------------- | ----------------- | --------- |
+| `vEmpresaDatosBancariosController`                      | Catálogos/Empresas | 2                         | —                 | RE-001    |
+| `ClienteCarteraController`                              | Catálogos/Clientes | 1 (`ReasignarCobrador`)   | —                 | RE-002    |
+| `UsuarioController`                                     | Catálogos/Usuarios | 1 (`GestoresDeCobranza`)  | —                 | RE-002    |
+| `ArchivoClienteController`                              | Catálogos/Clientes | 3                         | —                 | RE-003    |
+| `catRegimenFiscalController`                            | Catálogos          | 1 (`PorRegion`)           | —                 | RE-004    |
+| `catTipoSociedadMercantilController`                    | Catálogos          | 1 (`PorRegion`)           | —                 | RE-004    |
+| `catMetodoDePagoCFDI` / `catUsoCFDI` / `catMedioDePago` | Catálogos          | —                         | 3 (filtro región) | RE-005    |
+| `ClienteDatosBancariosController`                       | Catálogos/Clientes | 4                         | —                 | RE-006    |
+| `tpPedidoCancelacionController`                         | Logística/Pedidos  | 1                         | —                 | RE-010    |
+| `tpPedidoController`                                    | Logística/Pedidos  | 1 (`cancelar-falta-pago`) | —                 | RE-023    |
+

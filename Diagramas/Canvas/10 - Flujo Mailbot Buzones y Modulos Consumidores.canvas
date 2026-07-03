@@ -1,0 +1,28 @@
+{
+	"nodes":[
+		{"id":"validarajuste","type":"text","text":"🔧 Validar Ajuste\n- OC ajustadas","x":800,"y":-200,"width":260,"height":200,"color":"#ffc8dd"},
+		{"id":"buzones","type":"text","text":"📥 Buzones\n- Reclasificar ✓\n- Cambiar cliente ✓\n- Eliminar uno o muchos\n- Spam\n- Vincular OC","x":80,"y":160,"width":300,"height":220,"color":"#ffdac1"},
+		{"id":"bitacora_buzones","type":"text","text":"📋 Bitácora Buzones (sólo lectura)\n- Correos procesados\n- No procesados\n- Otros: Solicitar / Sin Prod. no procesado / Recuperar","x":-360,"y":160,"width":320,"height":220,"color":"#ffb7b2"},
+		{"id":"validarpago","type":"text","text":"💰 Validar Pago\n- Pagos cliente","x":460,"y":-240,"width":260,"height":200,"color":"#ffc8dd"},
+		{"id":"atenderpc","type":"text","text":"📦 Atender PC\n- Orden con OC\n- Orden sin OC\n- Orden con OC Interna","x":80,"y":-280,"width":300,"height":220,"color":"#b5ead7"},
+		{"id":"cotizacion","type":"text","text":"📝 Cotización\n- Cot normal\n- Cliente nuevo\n- Contacto nuevo / Cliente existente\n- Cot sin dirección (VO)","x":-320,"y":-150,"width":300,"height":220,"color":"#b5ead7"},
+		{"id":"acciones_buzones","type":"text","text":"⚙️ Acciones laterales de Buzones\n- Reclasificar (correo · desif actual / nuevo client)\n- Eliminar Prod.\n- Invocar mailbot\n- Vincular OC Apst. y elegir archivos\n- Elegir otro archivo de los adjuntos","x":550,"y":260,"width":340,"height":220,"color":"#fff5ba"},
+		{"id":"mailbot","type":"text","text":"🤖 Mailbot\n- Correo\n- Adjuntos\n- Inserta en BD (catColumna)","x":80,"y":560,"width":300,"height":180,"color":"#c7ceea"},
+		{"id":"clasificacion_ia","type":"text","text":"🧠 Clasificación IA\n(Mailbot dispara IA para clasificar)","x":-360,"y":590,"width":300,"height":120,"color":"#e2cfff"}
+	],
+	"edges":[
+		{"id":"e_mb_buzones","fromNode":"mailbot","fromSide":"top","toNode":"buzones","toSide":"bottom","label":"correos + adjuntos"},
+		{"id":"e_mb_ia","fromNode":"mailbot","fromSide":"left","toNode":"clasificacion_ia","toSide":"right","color":"6","label":"IA clasifica"},
+		{"id":"e_ia_buzones","fromNode":"clasificacion_ia","fromSide":"top","toNode":"buzones","toSide":"left","color":"6","label":"resultado clasif."},
+		{"id":"e_buz_cot","fromNode":"buzones","fromSide":"top","toNode":"cotizacion","toSide":"bottom","label":"Cotización"},
+		{"id":"e_buz_pc","fromNode":"buzones","fromSide":"top","toNode":"atenderpc","toSide":"bottom","label":"Orden de Compra"},
+		{"id":"e_buz_pago","fromNode":"buzones","fromSide":"top","toNode":"validarpago","toSide":"bottom","label":"Pago"},
+		{"id":"e_buz_ajuste","fromNode":"buzones","fromSide":"top","toNode":"validarajuste","toSide":"bottom","label":"Ajuste OC"},
+		{"id":"e_buz_bitacora","fromNode":"buzones","fromSide":"left","toNode":"bitacora_buzones","toSide":"right","color":"1","label":"registra evento"},
+		{"id":"e_mb_bitacora","fromNode":"mailbot","fromSide":"left","toNode":"bitacora_buzones","toSide":"bottom","color":"1","label":"registra correo"},
+		{"id":"e_buz_acc","fromNode":"buzones","fromSide":"right","toNode":"acciones_buzones","toSide":"left","label":"opciones"},
+		{"id":"e_acc_cot","fromNode":"acciones_buzones","fromSide":"top","toNode":"cotizacion","toSide":"right","color":"4","label":"reclasificar / eliminar"},
+		{"id":"e_acc_pc","fromNode":"acciones_buzones","fromSide":"top","toNode":"atenderpc","toSide":"right","color":"4","label":"vincular OC / archivos"},
+		{"id":"e_acc_ajuste","fromNode":"acciones_buzones","fromSide":"top","toNode":"validarajuste","toSide":"bottom","color":"4","label":"elegir otro archivo"}
+	]
+}

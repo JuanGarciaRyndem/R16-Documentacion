@@ -1,4 +1,4 @@
-﻿# R16A-RE-FU-023 — Validar Cobro
+# R16A-RE-FU-023 — Validar Cobro
 
 | Campo | Valor |
 |---|---|
@@ -224,8 +224,8 @@ Entonces el sistema deberá descartar los cambios de fecha estimada no confirmad
 
 ## Cambios
 
-| # | Fecha | Referencia | Descripción del cambio |
-|---|-------|------------|------------------------|
-| 1 | 2026-06-10 | OBS-041 | Regla 6: trim automático agregado al buscador. Criterio B1: actualizado con trim automático. |
-| 2 | 2026-06-10 | OBS-046 | Criterio A1: Saldo Pendiente siempre en USD. Pendiente de moneda cerrado. |
-| 3 | 2026-06-10 | OBS-047 | Criterio B2: ordenamiento por defecto por antigüedad de cobros recibidos. Criterio A5 agregado: indicador visual SLA 72 horas. Pendiente de orden cerrado. |
+| #   | Fecha      | Referencia | Descripción del cambio                                                                                                                                     |
+| --- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | 2026-06-10 | OBS-041    | Regla 6: trim automático agregado al buscador. Criterio B1: actualizado con trim automático.                                                               |
+| 2   | 2026-06-10 | OBS-046    | Criterio A1: Saldo Pendiente siempre en USD. Pendiente de moneda cerrado.                                                                                  |
+| 3   | 2026-06-10 | OBS-047    | Criterio B2: ordenamiento por defecto por antigüedad de cobros recibidos. Criterio A5 agregado: indicador visual SLA 72 horas. Pendiente de orden cerrado. |

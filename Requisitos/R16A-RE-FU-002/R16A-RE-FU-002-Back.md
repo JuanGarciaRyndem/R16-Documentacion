@@ -82,7 +82,7 @@ El requisito habilita el campo **"Cobrador"** en la sección Datos Generales del
 **Impacto:** Criterio B1 — El frontend necesita poblar el selector del campo Cobrador con usuarios `AnalistaDeCuentasPorCobrar = 1 AND Activo = 1`.
 **Archivo a modificar:** `Logic.Pqf.Catalogos\Usuarios\UsuariosBO.Extensions.cs`
 
-`csharp
+```csharp
 /// <summary>
 /// Devuelve los usuarios activos con rol Gestor de Cobranza,
 /// para poblar el selector del campo Cobrador en el Catálogo de Clientes.
@@ -97,11 +97,11 @@ public List<Usuario> ObtenerGestoresDeCobranzaActivos()
             .ToList();
     }
 }
-`
+```
 
 **Endpoint a agregar:** `WebApi.Catalogos\Controllers\Sistema\Usuarios\UsuarioController.cs`
 
-`csharp
+```csharp
 /// <summary>
 /// Devuelve usuarios activos con rol Gestor de Cobranza.
 /// Usado para poblar el selector del campo Cobrador en el Catálogo de Clientes.
@@ -118,7 +118,7 @@ public HttpResponseMessage ObtenerGestoresDeCobranzaActivos()
         return Request.CreateResponse(HttpStatusCode.OK, results);
     });
 }
-`
+```
 
 ---
 

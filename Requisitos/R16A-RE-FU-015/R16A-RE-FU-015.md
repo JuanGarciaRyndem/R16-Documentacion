@@ -1,24 +1,24 @@
-# Tramitación de pedidos Prepago con Factura por Adelantado
+# Tramitación de pedidos Prepago
 
-| Campo                 | Valor                                                                                                      |
-| --------------------- | ---------------------------------------------------------------------------------------------------------- |
-| **ID**                | R16A-RE-FU-015                                                                                             |
-| **Nombre**            | Tramitación de pedidos Prepago con Factura por Adelantado                                                  |
-| **Módulo**            | Tramitar Pedido                                                                                            |
-| **Estatus**           | Propuesto                                                                                                  |
+| Campo | Valor |
+|---|---|
+| **ID** | R16A-RE-FU-015 |
+| **Nombre** | Tramitación de pedidos Prepago |
+| **Módulo** | Tramitar Pedido |
+| **Estatus** | Propuesto |
 | **Referencia Legacy** | R16.1M-RE-FU-001, R16.1M-RE-FU-002, R16.1M-RE-FU-003, R16.1M-RE-FU-004, R16.1M-RE-FU-007, R16.1M-RE-FU-015 |
 
 ---
 
 ## Historia de Usuario
 
-> Yo como **ESAC**, quiero tramitar pedidos de clientes con condición de pago Prepago sin sustancias controladas activando la opción de Factura por Adelantado, para que el cliente reciba la proforma correspondiente para iniciar el cobro y, en paralelo, Finanzas gestione la emisión y timbrado de la factura necesaria para el flujo prepago anticipado.
+> Yo como **ESAC**, quiero tramitar pedidos de clientes con condición de pago Prepago sin sustancias controladas activando la opción de Factura por Adelantado, para que Finanzas gestione la emisión y timbrado de la factura que se enviará al cliente para iniciar el cobro.
 
 ---
 
 ## Requisito
 
-El sistema debe permitir, en el módulo Tramitar Pedido, la tramitación de pedidos de clientes con condición de pago Prepago que no contienen sustancias controladas y que activan la opción Factura por Adelantado, en las operaciones de México y Perú. Para clientes prepago los datos de facturación no son editables en este módulo y se toman del catálogo del cliente vigente. Al tramitar, el sistema genera la proforma, la presenta al ESAC para validación visual y, tras confirmar el envío al cliente, genera el pendiente en el módulo Factura por Adelantado para que Finanzas gestione la emisión de la factura y cierra el pendiente del pedido en la bandeja de Tramitar Pedido. El pendiente en Validar Cobro se genera posteriormente, cuando la factura se emita.
+El sistema debe permitir, en el módulo Tramitar Pedido, la tramitación de pedidos de clientes con condición de pago Prepago que no contienen sustancias controladas y que activan la opción Factura por Adelantado, en las operaciones de México y Perú. Para clientes prepago los datos de facturación no son editables en este módulo y se toman del catálogo del cliente vigente. Al tramitar con la opción Factura por Adelantado activada, el sistema genera el pendiente en el módulo Factura por Adelantado para que Finanzas emita y timbre la factura, y cierra el pendiente operativo del pedido en la bandeja de Tramitar Pedido. El pendiente en Validar Cobro se genera posteriormente, cuando la factura se emita.
 
 ---
 
@@ -30,68 +30,55 @@ El sistema debe permitir, en el módulo Tramitar Pedido, la tramitación de pedi
 - Pedidos sin sustancias controladas (mundial, nacional, origen).
 - Pedidos en los que el ESAC activa la opción Factura por Adelantado durante la tramitación.
 - Activación directa de la opción Factura por Adelantado sin código de autorización.
-- Generación de la proforma al ejecutar la acción Tramitar en el módulo Tramitar Pedido.
 - Asignación del folio interno del pedido conforme a la mecánica actual del sistema.
-- Asignación del folio de la proforma desde el foliador lineal global de PQF2 (un solo contador para todas las proformas del sistema, sin segmentación por empresa o región).
-- Flujo de envío con dos pasos: previsualización del PDF de la proforma + pantalla de datos de envío del correo.
-- Generación automática del pendiente en el módulo Factura por Adelantado al confirmar el envío del correo.
-- Cierre automático del pendiente del pedido en la bandeja del módulo Tramitar Pedido al completar la tramitación.
+- Generación del pendiente en el módulo Factura por Adelantado al ejecutar la acción Tramitar.
+- Cierre del pendiente operativo del pedido en la bandeja del módulo Tramitar Pedido al completar la acción.
 - Visualización en solo lectura de los datos de facturación del cliente (tomados del catálogo).
-- Operación en Perú: el flujo opera idéntico al de México durante la tramitación en este módulo.
+- Operación en Perú: el flujo opera idéntico al de México durante la tramitación en este módulo. Las diferencias para Perú se materializan posteriormente fuera de TP (no transfiere a Legacy tras la validación de cobro).
 
 ### No aplica a
 
 - Pedidos de clientes con condición de pago Crédito (esos siguen los flujos descritos en los requisitos del bloque Crédito).
 - Pedidos prepago con sustancias controladas (la combinación Factura por Adelantado + sustancias controladas no es permitida por regla regulatoria).
 - Pedidos prepago sin activación de Factura por Adelantado (variante cubierta en requisito independiente del bloque Prepago).
-- Renderizado del radio button de Entrega con Remisión, que no se muestra en el módulo Tramitar Pedido para clientes prepago en ninguna variante.
+- Visualización del radio button de Entrega con Remisión, que no se muestra en el módulo Tramitar Pedido para clientes prepago en ninguna variante.
 - Edición de los datos de facturación del cliente desde el módulo Tramitar Pedido para clientes prepago (los ajustes se gestionan en el Catálogo de Clientes).
 - La generación del pendiente en Validar Cobro al tramitar (en este flujo el pendiente VC se generará posteriormente, al emitirse la factura en el módulo Factura por Adelantado).
 - La emisión propiamente dicha de la factura ni la mecánica interna del módulo Factura por Adelantado.
-- La validación del cobro de la factura, el timbrado fiscal, el cálculo de la FEE, la generación de la Confirmación de Pedido y la transferencia a Legacy.
+- La validación del cobro de la factura, el timbrado fiscal, el cálculo de la FEE, la generación de la Confirmación de Pedido y la transferencia a Legacy. Todas esas acciones ocurren en módulos posteriores y se cubren en requisitos independientes.
+- La generación de proforma: en este escenario (prepago con Factura por Adelantado) no se genera proforma.
+- La previsualización o el envío de cualquier documento al cliente desde el módulo Tramitar Pedido (el envío de la factura ocurre en el módulo Factura por Adelantado).
 
 ---
 
 ## Reglas de Negocio
 
-**Regla 1 — Renderizado de Factura por Adelantado para Prepago sin controlados**
-Para pedidos de clientes Prepago sin sustancias controladas, el sistema renderiza el radio button de Factura por Adelantado como opción disponible para que el ESAC decida activarla o no.
+**Regla 1 — Visualización de Factura por Adelantado para Prepago sin controlados**
+Para pedidos de clientes Prepago sin sustancias controladas, el sistema muestra el radio button de Factura por Adelantado como opción disponible para que el ESAC decida activarla o no.
 
-**Regla 2 — No renderizado de Entrega con Remisión para Prepago**
-Para pedidos de clientes Prepago (con o sin sustancias controladas), el sistema no renderiza el radio button de Entrega con Remisión. Esta opción no aplica para clientes prepago en ninguna variante.
+**Regla 2 — No visualización de Entrega con Remisión para Prepago**
+Para pedidos de clientes Prepago (con o sin sustancias controladas), el sistema no muestra el radio button de Entrega con Remisión. Esta opción no aplica para clientes prepago en ninguna variante.
 
 **Regla 3 — Activación de Factura por Adelantado sin código de autorización**
 La activación de Factura por Adelantado en Tramitar Pedido es directa, sin requerir código de autorización ni validación adicional.
 
 **Regla 4 — Datos de facturación bloqueados cuando se activa Factura por Adelantado**
-Al activar Factura por Adelantado para un pedido Prepago, el sistema no permite editar los datos de facturación del cliente (RFC, razón social, Uso CFDI, Método y Forma de Pago, correo de envío) desde Tramitar Pedido. Los datos de facturación quedan fijados con los valores del catálogo del cliente vigente al momento de la activación; cualquier ajuste posterior se gestiona en el módulo Factura por Adelantado o en el Catálogo de Clientes según corresponda.
-
-**Regla 5 — Generación automática de proforma al tramitar**
-Al ejecutar la acción de tramitar un pedido prepago sin sustancias controladas con Factura por Adelantado activada, el sistema genera automáticamente una proforma en formato PDF.
-
-**Regla 6 — Folio de la proforma desde foliador lineal global**
-El folio de la proforma se toma del foliador lineal global de PQF2, que mantiene un solo contador para todas las proformas del sistema sin segmentación por empresa o región.
+Al activar Factura por Adelantado para un pedido Prepago, el sistema no permite editar los datos de facturación del cliente (RFC/RUC, razón social, y los campos fiscales según región: Uso CFDI y Método de Pago en México, Tipo de Operación y Condición de Pago en Perú) desde Tramitar Pedido. Los datos de facturación quedan fijados con los valores del catálogo del cliente vigente al momento de la activación; cualquier ajuste posterior se gestiona en el módulo Factura por Adelantado o en el Catálogo de Clientes según corresponda.
 
 **Regla 7 — Folio del pedido interno conforme a mecánica actual**
 El folio interno del pedido se asigna siguiendo la mecánica actual del sistema, sin cambios respecto a la versión vigente.
 
-**Regla 8 — Previsualización del PDF de la proforma obligatoria**
-Antes de avanzar a la pantalla de datos de envío, el sistema muestra la previsualización del PDF de la proforma. El ESAC debe aceptarla explícitamente para continuar.
+**Regla 11 — Generación del pendiente Factura por Adelantado al tramitar**
+Al ejecutar la acción de tramitar un pedido prepago sin sustancias controladas con Factura por Adelantado activada, el sistema genera automáticamente un pendiente en el módulo Factura por Adelantado asociado al folio del pedido, para que Finanzas gestione la emisión y timbrado de la factura.
 
-**Regla 9 — Pantalla de datos de envío del correo de proforma**
-La pantalla de datos de envío del correo de proforma presenta: Para (destinatario) con el contacto del cliente del pedido, editable, con default heredado del catálogo del cliente; CC con el ESAC asignado al cliente/pedido, editable, con default sugerido por el sistema; Asunto generado automáticamente según plantilla, no editable; Adjuntos con el PDF de la proforma, no editables; y Notas extras, un campo de texto editable opcional para texto adicional libre.
+**Regla 12 — Momento de generación del pendiente Validar Cobro**
+El pendiente en el módulo Validar Cobro se genera cuando la factura se emite exitosamente en el módulo Factura por Adelantado, no en el momento de tramitar.
 
-**Regla 10 — Composición del asunto del correo de proforma**
-El asunto del correo de proforma se compone como la cadena "Proforma" seguida del folio del pedido interno.
+**Regla 13 — Cierre del pendiente operativo de Tramitar Pedido al completar la acción**
+Una vez generado el pendiente en Factura por Adelantado, el sistema cierra y elimina el pendiente operativo del pedido en la bandeja de Tramitar Pedido, de modo que el pedido ya no aparece como acción pendiente para el ESAC. Este cierre se refiere únicamente al pendiente operativo de esa bandeja: la acción a realizar en Tramitar Pedido finalizó y el pedido avanza al siguiente módulo (Factura por Adelantado y, después, Validar Cobro). El estatus real del pedido se consulta fuera de las bandejas de pendientes (ver Criterio D5).
 
-**Regla 11 — Generación automática del pendiente Factura por Adelantado**
-Al confirmarse el envío exitoso del correo de la proforma para un pedido con Factura por Adelantado activada, el sistema genera automáticamente un pendiente en el módulo Factura por Adelantado asociado al folio del pedido, para que se gestione posteriormente la emisión y timbrado de la factura.
-
-**Regla 12 — No generación del pendiente Validar Cobro al tramitar**
-Al tramitar un pedido prepago con Factura por Adelantado activada, el sistema no genera el pendiente en el módulo Validar Cobro en ese momento. El pendiente Validar Cobro se generará posteriormente, cuando la factura se emita exitosamente en el módulo Factura por Adelantado.
-
-**Regla 13 — Cierre del pendiente de Tramitar Pedido al completar la acción**
-Una vez completados el envío del correo de la proforma y la generación del pendiente en Factura por Adelantado, el sistema cierra y elimina el pendiente del pedido en la bandeja de Tramitar Pedido, de modo que el pedido ya no aparece como acción pendiente para el ESAC.
+**Regla 14 — Composición regionalizada del panel de Información de Facturación**
+El panel de Información de Facturación de Tramitar Pedido es transversal a ambas regiones y muestra los datos del cliente tomados del catálogo, en modo solo lectura. Los campos comunes a México y Perú son: Razón Social, identificador fiscal (RFC para México / RUC para Perú), Moneda, Quién Factura (empresa emisora), Condiciones de Pago (plazo comercial; ej. "60 Días", "Prepago 100%") y Comentarios para la Facturación. Los campos fiscales se regionalizan según la Región del cliente: para México se muestran Uso CFDI y Método de Pago (catálogos SAT); para Perú estos se reemplazan por Tipo de Operación (catálogo 51 SUNAT, en lugar de Uso CFDI) y Condición de Pago SUNAT en singular, Contado/Crédito (en lugar de Método de Pago). La "Condición de Pago" SUNAT de Perú es un campo fiscal distinto de las "Condiciones de Pago" comerciales (plazo) y ambos coexisten en el panel para clientes Perú. Los campos Forma de Pago (medio) y correo de envío no se muestran en este panel en ninguna región.
 
 ---
 
@@ -118,30 +105,18 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 
 **Criterio A3 — Bloqueo de edición de datos de facturación al activar Factura por Adelantado**
 - **Dado** que el ESAC activó la opción Factura por Adelantado en Tramitar Pedido,
-- **Cuando** se renderiza la pantalla del pedido,
+- **Cuando** se muestra la pantalla del pedido,
 - **Entonces** el botón "Editar Datos" para datos de facturación no debe aparecer disponible para este pedido. El sistema deberá mostrar los datos de facturación en modo solo lectura tomados del catálogo del cliente vigente al momento de la activación.
 
-**Criterio A4 — No renderizado de Entrega con Remisión para Prepago**
+**Criterio A4 — No visualización de Entrega con Remisión para Prepago**
 - **Dado** que el pedido es de cliente Prepago,
 - **Cuando** el ESAC visualiza la pantalla del pedido,
 - **Entonces** el radio button de Entrega con Remisión no deberá aparecer en la pantalla, dado que esta opción no aplica para clientes prepago en ninguna variante.
 
-### Sección B — Folios y generación de la proforma
-
-**Criterio B1 — Asignación de folio interno al tramitar**
-- **Dado** que el ESAC ejecuta la acción de tramitar,
-- **Cuando** el sistema procesa la solicitud,
-- **Entonces** deberá asignar el folio interno del pedido siguiendo la mecánica actual del sistema.
-
-**Criterio B2 — Asignación de folio de proforma desde foliador lineal global**
-- **Dado** que el sistema genera la proforma al tramitar,
-- **Cuando** se asigna el folio del documento,
-- **Entonces** el sistema deberá tomar el siguiente número del foliador lineal global de PQF2 (un solo contador compartido por todas las proformas del sistema).
-
-**Criterio B3 — Generación del PDF de la proforma**
-- **Dado** que el ESAC ejecuta la acción de tramitar,
-- **Cuando** se completa la asignación de folios,
-- **Entonces** el sistema deberá generar automáticamente el archivo PDF de la proforma con los datos del pedido, del cliente y los folios correspondientes.
+**Criterio A5 — Composición regionalizada del panel de Información de Facturación**
+- **Dado** que el ESAC visualiza el panel de Información de Facturación de un pedido en Tramitar Pedido,
+- **Cuando** el sistema muestra el panel según la Región del cliente,
+- **Entonces** para clientes México deberá mostrar Uso CFDI y Método de Pago (catálogos SAT); para clientes Perú deberá mostrar Tipo de Operación (catálogo 51 SUNAT) y Condición de Pago Contado/Crédito SUNAT en su lugar; en ambas regiones deberá mostrar los campos comunes (Razón Social, RFC/RUC, Moneda, Quién Factura, Condiciones de Pago comerciales y Comentarios) y NO deberá mostrar Forma de Pago ni correo de envío.
 
 ### Sección C — Previsualización y envío de la proforma
 
@@ -159,7 +134,7 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 
 **Criterio C3 — Pantalla de datos de envío con CC editable y ESAC incluido**
 - **Dado** que el usuario llegó al paso de envío del correo,
-- **Cuando** el sistema renderiza la pantalla,
+- **Cuando** el sistema muestra la pantalla,
 - **Entonces** deberá mostrar: Para con el contacto del cliente (editable, default heredado); CC con el ESAC asignado (editable, default sugerido); Asunto generado por sistema según plantilla (no editable); Adjuntos con el PDF de la proforma (no editables); y Notas extras como campo de texto editable opcional.
 
 **Criterio C4 — Envío del correo de proforma**
@@ -169,44 +144,45 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 
 ### Sección D — Pendientes generados y cierre
 
-**Criterio D1 — Generación automática del pendiente Factura por Adelantado**
-- **Dado** que el correo de proforma se envió exitosamente y el pedido tiene Factura por Adelantado activada,
-- **Cuando** se completa el envío,
-- **Entonces** el sistema deberá generar automáticamente un pendiente en el módulo Factura por Adelantado asociado al folio del pedido, para que se ejecute posteriormente la emisión y timbrado de la factura.
+**Criterio D1 — Generación del pendiente Factura por Adelantado al tramitar**
+- **Dado** un pedido prepago sin controlados con Factura por Adelantado activada,
+- **Cuando** el ESAC ejecuta la acción Tramitar,
+- **Entonces** el sistema deberá generar automáticamente un pendiente en el módulo Factura por Adelantado asociado al folio del pedido, para que Finanzas gestione posteriormente la emisión y timbrado de la factura.
 
-**Criterio D2 — No generación del pendiente Validar Cobro al tramitar**
+**Criterio D2 — Momento de generación del pendiente Validar Cobro**
 - **Dado** que el ESAC tramitó un pedido prepago con Factura por Adelantado activada,
-- **Cuando** se completa la tramitación y el envío,
-- **Entonces** el sistema no deberá generar pendiente en Validar Cobro en este momento. El pendiente Validar Cobro se generará posteriormente, cuando la factura se emita exitosamente desde el módulo Factura por Adelantado.
-
-**Criterio D3 — Desaparición del pendiente en bandeja Tramitar Pedido**
-- **Dado** que el pedido se tramitó exitosamente (incluyendo el envío del correo de proforma y la generación del pendiente en Factura por Adelantado),
 - **Cuando** se completa la tramitación,
-- **Entonces** el pedido no deberá seguir apareciendo como pendiente en la bandeja del módulo Tramitar Pedido del ESAC. La consulta histórica del pedido sigue disponible desde los reportes correspondientes.
+- **Entonces** el pendiente en Validar Cobro se generará posteriormente, cuando la factura se emita exitosamente desde el módulo Factura por Adelantado.
+
+**Criterio D3 — Desaparición del pendiente operativo en bandeja Tramitar Pedido**
+- **Dado** que la acción de Tramitar Pedido se completó (con la generación del pendiente en Factura por Adelantado),
+- **Cuando** el pendiente operativo finaliza,
+- **Entonces** el pedido no deberá seguir apareciendo como pendiente en la bandeja del módulo Tramitar Pedido del ESAC, entendiéndose que el pendiente operativo de esa bandeja terminó y el pedido avanzó al siguiente módulo, no que el pedido quedó tramitado en su totalidad (la Confirmación de Pedido de prepago se genera al validar el cobro). La trazabilidad del estatus del pedido se consulta fuera de las bandejas de pendientes (ver Criterio D5).
 
 **Criterio D4 — Cancelación del pedido**
 - **Dado** que un pedido tramitado tiene solicitud del cliente para cancelar,
 - **Cuando** el ESAC ejecuta la acción Cancelar pedido en Tramitar Pedido,
 - **Entonces** el sistema deberá presentar un modal de confirmación y requerir confirmación explícita antes de proceder.
 
+**Criterio D5 — Estatus del pedido a lo largo del flujo**
+- **Dado** que el sistema opera por pendientes (que aparecen y desaparecen de cada bandeja a medida que se trabajan) y que esos pendientes no reflejan por sí solos el estatus global del pedido,
+- **Cuando** un pedido avanza por las distintas etapas del flujo (orden recibida, pretramitación, inconsistencias, por tramitar, tramitado, con folio en espera de validación de cobro, confirmado, etc.),
+- **Entonces** el sistema deberá mantener un estatus del pedido que refleje su punto en el flujo, de modo que ese estatus pueda consultarse para la trazabilidad del pedido fuera de las bandejas de pendientes.
+
+> ** Pendiente de definición: el catálogo de estatus del pedido será propuesto por el cliente (equipo de procesos) y validado con el equipo (Sesión Cliente 2). La visualización de estos estatus para coordinadores y gerencia se hará mediante tableros de Power BI, que es una herramienta de referencia externa y NO forma parte del alcance funcional de PQF2 descrito en esta matriz. **
+
 ---
 
 ## Notas
 
-- Variante prepago sin sustancias controladas con activación de Factura por Adelantado del módulo Tramitar Pedido.
-- Distinción clave respecto al flujo prepago sin Factura por Adelantado: en este flujo, al tramitar se genera el pendiente en Factura por Adelantado pero NO el pendiente en Validar Cobro. El pendiente Validar Cobro se generará después, cuando la factura PPD se emita exitosamente desde el módulo Factura por Adelantado.
+- Variante prepago sin sustancias controladas con activación de Factura por Adelantado del módulo Tramitar Pedido. El módulo de Tramitar Pedido en este flujo es responsable de generar la proforma, gestionar la previsualización y envío al cliente, y disparar el pendiente en Factura por Adelantado. La emisión y timbrado de la factura PPD ocurren posteriormente en el módulo Factura por Adelantado.
+- Cubre tres requisitos del cliente: tramitación de pedidos prepago en México y Perú con emisión de Confirmación; generación y envío automático de proforma para prepago; y cadena de pendientes generada al tramitar.
+- Distinción clave respecto al flujo prepago sin Factura por Adelantado: en este flujo, al tramitar se genera el pendiente en Factura por Adelantado pero NO el pendiente en Validar Cobro. El pendiente Validar Cobro se generará después, cuando la factura PPD se emita exitosamente desde el módulo Factura por Adelantado. Esto refleja que en este flujo el documento que se va a cobrar es la factura PPD, no la proforma.
 - Cambio respecto al comportamiento actual: se elimina el código de autorización para activar Factura por Adelantado (antes lo requería). La activación ahora es directa.
-- Para clientes prepago, los datos de facturación nunca se pueden editar en Tramitar Pedido. El botón "Editar Datos" no aparece.
-- El radio button de Entrega con Remisión no se renderiza en el módulo Tramitar Pedido para clientes prepago en ninguna variante.
-- El foliador de la proforma es lineal global a PQF2 (un solo contador para todas las proformas del sistema).
+- Para clientes prepago, los datos de facturación nunca se pueden editar en Tramitar Pedido (independientemente de si hay sustancias controladas o no, independientemente de si se activa Factura por Adelantado o no). El botón "Editar Datos" no aparece. Cualquier ajuste a los datos fiscales del cliente debe gestionarse en el Catálogo de Clientes.
+- El radio button de Entrega con Remisión no se muestra en el módulo Tramitar Pedido para clientes prepago en ninguna variante.
+- El foliador de la proforma es lineal global a PQF2 (un solo contador para todas las proformas del sistema). El folio del pedido interno conserva la mecánica actual del sistema.
 - El asunto del correo de proforma se compone como "Proforma" más el folio del pedido interno.
 - El flujo de envío del correo de proforma requiere dos pasos secuenciales en la UI: primero previsualizar y aceptar el PDF; después confirmar los datos de envío del correo.
-- El pendiente del pedido en la bandeja del módulo Tramitar Pedido se cierra automáticamente al completarse la acción de tramitar.
-
----
-
-## Cambios
-
-| #   | Fecha      | Observación | Descripción del cambio                                                                                                                                                                                                                                                                                             |
-| --- | ---------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | 2026-06-10 | OBS-028     | El cliente confirma que el timbrado fiscal se genera en el módulo Factura por Adelantado. Confirmado/ya cubierto: el diseño vigente ya establece que el timbrado ocurre en el módulo Factura por Adelantado; FU-015 deja explícitamente fuera de su alcance la mecánica de facturación. Sin cambios estructurales. |
+- El pendiente del pedido en la bandeja del módulo Tramitar Pedido se cierra automáticamente al completarse la acción de tramitar. La consulta del pedido tramitado sigue disponible desde módulos de consulta. Esta mecánica evita que el ESAC vea pedidos ya gestionados en su bandeja de pendientes.
+- Los campos de información fiscal del módulo están actualmente configurados conforme a las normas fiscales de México. Para pedidos peruanos se espera capacitación al equipo operativo para clarificar el manejo de estos campos en contexto peruano.
