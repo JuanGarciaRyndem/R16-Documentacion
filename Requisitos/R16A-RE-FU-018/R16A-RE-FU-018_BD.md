@@ -21,11 +21,15 @@ completo de timbrado fiscal que se dispara desde este modulo.
 | --- | -------------------------------------------- | -------------------------- | ---- | --------- |
 | 1   | CREATE DATABASE ProquifaDotNetTimbrado       | Nueva                      | DDL  | Alta      |
 | 2   | CREATE TABLE AppSetting                      | ProquifaDotNetTimbrado     | DDL  | Alta      |
-| 3   | CREATE TABLE TipoDocumentoFiscal             | ProquifaDotNetTimbrado     | DDL  | Alta      |
-| 4   | CREATE TABLE CFDI                            | ProquifaDotNetTimbrado     | DDL  | Alta      |
-| 5   | CREATE TABLE TimbradoLog                     | ProquifaDotNetTimbrado     | DDL  | Alta      |
-| 6   | INSERT TipoDocumentoFiscal (datos iniciales) | ProquifaDotNetTimbrado     | DML  | Alta      |
+| 3   | CREATE TABLE FiscalDocumentType               | ProquifaDotNetTimbrado     | DDL  | Alta      |
+| 4   | CREATE TABLE Cfdi                            | ProquifaDotNetTimbrado     | DDL  | Alta      |
+| 5   | CREATE TABLE StampingLog                     | ProquifaDotNetTimbrado     | DDL  | Alta      |
+| 6   | INSERT FiscalDocumentType (datos iniciales)  | ProquifaDotNetTimbrado     | DML  | Alta      |
 | -   | ProquifaDotNet                               | Solo lectura - sin cambios | -    | -         |
+
+> **Nota (Reglas al diseñar — regla 2):** `ProquifaDotNetTimbrado` es una base de datos **nueva**, por lo que su estructura (tablas, columnas, PK/FK, constraints) se nombra en **inglés**. La BD `ProquifaDotNet` (Parte 1, solo lectura) conserva su nomenclatura en español por ser la base de datos existente (regla 1).
+>
+> **Nota (nomenclatura Timbrado -> Stamping):** la tabla `StampingLog` (antes `TimbradoLog`) se traduce a inglés para no mezclar idiomas dentro de la estructura de la BD nueva. El nombre de la base de datos (`ProquifaDotNetTimbrado`) y de la solución (`ProquifaDotNet.Timbrado`) se mantienen sin traducir por ser nomenclatura ya establecida en las instrucciones del proyecto — la excepción aplica solo al nombre de la solución/BD, no a las tablas ni al código interno.
 
 ---
 
@@ -120,26 +124,26 @@ Se comunica con ProquifaDotNet.Finanzas via API.
 
     AppSetting (configuracion del servicio)
 
-    TipoDocumentoFiscal (catalogo)
-        PK: IdTipoDocumentoFiscal
-        UQ: Clave
+    FiscalDocumentType (catalogo)
+        PK: Id
+        UQ: Code
 
-    CFDI (documento fiscal)
-        PK: IdCFDI
-        FK: IdTipoDocumentoFiscal -> TipoDocumentoFiscal
+    Cfdi (documento fiscal)
+        PK: Id
+        FK: FiscalDocumentTypeId -> FiscalDocumentType
 
-    TimbradoLog (auditoria)
-        PK: IdTimbradoLog
-        FK: IdCFDI -> CFDI
+    StampingLog (auditoria)
+        PK: Id
+        FK: CfdiId -> Cfdi
 
 ---
 
 ### Tabla: AppSetting
-**Proposito:** Configuracion del servicio de timbrado (endpoints SAP, reintentos, etc.)
+**Proposito:** Configuracion del servicio de timbrado (endpoints SAP, timeouts, etc.). No incluye configuracion de reintentos: Timbrado no reintenta, es un servicio de un solo intento por peticion (la politica de reintento la maneja Finanzas, de forma local en cada punto de generacion: Factura, Factura por Adelantado, Nota de Credito, Complemento de Pago).
 
 | Columna | Tipo | Nulo | Default | Descripcion |
 |---------|------|------|---------|-------------|
-| IdAppSetting | uniqueidentifier | NO | NEWID() | PK |
+| Id | uniqueidentifier | NO | NEWID() | PK |
 | Name | varchar(50) | NO | - | Clave de configuracion |
 | Value | varchar(max) | NO | - | Valor (puede ser JSON) |
 | Description | varchar(100) | NO | - | Descripcion legible |
@@ -149,74 +153,75 @@ Se comunica con ProquifaDotNet.Finanzas via API.
 
 ---
 
-### Tabla: TipoDocumentoFiscal
+### Tabla: FiscalDocumentType
 **Proposito:** Catalogo de tipos de documentos fiscales.
 
 | Columna | Tipo | Nulo | Default | Descripcion |
 |---------|------|------|---------|-------------|
-| IdTipoDocumentoFiscal | uniqueidentifier | NO | NEWID() | PK |
-| Clave | varchar(50) | NO | - | Clave unica (UQ) |
-| Descripcion | varchar(200) | NO | - | Descripcion del tipo |
+| Id | uniqueidentifier | NO | NEWID() | PK |
+| Code | varchar(50) | NO | - | Clave unica (UQ) |
+| Description | varchar(200) | NO | - | Descripcion del tipo |
 | CreatedAt | datetime2(7) | NO | SYSUTCDATETIME() | Fecha creacion |
 | UpdatedAt | datetime2(7) | NO | SYSUTCDATETIME() | Fecha actualizacion |
 | IsActive | bit | NO | 1 | Activo |
 
 **Datos iniciales:**
 
-| Clave                | Descripcion                                                  |
-| -------------------- | ------------------------------------------------------------ |
-| FacturaPorAdelantado | Factura emitida por adelantado previo a entrega de mercancia |
-| FacturaNormal        | Factura estandar de venta                                    |
-| FacturaAnticipo      | Factura de anticipo para pedidos con sustancias controladas  |
-| NotaCredito          | Nota de credito por devolucion o ajuste                      |
+| Code                    | Description                                                              |
+| ----------------------- | ------------------------------------------------------------------------ |
+| AdvanceInvoice          | Factura emitida por adelantado previo a entrega de mercancia (FAA)       |
+| RegularInvoice          | Factura estandar de venta                                                |
+| AnticipatedInvoice      | Factura de anticipo para pedidos con sustancias controladas              |
+| CreditNote              | Nota de credito por devolucion o ajuste                                  |
+
+> Nota: `AdvanceInvoice` (Factura por Adelantado, este requisito) y `AnticipatedInvoice` (Factura Anticipo, sustancias controladas) son instrumentos distintos — ver OBS-037 en R16A-RE-FU-018-Back.md.
 
 ---
 
-### Tabla: CFDI
-**Proposito:** Documento fiscal generado y timbrado. Almacena XML y referencia Minio.
+### Tabla: Cfdi
+**Proposito:** Documento fiscal generado y timbrado. Almacena XML y referencia Minio. `Cfdi`, `Uuid` y `Rfc` se mantienen como términos fiscales (no se traducen, son estándar en la industria).
 
 | Columna               | Tipo             | Nulo | Default          | Descripcion                          |
 | --------------------- | ---------------- | ---- | ---------------- | ------------------------------------ |
-| IdCFDI                | uniqueidentifier | NO   | NEWID()          | PK                                   |
-| IdTipoDocumentoFiscal | uniqueidentifier | NO   | -                | FK -> TipoDocumentoFiscal            |
-| UUID                  | varchar(36)      | SI   | -                | UUID del timbrado (asignado por PAC) |
-| Serie                 | varchar(25)      | SI   | -                | Serie del CFDI                       |
+| Id                    | uniqueidentifier | NO   | NEWID()          | PK                                   |
+| FiscalDocumentTypeId  | uniqueidentifier | NO   | -                | FK -> FiscalDocumentType             |
+| Uuid                  | varchar(36)      | SI   | -                | UUID del timbrado (asignado por PAC) |
+| Series                | varchar(25)      | SI   | -                | Serie del CFDI                       |
 | Folio                 | varchar(40)      | SI   | -                | Folio del CFDI                       |
-| FechaEmision          | datetime2(7)     | SI   | -                | Fecha de emision                     |
-| RFCEmisor             | varchar(13)      | NO   | -                | RFC de la empresa emisora            |
-| RFCReceptor           | varchar(50)      | NO   | -                | RFC/RUC del cliente receptor         |
+| IssueDate             | datetime2(7)     | SI   | -                | Fecha de emision                     |
+| IssuerRfc             | varchar(13)      | NO   | -                | RFC de la empresa emisora            |
+| ReceiverRfc           | varchar(50)      | NO   | -                | RFC/RUC del cliente receptor         |
 | Total                 | decimal(18,2)    | NO   | -                | Monto total del documento            |
-| Moneda                | varchar(5)       | NO   | -                | Clave moneda (MXN/USD/PEN)           |
-| TipoCambio            | decimal(18,6)    | SI   | -                | Tipo de cambio aplicado              |
-| MetodoPago            | varchar(5)       | SI   | -                | Clave SAT metodo pago (PUE/PPD)      |
-| FormaPago             | varchar(5)       | SI   | -                | Clave SAT forma pago (03/99/etc)     |
-| UsoCFDI               | varchar(10)      | SI   | -                | Clave SAT uso CFDI (G03/P01/etc)     |
+| Currency              | varchar(5)       | NO   | -                | Clave moneda (MXN/USD/PEN)           |
+| ExchangeRate          | decimal(18,6)    | SI   | -                | Tipo de cambio aplicado              |
+| PaymentMethod         | varchar(5)       | SI   | -                | Clave SAT metodo pago (PUE/PPD)      |
+| PaymentForm           | varchar(5)       | SI   | -                | Clave SAT forma pago (03/99/etc)     |
+| CfdiUse               | varchar(10)      | SI   | -                | Clave SAT uso CFDI (G03/P01/etc)     |
 | XmlContent            | varchar(max)     | SI   | -                | XML completo del CFDI timbrado       |
 | MinioFileKey          | varchar(600)     | SI   | -                | Path del XML en Minio                |
 | MinioBucket           | varchar(100)     | SI   | -                | Bucket en Minio                      |
-| EstatusTimbrado       | varchar(30)      | NO   | 'Pendiente'      | Pendiente/Enviado/Timbrado/Error     |
-| MensajeError          | varchar(max)     | SI   | -                | Detalle del error si fallo           |
-| Intentos              | int              | NO   | 0                | Contador de reintentos               |
+| Status                | varchar(30)      | NO   | 'Pending'        | Pending/Stamped/Failed (alineado con StampingLog.NewStatus, sin contador de reintentos) |
+| ErrorMessage          | varchar(max)     | SI   | -                | Detalle del error si fallo           |
 | CreatedAt             | datetime2(7)     | NO   | SYSUTCDATETIME() | Fecha creacion                       |
 | UpdatedAt             | datetime2(7)     | NO   | SYSUTCDATETIME() | Fecha actualizacion                  |
 | IsActive              | bit              | NO   | 1                | Activo                               |
 
 ---
 
-### Tabla: TimbradoLog
-**Proposito:** Auditoria de cada intento de timbrado con el PAC (SAP).
+### Tabla: StampingLog
+**Proposito:** Auditoria de la peticion de timbrado con el PAC (SAP). Un solo registro por solicitud recibida de Finanzas (sin reintentos internos): Timbrado invoca al PAC una vez y registra el resultado.
 
 | Columna | Tipo | Nulo | Default | Descripcion |
 |---------|------|------|---------|-------------|
-| IdTimbradoLog | uniqueidentifier | NO | NEWID() | PK |
-| IdCFDI | uniqueidentifier | NO | - | FK -> CFDI |
-| Accion | varchar(50) | NO | - | Timbrar/Cancelar/Reintento |
-| EstatusAnterior | varchar(30) | SI | - | Estado antes de la accion |
-| EstatusNuevo | varchar(30) | NO | - | Estado despues de la accion |
+| Id | uniqueidentifier | NO | NEWID() | PK |
+| CfdiId | uniqueidentifier | NO | - | FK -> Cfdi |
+| Action | varchar(50) | NO | - | Stamp/Cancel |
+| PreviousStatus | varchar(30) | SI | - | Estado antes de la accion |
+| NewStatus | varchar(30) | NO | - | Estado despues de la accion |
 | Request | varchar(max) | SI | - | Payload enviado al PAC |
 | Response | varchar(max) | SI | - | Respuesta del PAC |
-| MensajeError | varchar(max) | SI | - | Error si fallo |
-| DuracionMs | int | SI | - | Tiempo de respuesta en ms |
+| ErrorMessage | varchar(max) | SI | - | Error si fallo |
+| DurationMs | int | SI | - | Tiempo de respuesta en ms |
 | CreatedAt | datetime2(7) | NO | SYSUTCDATETIME() | Fecha del intento |
 | IsActive | bit | NO | 1 | Activo |
 
@@ -249,83 +254,82 @@ Se comunica con ProquifaDotNet.Finanzas via API.
     GO
 
     CREATE TABLE [dbo].[AppSetting](
-        [IdAppSetting] uniqueidentifier NOT NULL CONSTRAINT [DF_AppSetting_Id] DEFAULT (NEWID()),
+        [Id] uniqueidentifier NOT NULL CONSTRAINT [DF_AppSetting_Id] DEFAULT (NEWID()),
         [Name] varchar(50) NOT NULL,
         [Value] varchar(max) NOT NULL,
         [Description] varchar(100) NOT NULL,
         [CreatedAt] datetime2(7) NOT NULL CONSTRAINT [DF_AppSetting_CreatedAt] DEFAULT (SYSUTCDATETIME()),
         [UpdatedAt] datetime2(7) NOT NULL CONSTRAINT [DF_AppSetting_UpdatedAt] DEFAULT (SYSUTCDATETIME()),
         [IsActive] bit NOT NULL CONSTRAINT [DF_AppSetting_IsActive] DEFAULT (1),
-        CONSTRAINT [PK_AppSetting] PRIMARY KEY CLUSTERED ([IdAppSetting])
+        CONSTRAINT [PK_AppSetting] PRIMARY KEY CLUSTERED ([Id])
     );
     GO
 
-    CREATE TABLE [dbo].[TipoDocumentoFiscal](
-        [IdTipoDocumentoFiscal] uniqueidentifier NOT NULL CONSTRAINT [DF_TipoDocumentoFiscal_Id] DEFAULT (NEWID()),
-        [Clave] varchar(50) NOT NULL,
-        [Descripcion] varchar(200) NOT NULL,
-        [CreatedAt] datetime2(7) NOT NULL CONSTRAINT [DF_TipoDocumentoFiscal_CreatedAt] DEFAULT (SYSUTCDATETIME()),
-        [UpdatedAt] datetime2(7) NOT NULL CONSTRAINT [DF_TipoDocumentoFiscal_UpdatedAt] DEFAULT (SYSUTCDATETIME()),
-        [IsActive] bit NOT NULL CONSTRAINT [DF_TipoDocumentoFiscal_IsActive] DEFAULT (1),
-        CONSTRAINT [PK_TipoDocumentoFiscal] PRIMARY KEY CLUSTERED ([IdTipoDocumentoFiscal]),
-        CONSTRAINT [UQ_TipoDocumentoFiscal_Clave] UNIQUE ([Clave])
+    CREATE TABLE [dbo].[FiscalDocumentType](
+        [Id] uniqueidentifier NOT NULL CONSTRAINT [DF_FiscalDocumentType_Id] DEFAULT (NEWID()),
+        [Code] varchar(50) NOT NULL,
+        [Description] varchar(200) NOT NULL,
+        [CreatedAt] datetime2(7) NOT NULL CONSTRAINT [DF_FiscalDocumentType_CreatedAt] DEFAULT (SYSUTCDATETIME()),
+        [UpdatedAt] datetime2(7) NOT NULL CONSTRAINT [DF_FiscalDocumentType_UpdatedAt] DEFAULT (SYSUTCDATETIME()),
+        [IsActive] bit NOT NULL CONSTRAINT [DF_FiscalDocumentType_IsActive] DEFAULT (1),
+        CONSTRAINT [PK_FiscalDocumentType] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [UQ_FiscalDocumentType_Code] UNIQUE ([Code])
     );
     GO
 
-    CREATE TABLE [dbo].[CFDI](
-        [IdCFDI] uniqueidentifier NOT NULL CONSTRAINT [DF_CFDI_Id] DEFAULT (NEWID()),
-        [IdTipoDocumentoFiscal] uniqueidentifier NOT NULL,
-        [UUID] varchar(36) NULL,
-        [Serie] varchar(25) NULL,
+    CREATE TABLE [dbo].[Cfdi](
+        [Id] uniqueidentifier NOT NULL CONSTRAINT [DF_Cfdi_Id] DEFAULT (NEWID()),
+        [FiscalDocumentTypeId] uniqueidentifier NOT NULL,
+        [Uuid] varchar(36) NULL,
+        [Series] varchar(25) NULL,
         [Folio] varchar(40) NULL,
-        [FechaEmision] datetime2(7) NULL,
-        [RFCEmisor] varchar(13) NOT NULL,
-        [RFCReceptor] varchar(50) NOT NULL,
+        [IssueDate] datetime2(7) NULL,
+        [IssuerRfc] varchar(13) NOT NULL,
+        [ReceiverRfc] varchar(50) NOT NULL,
         [Total] decimal(18,2) NOT NULL,
-        [Moneda] varchar(5) NOT NULL,
-        [TipoCambio] decimal(18,6) NULL,
-        [MetodoPago] varchar(5) NULL,
-        [FormaPago] varchar(5) NULL,
-        [UsoCFDI] varchar(10) NULL,
+        [Currency] varchar(5) NOT NULL,
+        [ExchangeRate] decimal(18,6) NULL,
+        [PaymentMethod] varchar(5) NULL,
+        [PaymentForm] varchar(5) NULL,
+        [CfdiUse] varchar(10) NULL,
         [XmlContent] varchar(max) NULL,
         [MinioFileKey] varchar(600) NULL,
         [MinioBucket] varchar(100) NULL,
-        [EstatusTimbrado] varchar(30) NOT NULL CONSTRAINT [DF_CFDI_Estatus] DEFAULT ('Pendiente'),
-        [MensajeError] varchar(max) NULL,
-        [Intentos] int NOT NULL CONSTRAINT [DF_CFDI_Intentos] DEFAULT (0),
-        [CreatedAt] datetime2(7) NOT NULL CONSTRAINT [DF_CFDI_CreatedAt] DEFAULT (SYSUTCDATETIME()),
-        [UpdatedAt] datetime2(7) NOT NULL CONSTRAINT [DF_CFDI_UpdatedAt] DEFAULT (SYSUTCDATETIME()),
-        [IsActive] bit NOT NULL CONSTRAINT [DF_CFDI_IsActive] DEFAULT (1),
-        CONSTRAINT [PK_CFDI] PRIMARY KEY CLUSTERED ([IdCFDI]),
-        CONSTRAINT [FK_CFDI_TipoDocumentoFiscal] FOREIGN KEY ([IdTipoDocumentoFiscal])
-            REFERENCES [dbo].[TipoDocumentoFiscal]([IdTipoDocumentoFiscal])
+        [Status] varchar(30) NOT NULL CONSTRAINT [DF_Cfdi_Status] DEFAULT ('Pending'),
+        [ErrorMessage] varchar(max) NULL,
+        [CreatedAt] datetime2(7) NOT NULL CONSTRAINT [DF_Cfdi_CreatedAt] DEFAULT (SYSUTCDATETIME()),
+        [UpdatedAt] datetime2(7) NOT NULL CONSTRAINT [DF_Cfdi_UpdatedAt] DEFAULT (SYSUTCDATETIME()),
+        [IsActive] bit NOT NULL CONSTRAINT [DF_Cfdi_IsActive] DEFAULT (1),
+        CONSTRAINT [PK_Cfdi] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_Cfdi_FiscalDocumentType] FOREIGN KEY ([FiscalDocumentTypeId])
+            REFERENCES [dbo].[FiscalDocumentType]([Id])
     );
     GO
 
-    CREATE TABLE [dbo].[TimbradoLog](
-        [IdTimbradoLog] uniqueidentifier NOT NULL CONSTRAINT [DF_TimbradoLog_Id] DEFAULT (NEWID()),
-        [IdCFDI] uniqueidentifier NOT NULL,
-        [Accion] varchar(50) NOT NULL,
-        [EstatusAnterior] varchar(30) NULL,
-        [EstatusNuevo] varchar(30) NOT NULL,
+    CREATE TABLE [dbo].[StampingLog](
+        [Id] uniqueidentifier NOT NULL CONSTRAINT [DF_StampingLog_Id] DEFAULT (NEWID()),
+        [CfdiId] uniqueidentifier NOT NULL,
+        [Action] varchar(50) NOT NULL,
+        [PreviousStatus] varchar(30) NULL,
+        [NewStatus] varchar(30) NOT NULL,
         [Request] varchar(max) NULL,
         [Response] varchar(max) NULL,
-        [MensajeError] varchar(max) NULL,
-        [DuracionMs] int NULL,
-        [CreatedAt] datetime2(7) NOT NULL CONSTRAINT [DF_TimbradoLog_CreatedAt] DEFAULT (SYSUTCDATETIME()),
-        [IsActive] bit NOT NULL CONSTRAINT [DF_TimbradoLog_IsActive] DEFAULT (1),
-        CONSTRAINT [PK_TimbradoLog] PRIMARY KEY CLUSTERED ([IdTimbradoLog]),
-        CONSTRAINT [FK_TimbradoLog_CFDI] FOREIGN KEY ([IdCFDI])
-            REFERENCES [dbo].[CFDI]([IdCFDI])
+        [ErrorMessage] varchar(max) NULL,
+        [DurationMs] int NULL,
+        [CreatedAt] datetime2(7) NOT NULL CONSTRAINT [DF_StampingLog_CreatedAt] DEFAULT (SYSUTCDATETIME()),
+        [IsActive] bit NOT NULL CONSTRAINT [DF_StampingLog_IsActive] DEFAULT (1),
+        CONSTRAINT [PK_StampingLog] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_StampingLog_Cfdi] FOREIGN KEY ([CfdiId])
+            REFERENCES [dbo].[Cfdi]([Id])
     );
     GO
 
-    INSERT INTO [dbo].[TipoDocumentoFiscal] ([Clave], [Descripcion])
+    INSERT INTO [dbo].[FiscalDocumentType] ([Code], [Description])
     VALUES
-        ('FacturaPorAdelantado', 'Factura emitida por adelantado previo a entrega de mercancia'),
-        ('FacturaNormal', 'Factura estandar de venta'),
-        ('FacturaAnticipo', 'Factura de anticipo para pedidos con sustancias controladas'),
-        ('NotaCredito', 'Nota de credito por devolucion o ajuste');
+        ('AdvanceInvoice', 'Factura emitida por adelantado previo a entrega de mercancia (FAA)'),
+        ('RegularInvoice', 'Factura estandar de venta'),
+        ('AnticipatedInvoice', 'Factura de anticipo para pedidos con sustancias controladas'),
+        ('CreditNote', 'Nota de credito por devolucion o ajuste');
     GO
 
 ---

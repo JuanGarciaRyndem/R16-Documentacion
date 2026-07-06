@@ -65,9 +65,9 @@ public interface IEmpresaFolioRepository : IGenericRepository<EmpresaFolio>
 | GetNextFolioAsync(string empresaClave) | Consume folio atómico y retorna folio formateado (varchar 6) |
 | GetByClaveAsync(string empresaClave) | Obtener datos de empresa para el CFDI |
 
-#### Application — TimbradoService (Ampliación)
+#### Application — StampingService (Ampliación)
 
-Ampliar `TimbradoService` para soportar el request de Factura por Adelantado:
+Ampliar `StampingService` para soportar el request de Factura por Adelantado:
 
 | Método nuevo | Descripción |
 |--------------|-------------|
@@ -96,11 +96,11 @@ public class EmpresaFolioRepository : GenericRepository<EmpresaFolio>, IEmpresaF
 }
 ```
 
-#### API — TimbradoController (Ampliación)
+#### API — CfdiController (Ampliación)
 
 | Método | Endpoint | Descripción |
 |--------|----------|-------------|
-| POST | /api/timbrado/timbrar-faa | Recibe request FAA, retorna TimbrarFAAResponseDto |
+| POST | /api/v1/cfdi | Recibe request FAA (discriminado por FiscalDocumentTypeId), retorna TimbrarFAAResponseDto — reutiliza el endpoint único creado en RE-FU-018, sin controller ni ruta separados |
 
 ---
 
@@ -211,7 +211,7 @@ ORDER BY FechaTramitacion DESC
    - Emisor: RFC, RazonSocial, RegimenFiscal, EmpresaClave
    - Conceptos: partidas del pedido (cantidad, precioUnitario, importe). La descripción de cada concepto CFDI se construye como "catálogo + descripción + marca"; no se incluye lote ni pedimento (OBS-039).
    - Forzados: MetodoPago="PPD", FormaPago="99", TipoComprobante="I"
-7. Llamar ProquifaDotNet.Timbrado POST /api/timbrado/timbrar-faa
+7. Llamar ProquifaDotNet.Timbrado POST /api/v1/cfdi
 8. Si EXITOSO:
    a. Persistir IdCFDIGenerada en tpProformaAdelanto (UPDATE SET IdCFDIGenerada = @id)
    b. Almacenar PDF+XML en Minio (bucket 'facturas')
@@ -364,7 +364,7 @@ ORDER BY FechaTramitacion DESC
 
 | Integración | Componente | Descripción |
 |-------------|-----------|-------------|
-| ProquifaDotNet.Timbrado | ApiCallerTimbrado | POST /api/timbrado/timbrar-faa (HttpClient con Polly) |
+| ProquifaDotNet.Timbrado | ApiCallerStamping | POST /api/v1/cfdi (HttpClient con Polly) |
 | DocumentBuilder | ApiCallerDocumentBuilder | Generar PDF factura desde template HTML |
 | Brevo | BrevoEmailService (existente) | Enviar correo con adjuntos PDF+XML |
 | Minio | MinioStorageService (existente) | Almacenar/obtener PDF y XML (bucket 'facturas') |
@@ -478,10 +478,10 @@ Cuando el tipo de pedido es Prepago y la factura se envió exitosamente:
 | # | Gap | Acción | Esfuerzo |
 |---|-----|--------|----------|
 | GAP-01 | Domain: Entidad EmpresaFolio + Interface IEmpresaFolioRepository | Crear entidad, mapeo, interface con consumo atómico | Medio |
-| GAP-02 | Application: EmpresaFolioService + TimbradoService ampliación | Consumo folio + nuevo método TimbrarFacturaAdelantadoAsync | Alto |
+| GAP-02 | Application: EmpresaFolioService + StampingService ampliación | Consumo folio + nuevo método TimbrarFacturaAdelantadoAsync | Alto |
 | GAP-03 | Infrastructure: EmpresaFolioRepository con UPDATE atómico (UPDLOCK) | Implementar consumo seguro de folio con raw SQL | Medio |
 | GAP-04 | Application: DTOs TimbrarFAARequestDto, ConceptoFAADto, TimbrarFAAResponseDto | Modelos de request/response para FAA | Bajo |
-| GAP-05 | API: TimbradoController endpoint POST /api/timbrado/timbrar-faa | Nuevo endpoint específico para FAA | Bajo |
+| GAP-05 | API: CfdiController — sin endpoint nuevo (reutiliza POST /api/v1/cfdi creado en RE-FU-018, discriminado por FiscalDocumentTypeId) | Ajuste de orquestación interna para FAA | Bajo |
 | GAP-06 | Scripts DDL: CREATE TABLE EmpresaFolio + DML INSERT 4 empresas | Scripts BD ProquifaDotNetTimbrado | Bajo |
 
 ### En ProquifaDotNet.Finanzas (Módulo FAA — Detalle)
@@ -494,7 +494,7 @@ Cuando el tipo de pedido es Prepago y la factura se envió exitosamente:
 | GAP-10 | Application: FacturaAdelantadoGenerarService (orquestación completa: datos fiscales, armar request, llamar Timbrado, persistir CFDI+archivos) | Servicio de alta complejidad, manejo errores PAC | Alto |
 | GAP-11 | Application: FacturaAdelantadoEnviarService (correo Brevo + marcar Enviada + salida operativa) | Servicio con lógica diferenciada Crédito/Prepago | Alto |
 | GAP-12 | Application: FacturaAdelantadoPreviewService (generar PDF sin timbrar via DocumentBuilder) | Generar preview para modal previsualización | Medio |
-| GAP-13 | Infrastructure: ApiCallerTimbrado (HttpClient + Polly para POST /api/timbrado/timbrar-faa) | Cliente HTTP con retry policy hacia Timbrado | Medio |
+| GAP-13 | Infrastructure: ApiCallerStamping (HttpClient + Polly para POST /api/v1/cfdi) | Cliente HTTP con retry policy hacia Timbrado | Medio |
 | GAP-14 | API: FacturaAdelantadoController ampliación (4 endpoints: detalle, generar, previsualizar-pdf, enviar) | Controlador con validaciones y respuestas | Medio |
 | GAP-15 | Infrastructure: FinanzasContext ampliación (DbSets vista, Archivo, CorreoEnviado, catUsoCFDI) | Mapeo EF Core de vista + tablas auxiliares | Medio |
 
@@ -528,7 +528,7 @@ Cuando el tipo de pedido es Prepago y la factura se envió exitosamente:
      |                                 | 3. Obtener partidas pedido       |                      |
      |                                 | 4. Armar TimbrarFAARequestDto    |                      |
      |                                 |                                  |                      |
-     |                                 | POST /api/timbrado/timbrar-faa   |                      |
+     |                                 | POST /api/v1/cfdi                |                      |
      |                                 |--------------------------------->|                      |
      |                                 |                                  | 5. Consumir folio    |
      |                                 |                                  | 6. Armar XML CFDI    |
@@ -613,7 +613,7 @@ Cuando el tipo de pedido es Prepago y la factura se envió exitosamente:
 |-------|-----------|
 | EmpresaFolio | UPDATE atómico UltimoFolio+1 (consumo folio) |
 | CFDI | INSERT (al crear) + UPDATE (al timbrar exitoso: UUID, XML, Estatus) |
-| TimbradoLog | INSERT (registro de cada intento) |
+| StampingLog | INSERT (registro de cada intento) |
 
 ---
 
@@ -651,7 +651,7 @@ Cuando el tipo de pedido es Prepago y la factura se envió exitosamente:
 | Repositorio | Cantidad | Detalle |
 |-------------|----------|---------|
 | ProquifaDotNet.Timbrado | 6 (GAP-01 a GAP-06) | EmpresaFolio + endpoint timbrar-faa |
-| ProquifaDotNet.Finanzas | 9 (GAP-07 a GAP-15) | Detalle + Generar + Enviar + Preview + ApiCallerTimbrado |
+| ProquifaDotNet.Finanzas | 9 (GAP-07 a GAP-15) | Detalle + Generar + Enviar + Preview + ApiCallerStamping |
 | ProquifaDotNet | 4 (GAP-16 a GAP-19) | Consumidor + Legacy + Validar Cobro |
 | Base de Datos | 2 (GAP-20 a GAP-21) | ALTER + VIEW en ProquifaDotNet |
 | **Total** | **21 gaps** | |

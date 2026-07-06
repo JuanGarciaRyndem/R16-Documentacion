@@ -707,7 +707,7 @@ LEFT JOIN dbo.CFDIGenerada cg_c
      Llama al PAC TurboPac
      UPDATE CFDIGenerada SET UUID, Folio (número de serie consumido de EmpresaFolio)
      UPDATE EmpresaFolio SET UltimoFolio + 1 (UPDLOCK atómico)
-     INSERT TimbradoLog (trazabilidad)
+     INSERT StampingLog (trazabilidad)
      [Si PPD cascada]: INSERT segundo CFDIGenerada (TipoCFDI='COMPLEMENTO_PAGO',
                        IdCFDIRelacionado = IdCFDIGenerada de la Factura PPD)
    ProquifaDotNet:

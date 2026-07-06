@@ -1,0 +1,37 @@
+{
+	"nodes":[
+		{"id":"hdr-finanzas","type":"text","text":"**Finanzas**\nFactura por Adelantado o Factura","x":0,"y":0,"width":280,"height":70,"color":"6"},
+		{"id":"hdr-bdpqf2","type":"text","text":"**BD PQF2**","x":300,"y":0,"width":280,"height":70,"color":"5"},
+		{"id":"hdr-timbrado","type":"text","text":"**Timbrado**","x":600,"y":0,"width":280,"height":70,"color":"4"},
+		{"id":"hdr-bdtimbrado","type":"text","text":"**BD Timbrado**","x":900,"y":0,"width":280,"height":70,"color":"5"},
+		{"id":"hdr-pac","type":"text","text":"**PAC Legacy**","x":1200,"y":0,"width":280,"height":70,"color":"6"},
+		{"id":"step3","type":"text","text":"**3. Finanzas → Timbrado**\nPOST TimbrarFactura","x":300,"y":390,"width":280,"height":70},
+		{"id":"step4","type":"text","text":"**4. Timbrado → BD Timbrado**\nGuardar TimbradoLog: IdPeticion, JSONPeticion, Catálogo Tipo de Petición (Factura, Nota de Crédito o Complemento de Pago), Fecha de Registro, Fecha Última Actualización, UserName, ClienteName (ProquifaDotNet, Finanzas, MailBot), IsActive, IdStatus (entra como Pending)","x":720,"y":500,"width":340,"height":190},
+		{"id":"step5","type":"text","text":"**5. BD Timbrado → Timbrado**\nRegresa (GUID)","x":750,"y":730,"width":280,"height":70},
+		{"id":"step6","type":"text","text":"**6. Timbrado → PAC Legacy**\nMétodo PAC para timbrar","x":900,"y":840,"width":280,"height":70},
+		{"id":"step7","type":"text","text":"**7. PAC Legacy → Timbrado**\nRespuesta de PAC","x":900,"y":950,"width":280,"height":70},
+		{"id":"step8","type":"text","text":"**8. Timbrado → BD Timbrado**\nGuardar TimbradoLog: IdPeticion (GUID), Fecha de Timbrado, IdStatus (se actualiza a Generado, Timbrado o Failed), Respuesta (se guarda la respuesta del timbrado), XML (se guarda el XML de respuesta que generó)","x":720,"y":1060,"width":340,"height":190},
+		{"id":"step9","type":"text","text":"**9. BD Timbrado → Timbrado**\nConfirmación de actualización","x":750,"y":1290,"width":280,"height":70},
+		{"id":"step10","type":"text","text":"**10. Timbrado → Finanzas**\nRegresa (Objeto CFDI + XML)","x":300,"y":1400,"width":280,"height":70},
+		{"id":"step11","type":"text","text":"**11. [Si hay error] Finanzas → BD PQF2**\nGuarda Cola de Reintento en BD","x":0,"y":1520,"width":280,"height":90,"color":"1"},
+		{"id":"step12","type":"text","text":"**12. BD PQF2 → Finanzas**\nConfirmación de guardado en Cola de Reintento","x":0,"y":1650,"width":280,"height":90,"color":"1"},
+		{"id":"tabla-status","type":"text","text":"### Catálogo IdStatus (TimbradoLog)\n\n| Status | Description | StatusKey |\n|---|---|---|\n| Failed | Technical or functional error during generation (Failure) | failed |\n| Pending | Document requested but not processed (Start of flow) | pending |\n| Generated | Document generated successfully (Success) | generated |\n| Processing | Document in generation process (Intermediate state) | processing |","x":280,"y":1780,"width":780,"height":260},
+		{"id":"step1","type":"text","text":"**1. Finanzas → BD PQF2**\nGuarda base factura `fccFactura` con campo `FacturaAdelantado = true`","x":0,"y":220,"width":280,"height":130},
+		{"id":"step2","type":"text","text":"**2. BD PQF2 → Finanzas**\nRegresa confirmación de guardado","x":300,"y":250,"width":280,"height":70}
+	],
+	"edges":[
+		{"id":"e0","fromNode":"hdr-finanzas","fromSide":"bottom","toNode":"step1","toSide":"top"},
+		{"id":"e1","fromNode":"step1","fromSide":"bottom","toNode":"step2","toSide":"top"},
+		{"id":"e2","fromNode":"step2","fromSide":"bottom","toNode":"step3","toSide":"top"},
+		{"id":"e3","fromNode":"step3","fromSide":"bottom","toNode":"step4","toSide":"top"},
+		{"id":"e4","fromNode":"step4","fromSide":"bottom","toNode":"step5","toSide":"top"},
+		{"id":"e5","fromNode":"step5","fromSide":"bottom","toNode":"step6","toSide":"top"},
+		{"id":"e6","fromNode":"step6","fromSide":"bottom","toNode":"step7","toSide":"top"},
+		{"id":"e7","fromNode":"step7","fromSide":"bottom","toNode":"step8","toSide":"top"},
+		{"id":"e8","fromNode":"step8","fromSide":"bottom","toNode":"step9","toSide":"top"},
+		{"id":"e9","fromNode":"step9","fromSide":"bottom","toNode":"step10","toSide":"top"},
+		{"id":"e10","fromNode":"step10","fromSide":"bottom","toNode":"step11","toSide":"top"},
+		{"id":"e11","fromNode":"step11","fromSide":"bottom","toNode":"step12","toSide":"top"},
+		{"id":"e12","fromNode":"step12","fromSide":"bottom","toNode":"tabla-status","toSide":"top","toEnd":"none"}
+	]
+}

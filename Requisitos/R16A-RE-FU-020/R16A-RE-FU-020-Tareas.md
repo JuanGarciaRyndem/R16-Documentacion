@@ -317,23 +317,23 @@ Implementar el cliente HTTP/SOAP que envía el XML UBL 2.1 firmado al OSE/PSE au
 - Implementar `OsePseClient` que envíe el XML al endpoint configurado en `AppSetting`.
 - Procesar la respuesta del OSE/PSE: CDR de aceptación (éxito) o código de error SUNAT con descripción.
 - Mapear los códigos de error SUNAT a mensajes legibles para el modal de Alerta del frontend.
-- Manejar timeouts y reintentos controlados.
-- Registrar en `TimbradoLog` el resultado de cada intento (éxito o error, código, timestamp).
+- Manejar timeout (sin reintento automático: 1 petición al OSE/PSE = 1 intento; Timbrado no reintenta, ver R16A-RE-FU-018).
+- Registrar en `StampingLog` el resultado de la petición (éxito o error, código, timestamp).
 
 **Resultado esperado:**
-Cliente de integración OSE/PSE funcional que envía el XML, recibe el CDR de aceptación y expone el resultado al servicio transaccional de timbrado (Tarea 8).
+Cliente de integración OSE/PSE funcional, de un solo intento por petición, que envía el XML, recibe el CDR de aceptación y expone el resultado al servicio transaccional de timbrado (Tarea 8).
 
 **Entregables:**
 - Clase `OsePseClient` (o equivalente)
 - Mapeo de códigos de error SUNAT a mensajes de usuario
-- Configuración de timeout y reintentos
-- Log en `TimbradoLog`
+- Configuración de timeout (sin política de reintentos)
+- Log en `StampingLog`
 
 **Criterios de aceptación:**
 - El cliente envía correctamente el XML al endpoint del OSE/PSE.
 - En caso de éxito, retorna el CDR de aceptación de SUNAT.
-- En caso de error, retorna el código y descripción del error SUNAT mapeado a mensaje de usuario.
-- Cada intento queda registrado en `TimbradoLog`.
+- En caso de error o timeout, retorna el error de inmediato a Finanzas sin reintentar internamente (el reintento, si aplica, se implementa en el propio flujo de generación de FAA Perú en Finanzas, no en Timbrado).
+- Cada petición queda registrada en `StampingLog`.
 
 **Más información de la tarea:**
 Ver Riesgo 2 y sección *"AppSetting ProquifaDotNetTimbrado (Peru)"* en `R16A-RE-FU-020_BD.md`. Brecha 5 de `R16A-RE-FU-005`.
@@ -369,7 +369,7 @@ Implementar el servicio transaccional que, al confirmar la generación desde el 
 - Si éxito:
   - `INSERT CFDI` en ProquifaDotNetTimbrado con el XML y CDR recibido.
   - `UPDATE EmpresaFolio GOLPERU SET UltimoFolio = UltimoFolio + 1`.
-  - `INSERT TimbradoLog`.
+  - `INSERT StampingLog`.
   - `UPDATE tpProformaAdelanto SET IdCFDIGenerada = @IdCFDI` en ProquifaDotNet.
   - `INSERT Archivo x2` (PDF + XML, `FileBucket='facturas'`, `IdRegion='PER'`) en ProquifaDotNet.
 - Garantizar atomicidad: si cualquier paso falla después del timbrado exitoso, reintentar la persistencia sin re-timbrar.
@@ -384,7 +384,7 @@ Pedido con su factura timbrada persistida en BD (XML + PDF), folio GOLPERU incre
 
 **Criterios de aceptación:**
 - En caso de error OSE/PSE: no se persiste nada y el error descriptivo llega al frontend.
-- En caso de éxito: CFDI, TimbradoLog, Archivo (x2) y tpProformaAdelanto quedan actualizados.
+- En caso de éxito: CFDI, StampingLog, Archivo (x2) y tpProformaAdelanto quedan actualizados.
 - El folio de GOLPERU se incrementa correctamente sin saltos ni duplicados.
 - El pedido cambia de estado a PendienteEnviar tras el timbrado exitoso.
 - La factura persistida es inmutable (no puede modificarse posteriormente).

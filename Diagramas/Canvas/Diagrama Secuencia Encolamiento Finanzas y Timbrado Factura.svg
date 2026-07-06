@@ -1,0 +1,101 @@
+<svg width="100%" viewBox="0 0 680 1040" xmlns="http://www.w3.org/2000/svg" role="img">
+<title>Diagrama de secuencia: Encolamiento Finanzas y Timbrado de Factura</title>
+<desc>Worker.Finanzas obtiene un pendiente de la tabla ColaEventosFinanzas en BD PQF2, obtiene el detalle de la factura, llama a Timbrado (que registra el TimbradoLog, invoca al PAC Legacy y actualiza el TimbradoLog) y recibe el CFDI y XML. Si hay errores, Worker.Finanzas marca el pendiente e incrementa reintentos, notificando a soporte si se supera el límite. Si no hay errores, vincula el CFDI a fccFactura, genera el PDF y sube ambos archivos a Minio.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+
+<style>
+.box{fill:#F1EFE8;stroke:#5F5E5A;stroke-width:1}
+.leader{stroke:#B4B2A9;stroke-width:0.5;stroke-dasharray:3 3}
+.arr{stroke:#444441;stroke-width:1.5;fill:none}
+.fragment{fill:#E6F1FB;stroke:#378ADD;stroke-width:1}
+.t{font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:400;fill:#2C2C2A}
+.th{font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:500;fill:#2C2C2A}
+.ts{font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:400;fill:#444441}
+.ts-blue{font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:400;fill:#0C447C}
+</style>
+
+<rect class="box" x="40" y="40" width="100" height="56" rx="4"/>
+<text class="th" x="90" y="56" text-anchor="middle">Worker.Finanzas</text>
+<text class="ts" x="90" y="72" text-anchor="middle">Factura</text>
+<text class="ts" x="90" y="86" text-anchor="middle">adelantada</text>
+
+<rect class="box" x="165" y="40" width="100" height="56" rx="4"/>
+<text class="th" x="215" y="72" text-anchor="middle">BD PQF2</text>
+
+<rect class="box" x="290" y="40" width="100" height="56" rx="4"/>
+<text class="th" x="340" y="72" text-anchor="middle">Timbrado</text>
+
+<rect class="box" x="415" y="40" width="100" height="56" rx="4"/>
+<text class="th" x="465" y="72" text-anchor="middle">BD Timbrado</text>
+
+<rect class="box" x="540" y="40" width="100" height="56" rx="4"/>
+<text class="th" x="590" y="72" text-anchor="middle">PAC Legacy</text>
+
+<line class="leader" x1="90" y1="96" x2="90" y2="1000"/>
+<line class="leader" x1="215" y1="96" x2="215" y2="1000"/>
+<line class="leader" x1="340" y1="96" x2="340" y2="632"/>
+<line class="leader" x1="465" y1="96" x2="465" y2="632"/>
+<line class="leader" x1="590" y1="96" x2="590" y2="486"/>
+
+<rect class="box" x="210" y="144" width="10" height="112"/>
+<rect class="box" x="335" y="300" width="10" height="332"/>
+<rect class="box" x="460" y="354" width="10" height="44"/>
+<rect class="box" x="585" y="442" width="10" height="44"/>
+<rect class="box" x="460" y="588" width="10" height="44"/>
+<rect class="box" x="210" y="744" width="10" height="36"/>
+<rect class="box" x="210" y="928" width="10" height="34"/>
+
+<text class="ts" x="153" y="118" text-anchor="middle">Obtiene pendiente</text>
+<text class="ts" x="153" y="132" text-anchor="middle">(ColaEventosFinanzas)</text>
+<line class="arr" x1="90" y1="144" x2="210" y2="144" marker-end="url(#arrow)"/>
+
+<text class="ts" x="153" y="176" text-anchor="middle">Regresa ID Factura</text>
+<line class="arr" x1="210" y1="188" x2="90" y2="188" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+
+<text class="ts" x="153" y="210" text-anchor="middle">Obtiene detalles de factura</text>
+<line class="arr" x1="90" y1="222" x2="210" y2="222" marker-end="url(#arrow)"/>
+
+<line class="arr" x1="210" y1="256" x2="90" y2="256" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+
+<text class="ts" x="215" y="288" text-anchor="middle">POST TimbrarFactura</text>
+<line class="arr" x1="90" y1="300" x2="335" y2="300" marker-end="url(#arrow)"/>
+
+<text class="ts" x="402" y="328" text-anchor="middle">Crea TimbradoLog</text>
+<text class="ts" x="402" y="342" text-anchor="middle">(estado Pending)</text>
+<line class="arr" x1="345" y1="354" x2="460" y2="354" marker-end="url(#arrow)"/>
+
+<text class="ts" x="402" y="386" text-anchor="middle">Regresa GUID</text>
+<line class="arr" x1="460" y1="398" x2="345" y2="398" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+
+<text class="ts" x="465" y="430" text-anchor="middle">Timbra documento</text>
+<line class="arr" x1="345" y1="442" x2="585" y2="442" marker-end="url(#arrow)"/>
+
+<text class="ts" x="465" y="474" text-anchor="middle">Respuesta PAC</text>
+<line class="arr" x1="585" y1="486" x2="345" y2="486" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+
+<text class="ts" x="215" y="518" text-anchor="middle">Regresa CFDI + XML</text>
+<line class="arr" x1="335" y1="530" x2="90" y2="530" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+
+<text class="ts" x="402" y="562" text-anchor="middle">Actualiza TimbradoLog</text>
+<text class="ts" x="402" y="576" text-anchor="middle">(Generado/Timbrado)</text>
+<line class="arr" x1="345" y1="588" x2="460" y2="588" marker-end="url(#arrow)"/>
+
+<line class="arr" x1="460" y1="632" x2="345" y2="632" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+
+<rect class="fragment" x="30" y="660" width="250" height="160" rx="2"/>
+<text class="ts-blue" x="38" y="676">alt — Si hay errores</text>
+<text class="ts-blue" x="153" y="700" text-anchor="middle">Se queda pendiente e</text>
+<text class="ts-blue" x="153" y="714" text-anchor="middle">incrementa reintentos. Si</text>
+<text class="ts-blue" x="153" y="728" text-anchor="middle">supera el límite, envía correo</text>
+<line class="arr" x1="90" y1="744" x2="210" y2="744" marker-end="url(#arrow)"/>
+<line class="arr" x1="210" y1="780" x2="90" y2="780" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+
+<rect class="fragment" x="30" y="830" width="250" height="170" rx="2"/>
+<text class="ts-blue" x="38" y="846">else — Si no hay errores</text>
+<text class="ts-blue" x="153" y="870" text-anchor="middle">Vincula CFDI a fccFactura;</text>
+<text class="ts-blue" x="153" y="884" text-anchor="middle">genera PDF y sube a Minio;</text>
+<text class="ts-blue" x="153" y="898" text-anchor="middle">sube XML a Minio;</text>
+<text class="ts-blue" x="153" y="912" text-anchor="middle">vincula XML y PDF a fccFactura</text>
+<line class="arr" x1="90" y1="928" x2="210" y2="928" marker-end="url(#arrow)"/>
+<line class="arr" x1="210" y1="962" x2="90" y2="962" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+</svg>

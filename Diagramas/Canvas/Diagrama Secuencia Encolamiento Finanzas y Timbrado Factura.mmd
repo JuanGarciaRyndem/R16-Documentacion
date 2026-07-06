@@ -1,0 +1,41 @@
+sequenceDiagram
+    participant WF as Worker.Finanzas<br/>(Factura por Adelantado o Factura)
+    participant BDPQF2 as BD PQF2
+    participant T as Timbrado
+    participant BDT as BD Timbrado
+    participant PAC as PAC Legacy
+
+    WF->>BDPQF2: Obtiene Pendiente de la tabla ColaEventosFinanzas (Ejemplo)
+    BDPQF2-->>WF: Regresa el ID Factura
+
+    WF->>BDPQF2: Obtiene los detalles de la factura
+    BDPQF2-->>WF: Regresa detalles de la factura
+
+    WF->>T: POST TimbrarFactura
+    activate T
+
+    T->>BDT: Guardar TimbradoLog (IdPeticion, JSONPeticion, Catálogo Tipo de Petición: Factura/Nota de Crédito/Complemento de Pago, Fecha de Registro, Fecha Última Actualización, UserName, ClienteName: ProquifaDotNet/Finanzas/MailBot, IsActive, IdStatus = Pending)
+    activate BDT
+    BDT-->>T: Regresa (GUID)
+    deactivate BDT
+
+    T->>PAC: Método PAC para timbrar
+    activate PAC
+    PAC-->>T: Respuesta de PAC
+    deactivate PAC
+
+    T-->>WF: Regresa (Objeto CFDI + XML)
+
+    T->>BDT: Guardar TimbradoLog (IdPeticion = GUID, Fecha de Timbrado, IdStatus = Generado/Timbrado, Respuesta, XML)
+    activate BDT
+    BDT-->>T: Confirmación de actualización
+    deactivate BDT
+    deactivate T
+
+    alt Si hay errores
+        WF->>BDPQF2: Se queda como pendiente y se incrementa el número de reintentos. Si el número de reintentos es igual o supera el límite, se envía correo a soporte indicando que no se pudo timbrar
+        BDPQF2-->>WF: Confirmación
+    else Si no hay errores
+        WF->>BDPQF2: Se vincula el CFDI a fccFactura. Se genera el PDF de la factura y se sube a Minio. Se sube el XML a Minio. Se vincula el XML y el PDF a fccFactura
+        BDPQF2-->>WF: Confirmación
+    end

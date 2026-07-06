@@ -50,7 +50,7 @@ La política operativa de R16 es **1 CP por factura**: si un cobro cubre N factu
 | `catUsoCFDI` | RE-028 o anterior | CP01 se inserta en el cambio BD #2; se lee al armar Receptor |
 | `catMetodoDePagoCFDI.PPD` | RE-028 T1 | Solo facturas PPD generan CP; discriminador en la cascada |
 | `CorreoEnviado` / `ArchivoCorreoEnviado` | RE-028 | Registro del correo enviado con PDF + XML del CP adjuntos |
-| `ApiCallerTimbrado` (HttpClient + Polly) | RE-019 | Cliente HTTP con retry policy hacia Timbrado — reutilizado sin cambios |
+| `ApiCallerStamping` (HttpClient + Polly) | RE-019 | Cliente HTTP con retry policy hacia Timbrado — reutilizado sin cambios |
 | `FacturaMexicoPdfMappingService` | RE-021 | Patrón de referencia para `ComplementoPagoPdfMappingService` |
 | `PersistirFacturaMexicoPdfService` | RE-021 | Patrón de referencia para `PersistirComplementoPagoPdfService` |
 | Templates `GOL/MUN/PRO/PQF_MEX_FAC` | RE-021 | Referencia de branding e identidad visual para diseño de templates CP |
@@ -363,7 +363,7 @@ Timbrado recibe la solicitud del CP desde Finanzas (sección B3) y ejecuta el mi
    - `IdCatTipoCFDI` → `COMPLEMENTO_PAGO`
    - `IdCFDIRelacionado` = `IdCFDIGenerada` de la Factura PPD/FAA relacionada
    - `UUID`, `Serie = 'P'`, `Folio`, `FechaEmision`
-6. `INSERT TimbradoLog` (trazabilidad de la petición al PAC).
+6. `INSERT StampingLog` (trazabilidad de la petición al PAC).
 7. Retorna a Finanzas: `UUID`, `Serie`, `Folio`, `FechaTimbre`, `xmlTimbrado` (con `TimbreFiscalDigital` sellado).
 
 **Manejo de errores PAC:** Si el PAC rechaza el XML (código de error PAC, esquema inválido, RFC no registrado), Timbrado retorna el error a Finanzas sin insertar en `CFDIGenerada`. Finanzas muestra el detalle al usuario para corrección y reintento.
@@ -489,7 +489,7 @@ var pdf = await _minioService.DescargarArchivoAsync(
 | P2 | Formato Serie "P" en `EmpresaFolio` | `FormatoFolio` y `LongitudMaxima` en los INSERT de EmpresaFolio (sección A4) |
 | P3 | Soporte de tasas de IVA distintas a 16% (8%, 0%) | Lógica de cálculo de `TrasladoDR` en `ComplementoPagoRequest`; si solo se soporta 16%, se documenta restricción en el servicio |
 | P4 | Plantilla cuerpo del correo de envío del CP (PMO #31 transversal) | Configuración de la plantilla Brevo en el modal de envío del Paso 3 (RE-028 B6) |
-| P5 | Política formal de reintento ante fallo del CP tras Factura PPD timbrada | Determina el flujo de error en B3 y el endpoint de reintento en Finanzas |
+| P5 | Confirmar con negocio si el reintento del CP bloquea el envío de la Factura o si se permite enviarla sin CP | Ownership y mecanismo ya definidos (Finanzas, local en este flujo, ver B3); falta solo la decisión de negocio sobre el bloqueo del envío |
 
 ---
 
@@ -501,8 +501,8 @@ var pdf = await _minioService.DescargarArchivoAsync(
 > ⚠️ **BRECHA MEDIA — Plantilla del correo de envío del Complemento de Pago (B2)**
 > El asunto y cuerpo del correo de envío para el CP están pendientes de confirmar con PMO (PMO #31, transversal con Proforma, Factura, NC, CP e Inconsistencia). Sin esto, la plantilla Brevo del modal de envío del Paso 3 no puede finalizarse.
 
-> ⚠️ **BRECHA MEDIA — Política de reintento del CP tras Factura PPD timbrada (B3)**
-> Si el timbrado de la Factura PPD es exitoso pero el CP inmediatamente posterior falla, la Factura PPD queda vigente sin CP. La política operativa (¿cuántos reintentos?, ¿bloquea el envío?, ¿permite enviar la Factura sin CP?) está pendiente de definir. Brecha transversal con Factura Anticipo (RE-028 Brecha B6) y NC.
+> ✅ **RESUELTA — Mecanismo de reintento del CP tras Factura PPD timbrada (B3)**
+> Si el timbrado de la Factura PPD es exitoso pero el CP inmediatamente posterior falla, la Factura PPD queda vigente sin CP. Timbrado no reintenta (servicio síncrono de un solo intento, ver R16A-RE-FU-018); el reintento se implementa en este mismo flujo de generación en Finanzas: la línea permanece `PENDIENTE`, se incrementa un contador de reintentos y se notifica a soporte por correo si se supera el límite (mismo patrón de `Diagramas/Diagrama Secuencia Encolamiento Finanzas y Timbrado Factura.md`). Queda pendiente solo confirmar con negocio si el reintento bloquea el envío de la Factura o si se permite enviarla sin CP mientras se reintenta. Brecha transversal con Factura Anticipo (RE-028 Brecha B6) y NC.
 
 > ⚠️ **BRECHA BAJA — Soporte de tasas de IVA distintas a 16% (B4)**
 > El criterio F3 del requisito documenta `TasaOCuotaDR = 0.160000` y agrega "Confirmar soporte para tasas distintas a 16%". Si hay clientes en zona fronteriza (8%) o con operaciones exentas (0%), la lógica de construcción del `TrasladoDR` debe soportar múltiples tasas. Confirmar con PMO el alcance real de escenarios de tasa variable para R16.

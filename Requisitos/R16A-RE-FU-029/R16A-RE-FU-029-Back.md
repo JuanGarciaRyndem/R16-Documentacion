@@ -56,7 +56,7 @@ Al confirmar el envío de cada línea, Finanzas dispara dos acciones automática
 | `DatosFacturacionCliente` | RE-FU-004 | RUC, Razón Social receptor del CPE UBL 2.1 |
 | `Empresa` (GOLPERU) | RE-FU-020 | RUC Emisor, Razón Social emisora; datos fiscales pendientes (Brecha B4) |
 | `FacturaPdfMappingService` Perú | RE-FU-020 | Consolidación datos CPE en `FacturaPdfModel`; template `GOLPERU_PER_FAC` |
-| `ApiCallerTimbrado` (HttpClient + Polly) | RE-FU-019 | Cliente HTTP con retry policy hacia Timbrado — reutilizado sin cambios |
+| `ApiCallerStamping` (HttpClient + Polly) | RE-FU-019 | Cliente HTTP con retry policy hacia Timbrado — reutilizado sin cambios |
 | `tpProformaPedido.IdCFDIGenerada` | RE-FU-026 | Campo existente; Perú lo puebla con el `IdCFDIGenerada` del CPE timbrado |
 
 ---
@@ -299,7 +299,7 @@ La solicitud incluye: tipo `FACTURA_CPE`, RUC emisor (GOLPERU), RUC receptor, pa
 2. `UPDATE EmpresaFolio GOLPERU SET UltimoFolio + 1` (UPDLOCK atómico — mismo patrón que México, diferente fila)
 3. Llamada al servicio SUNAT (modalidad pendiente — Brecha B1)
 4. `UPDATE CFDIGenerada` con FechaEmision y respuesta CDR
-5. `INSERT TimbradoLog` (trazabilidad)
+5. `INSERT StampingLog` (trazabilidad)
 6. Retorna a Finanzas: Serie, Correlativo, FechaEmision, XML CPE, XML CDR
 
 > ⚠️ **Diferencia con México:** En México el módulo Timbrado llama al PAC TurboPac (implementado en RE-FU-018/019). En Perú el módulo equivalente llama a la modalidad SUNAT pendiente de definir. Ambos módulos residen en `ProquifaDotNet.Timbrado` pero con implementaciones separadas discriminadas por región.

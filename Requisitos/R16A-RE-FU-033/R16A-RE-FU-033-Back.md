@@ -124,7 +124,7 @@ Endpoint: `GET /api/nc-peru/preview-pdf?idFCCNotaCredito={id}` — retorna PDF e
 
 Orquesta la secuencia post-timbrado (⚠️ bloqueado por Brecha B1 — modalidad SUNAT pendiente):
 
-1. Llama al endpoint de Timbrado (`POST /api/timbrado/nota-credito-peru`) con el `NCPeruTimbradorRequest`.
+1. Llama al endpoint único de Timbrado (`POST /api/v1/cfdi`, discriminado por FiscalDocumentTypeId) con el `NCPeruTimbradorRequest`.
 2. Recibe respuesta con constancia SUNAT (número, estado, fecha).
 3. Genera PDF post-timbrado vía DocumentBuilder con `NCPeruPdfMappingService.MapearPostTimbrAsync()`.
 4. `PersistirNCPeruPdfService.PersistirAsync()`:
@@ -158,11 +158,11 @@ Al igual que en México (RE-032 Criterio A5), la pantalla principal de NC Perú 
 
 ## Parte C — ProquifaDotNet.Timbrado
 
-### C1 — Endpoint timbrado NC Perú (CPE tipo 07) ⚠️ BLOQUEADO BRECHA B1
+### C1 — Timbrado NC Perú (CPE tipo 07) vía endpoint único ⚠️ BLOQUEADO BRECHA B1
 
-`POST /api/timbrado/nota-credito-peru`
+`POST /api/v1/cfdi` (discriminado por FiscalDocumentTypeId — mismo `CfdiController` de RE-FU-018, sin endpoint ni ruta separados)
 
-⚠️ **Brecha B1 bloqueante:** La modalidad de emisión electrónica ante SUNAT no está definida. No se asume OSE ni se reutiliza TurboPac de México. Este endpoint no puede implementarse hasta que RE-029 resuelva la brecha de timbrado SUNAT.
+⚠️ **Brecha B1 bloqueante:** La modalidad de emisión electrónica ante SUNAT no está definida. No se asume OSE ni se reutiliza TurboPac de México. Esta orquestación no puede implementarse hasta que RE-029 resuelva la brecha de timbrado SUNAT.
 
 Diseño anticipado (sujeto a cambio):
 - Recibe `NCPeruTimbradorRequest` con el XML UBL 2.1 armado por Finanzas.

@@ -64,7 +64,7 @@ La NC aplica exclusivamente a **clientes prepago** y a **facturas vigentes con a
 | `catTipoCFDI` (tabla)                          | RE-028 T1 | RE-032 inserta clave NOTA_CREDITO                                                      |
 | `Archivo`                                      | Pre-R16   | PDF + XML de la NC almacenados en MinIO                                                |
 | `CorreoEnviado` + `ArchivoCorreoEnviado`       | Pre-R16   | Trazabilidad del correo automático al timbrar y reenvíos                               |
-| `ApiCallerTimbrado` (HttpClient + Polly)       | RE-019    | Cliente HTTP con retry hacia Timbrado — reutilizado sin cambios                        |
+| `ApiCallerStamping` (HttpClient + Polly)       | RE-019    | Cliente HTTP con retry hacia Timbrado — reutilizado sin cambios                        |
 | `FacturaMexicoPdfMappingService`               | RE-021    | Patrón de referencia para `NCMexicoPdfMappingService`                                  |
 | `PersistirFacturaMexicoPdfService`             | RE-021    | Patrón de referencia para `PersistirNCMexicoPdfService`                                |
 | Templates `GOL/MUN/PRO/PQF_MEX_FAC`           | RE-021    | Referencia de branding para diseño de templates NC                                     |
@@ -295,7 +295,7 @@ Un único nodo `Concepto` con:
 **Paso 1 — Enviar a Timbrado:**
 Finanzas construye el `NotaCreditoMexicoRequest` (sección B4) y llama al API de Timbrado:
 ```
-POST /api/timbrado/nota-credito-mexico
+POST /api/v1/cfdi
 Body: NotaCreditoMexicoRequest
 ```
 Muestra feedback visual de progreso al usuario (Criterio J1).
@@ -310,8 +310,8 @@ Timbrado retorna `NotaCreditoMexicoResponse` con:
 Si `fccNotaCredito.CancelarFacturaOrigen = 1`:
 - Finanzas solicita a Timbrado la cancelación de la factura origen ante el SAT:
   ```
-  POST /api/timbrado/cancelar-cfdi
-  Body: { IdCFDI: <IdCFDI factura origen>, ClaveMotivo: <ClaveMotivosCancelacion> }
+  POST /api/v1/cfdi/{id}/cancel
+  Body: { ClaveMotivo: <ClaveMotivosCancelacion> }
   ```
 - Timbrado invoca PAC TurboPac con motivo de cancelación.
 - Timbrado actualiza `CFDICancelacion` con `ClaveMotivo`, `Estatus='CANCELADA'`.

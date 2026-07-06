@@ -199,7 +199,7 @@ Solo clientes Mexico. Sin sustancias controladas.
        ProquifaDotNetTimbrado:
          INSERT CFDI -> llama PAC -> UPDATE CFDI (UUID, Folio)
          UPDATE EmpresaFolio SET UltimoFolio+1
-         INSERT TimbradoLog
+         INSERT StampingLog
        ProquifaDotNet:
          UPDATE tpProformaAdelanto SET IdCFDIGenerada = @id
          INSERT Archivo x2 (PDF+XML, FileBucket='facturas')

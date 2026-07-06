@@ -47,7 +47,7 @@ Al confirmar el envío de cada línea, el sistema dispara automáticamente tres 
 | `DatosFacturacionCliente`                           | RE-FU-004     | RFC, Razón Social, Régimen Fiscal Receptor del CFDI 4.0                                                                                                |
 | `Empresa`                                           | Existente     | RFC Emisor, Régimen Fiscal Emisor, Prefijo por empresa PROQUIFA México                                                                                 |
 | Patrón timbrado PAC TurboPac                        | RE-FU-019     | Mismo flujo de timbrado y manejo de errores del PAC                                                                                                    |
-| `ApiCallerTimbrado` (HttpClient + Polly)            | RE-FU-019     | Cliente HTTP con retry policy hacia Timbrado — ya implementado, se reutiliza sin cambios                                                               |
+| `ApiCallerStamping` (HttpClient + Polly)            | RE-FU-019     | Cliente HTTP con retry policy hacia Timbrado — ya implementado, se reutiliza sin cambios                                                               |
 | `FacturaMexicoPdfMappingService`                    | RE-FU-021     | Consolida datos CFDI 4.0 en `FacturaPdfModel`; `MapearPreviewAsync` para preview, `MapearAsync` para PDF definitivo                                    |
 | `PersistirFacturaMexicoPdfService`                  | RE-FU-021     | Genera PDF definitivo post-timbrado → lo sube a MinIO → INSERT `Archivo` → UPDATE `CFDI`. GAP-10 de RE-021 anticipó esta integración con Validar Cobro |
 | Templates DocumentBuilder `GOL/MUN/PRO/PQF_MEX_FAC` | RE-FU-021     | Plantillas de Factura CFDI 4.0 por empresa emisora — ya implementadas, se usan en Paso 3 sin cambios                                                   |
@@ -219,7 +219,7 @@ Si al reingresar al Paso 3 ya existen filas en `fccDocumentoFiscalCobro` para el
 7. Finanzas: `UPDATE fccDocumentoFiscalCobro SET EstadoLinea = GENERADO, IdCFDIGeneradaFactura = @IdFactura, IdCFDIGeneradaComplemento = @IdComplemento, FechaGeneracion`.
 8. Finanzas: `UPDATE tpProformaPedido SET IdCFDIGenerada = @IdCFDIFactura`.
 
-> ⚠️ **Brecha B6:** Si el Complemento falla tras la Factura PPD timbrada exitosamente, la Factura PPD permanece vigente. La política de reintento del Complemento está pendiente de definir (ver Brechas).
+> ⚠️ **Brecha B6 (resuelta — ownership):** Si el Complemento falla tras la Factura PPD timbrada exitosamente, la Factura PPD permanece vigente. **Timbrado no reintenta** (es un servicio síncrono de un solo intento, ver R16A-RE-FU-018); el reintento del Complemento se implementa en Finanzas, en este mismo flujo de generación (R16A-RE-FU-030): la línea permanece `PENDIENTE`, se incrementa un contador de reintentos y se notifica a soporte si se supera el límite — ver Brechas.
 
 **Escenario C — FACTURA_ANTICIPO (1 CFDI):**
 1. Igual que Escenario A con `IdCatTipoCFDI` → `FACTURA_ANTICIPO` y tipo de relación 07 SAT en el XML.
@@ -317,7 +317,7 @@ Timbrado recibe una solicitud por cada CFDI a generar desde Finanzas. La solicit
 2. Consumo atómico del folio en `EmpresaFolio` (UPDLOCK).
 3. Llamada al PAC TurboPac.
 4. UPDATE `CFDIGenerada` con UUID, Folio, FechaEmision retornados por el PAC.
-5. INSERT en `TimbradoLog` (trazabilidad).
+5. INSERT en `StampingLog` (trazabilidad).
 6. Retorna a Finanzas: UUID, Folio, Serie, FechaEmision.
 
 **Para el Complemento en cascada PPD:** el `IdCFDIRelacionado` en `CFDIGenerada` se popula con el `IdCFDIGenerada` de la Factura PPD ya insertada en el mismo flujo.
@@ -495,8 +495,8 @@ Esta sección documenta todas las transferencias de datos y documentos que Proqu
 > ⚠️ **BRECHA MEDIA — Formato y foliador de la Confirmación de Pedido Prepago (B5)**
 > El formato del folio de la Confirmación de Pedido para pedidos Prepago (extensión a R16 del concepto existente en ProquifaNet para Crédito) está pendiente de confirmar con PMO/Operaciones.
 
-> ⚠️ **BRECHA BLOQUEANTE — Política ante fallo del Complemento en cascada PPD (B6)**
-> Si la Factura PPD se timbra exitosamente pero el Complemento falla inmediatamente después, la línea queda en estado inconsistente (Factura vigente sin Complemento). La política de reintento (¿cuántos intentos?, ¿cola RabbitMQ?, ¿acción manual?) está pendiente de definir. RE-FU-019 es el patrón de referencia para este tipo de fallo.
+> ✅ **RESUELTA — Mecanismo de reintento ante fallo del Complemento en cascada PPD (B6)**
+> Si la Factura PPD se timbra exitosamente pero el Complemento falla inmediatamente después, la línea queda en estado inconsistente (Factura vigente sin Complemento). El reintento es responsabilidad de Finanzas, no de Timbrado (Timbrado es síncrono, un solo intento por petición, ver R16A-RE-FU-018), y se implementa en este mismo flujo de generación (Validar Cobro Paso 3 / R16A-RE-FU-030): la línea permanece `PENDIENTE`, se incrementa un contador de reintentos y se notifica a soporte por correo si se supera el límite (mismo patrón documentado en `Diagramas/Diagrama Secuencia Encolamiento Finanzas y Timbrado Factura.md`).
 
 > ⚠️ **BRECHA MEDIA — Comportamiento si el contacto del pedido no está disponible al armar el modal de Envío (B7)**
 > Si el pedido no tiene contacto asignado o hay múltiples contactos, el comportamiento del modal (¿bloquea el envío?, ¿permite captura manual?) está pendiente de confirmar con negocio.

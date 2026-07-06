@@ -6,7 +6,7 @@
 
 > **Orden de ejecución sugerido:** BD catálogos (T1) → BD ALTER CFDIGenerada (T2) → BD tablas principales (T3, T4) → BD ALTER tpPedido (T5) → BD vista (T6) → Timbrado endpoint (T7) → Finanzas: inicialización (T8) → autosave (T9) → NCs en CFDI (T10) → previsualización (T11) → timbrado (T12) → DocumentBuilder plantilla CDP (T13) → Finanzas: envío (T14) → FEE + Confirmación (T15) → ETL Legacy (T17) → cierre wizard (T16).
 >
-> **Dependencias externas:** RE-FU-026 completo (asociación Paso 2 cerrada con `fccPagoFacturaPedido` y `fccPagoFacturaAdelanto`). RE-FU-019 completo (`CFDIGenerada`, `EmpresaFolio`, `ApiCallerTimbrado`). RE-FU-021 completo (`FacturaMexicoPdfMappingService`, `PersistirFacturaMexicoPdfService`, templates `*_MEX_FAC`).
+> **Dependencias externas:** RE-FU-026 completo (asociación Paso 2 cerrada con `fccPagoFacturaPedido` y `fccPagoFacturaAdelanto`). RE-FU-019 completo (`CFDIGenerada`, `EmpresaFolio`, `ApiCallerStamping`). RE-FU-021 completo (`FacturaMexicoPdfMappingService`, `PersistirFacturaMexicoPdfService`, templates `*_MEX_FAC`).
 >
 > **Brechas bloqueantes activas:** B1 (relación SAT tipo 07), B3 (mecanismo ETL Legacy), B4 (FEE: granularidad y reglas), B6 (política fallo cascada PPD). Las tareas T5, T12, T15, T17 dependen de resolverlas antes de implementar. Ver `R16A-RE-FU-028_BD.md` y `R16A-RE-FU-028-Back.md` — sección Brechas.
 >
@@ -1023,7 +1023,7 @@ Ver sección *"Parte B / B3"* en `R16A-RE-FU-028-Back.md`. Ver `FacturaMexicoPdf
 
 **Consideraciones previas:**
 - Las Tareas 7, 8, 9 y 10 deben estar ejecutadas (Timbrado extendido, líneas existentes, NCs resueltas).
-- `ApiCallerTimbrado` (HttpClient + Polly) ya existe de RE-FU-019 — se reutiliza sin cambios.
+- `ApiCallerStamping` (HttpClient + Polly) ya existe de RE-FU-019 — se reutiliza sin cambios.
 - `PersistirFacturaMexicoPdfService` ya existe de RE-FU-021 — se invoca post-timbrado para FACTURA y FACTURA_ANTICIPO.
 - **Escenario B (PPD + cascada):** la Factura PPD se timbra primero; inmediatamente tras el éxito, Finanzas solicita el timbrado del Complemento enviando el UUID de la Factura PPD como `IdCFDIRelacionado`. Si el Complemento falla, la Factura PPD queda vigente (⚠️ Brecha B6 — política pendiente).
 - **Escenario D (COMPLEMENTO_PAGO desde FAA):** Finanzas envía el UUID de la FAA existente (`tpProformaAdelanto.IdCFDIGenerada`) como referencia. La generación del PDF del Complemento corresponde a RE-FU-030.
@@ -1078,7 +1078,7 @@ Ver sección *"Parte B / B4"* y Brechas B1 y B6 en `R16A-RE-FU-028-Back.md`.
 
 **Recursos:**
 - `R16A-RE-FU-028-Back.md` — Parte B, sección B4; Brechas B1 y B6
-- `R16A-RE-FU-019-Tareas.md` — Tarea 13 (ApiCallerTimbrado, patrón base)
+- `R16A-RE-FU-019-Tareas.md` — Tarea 13 (ApiCallerStamping, patrón base)
 - `R16A-RE-FU-021-Back.md` — PersistirFacturaMexicoPdfService
 
 ---

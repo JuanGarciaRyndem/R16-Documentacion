@@ -330,7 +330,7 @@ Entonces deberá seguirse el siguiente orden:
 - La sección Cliente del módulo (cabecera del Detalle) muestra etiquetas de clasificación del cliente que son datos preexistentes del Catálogo de Clientes y solo lectura desde este módulo.
 - Cobertura geográfica de esta fila: clientes con Región México exclusivamente. La habilitación para Perú depende de la integración con OSE/SUNAT autorizado (brecha mayor del proyecto) y se documenta en requisito independiente cuando esté disponible.
 - **Decisión OBS-039:** ninguna Factura por Adelantado consigna lote ni pedimento. El pedimento ya se manejaba como N/A (comportamiento preexistente); el lote sigue la misma decisión — el surtido (asignación de lote en almacén) ocurre después del cobro y la facturación, por lo que el lote no está disponible al timbrar. Decisión cerrada y confirmada por el cliente.
-- ** Pendiente confirmar la política ante indisponibilidad del PAC TurboPac (reintento automático, encolamiento, fallback). **
+- **Resuelto:** Timbrado no reintenta ante indisponibilidad del PAC TurboPac — es un servicio síncrono de un solo intento por petición (ver R16A-RE-FU-018). Ante fallo, Timbrado retorna el error de inmediato a Finanzas; el reintento es responsabilidad de Finanzas, implementado en este mismo flujo de generación de la Factura por Adelantado: el pendiente permanece sin timbrar, se incrementa un contador de reintentos, y se notifica a soporte por correo si se supera el límite (ver `Diagramas/Diagrama Secuencia Encolamiento Finanzas y Timbrado Factura.md`).
 - ** Pendiente resolver formalmente la denominación canónica del rol operativo entre "Gestor de Cobranza" y "Analista de Cuentas por Cobrar". **
 
 ---

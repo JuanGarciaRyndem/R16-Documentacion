@@ -466,7 +466,7 @@ Ver secciones *"Parte B / B2, B3, B4"* en `R16A-RE-FU-033-Back.md`.
 - INSERT `CFDIGenerada` con `TipoDocumento='07'`, `IdCatTipoCFDI`=NOTA_CREDITO_PERU (prereq: Tarea 3).
 
 **Objetivo general:**
-Implementar el endpoint `POST /api/timbrado/nota-credito-peru` que recibe el `NCPeruTimbradorRequest` de Finanzas, envía el XML UBL 2.1 al proveedor SUNAT, persiste el resultado en `CFDIGenerada` y retorna la constancia.
+Ampliar el `CfdiController` (endpoint único `POST /api/v1/cfdi` creado en RE-FU-018) para que, al recibir `NCPeruTimbradorRequest` de Finanzas (discriminado por FiscalDocumentTypeId), envíe el XML UBL 2.1 al proveedor SUNAT, persista el resultado en `CFDIGenerada` y retorne la constancia.
 
 **Objetivos específicos:**
 - Recibir y validar `NCPeruTimbradorRequest`.
@@ -478,10 +478,10 @@ Implementar el endpoint `POST /api/timbrado/nota-credito-peru` que recibe el `NC
 - Manejo de errores SUNAT.
 
 **Resultado esperado:**
-Endpoint funcional que timbra NCs Perú con folios consecutivos únicos y constancia SUNAT.
+Endpoint único (`POST /api/v1/cfdi`) funcional que timbra NCs Perú con folios consecutivos únicos y constancia SUNAT.
 
 **Entregables:**
-- Endpoint `POST /api/timbrado/nota-credito-peru`
+- Ampliación de `CfdiController` (`POST /api/v1/cfdi`) para el flujo de Nota de Crédito Perú
 - `NCPeruTimbradorRequest` / `NCPeruTimbradorResponse` DTOs
 - Unit tests del servicio de construcción del XML a enviar al proveedor
 
@@ -523,7 +523,7 @@ Implementar el flujo completo de Finanzas post-timbrado NC Perú: llamada a Timb
 
 **Objetivos específicos:**
 - `POST /api/nc-peru/timbrar?idFCCNotaCredito={id}` — orquesta la secuencia completa.
-- Llamada al API de Timbrado (`POST /api/timbrado/nota-credito-peru`).
+- Llamada al endpoint único de Timbrado (`POST /api/v1/cfdi`, discriminado por FiscalDocumentTypeId).
 - `PersistirNCPeruPdfService.PersistirAsync()`: DocumentBuilder → MinIO → INSERT Archivo × 2 → UPDATE `fccNotaCredito` (Estado='VIGENTE', IdArchivoPdf, IdArchivoXml, IdCFDIGenerada) → INSERT CFDIGeneradaConcepto (si por partidas) → INSERT fccNotaCreditoPartida.
 - Envío de correo con INSERT `CorreoEnviado` + `ArchivoCorreoEnviado`.
 - Navegación al Paso 4 (NC Emitida).

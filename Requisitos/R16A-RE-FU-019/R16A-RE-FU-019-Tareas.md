@@ -146,7 +146,7 @@ Corresponde a GAP-01. El folio se consume atómicamente solo al timbrar exitosam
 - Depende de Tarea 1 (tabla EmpresaFolio en BD) y Tarea 2 (interface `IEmpresaFolioRepository`)
 - El consumo de folio debe ser thread-safe ante concurrencia (múltiples timbrados simultáneos)
 - Usar raw SQL con hints UPDLOCK, ROWLOCK y OUTPUT INSERTED para atomicidad
-- Agregar `DbSet<EmpresaFolio>` al TimbradoContext existente
+- Agregar `DbSet<EmpresaFolio>` al StampingContext existente
 
 **Objetivo general:**
 Implementar el repositorio de EmpresaFolio con consumo atómico de folio concurrency-safe.
@@ -165,14 +165,14 @@ WHERE  EmpresaClave = @clave
 ```
 
 - Implementar `GetByClaveAsync` con consulta EF Core
-- Agregar `DbSet<EmpresaFolio>` y mapeo Fluent API en TimbradoContext
+- Agregar `DbSet<EmpresaFolio>` y mapeo Fluent API en StampingContext
 
 **Resultado esperado:**
 Repositorio funcional que consume folios sin posibilidad de duplicados bajo concurrencia.
 
 **Entregables:**
 - `Repository/EmpresaFolioRepository.cs`
-- Ampliación de `TimbradoContext` (DbSet + mapeo)
+- Ampliación de `StampingContext` (DbSet + mapeo)
 
 **Criterios de aceptación:**
 - `ConsumeNextFolioAsync` usa UPDATE con UPDLOCK, ROWLOCK
@@ -197,7 +197,7 @@ Corresponde a GAP-03. Patrón documentado en R16A-RE-FU-019_BD.md sección "Cons
 **Módulos:** Application/DTOs
 
 **Consideraciones previas:**
-- Los DTOs modelan el contrato del endpoint `POST /api/timbrado/timbrar-faa`
+- Los DTOs modelan el contrato del endpoint `POST /api/v1/cfdi` (discriminado por FiscalDocumentTypeId)
 - Valores forzados por normativa SAT (PPD, 99, I) se incluyen como propiedades con defaults
 - El response indica éxito/error con datos del CFDI generado
 
@@ -212,7 +212,7 @@ Crear los modelos DTO específicos para el timbrado de Factura por Adelantado.
 - Crear `DTOs/DatosEmisorDto.cs` con: RFC, RazonSocial, RegimenFiscal, EmpresaClave
 
 **Resultado esperado:**
-DTOs completos que modelan el contrato de comunicación del endpoint `/api/timbrado/timbrar-faa`.
+DTOs completos que modelan el contrato de comunicación del endpoint `/api/v1/cfdi`.
 
 **Entregables:**
 - `DTOs/TimbrarFAARequestDto.cs`
@@ -237,7 +237,7 @@ Corresponde a GAP-04. Valores forzados SAT para factura PPD documentados en R16A
 
 ### Tarea 5
 
-**Título:** [ R16A-RE-FU-019 ] [ALG-COMPLX-LOGIC] Ampliar TimbradoService con `EmpresaFolioService` y método `TimbrarFacturaAdelantadoAsync`
+**Título:** [ R16A-RE-FU-019 ] [ALG-COMPLX-LOGIC] Ampliar StampingService con `EmpresaFolioService` y método `TimbrarFacturaAdelantadoAsync`
 
 **Aplicativos:** ProquifaDotNet.Timbrado
 
@@ -245,7 +245,7 @@ Corresponde a GAP-04. Valores forzados SAT para factura PPD documentados en R16A
 
 **Consideraciones previas:**
 - Depende de Tarea 3 (`EmpresaFolioRepository`) y Tarea 4 (DTOs)
-- `TimbradoService` ya existe (RE-FU-018); se amplía con método específico para FAA
+- `StampingService` ya existe (RE-FU-018); se amplía con método específico para FAA
 - El nuevo método orquesta: validar datos fiscales → consumir folio → armar XML → llamar SAP → persistir CFDI → log
 - Si SAP retorna error, retornar `TimbrarFAAResponseDto` con Exitoso=false sin modificar BD
 
@@ -255,19 +255,19 @@ Ampliar la capa Application con el servicio de consumo de folio y el método de 
 **Objetivos específicos:**
 - Crear `Interfaces/IEmpresaFolioService.cs` con métodos `GetNextFolioAsync` y `GetByClaveAsync`
 - Crear `Services/EmpresaFolioService.cs` que consume folio atómico y retorna folio formateado (padding a 6 chars)
-- Ampliar `ITimbradoService.cs` agregando `TimbrarFacturaAdelantadoAsync(TimbrarFAARequestDto)`
-- Ampliar `TimbradoService.cs` implementando el flujo:
+- Ampliar `IStampingService.cs` agregando `TimbrarFacturaAdelantadoAsync(TimbrarFAARequestDto)`
+- Ampliar `StampingService.cs` implementando el flujo:
 
 ```
 1. Validar request (FluentValidation)
 2. Consumir folio via EmpresaFolioService.GetNextFolioAsync(EmpresaClave)
 3. Armar estructura XML CFDI con datos fiscales + conceptos
 4. INSERT CFDI en BD (EstatusTimbrado = Pendiente)
-5. Llamar SapTimbradoClient -> PAC SAP
+5. Llamar SapStampingClient -> PAC SAP
 6. Si ERROR: retornar TimbrarFAAResponseDto con Exitoso=false + ErrorDescripcion
 7. Si ÉXITO: UPDATE CFDI (UUID, XML firmado, EstatusTimbrado = Timbrado)
 8. Subir XML a Minio (bucket 'timbrado')
-9. INSERT TimbradoLog (request, response, duración)
+9. INSERT StampingLog (request, response, duración)
 10. Retornar TimbrarFAAResponseDto con Exitoso=true
 ```
 
@@ -277,12 +277,12 @@ Servicio de timbrado FAA funcional que orquesta el flujo completo con manejo de 
 **Entregables:**
 - `Interfaces/IEmpresaFolioService.cs`
 - `Services/EmpresaFolioService.cs`
-- Ampliación de `ITimbradoService.cs` y `TimbradoService.cs`
+- Ampliación de `IStampingService.cs` y `StampingService.cs`
 
 **Criterios de aceptación:**
 - El folio se consume SOLO al timbrar exitosamente (no se incrementa si SAP falla)
 - Si SAP retorna error, el response incluye ErrorDescripcion y Exitoso=false sin modificar folio
-- `TimbradoLog` registra request, response, duración y error (si aplica)
+- `StampingLog` registra request, response, duración y error (si aplica)
 
 **Más información de la tarea:**
 Corresponde a GAP-02. Ver diagrama de flujo "Generar Factura" en R16A-RE-FU-019-Back.md.
@@ -295,36 +295,35 @@ Corresponde a GAP-02. Ver diagrama de flujo "Generar Factura" en R16A-RE-FU-019-
 
 ### Tarea 6
 
-**Título:** [ R16A-RE-FU-019 ] [IMP-EXIST-SERVICE] Agregar endpoint `POST /api/timbrado/timbrar-faa` en TimbradoController
+**Título:** [ R16A-RE-FU-019 ] [IMP-EXIST-SERVICE] Enrutar timbrado FAA a través de `POST /api/v1/cfdi` en CfdiController
 
 **Aplicativos:** ProquifaDotNet.Timbrado
 
 **Módulos:** API/Controllers
 
 **Consideraciones previas:**
-- Depende de Tarea 5 (`TimbradoService.TimbrarFacturaAdelantadoAsync`) y Tarea 4 (DTOs)
-- `TimbradoController` ya existe (RE-FU-018); se amplía con un nuevo endpoint
+- Depende de Tarea 5 (`StampingService.TimbrarFacturaAdelantadoAsync`) y Tarea 4 (DTOs)
+- `CfdiController` y el endpoint `POST /api/v1/cfdi` ya existen (RE-FU-018); no se crea endpoint ni ruta nueva — se amplía la lógica interna para discriminar el tipo FAA vía `FiscalDocumentTypeId` en el payload
 - Autenticación via IdentityServer (token desde Finanzas)
 
 **Objetivo general:**
-Agregar el endpoint de timbrado de Factura por Adelantado al controlador existente.
+Conectar el timbrado de Factura por Adelantado al endpoint único de timbrado del controlador existente.
 
 **Objetivos específicos:**
-- Agregar método `POST TimbrarFacturaAdelantado([FromBody] TimbrarFAARequestDto request)` en `TimbradoController`
-- Ruta: `/api/timbrado/timbrar-faa`
-- Delegar a `ITimbradoService.TimbrarFacturaAdelantadoAsync`
+- Ampliar la acción `POST` de `CfdiController` para que, al recibir `FiscalDocumentTypeId` = FAA, delegue a `IStampingService.TimbrarFacturaAdelantadoAsync([FromBody] TimbrarFAARequestDto request)`
+- Ruta: `/api/v1/cfdi` (sin ruta ni recurso separados)
 - Retornar 200 OK con `TimbrarFAAResponseDto` (tanto en éxito como en error de PAC)
 - Retornar 400 BadRequest si validación de request falla
 - Retornar 500 si error interno no controlado
 
 **Resultado esperado:**
-Endpoint funcional que recibe solicitud de timbrado FAA desde Finanzas y retorna el resultado.
+Endpoint único funcional que recibe solicitud de timbrado FAA desde Finanzas y retorna el resultado.
 
 **Entregables:**
-- Ampliación de `Controllers/TimbradoController.cs`
+- Ampliación de `Controllers/CfdiController.cs`
 
 **Criterios de aceptación:**
-- El endpoint es accesible en `/api/timbrado/timbrar-faa`
+- El endpoint es accesible en `/api/v1/cfdi`
 - Valida autenticación IdentityServer
 - Retorna `TimbrarFAAResponseDto` con Exitoso=true y datos CFDI cuando el timbrado es exitoso
 - Retorna `TimbrarFAAResponseDto` con Exitoso=false y ErrorDescripcion cuando PAC falla
@@ -334,7 +333,7 @@ Endpoint funcional que recibe solicitud de timbrado FAA desde Finanzas y retorna
 Corresponde a GAP-05. Consumido exclusivamente por ProquifaDotNet.Finanzas.
 
 **Recursos:**
-- R16A-RE-FU-019-Back.md (Parte A — API TimbradoController)
+- R16A-RE-FU-019-Back.md (Parte A — API CfdiController)
 
 ---
 
@@ -638,48 +637,49 @@ Corresponde a GAP-09. Datos fiscales y Comentarios de Facturación alimentan el 
 
 ### Tarea 12
 
-**Título:** [ R16A-RE-FU-019 ] [IMPL-THIRD-SERV] Implementar `ApiCallerTimbrado` (HttpClient + Polly hacia ProquifaDotNet.Timbrado)
+**Título:** [ R16A-RE-FU-019 ] [IMPL-THIRD-SERV] Implementar `ApiCallerStamping` (HttpClient hacia ProquifaDotNet.Timbrado, sin reintentos)
 
 **Aplicativos:** ProquifaDotNet.Finanzas
 
 **Módulos:** Infrastructure/Services
 
 **Consideraciones previas:**
-- Finanzas llama a Timbrado via HTTP; usar `IHttpClientFactory` con named client "Timbrado"
-- Polly para retry policy ante indisponibilidad (timeout + reintentos limitados)
+- Finanzas llama a Timbrado via HTTP; usar `IHttpClientFactory` con named client "Stamping"
+- Un solo intento por petición: Timbrado es síncrono y no reintenta (ver R16A-RE-FU-018). Polly se usa únicamente para timeout, no como política de retry
 - Autenticación via token IdentityServer en header Authorization
 - Flujo SÍNCRONO: el usuario espera respuesta directa (no se encola en RabbitMQ)
+- Si la llamada falla o Timbrado responde error, se retorna el error de inmediato al flujo llamante; el reintento (pendiente + contador de reintentos + notificacion a soporte si supera el limite) se implementa en el propio flujo de generacion de FAA en Finanzas, no en este cliente ni en Timbrado
 
 **Objetivo general:**
-Implementar el cliente HTTP que permite a Finanzas solicitar timbrado de FAA con resiliencia.
+Implementar el cliente HTTP que permite a Finanzas solicitar timbrado de FAA con manejo de timeout controlado.
 
 **Objetivos específicos:**
-- Crear `Services/ApiCallerTimbrado.cs` con interface `IApiCallerTimbrado`
-- Implementar método `TimbrarFAAAsync(TimbrarFAARequestDto)` que llama `POST /api/timbrado/timbrar-faa`
-- Configurar Polly: retry 2 intentos, timeout 30s, exponential backoff
+- Crear `Services/ApiCallerStamping.cs` con interface `IApiCallerStamping`
+- Implementar método `TimbrarFAAAsync(TimbrarFAARequestDto)` que llama `POST /api/v1/cfdi`
+- Configurar Polly solo para timeout (30s), sin política de retry
 - Incluir token IdentityServer en headers de la petición
 - Deserializar `TimbrarFAAResponseDto` del response
-- Manejar timeout: retornar error controlado al servicio llamante
-- Crear `TimbradoSettings.cs` (BaseUrl, Timeout, MaxRetries)
-- Registrar en `InfrastructureServiceExtensions` con DI + Polly policies
+- Manejar timeout: retornar error controlado al servicio llamante (sin reintentar internamente)
+- Crear `StampingSettings.cs` (BaseUrl, Timeout)
+- Registrar en `InfrastructureServiceExtensions` con DI + Polly (timeout)
 
 **Resultado esperado:**
-Cliente HTTP funcional con resiliencia para que Finanzas solicite timbrado a la solución Timbrado.
+Cliente HTTP funcional, de un solo intento por petición, para que Finanzas solicite timbrado a la solución Timbrado.
 
 **Entregables:**
-- `Services/ApiCallerTimbrado.cs`
-- Interface `IApiCallerTimbrado`
-- `Configuration/TimbradoSettings.cs`
+- `Services/ApiCallerStamping.cs`
+- Interface `IApiCallerStamping`
+- `Configuration/StampingSettings.cs`
 - Registro en `InfrastructureServiceExtensions`
 
 **Criterios de aceptación:**
 - La llamada HTTP incluye autenticación IdentityServer
-- Polly ejecuta máximo 2 reintentos con backoff exponencial
+- No hay reintento automático: 1 petición HTTP = 1 intento
 - Si timeout excede 30s retorna error controlado (no deja request colgado)
 - El HttpClient se resuelve via `IHttpClientFactory` (no `new HttpClient()`)
 
 **Más información de la tarea:**
-Corresponde a GAP-13. Flujo síncrono; RabbitMQ es solo para reintentos async del Worker de Timbrado.
+Corresponde a GAP-13. Flujo síncrono, sin reintentos en este cliente; el reintento ante fallo lo gestiona Finanzas en el propio flujo de generación de FAA, no RabbitMQ ni un Worker de Timbrado (que no existe, ver R16A-RE-FU-018).
 
 **Recursos:**
 - R16A-RE-FU-019-Back.md (Parte B — Infrastructure Integraciones, Consideraciones Técnicas)
@@ -695,7 +695,7 @@ Corresponde a GAP-13. Flujo síncrono; RabbitMQ es solo para reintentos async de
 **Módulos:** Application/Services
 
 **Consideraciones previas:**
-- Depende de Tareas 9 (DTOs), 11 (DatosFiscalesRepository) y 12 (ApiCallerTimbrado)
+- Depende de Tareas 9 (DTOs), 11 (DatosFiscalesRepository) y 12 (ApiCallerStamping)
 - Servicio de ALTA complejidad: orquesta 12 pasos del flujo Generar Factura
 - Si PAC falla, retorna error sin modificar estado del pedido
 - La factura es inmutable una vez timbrada exitosamente (Regla 9)
@@ -714,7 +714,7 @@ Implementar el servicio que orquesta el flujo completo desde la obtención de da
 4.  Obtener datos del emisor (empresa del pedido)
 5.  Obtener Tipo de Cambio del día (si moneda != MXN)
 6.  Armar TimbrarFAARequestDto con valores forzados SAT (PPD, 99, I)
-7.  Llamar ApiCallerTimbrado POST /api/timbrado/timbrar-faa
+7.  Llamar ApiCallerStamping POST /api/v1/cfdi
 8.  Si ERROR: retornar FAAGenerarResponseDto con Exitoso=false + ErrorDescripcion
 9.  Si ÉXITO: UPDATE tpProformaAdelanto SET IdCFDIGenerada = @idCFDI
 10. Almacenar PDF+XML en Minio (bucket 'facturas')

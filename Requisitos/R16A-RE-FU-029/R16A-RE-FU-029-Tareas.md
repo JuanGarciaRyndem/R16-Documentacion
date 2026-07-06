@@ -483,7 +483,7 @@ Ver sección *"ALTER VIEW vfccDocumentoFiscalCobro — Extensión Perú (v2.0)"*
 - El módulo de timbrado México (PAC TurboPac, RE-FU-019) ya existe. El módulo Perú es nuevo y separado, discriminado por región.
 - La Tarea 2 debe estar ejecutada (`catTipoCFDI` tiene `FACTURA_CPE` e `IdRegion`).
 - En Perú: siempre **1 CPE por solicitud** — sin cascada (no hay Complemento de Pago).
-- Por cada timbrado exitoso: INSERT `CFDIGenerada` (`IdCatTipoCFDI=FACTURA_CPE`, `UUID=NULL`, `Serie=F001`, `Folio=Correlativo`), `UPDATE EmpresaFolio GOLPERU` con UPDLOCK atómico, `INSERT TimbradoLog`.
+- Por cada timbrado exitoso: INSERT `CFDIGenerada` (`IdCatTipoCFDI=FACTURA_CPE`, `UUID=NULL`, `Serie=F001`, `Folio=Correlativo`), `UPDATE EmpresaFolio GOLPERU` con UPDLOCK atómico, `INSERT StampingLog`.
 - Retorna a Finanzas: Serie, Correlativo (Folio), FechaEmision, XML CPE, XML CDR de aceptación SUNAT.
 - ⚠️ **Brecha B4:** Los datos fiscales SUNAT del producto (`Producto.CodigoSUNAT`, `catUnidad.ClaveSUNAT`, `catAfectacionIGV`) son obligatorios en UBL 2.1 y están pendientes de migrar (RE-FU-020). Sin ellos no es posible generar el XML válido.
 
@@ -496,7 +496,7 @@ Implementar en ProquifaDotNet.Timbrado el módulo de timbrado Perú que recibe s
 - Implementar `ISunatTimbraService` con implementación stub (`SimuladorSunatTimbraService`) hasta resolver B1.
 - INSERT `CFDIGenerada`: `IdCatTipoCFDI=FACTURA_CPE`, `UUID=NULL`, `Serie=F001`, `Folio=Correlativo`.
 - UPDATE `EmpresaFolio GOLPERU SET UltimoFolio+1` con UPDLOCK atómico (mismo patrón México RE-FU-019).
-- INSERT `TimbradoLog` con resultado (éxito o fallo CDR SUNAT).
+- INSERT `StampingLog` con resultado (éxito o fallo CDR SUNAT).
 - Retornar Serie, Correlativo, FechaEmision, XML CPE, XML CDR a Finanzas.
 - Manejo de errores SUNAT: si SUNAT responde con código de rechazo, la línea permanece sin modificar `CFDIGenerada`; retornar detalle del error a Finanzas.
 - Registrar en Serilog: región, serie, correlativo, resultado y tiempo de respuesta.
@@ -692,7 +692,7 @@ Ver sección *"Parte B / B3"* en `R16A-RE-FU-029-Back.md` y `FacturaPdfMappingSe
 - ⚠️ **Brecha B1 BLOQUEANTE:** Modalidad SUNAT indefinida. La Tarea 5 provee el stub; esta tarea lo consume. El timbrado puede desarrollarse con stub hasta resolver B1.
 - ⚠️ **Brecha B4 BLOQUEANTE:** Datos fiscales SUNAT del producto pendientes (RE-020). Sin ellos el XML UBL 2.1 es inválido.
 - Las Tareas 5, 7 y 8 deben estar ejecutadas.
-- `ApiCallerTimbrado` (HttpClient + Polly) ya existe de RE-FU-019 — reutilizar sin cambios.
+- `ApiCallerStamping` (HttpClient + Polly) ya existe de RE-FU-019 — reutilizar sin cambios.
 - En Perú **solo existe 1 escenario:** 1 CPE por línea. No hay cascada PPD ni Complemento de Pago.
 - Post-timbrado exitoso: invocar `FacturaPdfMappingService.MapearAsync()` Perú para PDF definitivo con CDR/sello → subir a MinIO → UPDATE `CFDIGenerada.IdArchivoPdf`.
 - El CPE va en `IdCFDIGeneradaFactura` (mismo campo que la Factura en México — `catTipoCFDI.Clave='FACTURA_CPE'` discrimina).

@@ -132,7 +132,7 @@ IGV 18%, RUC, serie alfanumerica SUNAT. Sin transferencia a Legacy. Post-envio: 
 | vtpProformaAdelanto | ProquifaDotNet | RE-FU-019 | Ya filtra por Region |
 | EmpresaFolio (tabla) | ProquifaDotNetTimbrado | RE-FU-018 | Solo agregar fila GOLPERU |
 | CFDI (tabla) | ProquifaDotNetTimbrado | RE-FU-018 | Misma tabla, diferente XML |
-| TimbradoLog (tabla) | ProquifaDotNetTimbrado | RE-FU-018 | Misma tabla |
+| StampingLog (tabla) | ProquifaDotNetTimbrado | RE-FU-018 | Misma tabla |
 | AppSetting | ProquifaDotNetTimbrado | RE-FU-018 | Agregar config OSE/PSE Peru |
 
 ---
@@ -164,7 +164,7 @@ IGV 18%, RUC, serie alfanumerica SUNAT. Sin transferencia a Legacy. Post-envio: 
        ProquifaDotNetTimbrado:
          INSERT CFDI -> llama OSE/PSE SUNAT -> UPDATE CFDI (CDR de aceptacion)
          UPDATE EmpresaFolio GOLPERU SET UltimoFolio+1
-         INSERT TimbradoLog
+         INSERT StampingLog
        ProquifaDotNet:
          UPDATE tpProformaAdelanto SET IdCFDIGenerada
          INSERT Archivo x2 (PDF+XML, FileBucket='facturas', IdRegion=PER)

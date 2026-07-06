@@ -21,10 +21,10 @@ Es el complemento definitivo de los placeholders dejados en RE-FU-019:
 
 | Componente | Origen | Reutilización |
 |------------|--------|---------------|
-| `TimbradoService.TimbrarFAAAsync` | RE-FU-018/019 | Sin cambios — ya genera el XML timbrado y retorna `TimbreFiscalDigital` |
+| `StampingService.TimbrarFAAAsync` | RE-FU-018/019 | Sin cambios — ya genera el XML timbrado y retorna `TimbreFiscalDigital` |
 | `FacturaAdelantadoGenerarService` | RE-FU-019 | Extender con llamada a `PersistirFacturaMexicoPdfService` (pasos 10-11 placeholder) |
 | `FacturaAdelantadoPreviewService` | RE-FU-019 | Extender con template real `GOL/MUN/PRO/PQF_MEX_FAC` (reemplaza placeholder) |
-| `ApiCallerTimbrado` | RE-FU-019 | Sin cambios — ya llama a `POST /api/timbrado/timbrar-faa` |
+| `ApiCallerStamping` | RE-FU-019 | Sin cambios — ya llama a `POST /api/v1/cfdi` |
 | Tabla `CFDI` | RE-FU-018 | Sin cambios — campo `IdArchivoXml` ya existe para la referencia del PDF |
 | Tabla `Archivo` | RE-FU-018/019 | Sin cambios — patrón `INSERT Archivo` con `FileBucket='facturas'` |
 | Minio bucket `facturas` | RE-FU-018/019 | Sin cambios — mismo bucket para PDF México |

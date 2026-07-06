@@ -48,101 +48,86 @@ ProquifaDotNet.Timbrado/
 |   |   +-- SortDirection.cs
 |   +-- Entities/
 |   |   +-- Cfdi.cs
-|   |   +-- TimbradoLog.cs
-|   |   +-- TipoDocumentoFiscal.cs
+|   |   +-- StampingLog.cs
+|   |   +-- FiscalDocumentType.cs
 |   |   +-- AppSetting.cs
 |   +-- Interfaces/
 |   |   +-- IGenericRepository.cs
 |   |   +-- ICfdiRepository.cs
-|   |   +-- ITimbradoLogRepository.cs
-|   |   +-- ISapTimbradoClient.cs
+|   |   +-- IStampingLogRepository.cs
+|   |   +-- ISapStampingClient.cs
 |   |   +-- IMinioStorageService.cs
-|   |   +-- IEmailService.cs
 |   |   +-- IUnitOfWork.cs
 |   +-- Models/
-|       +-- TimbradoRequest.cs
-|       +-- TimbradoResponse.cs
-|       +-- EmailModel.cs
+|       +-- StampingRequest.cs
+|       +-- StampingResponse.cs
 +-- Application/
 |   +-- Proquifa.Timbrado.Application.csproj (net10.0)
 |   +-- DTOs/
 |   |   +-- QueryResultDto.cs
 |   |   +-- CfdiDto.cs
-|   |   +-- TimbradoRequestDto.cs
-|   |   +-- TimbradoResponseDto.cs
-|   |   +-- TimbradoLogDto.cs
+|   |   +-- StampingRequestDto.cs
+|   |   +-- StampingResponseDto.cs
+|   |   +-- StampingLogDto.cs
 |   +-- Interfaces/
-|   |   +-- ITimbradoService.cs
+|   |   +-- IStampingService.cs
 |   |   +-- ICfdiService.cs
 |   +-- Services/
-|   |   +-- TimbradoService.cs
+|   |   +-- StampingService.cs
 |   |   +-- CfdiService.cs
 |   +-- Mappers/
 |   |   +-- ApplicationMappingProfile.cs
 |   +-- Validators/
-|       +-- TimbradoRequestDtoValidator.cs
+|       +-- StampingRequestDtoValidator.cs
 +-- Infrastructure/
 |   +-- Proquifa.Timbrado.Infrastructure.csproj (net10.0)
 |   +-- Persistence/
 |   |   +-- Context/
-|   |   |   +-- TimbradoContext.cs (BD ProquifaDotNetTimbrado)
+|   |   |   +-- StampingContext.cs (BD ProquifaDotNetTimbrado)
 |   |   +-- Repository/
 |   |       +-- GenericRepository.cs
 |   |       +-- CfdiRepository.cs
-|   |       +-- TimbradoLogRepository.cs
+|   |       +-- StampingLogRepository.cs
 |   +-- Services/
-|   |   +-- SapTimbradoClient.cs
+|   |   +-- SapStampingClient.cs
 |   |   +-- MinioStorageService.cs
-|   |   +-- BrevoEmailService.cs
-|   +-- RabbitMQ/
-|   |   +-- IRabbitMQClient.cs
-|   |   +-- RabbitMQClient.cs
-|   |   +-- RabbitMQSettings.cs
 |   +-- Configuration/
 |   |   +-- SapSettings.cs
 |   |   +-- MinioSettings.cs
-|   |   +-- BrevoSettings.cs
-|   |   +-- RabbitMQSettings.cs
 |   +-- Extensions/
 |       +-- InfrastructureServiceExtensions.cs
 +-- API/
 |   +-- Proquifa.Timbrado.API.csproj (net10.0)
 |   +-- Program.cs
 |   +-- Controllers/
-|   |   +-- TimbradoController.cs
 |   |   +-- CfdiController.cs
 |   +-- appsettings.json
-+-- Worker/
-|   +-- Proquifa.Timbrado.Worker.csproj (net10.0)
-|   +-- Program.cs
-|   +-- TimbradoWorker.cs
 +-- Testing/
     +-- Proquifa.Timbrado.Testing.csproj (net10.0)
 ```
 
+> **Nota de diseño (reintentos):** Timbrado **no tiene Worker ni cola de reintentos propia**. Es un servicio sincrono de un solo intento por peticion: recibe la solicitud, invoca una vez al PAC, registra el resultado en `StampingLog` (`NewStatus` = Pending -> Stamped o Failed) y responde de inmediato a Finanzas, exito o error. La politica de reintento ante fallo (cuantos intentos, cuando notificar a soporte) es responsabilidad exclusiva de **Finanzas**, implementada de forma local en cada punto de generacion del documento: Factura (R16A-RE-FU-028/029), Factura por Adelantado (R16A-RE-FU-019/020), Nota de Credito (R16A-RE-FU-032/033/034/035) y Complemento de Pago (R16A-RE-FU-030) — no de forma centralizada en un unico componente. Ver diagramas `Diagramas/Diagrama Secuencia Finanzas y Timbrado Factura.md` y `Diagramas/Diagrama Secuencia Encolamiento Finanzas y Timbrado Factura.md` (el patron de referencia: queda pendiente, incrementa contador de reintentos, notifica a soporte si supera el limite).
+
 ---
 
-### Flujo Funcional de Timbrado
+### Flujo Funcional de Timbrado (sincrono, un solo intento)
 
 ```
-1. Finanzas solicita timbrado -> POST /api/timbrado/timbrar (con datos del documento)
-2. TimbradoService valida request y crea registro CFDI en BD (EstatusTimbrado=Pendiente)
-3. TimbradoService invoca SapTimbradoClient -> PAC SAP genera CFDI
-4. SAP retorna: UUID, XML firmado, Serie, Folio
-5. TimbradoService actualiza CFDI en BD (EstatusTimbrado=Timbrado, XML, UUID)
-6. Sube XML a Minio (bucket timbrado)
-7. Registra TimbradoLog con Request/Response/Duracion
-8. Retorna TimbradoResponse a Finanzas (UUID, Serie, Folio, XML)
+1. Finanzas solicita timbrado -> POST /api/v1/cfdi (con datos del documento)
+2. StampingService valida request y registra StampingLog (NewStatus=Pending)
+3. StampingService invoca SapStampingClient -> PAC SAP genera CFDI (una sola llamada, sin retry automatico)
+4a. Si SAP responde exito: Uuid, XML firmado, Series, Folio
+    - Crea/actualiza Cfdi en BD (XML, Uuid)
+    - Sube XML a Minio (bucket timbrado)
+    - Actualiza StampingLog (NewStatus=Stamped)
+    - Registra en Bitacora General el timbrado exitoso (regla 8)
+    - Retorna StampingResponse a Finanzas (Uuid, Series, Folio, XML)
+4b. Si SAP responde error o no responde: actualiza StampingLog (NewStatus=Failed, ErrorMessage con el error) y registra en Bitacora General el timbrado fallido (regla 8)
+    - Retorna el error a Finanzas de inmediato (sin reintentar internamente)
+    - Finanzas decide si reintenta mas tarde, en su propio flujo de generacion del documento (Factura, Factura por Adelantado, Nota de Credito o Complemento de Pago)
 ```
 
-### Flujo Asincrono (Worker)
-
-```
-1. Si timbrado sincrono falla -> publica mensaje en cola RabbitMQ
-2. Worker.Timbrado consume cola -> reintenta timbrado con SAP
-3. Si exito: actualiza CFDI + notifica a Finanzas via API
-4. Si falla despues de N reintentos: marca como Error + notifica via Brevo
-```
+> Timbrado no publica colas ni reintenta: el llamado es 1 peticion HTTP = 1 intento al PAC. Los reintentos ante fallo son responsabilidad de Finanzas.
 
 ---
 
@@ -152,38 +137,45 @@ ProquifaDotNet.Timbrado/
 
 | Entidad | Tabla BD | Descripcion |
 |---------|---------|-------------|
-| Cfdi | CFDI | Documento fiscal: UUID, Serie, Folio, XML, estatus, empresa, receptor |
-| TimbradoLog | TimbradoLog | Auditoria de cada intento: request, response, duracion, error |
-| TipoDocumentoFiscal | TipoDocumentoFiscal | Catalogo: FacturaPorAdelantado, FacturaNormal, NotaCredito, etc. |
-| AppSetting | AppSetting | Configuracion del servicio: endpoints SAP, reintentos, timeouts |
+| Cfdi | Cfdi | Documento fiscal: Uuid, Series, Folio, XML, Status, IssuerRfc, ReceiverRfc (nombres en ingles, ver R16A-RE-FU-018_BD.md) |
+| StampingLog | StampingLog | Auditoria de la peticion (un registro por solicitud de timbrado): Request, Response, DurationMs, NewStatus (Pending/Stamped/Failed), ErrorMessage |
+| FiscalDocumentType | FiscalDocumentType | Catalogo: AdvanceInvoice, RegularInvoice, AnticipatedInvoice, CreditNote |
+| AppSetting | AppSetting | Configuracion del servicio: endpoints SAP, timeouts |
+
+> **Nomenclatura (Reglas al diseñar — regla 6):** al ser una solucion nueva, las entidades, propiedades, DTOs, metodos y comentarios de codigo de ProquifaDotNet.Timbrado se codifican en ingles, sin mezclar palabras en español. `Cfdi`, `Rfc` y `Uuid` se mantienen como terminos fiscales estandar (no se traducen). La palabra "Timbrado" (timbrar = stampar/sellar fiscalmente) se traduce a **"Stamping"** dentro del codigo (`StampingLog`, `StampingService`, `SapStampingClient`, `StampingRequest/Response`, `StampingContext`) para no mezclar idiomas. Unica excepcion: el nombre de la solucion/proyecto (`ProquifaDotNet.Timbrado`, `Proquifa.Timbrado.*.csproj/.sln`) y el nombre de la base de datos (`ProquifaDotNetTimbrado`) se mantienen sin traducir por ser nomenclatura ya establecida en las instrucciones del proyecto.
 
 #### Application - Servicios
 
 | Servicio        | Responsabilidad                                                                 |
 | --------------- | ------------------------------------------------------------------------------- |
-| TimbradoService | Orquesta: validar request, crear CFDI, llamar SAP, almacenar XML, registrar log |
+| StampingService | Orquesta: validar request, crear CFDI, llamar SAP, almacenar XML, registrar log |
 | CfdiService     | CRUD de CFDIs + consultas con QueryInfo + listado paginado                      |
 
 #### Infrastructure - Integraciones
 
 | Integracion    | Componente              | Descripcion                                             |
 | -------------- | ----------------------- | ------------------------------------------------------- |
-| SAP (PAC)      | SapTimbradoClient       | Llamada HTTP al proveedor de timbrado para generar CFDI |
+| SAP (PAC)      | SapStampingClient       | Llamada HTTP unica (sin retry) al proveedor de timbrado para generar CFDI |
 | Minio          | MinioStorageService     | Almacenamiento de XML timbrados (bucket 'timbrado')     |
-| RabbitMQ       | RabbitMQClient + Worker | Cola para reintentos asincronos de timbrado fallido     |
-| Brevo          | BrevoEmailService       | Notificaciones de errores criticos de timbrado          |
 | IdentityServer | Autenticacion           | Validacion de tokens desde Finanzas                     |
 | Serilog        | Logs                    | Contexto: usuario, modulo, operacion, IdCFDI            |
+| Bitacora General (Aplicativo Nuevo) | BitacoraGeneralClient | Registro de auditoria de negocio de cada timbrado (exitoso o fallido) — Reglas al diseñar, regla 8 |
+
+> RabbitMQ, Worker.Timbrado y Brevo se retiran del alcance de esta solucion: no hay reintentos ni notificaciones de error dentro de Timbrado. El reintento y la notificacion a soporte se implementan del lado de Finanzas, en cada punto de generacion del documento (Factura, Factura por Adelantado, Nota de Credito, Complemento de Pago — ver requisitos respectivos), y cualquier envio de correo (a soporte o al cliente) se realiza a traves del **Aplicativo para Envio de Correo (Aplicativo Nuevo)**, no con un cliente SMTP/Brevo propio de Finanzas ni de Timbrado (Reglas al diseñar, regla 7).
+
+> **Bitacora General (regla 8):** Timbrado invoca al Aplicativo Bitacora General al registrar cada resultado de timbrado (exitoso o fallido) en `StampingLog`, igual que Finanzas debe hacerlo al guardar la factura, validar un cobro o guardar una proforma. El detalle de la integracion (contrato, endpoint) se define de forma transversal y se referencia aqui, no se documenta completo en este requisito.
 
 #### API - Endpoints
 
-| Metodo | Endpoint               | Descripcion                                         |
-| ------ | ---------------------- | --------------------------------------------------- |
-| POST   | /api/timbrado/timbrar  | Recibe solicitud de timbrado, retorna CFDI generado |
-| POST   | /api/timbrado/cancelar | Solicita cancelacion de CFDI ante SAP               |
-| GET    | /api/cfdi/{id}         | Consulta CFDI por Id                                |
-| GET    | /api/cfdi/{id}/xml     | Descarga XML desde Minio                            |
-| POST   | /api/cfdi/listar       | Listado paginado con QueryInfo                      |
+> Rutas alineadas a `api/v1/{resource}/{id}/{subresource}` (Reglas al diseñar — regla 9): recurso singular en ingles (`cfdi`), CRUD por metodo HTTP, acciones especiales (`cancel`, `xml`, `search`) como subrecurso.
+
+| Metodo | Endpoint                      | Descripcion                                          |
+| ------ | ----------------------------- | ----------------------------------------------------- |
+| POST   | /api/v1/cfdi                  | Recibe solicitud de timbrado (crea y timbra el CFDI) |
+| POST   | /api/v1/cfdi/{id}/cancel      | Solicita cancelacion de CFDI ante SAP                |
+| GET    | /api/v1/cfdi/{id}             | Consulta CFDI por Id                                 |
+| GET    | /api/v1/cfdi/{id}/xml         | Descarga XML desde Minio                             |
+| POST   | /api/v1/cfdi/search           | Listado paginado con QueryInfo                       |
 
 ---
 
@@ -191,10 +183,10 @@ ProquifaDotNet.Timbrado/
 
 | Tabla | Proposito |
 |-------|-----------|
-| AppSetting | Configuracion del servicio (endpoints SAP, reintentos, etc.) |
-| TipoDocumentoFiscal | Catalogo de tipos de documentos fiscales |
-| CFDI | Documento fiscal generado: UUID, XML, estatus, intentos |
-| TimbradoLog | Auditoria de cada intento con el PAC |
+| AppSetting | Configuracion del servicio (endpoints SAP, timeouts) |
+| FiscalDocumentType | Catalogo de tipos de documentos fiscales |
+| Cfdi | Documento fiscal generado: Uuid, XML, Status |
+| StampingLog | Auditoria de la peticion de timbrado (un registro por solicitud, con NewStatus Pending/Stamped/Failed) |
 
 > Servidor: WIN-R14-DEV\DEV_R17_APPS
 > BD creada con script DDL documentado en R16A-RE-FU-018_BD.md
@@ -206,11 +198,9 @@ ProquifaDotNet.Timbrado/
 | Proyecto | Paquete | Uso |
 |----------|---------|-----|
 | Infrastructure | Microsoft.EntityFrameworkCore.SqlServer | EF Core + SQL Server |
-| Infrastructure | RabbitMQ.Client 7.x | Colas de timbrado |
 | Infrastructure | Minio 6.x | Almacenamiento XML |
 | Infrastructure | Serilog 4.x | Logs |
-| Infrastructure | Polly 8.x | Reintentos HTTP a SAP |
-| Infrastructure | sib_api_v3_sdk 4.x | Brevo (notificaciones) |
+| Infrastructure | Polly 8.x | Timeout/circuit-breaker en la llamada HTTP a SAP (sin politica de retry) |
 | Application | FluentValidation 11.x | Validaciones |
 | API | Serilog.AspNetCore 9.x | Logs en API |
 | API | Swashbuckle.AspNetCore 6.x | Swagger |
@@ -225,19 +215,21 @@ Nuevo modulo en la solucion Finanzas que expone el endpoint de listado agrupado 
 
 ### Endpoint Listado FAA
 
+> Ruta alineada a `api/v1/{resource}/{id}/{subresource}` (Reglas al diseñar — regla 9): recurso `advanceInvoice` en ingles, accion de busqueda como subrecurso `search`.
+
 | Metodo | Endpoint                       | Descripcion                                                  |
 | ------ | ------------------------------ | ------------------------------------------------------------ |
-| POST   | /api/factura-adelantado/listar | Listado agrupado por cliente, paginado, filtrado por cartera |
+| POST   | /api/v1/advanceInvoice/search | Listado agrupado por cliente, paginado, filtrado por cartera |
 
 ### Request
 
 ```
 QueryInfo {
-  SortField: "antiguedad" (default),
+  SortField: "oldestPendingDate" (default),
   SortDirection: Asc,
   Filters: [
-    { FieldName: "idUsuarioCobrador", Value: "{IdUsuarioLogueado}" },
-    { FieldName: "busqueda", Value: "texto libre (razonSocial/RFC/folio)" }
+    { FieldName: "collectorUserId", Value: "{IdUsuarioLogueado}" },
+    { FieldName: "search", Value: "texto libre (companyName/RFC/folio)" }
   ],
   PageSize: 20,
   DesiredPage: 1
@@ -247,21 +239,23 @@ QueryInfo {
 ### Response
 
 ```
-QueryResultDto<FacturaAdelantadoClienteDto> {
+QueryResultDto<AdvanceInvoiceClientDto> {
   TotalResults: int,
   Results: [
     {
-      IdCliente: Guid,
-      RazonSocial: string,
-      RfcRuc: string,
-      RegionClave: string (MEX/PER),
-      FacturasPendientes: int,
-      MontoTotalUsd: decimal,
-      FechaPendienteMasAntiguo: DateTime
+      CustomerId: Guid,
+      CompanyName: string,
+      TaxId: string,
+      RegionCode: string (MEX/PER),
+      PendingInvoices: int,
+      TotalAmountUsd: decimal,
+      OldestPendingDate: DateTime
     }
   ]
 }
 ```
+
+> **Nomenclatura (Reglas al diseñar — regla 6):** DTO, campos y nombres de metodo/clase de este modulo se codifican en ingles por tratarse de ProquifaDotNet.Finanzas (solucion nueva). Las tablas y campos de la BD ProquifaDotNet consultados en modo lectura (seccion "Cadena de Datos" y "Tablas consultadas") conservan su nomenclatura en español (regla 1), pues pertenecen a la base de datos existente.
 
 ### Cadena de Datos (Consulta BD ProquifaDotNet)
 
@@ -310,7 +304,7 @@ Buscador: TRIM(DatosFacturacionCliente.RazonSocial) LIKE / TRIM(RFC) LIKE / TRIM
 > 1. ESAC/Cobrador abre el pendiente FAA y ejecuta el proceso de timbrado (genera CFDI).
 > 2. El sistema queda en estado "Timbrada — Pendiente de envío".
 > 3. El usuario revisa y hace clic en **"Enviar Factura"** explícitamente.
-> 4. Solo entonces se envía la factura al cliente (por correo, etc.).
+> 4. Solo entonces se envía la factura al cliente por correo, usando el **Aplicativo para Envio de Correo (Aplicativo Nuevo)** (Reglas al diseñar — regla 7); Finanzas no implementa un cliente SMTP propio para este envio.
 >
 > Las tareas de los requisitos RE-FU-019/020 deben respetar esta separación: timbrado y envío son dos pasos distintos con acción de usuario entre ellos.
 
@@ -321,7 +315,7 @@ Buscador: TRIM(DatosFacturacionCliente.RazonSocial) LIKE / TRIM(RFC) LIKE / TRIM
 > - **FAA (este requisito):** Pedidos de crédito con flag `FacturaPorAdelantado=1`. Exclusiva para región México. **NUNCA aplica para productos Sustancias Controladas.**
 > - **Factura Anticipo:** Generada desde el flujo de Validar Cobro para clientes prepago + productos controlados. No corresponde al módulo FAA.
 >
-> El back debe validar que no se procese un pendiente FAA si el pedido incluye productos controlados. Esta validación ya está cubierta en RE-FU-012 (depende de RE-FU-011 `fnEsProductoControlado`). El FacturaAdelantadoRepository nunca debería encontrar pedidos controlados con FAA=1, pero si llegara a existir, se excluye del listado.
+> El back debe validar que no se procese un pendiente FAA si el pedido incluye productos controlados. Esta validación ya está cubierta en RE-FU-012 (depende de RE-FU-011 `fnEsProductoControlado`). El AdvanceInvoiceRepository nunca debería encontrar pedidos controlados con FAA=1, pero si llegara a existir, se excluye del listado.
 
 ---
 
@@ -331,7 +325,7 @@ Buscador: TRIM(DatosFacturacionCliente.RazonSocial) LIKE / TRIM(RFC) LIKE / TRIM
 
 | #   | Componente        | Accion                                                         |
 | --- | ----------------- | -------------------------------------------------------------- |
-| 1   | ApiCallerFinanzas | Agregar metodo para llamar POST /api/factura-adelantado/listar |
+| 1   | ApiCallerFinanzas | Agregar metodo para llamar POST /api/v1/advanceInvoice/search |
 | 2   | Controlador FAA   | Nuevo controlador en WebAPI que expone el listado al Front     |
 
 > El modulo FAA es nuevo en Venta Interna. Se crea un controlador que delega a Finanzas.
@@ -344,35 +338,37 @@ Buscador: TRIM(DatosFacturacionCliente.RazonSocial) LIKE / TRIM(RFC) LIKE / TRIM
 
 | # | Gap | Accion | Esfuerzo |
 |---|-----|--------|----------|
-| GAP-01 | Crear solucion y proyectos | sln + 6 csproj (Domain, Application, Infrastructure, API, Worker, Testing) | Medio |
-| GAP-02 | Domain: Entities + Interfaces | Cfdi, TimbradoLog, TipoDocumentoFiscal, AppSetting + interfaces | Medio |
-| GAP-03 | Application: DTOs + Services | TimbradoService, CfdiService, DTOs, Validators | Alto |
-| GAP-04 | Infrastructure: TimbradoContext | EF Core con scaffold BD ProquifaDotNetTimbrado (4 tablas) | Medio |
-| GAP-05 | Infrastructure: SapTimbradoClient | Cliente HTTP para invocar PAC SAP (timbrar/cancelar CFDI) | Alto |
+| GAP-01 | Crear solucion y proyectos | sln + 5 csproj (Domain, Application, Infrastructure, API, Testing) | Medio |
+| GAP-02 | Domain: Entities + Interfaces | Cfdi, StampingLog, FiscalDocumentType, AppSetting + interfaces | Medio |
+| GAP-03 | Application: DTOs + Services | StampingService, CfdiService, DTOs, Validators | Alto |
+| GAP-04 | Infrastructure: StampingContext | EF Core con scaffold BD ProquifaDotNetTimbrado (4 tablas) | Medio |
+| GAP-05 | Infrastructure: SapStampingClient | Cliente HTTP para invocar PAC SAP (timbrar/cancelar CFDI), un solo intento por peticion, sin retry ni cola | Alto |
 | GAP-06 | Infrastructure: MinioStorageService | Upload/Download XML al bucket 'timbrado' | Bajo |
-| GAP-07 | Infrastructure: RabbitMQ + Worker | Cola de reintentos asincronos + Worker consumer | Alto |
-| GAP-08 | Infrastructure: BrevoEmailService | Notificaciones de errores criticos | Bajo |
-| GAP-09 | API: Program.cs + configuracion | DI, EF Core, Swagger, Serilog, IdentityServer, CORS | Medio |
-| GAP-10 | API: TimbradoController | Endpoints POST /timbrar, POST /cancelar | Medio |
-| GAP-11 | API: CfdiController | Endpoints GET /{id}, GET /{id}/xml, POST /listar | Medio |
-| GAP-12 | BD: Ejecutar scripts DDL | CREATE DATABASE + 4 tablas + DML catalogo | Bajo |
+| GAP-07 | API: Program.cs + configuracion | DI, EF Core, Swagger, Serilog, IdentityServer, CORS | Medio |
+| GAP-08 | API: CfdiController | Endpoints POST /api/v1/cfdi, POST /api/v1/cfdi/{id}/cancel | Medio |
+| GAP-09 | API: CfdiController (consulta) | Endpoints GET /api/v1/cfdi/{id}, GET /api/v1/cfdi/{id}/xml, POST /api/v1/cfdi/search | Medio |
+| GAP-10 | BD: Ejecutar scripts DDL | CREATE DATABASE + 4 tablas + DML catalogo | Bajo |
+
+> Se retiraron los gaps de Worker.Timbrado/RabbitMQ (reintentos) y BrevoEmailService (notificacion de error critico): esa responsabilidad es de Finanzas, en cada punto de generacion del documento (Factura, Factura por Adelantado, Nota de Credito, Complemento de Pago). GAP-08/09 se consolidan en un unico CfdiController (Reglas al diseñar — regla 9: un solo recurso `cfdi`, sin controller separado "Timbrado" para las acciones de escritura).
 
 ### En ProquifaDotNet.Finanzas (Modulo FAA)
 
+> **Nomenclatura (regla 6):** nombres de clase/DTO en ingles (solucion nueva). **Ruta (regla 9):** recurso `advanceInvoice`.
+
 | # | Gap | Accion | Esfuerzo |
 |---|-----|--------|----------|
-| GAP-13 | Domain: DTO FacturaAdelantadoClienteDto | Modelo del listado agrupado | Bajo |
-| GAP-14 | Infrastructure: FacturaAdelantadoRepository | Query compleja agrupada por cliente con JOINs a 12+ tablas | Alto |
-| GAP-15 | Application: FacturaAdelantadoService | Listado con QueryInfo, filtro cartera, buscador, conversion USD | Alto |
-| GAP-16 | API: FacturaAdelantadoController | Endpoint POST /api/factura-adelantado/listar | Bajo |
-| GAP-17 | Infrastructure: FinanzasContext ampliacion | Agregar DbSets para tablas FAA (tpProformaAdelanto, etc.) | Medio |
+| GAP-11 | Domain: DTO AdvanceInvoiceClientDto | Modelo del listado agrupado | Bajo |
+| GAP-12 | Infrastructure: AdvanceInvoiceRepository | Query compleja agrupada por cliente con JOINs a 12+ tablas | Alto |
+| GAP-13 | Application: AdvanceInvoiceService | Listado con QueryInfo, filtro cartera, buscador, conversion USD | Alto |
+| GAP-14 | API: AdvanceInvoiceController | Endpoint POST /api/v1/advanceInvoice/search | Bajo |
+| GAP-15 | Infrastructure: FinanzasContext ampliacion | Agregar DbSets para tablas FAA (tpProformaAdelanto, etc.) | Medio |
 
 ### En ProquifaDotNet (Venta Interna)
 
 | # | Gap | Accion | Esfuerzo |
 |---|-----|--------|----------|
-| GAP-18 | ApiCallerFinanzas: metodo ListarFAA | Llamada POST /api/factura-adelantado/listar | Bajo |
-| GAP-19 | Controlador FAA nuevo | Expone listado al Front, delega a Finanzas | Bajo |
+| GAP-16 | ApiCallerFinanzas: metodo SearchAdvanceInvoices | Llamada POST /api/v1/advanceInvoice/search | Bajo |
+| GAP-17 | Controlador FAA nuevo | Expone listado al Front, delega a Finanzas | Bajo |
 
 ---
 
@@ -389,7 +385,7 @@ Buscador: TRIM(DatosFacturacionCliente.RazonSocial) LIKE / TRIM(RFC) LIKE / TRIM
 
 | Repositorio | Cantidad | Detalle |
 |-------------|----------|---------|
-| ProquifaDotNet.Timbrado (NUEVA) | 12 (GAP-01 a GAP-12) | Creacion completa de solucion + BD |
-| ProquifaDotNet.Finanzas | 5 (GAP-13 a GAP-17) | Modulo FAA listado agrupado |
-| ProquifaDotNet | 2 (GAP-18 a GAP-19) | Consumidor del listado |
-| **Total** | **19 gaps** | |
+| ProquifaDotNet.Timbrado (NUEVA) | 10 (GAP-01 a GAP-10) | Creacion completa de solucion + BD |
+| ProquifaDotNet.Finanzas | 5 (GAP-11 a GAP-15) | Modulo FAA listado agrupado |
+| ProquifaDotNet | 2 (GAP-16 a GAP-17) | Consumidor del listado |
+| **Total** | **17 gaps** | |

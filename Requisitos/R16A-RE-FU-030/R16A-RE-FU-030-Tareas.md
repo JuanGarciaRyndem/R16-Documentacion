@@ -667,7 +667,7 @@ Implementar en ProquifaDotNet.Timbrado la generación del XML CFDI 4.0 Pagos20 v
 - Implementar consumo atómico del folio: `UPDATE EmpresaFolio WITH (UPDLOCK) SET UltimoFolio = UltimoFolio + 1 OUTPUT inserted.UltimoFolio WHERE IdEmpresa = @Id AND Serie = 'P'`.
 - Firmar el XML con el CSD de la empresa emisora y llamar al PAC TurboPac.
 - Insertar en `CFDIGenerada` con `IdCatTipoCFDI='COMPLEMENTO_PAGO'`, `IdCFDIRelacionado`, UUID, Serie P, Folio, FechaEmision.
-- Insertar en `TimbradoLog`.
+- Insertar en `StampingLog`.
 - Retornar a Finanzas: UUID, Serie, Folio, FechaTimbre, XML timbrado con `TimbreFiscalDigital`.
 
 **Resultado esperado:**
@@ -841,7 +841,7 @@ Al timbrar una Factura PPD en el Paso 3, Finanzas genera automáticamente el CP 
 **Entregables:**
 - Clase `ComplementoPagoCalculoService` (cálculo NumParcialidad, saldos, EquivalenciaDR, FechaPago)
 - Clase `GenerarComplementoPagoService` (Escenario B: cascada PPD + Escenario D: FAA)
-- Integración con `ApiCallerTimbrado` y `PersistirComplementoPagoPdfService`
+- Integración con `ApiCallerStamping` y `PersistirComplementoPagoPdfService`
 - Tests unitarios: primer CP vs CP subsecuente; escenario multi-divisa; fallo del CP post-Factura PPD; Escenario D desde FAA
 
 **Criterios de aceptación:**

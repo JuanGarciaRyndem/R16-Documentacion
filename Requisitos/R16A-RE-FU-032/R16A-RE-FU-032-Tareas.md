@@ -515,11 +515,11 @@ Ver sección *"DML DocumentTemplate"* en `R16A-RE-FU-032_BD.md` y sección *"Par
 - Mismo patrón que el endpoint de Factura México (RE-019/021) y Complemento de Pago (RE-030 C1).
 - El XML es CFDI 4.0 TipoDocumento='E', MetodoPago='PUE', CfdiRelacionados TipoRelacion='01'.
 - El folio se obtiene con UPDLOCK atómico sobre `EmpresaFolio` Serie "P2" (prereq: Tarea 5).
-- Si la cancelación de factura origen fue solicitada (`CancelarFacturaOrigen=1`), Finanzas llama a un endpoint separado de cancelación (C2 del Back). Verificar si ya existe de RE-021/028 o crear nuevo.
+- Si la cancelación de factura origen fue solicitada (`CancelarFacturaOrigen=1`), Finanzas llama a `POST /api/v1/cfdi/{id}/cancel` (endpoint único de cancelación, ya existente desde RE-FU-018/021/028 — no se crea uno nuevo).
 - Prerrequisitos: Tareas 4 y 5.
 
 **Objetivo general:**
-Implementar el endpoint `POST /api/timbrado/nota-credito-mexico` que recibe el `NotaCreditoMexicoRequest` de Finanzas, construye el XML CFDI E, lo timbra vía PAC TurboPac, inserta en `CFDIGenerada` + `CFDI`, actualiza `EmpresaFolio` y retorna el CFDI timbrado.
+Ampliar el `CfdiController` (endpoint único `POST /api/v1/cfdi` creado en RE-FU-018) para que, al recibir `NotaCreditoMexicoRequest` de Finanzas (discriminado por FiscalDocumentTypeId), construya el XML CFDI E, lo timbre vía PAC TurboPac, inserte en `CFDIGenerada` + `CFDI`, actualice `EmpresaFolio` y retorne el CFDI timbrado.
 
 **Objetivos específicos:**
 - Recibir y validar `NotaCreditoMexicoRequest` (datos del emisor, receptor, conceptos, CFDI relacionado).
@@ -532,10 +532,10 @@ Implementar el endpoint `POST /api/timbrado/nota-credito-mexico` que recibe el `
 - Manejo de errores PAC: retornar error con detalle sin persistir.
 
 **Resultado esperado:**
-Endpoint funcional que timbra NCs México vía TurboPac con folios Serie "P2" únicos y consecutivos.
+Endpoint único (`POST /api/v1/cfdi`) funcional que timbra NCs México vía TurboPac con folios Serie "P2" únicos y consecutivos.
 
 **Entregables:**
-- Endpoint `POST /api/timbrado/nota-credito-mexico`
+- Ampliación de `CfdiController` (`POST /api/v1/cfdi`) para el flujo de Nota de Crédito México
 - `NotaCreditoMexicoRequest` / `NotaCreditoMexicoResponse` DTOs
 - Unit tests del servicio de construcción XML
 
@@ -550,7 +550,7 @@ Ver sección *"Parte C / C1"* en `R16A-RE-FU-032-Back.md`.
 
 **Recursos:**
 - `R16A-RE-FU-032-Back.md` — Parte C, sección C1
-- Endpoint análogo: `POST /api/timbrado/factura-mexico` (RE-019/021)
+- Endpoint análogo: `POST /api/v1/cfdi` (mismo recurso único, discriminado por FiscalDocumentTypeId — RE-019/021)
 
 ---
 

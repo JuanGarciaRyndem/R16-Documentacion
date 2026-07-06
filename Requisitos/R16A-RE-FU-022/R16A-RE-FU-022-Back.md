@@ -32,8 +32,8 @@ Este requisito implementa el **diseño y generación del PDF de la Factura elect
 
 | Componente | Origen | Reutilización |
 |------------|--------|---------------|
-| `TimbradoService.TimbrarFacturaSunatAsync` | RE-FU-020 | Sin cambios — ya genera el XML timbrado y retorna CDR SUNAT |
-| `ApiCallerTimbrado.TimbrarSunatAsync` | RE-FU-020 | Sin cambios — ya llama a `POST /api/timbrado/timbrar-sunat` |
+| `StampingService.TimbrarFacturaSunatAsync` | RE-FU-020 | Sin cambios — ya genera el XML timbrado y retorna CDR SUNAT |
+| `ApiCallerStamping.TimbrarSunatAsync` | RE-FU-020 | Sin cambios — ya llama a `POST /api/v1/cfdi` |
 | Tabla `Archivo` | RE-FU-017/018 | Sin cambios — patrón `INSERT Archivo` con `FileBucket='facturas'`, `IdRegion='PER'` |
 | Minio bucket `facturas` | RE-FU-017/018 | Sin cambios — mismo bucket, `IdRegion='PER'` |
 | Tabla `EmpresaFolio` GOLPERU | RE-FU-020 | Sin cambios — serie SUNAT F001/E001 + correlativo 8 dígitos |
