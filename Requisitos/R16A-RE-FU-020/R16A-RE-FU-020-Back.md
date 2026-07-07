@@ -25,16 +25,19 @@ Este requisito implementa el flujo de **Detalle por cliente para Región Perú**
 | Salida operativa | Legacy (Crédito) o Validar Cobro (Prepago) | **Solo Validar Cobro (siempre Prepago)** |
 | Transferencia Legacy | Sí (Crédito) | **NO — nada va a Legacy** |
 
-### Infraestructura reutilizada de RE-FU-018/019
+### Infraestructura reutilizada de RE-FU-015/018/019
+
+> **Migración (06/07/2026):** `tpProformaAdelanto.Enviada` y `vtpProformaAdelanto` (originalmente creados en RE-FU-019) se retiraron de ese requisito. Ambos objetos ahora viven en **R16A-RE-FU-015** como `fccFactura.Enviada` y `vfccFactura` — Perú sigue reutilizando el mismo objeto compartido, solo que ahora es `fccFactura`/`vfccFactura`.
 
 | Componente | Origen | Reutilización |
 |------------|--------|---------------|
-| `tpProformaAdelanto.Enviada` | RE-FU-019 | Mismo campo para PER |
-| `vtpProformaAdelanto` | RE-FU-019 | Ya filtra por RegionClave |
-| Tabla `EmpresaFolio` | RE-FU-018 | Solo agregar fila GOLPERU |
-| Tablas `CFDI`, `StampingLog` | RE-FU-018 | Mismas tablas, diferente XML |
-| `FacturaAdelantadoDetalleRepository` | RE-FU-019 | Reutilizar con filtro RegionClave='PER' |
-| `FacturaAdelantadoEnviarService` | RE-FU-019 | Solo rama Prepago (sin Crédito) |
+| `fccFactura.Enviada` | RE-FU-015 (movido desde RE-FU-019) | Mismo campo para PER |
+| `vfccFactura` | RE-FU-015 (movido desde RE-FU-019) | Ya filtra por RegionClave |
+| Tabla `EmpresaFolio` | RE-FU-018/019 | Solo agregar fila GOLPERU |
+| Tabla `CFDIGenerada` (ProquifaDotNet, propiedad de Finanzas) | RE-FU-019 (base) + RE-FU-018 (extension) | Misma tabla que MEX, distinto XML/CDR SUNAT |
+| Tabla `StampingLog` (ProquifaDotNetTimbrado) | RE-FU-018 | Misma tabla (auditoria tecnica, sin FK real) |
+| `AdvanceInvoiceDetailRepository` | RE-FU-019 | Reutilizar con filtro RegionClave='PER' |
+| `AdvanceInvoiceSendService` | RE-FU-019 | Solo rama Prepago (sin Crédito) |
 | `FinanzasContext` | RE-FU-016/019 | Ampliar si se requieren tablas nuevas SUNAT |
 
 ### Brechas bloqueantes
@@ -73,7 +76,7 @@ Ampliar la solución Timbrado (RE-FU-018) con soporte para el estándar SUNAT/OS
 ```csharp
 public interface IOseStampingClient
 {
-    Task<OseStampingResponse> TimbrarAsync(OseStampingRequest request);
+    Task<OseStampingResponse> StampAsync(OseStampingRequest request);
 }
 ```
 
@@ -81,29 +84,34 @@ public interface IOseStampingClient
 
 | DTO | Campos principales |
 |-----|--------------------|
-| `TimbrarFacturaSunatRequestDto` | IdProformaAdelanto, DatosEmisor (RUC, RazonSocial, DireccionFiscal, Ubigeo, Serie), DatosReceptor (RUC, RazonSocial, DireccionFiscal, RegimenTributario), `Conceptos[]`, TipoOperacion (cat. 51), Moneda, TipoCambio (si aplica) |
-| `ConceptoSunatDto` | Cantidad, Descripcion, ValorUnitario, Importe, CodigoSUNAT, ClaveSUNAT (UdM), IdAfectacionIGV, ValorIGV |
-| `DatosEmisorSunatDto` | RUC, RazonSocial, DireccionFiscal, Ubigeo, Serie, EmpresaClave |
-| `DatosReceptorSunatDto` | RUC, RazonSocial, DireccionFiscal, RegimenTributario, Correo, Moneda |
-| `TimbrarFacturaSunatResponseDto` | IdCFDI, NumeroCPE (Serie-Correlativo), FechaEmision, Total, XmlBase64, CdrBase64, Exitoso, ErrorDescripcion, CodigoErrorSunat |
+| `StampSunatInvoiceRequestDto` | IdProformaAdelanto, IssuerData (RUC, RazonSocial, DireccionFiscal, Ubigeo, Serie), RecipientData (RUC, RazonSocial, DireccionFiscal, RegimenTributario), `Conceptos[]`, TipoOperacion (cat. 51), Moneda, TipoCambio (si aplica) |
+| `SunatItemDto` | Cantidad, Descripcion, ValorUnitario, Importe, CodigoSUNAT, ClaveSUNAT (UdM), IdAfectacionIGV, ValorIGV |
+| `SunatIssuerDataDto` | RUC, RazonSocial, DireccionFiscal, Ubigeo, Serie, EmpresaClave |
+| `SunatRecipientDataDto` | RUC, RazonSocial, DireccionFiscal, RegimenTributario, Correo, Moneda |
+| `StampSunatInvoiceResponseDto` | NumeroCPE (Serie-Correlativo), FechaEmision, Total, XmlBase64, CdrBase64, Exitoso, ErrorDescripcion, CodigoErrorSunat — sin IdCFDI: el Id de negocio real (`IdCFDIGenerada`) lo asigna Finanzas al persistir |
 
 #### Application — StampingService (Ampliación)
 
-Agregar método `TimbrarFacturaSunatAsync(TimbrarFacturaSunatRequestDto)` que orquesta:
+Agregar método `StampSunatInvoiceAsync(StampSunatInvoiceRequestDto)` que orquesta:
 
 ```
 1. Validar request (FluentValidation)
 2. Consumir folio via EmpresaFolioService.GetNextFolioAsync('GOLPERU')
    → retorna Serie-Correlativo formateado (ej: F001-00000001)
 3. Armar XML UBL 2.1 con datos fiscales + conceptos SUNAT + IGV 18%
-4. INSERT CFDI en BD (EstatusTimbrado = Pendiente, TipoFiscal = 'SUNAT')
+4. INSERT StampingLog (NewStatus=Pending)
 5. Llamar OseStampingClient → OSE/PSE SUNAT
-6. Si ERROR: retornar TimbrarFacturaSunatResponseDto con Exitoso=false + CodigoErrorSunat
-7. Si ÉXITO (CDR aceptado): UPDATE CFDI (NumeroCPE, XmlTimbrado, CdrAceptacion, EstatusTimbrado = Timbrado)
-8. Subir XML + CDR a Minio (bucket 'facturas-peru')
-9. INSERT StampingLog
-10. Retornar TimbrarFacturaSunatResponseDto con Exitoso=true + NumeroCPE
+6. Si ERROR: UPDATE StampingLog (NewStatus=Failed) y retornar StampSunatInvoiceResponseDto con
+   Exitoso=false + CodigoErrorSunat (sin persistir ningun CPE de negocio)
+7. Si ÉXITO (CDR aceptado): UPDATE StampingLog (NewStatus=Stamped)
+8. Retornar StampSunatInvoiceResponseDto con Exitoso=true + NumeroCPE, XmlBase64, CdrBase64
+   (el XML/CDR se regresan en el response; Finanzas los sube a Minio y los persiste, ver
+   R16A-RE-FU-018-Back.md Parte B)
 ```
+
+> Nota: los pasos "INSERT/UPDATE CFDI" y "Subir XML+CDR a Minio (bucket 'facturas-peru')" de
+> versiones previas de esta tarea se eliminaron — Timbrado no tiene tabla `Cfdi` propia ni sube
+> archivos a Minio; ambas responsabilidades son de Finanzas (`CfdiService`, igual que en MEX).
 
 #### Infrastructure — OseStampingClient
 
@@ -114,17 +122,17 @@ public class OseStampingClient : IOseStampingClient
     // Autenticación: certificado digital PFX de Golocaer S.A.C.
     // Payload: XML UBL 2.1 firmado digitalmente
     // Response: CDR (Constancia de Recepción) con código de respuesta SUNAT
-    Task<OseStampingResponse> TimbrarAsync(OseStampingRequest request);
+    Task<OseStampingResponse> StampAsync(OseStampingRequest request);
 }
 ```
 
 > El proveedor OSE/PSE está **pendiente de definir** (Brecha 5 de R16A-RE-FU-005). El cliente HTTP debe ser intercambiable via interface para facilitar el cambio de proveedor.
 
-#### API — CfdiController (Ampliación)
+#### API — StampingController (Ampliación)
 
 | Método | Endpoint | Descripción |
 |--------|----------|-------------|
-| POST | `/api/v1/cfdi` | Recibe request SUNAT (discriminado por FiscalDocumentTypeId), retorna `TimbrarFacturaSunatResponseDto` — reutiliza el endpoint único creado en RE-FU-018, sin controller ni ruta separados |
+| POST | `/api/v1/stamp` | Recibe el request técnico SUNAT armado por Finanzas, retorna `StampSunatInvoiceResponseDto` — reutiliza el endpoint técnico único creado en RE-FU-018, sin controller ni ruta separados. El recurso de negocio `cfdi` (`CfdiController`, `POST /api/v1/cfdi`) vive en Finanzas. |
 
 ---
 
@@ -138,16 +146,18 @@ Adaptar el módulo FAA en Finanzas (RE-FU-019) para soportar el flujo de Perú. 
 
 | Endpoint | Reutilización | Adaptación Perú |
 |----------|---------------|-----------------|
-| `POST /api/factura-adelantado/detalle` | ✅ Reutiliza | Filtro `RegionClave='PER'` en request |
-| `POST /api/factura-adelantado/generar` | ⚙️ Extiende | Branch interno: si PER → arma UBL 2.1 → llama `POST /api/v1/cfdi` |
-| `POST /api/factura-adelantado/previsualizar-pdf` | ⚙️ Extiende | Branch interno: si PER → template PDF GOLPERU |
-| `POST /api/factura-adelantado/enviar` | ✅ Reutiliza | Sin rama Crédito; solo Validar Cobro |
+| `POST /api/v1/advanceInvoice/{clientId}/detail` | ✅ Reutiliza | Filtro `RegionClave='PER'` en request |
+| `POST /api/v1/advanceInvoice/{id}/generate` | ⚙️ Extiende | Branch interno: si PER → arma UBL 2.1 → llama `ICfdiService.GenerateAsync` (que a su vez llama `POST /api/v1/stamp` en Timbrado y persiste CFDIGenerada) |
+| `POST /api/v1/advanceInvoice/{id}/preview` | ⚙️ Extiende | Branch interno: si PER → template PDF GOLPERU |
+| `POST /api/v1/advanceInvoice/{id}/send` | ✅ Reutiliza | Sin rama Crédito; solo Validar Cobro |
+
+> **Nota (Reglas al diseñar — regla 9, corrección):** rutas corregidas de `/api/factura-adelantado/*` (español) al recurso ya establecido `advanceInvoice` (RE-FU-018/019) bajo `api/v1/`.
 
 ### Endpoint: Detalle Perú (Pedidos por cliente)
 
-Reutiliza `FacturaAdelantadoDetalleRepository` con el filtro `RegionClave='PER'` en el request.
+Reutiliza `AdvanceInvoiceDetailRepository` con el filtro `RegionClave='PER'` en el request.
 
-La vista `vtpProformaAdelanto` ya incluye `RegionClave` por lo que no requiere cambios en BD.
+La vista `vfccFactura` (RE-FU-015) ya incluye `RegionClave` por lo que no requiere cambios en BD.
 
 Diferencias en el response para Perú:
 
@@ -159,7 +169,7 @@ Diferencias en el response para Perú:
 
 ### Endpoint: Generar Factura Perú
 
-#### Adaptaciones en `FacturaAdelantadoGenerarService`
+#### Adaptaciones en `AdvanceInvoiceGenerateService`
 
 El servicio detecta la región del cliente y ejecuta el branch correspondiente:
 
@@ -170,30 +180,38 @@ Si RegionClave = 'PER':
   3. Obtener datos fiscales SUNAT del cliente (RUC, RazonSocial, DireccionFiscal, RegimenTributario)
   4. Obtener datos de Golocaer S.A.C. (RUC emisor, DireccionFiscal, Ubigeo, Serie) ← BRECHA datos legales
   5. Obtener Tipo de Cambio PEN (si moneda != PEN) ← Fuente pendiente definir
-  6. Armar TimbrarFacturaSunatRequestDto con:
+  6. Armar StampSunatInvoiceRequestDto con:
      - Conceptos con CodigoSUNAT + ClaveSUNAT + AfectacionIGV + IGV 18% por línea
      - TipoOperacion cat. 51 SUNAT (fijo "0101" o seleccionable — pendiente definir)
      - SIN MetodoPago / FormaPago / TipoComprobante SAT
-  7. Llamar ApiCallerStamping.TimbrarSunatAsync → POST /api/v1/cfdi
-  8. Si ERROR: retornar FAAGenerarResponseDto con Exitoso=false + ErrorDescripcion (SUNAT)
-  9. Si ÉXITO: UPDATE tpProformaAdelanto SET IdCFDIGenerada = @idCFDI
-  10. Almacenar PDF+XML+CDR en Minio (bucket 'facturas-peru')
-  11. INSERT Archivo x2 (PDF + XML)
-  12. Retornar FAAGenerarResponseDto con Exitoso=true + NumeroCPE (Serie-Correlativo)
+  7. Llamar ICfdiService.GenerateAsync(request) — internamente: llama ApiCallerStamping.StampSunatInvoiceAsync
+     -> Timbrado POST /api/v1/stamp, y si el CDR es aceptado, INSERT CFDIGenerada + Archivo (PDF+XML+CDR,
+     bucket 'facturas-peru') en ProquifaDotNet
+  8. Si ERROR: retornar AdvanceInvoiceGenerateResponseDto con Exitoso=false + ErrorDescripcion (SUNAT),
+     sin modificar fccFactura
+  9. Si ÉXITO: UPDATE fccFactura SET IdCFDIGenerada = @IdCFDIGenerada, EsFacturaPorAdelantado = 0
+     (Id real retornado por ICfdiService.GenerateAsync, correspondiente al registro insertado en CFDIGenerada)
+  10. Registrar el guardado de la factura en ProquifaDotNet.BitacoraCambios (Aplicativo Nuevo — regla 8)
+  11. Retornar AdvanceInvoiceGenerateResponseDto con Exitoso=true + NumeroCPE (Serie-Correlativo)
 ```
 
-#### Adaptaciones en `FacturaAdelantadoDatosFiscalesRepository`
+> Nota: los pasos "Almacenar PDF+XML+CDR en Minio" e "INSERT Archivo" de versiones previas de esta
+> tarea ya no los ejecuta `AdvanceInvoiceGenerateService` directamente — `ICfdiService.GenerateAsync`
+> (RE-FU-018) se encarga de la subida a Minio y del vínculo en `CFDIGenerada.IdArchivoXml`, igual que
+> en el flujo México (RE-FU-019).
+
+#### Adaptaciones en `AdvanceInvoiceFiscalDataRepository`
 
 Métodos adaptados para Perú:
 
 | Método | Adaptación |
 |--------|-----------|
-| `GetDatosFiscalesClienteAsync` | Retorna RUC (en vez de RFC), DireccionFiscal, RegimenTributario (Perú) |
-| `GetDatosFiscalesEmisorAsync` | Retorna datos de GOLPERU: RUC, RazonSocial, DireccionFiscal, Ubigeo, Serie SUNAT |
-| `GetTipoOperacionCatalogoAsync()` | **NUEVO** — retorna catálogo 51 SUNAT (equivalente a GetUsoCFDICatalogoAsync para México) |
-| `GetDatosProductoSunatAsync` | **NUEVO** — obtiene CodigoSUNAT, ClaveSUNAT, IdAfectacionIGV por partida ← **BRECHA** |
+| `GetClientFiscalDataAsync` | Retorna RUC (en vez de RFC), DireccionFiscal, RegimenTributario (Perú) |
+| `GetIssuerFiscalDataAsync` | Retorna datos de GOLPERU: RUC, RazonSocial, DireccionFiscal, Ubigeo, Serie SUNAT |
+| `GetOperationTypeCatalogAsync()` | **NUEVO** — retorna catálogo 51 SUNAT (equivalente a GetCfdiUsageCatalogAsync para México) |
+| `GetSunatProductDataAsync` | **NUEVO** — obtiene CodigoSUNAT, ClaveSUNAT, IdAfectacionIGV por partida ← **BRECHA** |
 
-#### Adaptaciones en `FacturaAdelantadoPreviewService`
+#### Adaptaciones en `AdvanceInvoicePreviewService`
 
 El preview detecta la región y usa el template correspondiente:
 - Perú → template DocumentBuilder `GOLPERU_PER_FAA` (por definir en requisito independiente)
@@ -203,15 +221,17 @@ El preview detecta la región y usa el template correspondiente:
 
 | DTO | Propósito |
 |-----|-----------|
-| `FAADatosFiscalesClientePeruDto` | RUC, RazonSocial, DireccionFiscal, RegimenTributario, Correo, Moneda, TipoCambio |
-| `FAADatosFiscalesEmisorPeruDto` | RUC, RazonSocial, DireccionFiscal, Ubigeo, Serie SUNAT, EmpresaClave='GOLPERU' |
-| `FAATipoOperacionDto` | Clave (ej: '0101'), Descripcion ('Venta interna') |
+| `ClientFiscalDataPeruDto` | RUC, RazonSocial, DireccionFiscal, RegimenTributario, Correo, Moneda, TipoCambio |
+| `IssuerFiscalDataPeruDto` | RUC, RazonSocial, DireccionFiscal, Ubigeo, Serie SUNAT, EmpresaClave='GOLPERU' |
+| `OperationTypeDto` | Clave (ej: '0101'), Descripcion ('Venta interna') |
 
 ### ApiCallerStamping — Método Nuevo
 
+> `IApiCallerStamping`/`ApiCallerStamping` ya existen (RE-FU-018 Parte B, Tarea 10); aquí solo se agrega el método SUNAT.
+
 | Método | Endpoint Timbrado | Descripción |
 |--------|------------------|-------------|
-| `TimbrarSunatAsync(TimbrarFacturaSunatRequestDto)` | `POST /api/v1/cfdi` | Timbrado UBL 2.1 SUNAT |
+| `StampSunatInvoiceAsync(StampSunatInvoiceRequestDto)` | `POST /api/v1/stamp` | Timbrado UBL 2.1 SUNAT (invocado internamente por `CfdiService.GenerateAsync`, no directamente por `AdvanceInvoiceGenerateService`) |
 
 ---
 
@@ -331,20 +351,20 @@ WHERE Prefijo = 'GOLPERU';
 
 | # | Gap | Acción | Esfuerzo | Estado |
 |---|-----|--------|----------|--------|
-| GAP-01 | DTOs SUNAT: `TimbrarFacturaSunatRequestDto`, `ConceptoSunatDto`, `DatosEmisorSunatDto`, `DatosReceptorSunatDto`, `TimbrarFacturaSunatResponseDto` | Modelos específicos UBL 2.1 con campos SUNAT | Medio | Abierto |
+| GAP-01 | DTOs SUNAT: `StampSunatInvoiceRequestDto`, `SunatItemDto`, `SunatIssuerDataDto`, `SunatRecipientDataDto`, `StampSunatInvoiceResponseDto` | Modelos específicos UBL 2.1 con campos SUNAT | Medio | Abierto |
 | GAP-02 | Infrastructure: `OseStampingClient` (interface + implementación HTTP hacia OSE/PSE SUNAT) | Cliente HTTP intercambiable; proveedor pendiente | Alto | **BLOQUEANTE (brecha OSE)** |
-| GAP-03 | Application: ampliar `StampingService` con `TimbrarFacturaSunatAsync` (UBL 2.1, serie SUNAT, CDR) | Flujo completo: validar → folio → UBL 2.1 → OSE → persistir | Alto | **BLOQUEANTE (brecha OSE + datos SUNAT producto)** |
-| GAP-04 | API: `CfdiController` — sin endpoint nuevo (reutiliza `POST /api/v1/cfdi` creado en RE-FU-018, discriminado por FiscalDocumentTypeId) | Ajuste de orquestación interna para SUNAT | Bajo | Abierto |
+| GAP-03 | Application: ampliar `StampingService` con `StampSunatInvoiceAsync` (UBL 2.1, serie SUNAT, CDR) | Flujo completo: validar → folio → UBL 2.1 → OSE → persistir | Alto | **BLOQUEANTE (brecha OSE + datos SUNAT producto)** |
+| GAP-04 | API: `StampingController` — sin endpoint nuevo (reutiliza `POST /api/v1/stamp` creado en RE-FU-018) | Ajuste de orquestación interna para SUNAT | Bajo | Abierto |
 
 ### En ProquifaDotNet.Finanzas
 
 | # | Gap | Acción | Esfuerzo | Estado |
 |---|-----|--------|----------|--------|
-| GAP-05 | DTOs Peru: `FAADatosFiscalesClientePeruDto`, `FAADatosFiscalesEmisorPeruDto`, `FAATipoOperacionDto` | Modelos con campos RUC, DireccionFiscal, RegimenTributario, Ubigeo | Bajo | Abierto |
-| GAP-06 | Infrastructure: adaptar `FacturaAdelantadoDatosFiscalesRepository` para Perú (RUC, dirección fiscal, Tipo Operación cat. 51, datos SUNAT producto) | Branch regional en métodos existentes o métodos nuevos _Peru | Medio | **BLOQUEANTE (datos SUNAT producto)** |
-| GAP-07 | Application: extender `FacturaAdelantadoGenerarService` con branch Perú (UBL 2.1, IGV, sin PPD/99, Tipo Operación, llama `POST /api/v1/cfdi`) | Branch interno RegionClave='PER', alta complejidad | Alto | **BLOQUEANTE (datos SUNAT producto + OSE)** |
-| GAP-08 | Application: extender `FacturaAdelantadoPreviewService` con template PDF GOLPERU (DocumentBuilder) | Branch regional para template PDF Perú | Medio | Abierto |
-| GAP-09 | Infrastructure: `ApiCallerStamping` agregar método `TimbrarSunatAsync` | Nuevo método HTTP hacia `POST /api/v1/cfdi` | Bajo | Abierto |
+| GAP-05 | DTOs Peru: `ClientFiscalDataPeruDto`, `IssuerFiscalDataPeruDto`, `OperationTypeDto` | Modelos con campos RUC, DireccionFiscal, RegimenTributario, Ubigeo | Bajo | Abierto |
+| GAP-06 | Infrastructure: adaptar `AdvanceInvoiceFiscalDataRepository` para Perú (RUC, dirección fiscal, Tipo Operación cat. 51, datos SUNAT producto) | Branch regional en métodos existentes o métodos nuevos _Peru | Medio | **BLOQUEANTE (datos SUNAT producto)** |
+| GAP-07 | Application: extender `AdvanceInvoiceGenerateService` con branch Perú (UBL 2.1, IGV, sin PPD/99, Tipo Operación, llama `ICfdiService.GenerateAsync`) | Branch interno RegionClave='PER', alta complejidad | Alto | **BLOQUEANTE (datos SUNAT producto + OSE)** |
+| GAP-08 | Application: extender `AdvanceInvoicePreviewService` con template PDF GOLPERU (DocumentBuilder) | Branch regional para template PDF Perú | Medio | Abierto |
+| GAP-09 | Infrastructure: `ApiCallerStamping` (existente, RE-FU-018) agregar método `StampSunatInvoiceAsync` | Nuevo método HTTP hacia `POST /api/v1/stamp` | Bajo | Abierto |
 
 ### En Base de Datos
 
@@ -363,14 +383,14 @@ WHERE Prefijo = 'GOLPERU';
 ```
 [Finanzas]                                  [Timbrado]                      [OSE/PSE SUNAT]
      |                                           |                                 |
-     | POST /api/v1/cfdi                          |                                 |
+     | POST /api/v1/stamp (tecnico)              |                                 |
      |------------------------------------------>|                                 |
      |                                           | 1. Validar request              |
      |                                           | 2. Consumir folio GOLPERU       |
      |                                           |    (F001-00000001)               |
      |                                           | 3. Armar XML UBL 2.1            |
      |                                           |    + firma digital               |
-     |                                           | 4. INSERT CFDI (Pendiente)      |
+     |                                           | 4. INSERT StampingLog (Pending) |
      |                                           |                                 |
      |                                           | Enviar XML firmado              |
      |                                           |-------------------------------->|
@@ -378,13 +398,15 @@ WHERE Prefijo = 'GOLPERU';
      |                                           |    CDR (aceptado/rechazado)     |
      |                                           |<--------------------------------|
      |                                           |                                 |
-     |                                           | 5. Si ÉXITO:                    |
-     |                                           |    UPDATE CFDI (NumeroCPE, CDR) |
-     |                                           |    Minio bucket 'facturas-peru' |
-     |                                           |    INSERT StampingLog           |
-     |    TimbrarFacturaSunatResponseDto          |                                 |
+     |                                           | 5. UPDATE StampingLog (Stamped) |
+     |    StampSunatInvoiceResponseDto          |                                 |
      |<------------------------------------------|                                 |
+     |                                           |                                 |
+     | 6. CfdiService (Finanzas): INSERT CFDIGenerada +                           |
+     |    Archivo (XML+CDR, bucket 'facturas-peru')                               |
 ```
+
+> Nota: la persistencia del CPE (`CFDIGenerada` + `Archivo`) y la subida a Minio ya no ocurren del lado de Timbrado — Timbrado solo audita la llamada (`StampingLog`). Igual que en México (RE-FU-019), es `CfdiService` (Finanzas) quien persiste el resultado.
 
 ---
 
@@ -394,7 +416,7 @@ WHERE Prefijo = 'GOLPERU';
 
 | Tabla | Uso | Diferencia vs MEX |
 |-------|-----|-------------------|
-| `vtpProformaAdelanto` | Listado detalle PER (filtro RegionClave='PER') | Igual, ya incluye Region |
+| `vfccFactura` (RE-FU-015, reemplaza vtpProformaAdelanto) | Listado detalle PER (filtro RegionClave='PER') | Igual, ya incluye Region |
 | `DatosFacturacionCliente` | RUC (11 dígitos), RazonSocial, DireccionFiscal | RUC vs RFC |
 | `Empresa` (GOLPERU) | RUC emisor, RazonSocial, DireccionFiscal, Ubigeo | Solo GOLPERU; campos nuevos |
 | `catCondicionesDePago` | Contado/Crédito | Sin PPD/99 |
@@ -409,18 +431,18 @@ WHERE Prefijo = 'GOLPERU';
 
 | Tabla | Operación | Diferencia vs MEX |
 |-------|-----------|-------------------|
-| `tpProformaAdelanto` | UPDATE SET IdCFDIGenerada; UPDATE SET Enviada=1 | Igual |
-| `Archivo` | INSERT x2 (PDF + XML) | FileBucket='facturas-peru' |
+| `CFDIGenerada` | INSERT al timbrar exitosamente (NumeroCPE/UUID, CDR, FechaEmision, Total, catalogos, Estado) — propiedad de Finanzas | Mismos campos base que MEX; sin IdCatMetodoDePagoCFDI/IdCatUsoCFDI (no aplican SUNAT) |
+| `fccFactura` (reemplaza tpProformaAdelanto) | UPDATE SET IdCFDIGenerada (Id real de CFDIGenerada), EsFacturaPorAdelantado=0; UPDATE SET Enviada=1 | Igual |
+| `Archivo` | INSERT x2 (PDF + XML/CDR) + vínculo en CFDIGenerada.IdArchivoXml | FileBucket='facturas-peru' |
 | `CorreoEnviado` | INSERT registro envío | Igual |
 | `ArchivoCorreoEnviado` | INSERT vínculo archivo-correo | Igual |
 
-### ProquifaDotNetTimbrado
+### ProquifaDotNetTimbrado (solo técnico, sin tabla de negocio del CFDI)
 
 | Tabla | Operación | Diferencia vs MEX |
 |-------|-----------|-------------------|
 | `EmpresaFolio` | UPDATE atómico GOLPERU (F001 serie) | FormatoFolio distinto |
-| `CFDI` | INSERT + UPDATE (NumeroCPE, CdrAceptacion) | Campo NumeroCPE diferente |
-| `StampingLog` | INSERT auditoria | Igual |
+| `StampingLog` | INSERT auditoría técnica (`CfdiGeneradaId` es referencia informativa, no FK) | Igual |
 
 ---
 
@@ -434,7 +456,7 @@ WHERE Prefijo = 'GOLPERU';
 | Tipo de Operación | Catálogo 51 SUNAT; pendiente definir si es fijo "0101" o seleccionable por el operador (Regla 7 del requisito) |
 | Sin Método/Forma de Pago | El modal de Generación Perú NO muestra estos campos; el DTO no los incluye |
 | Sin Complemento de Pago | El CPE peruano se emite completo con IGV; no existe el esquema PPD + Complemento del SAT |
-| Branch regional en Finanzas | `FacturaAdelantadoGenerarService` detecta RegionClave y enruta: 'MEX' → `/timbrar-faa`, 'PER' → `/timbrar-sunat` |
+| Branch regional en Finanzas | `AdvanceInvoiceGenerateService` detecta RegionClave y arma el request correspondiente; ambos casos llaman a `ICfdiService.GenerateAsync`, que internamente invoca el mismo endpoint técnico único `POST /api/v1/stamp` en Timbrado y persiste `CFDIGenerada` (resuelve el tipo con `catTipoCFDI`, sin discriminador propio de Timbrado) |
 | Template PDF Perú | DocumentBuilder template `GOLPERU_PER_FAA` independiente del template México; definir en requisito independiente |
 | Fuente Tipo de Cambio Perú | La fuente oficial para TC en Perú (SBS, SUNAT, BCR) está pendiente de definir (no aplica el DOF mexicano) |
 | Interoperabilidad OSE | El `OseStampingClient` debe implementar via interface para facilitar cambio de proveedor OSE/PSE sin modificar la capa Application |
@@ -449,7 +471,7 @@ WHERE Prefijo = 'GOLPERU';
 | R16A-RE-FU-019 | Prerequisito: flujo FAA Detalle México implementado (reutilizar servicios con branch regional) |
 | R16A-RE-FU-005 | Brechas Perú: Brecha 1 (datos SUNAT producto — BLOQUEANTE) + Brecha 5 (OSE/PSE SUNAT — BLOQUEANTE) |
 | R16A-RE-FU-012 | Define que Crédito Perú no usa Factura por Adelantado |
-| R16A-RE-FU-015 | Genera pendiente FAA desde tramitación Prepago Perú |
+| R16A-RE-FU-015 | Origen y dueño de `fccFactura`/`vfccFactura` (columna `Enviada` y vista reutilizadas por este requisito) — genera pendiente FAA desde tramitación Prepago Perú |
 | R16A-RE-FU-022 | PDF de la factura Perú (template DocumentBuilder GOLPERU_PER_FAA) |
 
 ---
@@ -459,6 +481,6 @@ WHERE Prefijo = 'GOLPERU';
 | Repositorio | Cantidad | Detalle |
 |-------------|----------|---------|
 | ProquifaDotNet.Timbrado | 4 (GAP-01 a GAP-04) | DTOs SUNAT + OseStampingClient + StampingService + endpoint |
-| ProquifaDotNet.Finanzas | 5 (GAP-05 a GAP-09) | DTOs Perú + DatosFiscalesRepository + GenerarService + PreviewService + ApiCallerStamping |
+| ProquifaDotNet.Finanzas | 5 (GAP-05 a GAP-09) | DTOs Perú + AdvanceInvoiceFiscalDataRepository + AdvanceInvoiceGenerateService + AdvanceInvoicePreviewService + ApiCallerStamping |
 | Base de Datos | 5 (GAP-10 a GAP-14) | EmpresaFolio GOLPERU + AppSetting OSE + datos SUNAT producto (BLOQUEANTE) + catAfectacionIGV + datos legales GOLPERU |
 | **Total** | **14 gaps** | 3 bloqueantes por brechas Perú |

@@ -19,9 +19,11 @@ La funcionalidad se distribuye en tres soluciones:
 
 | Solución | Rol en RE-FU-019 | Estado |
 |----------|-----------------|--------|
-| ProquifaDotNet.Finanzas (.NET Core 10) | Orquestador principal: detalle, generación, timbrado, envío, salida operativa | Creada en RE-FU-016, módulo FAA agregado en RE-FU-018 |
-| ProquifaDotNet.Timbrado (.NET Core 10) | Ejecutor de timbrado: recibe request, genera CFDI via SAP, asigna folio por empresa | Creada en RE-FU-018 |
+| ProquifaDotNet.Finanzas (.NET Core 10) | Orquestador principal: detalle, generación (incluye `CfdiController`/`CFDIGenerada`), envío, salida operativa | Creada en RE-FU-016, módulo FAA y CfdiController agregados en RE-FU-018 |
+| ProquifaDotNet.Timbrado (.NET Core 10) | Servicio técnico: consume folio, arma XML, llama SAP, **regresa el resultado a Finanzas sin persistir el CFDI como entidad de negocio** | Creada en RE-FU-018 |
 | ProquifaDotNet (.NET Framework 4.8) | Consumidor: controlador Detalle FAA que delega a Finanzas, transferencia Legacy | Existente |
+
+> **Nota de arquitectura (correccion — el CFDI no va en Timbrado, va en Finanzas):** este documento se corrigio para reflejar que `CfdiController` y la persistencia de `CFDIGenerada` viven en **ProquifaDotNet.Finanzas** (ver R16A-RE-FU-018-Back.md, Parte B), y que este mismo requisito (RE-FU-019) es el que ejecuta el `CREATE TABLE CFDIGenerada` base (ver R16A-RE-FU-019_BD.md). `ProquifaDotNet.Timbrado` expone el endpoint tecnico `POST /api/v1/stamp` (no `/api/v1/cfdi`, que es el recurso de negocio expuesto por Finanzas).
 
 ---
 
@@ -71,15 +73,15 @@ Ampliar `StampingService` para soportar el request de Factura por Adelantado:
 
 | Método nuevo | Descripción |
 |--------------|-------------|
-| TimbrarFacturaAdelantadoAsync(TimbrarFAARequestDto) | Orquesta: validar datos fiscales, consumir folio, armar XML, llamar SAP, persistir CFDI |
+| StampAdvanceInvoiceAsync(StampAdvanceInvoiceRequestDto) | Orquesta: validar datos fiscales, consumir folio, armar XML, llamar SAP, registrar StampingLog y **regresar el resultado a Finanzas** — no persiste el CFDI como entidad de negocio propia |
 
 #### Application — DTOs nuevos para FAA
 
 | DTO | Campos principales |
 |-----|-------------------|
-| TimbrarFAARequestDto | IdProformaAdelanto, DatosReceptor (RFC, RazonSocial, CP, RegimenFiscal, UsoCFDI), DatosEmisor (RFC, RazonSocial, RegimenFiscal, EmpresaClave), Conceptos[], MetodoPago="PPD", FormaPago="99", TipoComprobante="I", Moneda, TipoCambio |
-| ConceptoFAADto | Cantidad, Descripcion, PrecioUnitario, Importe, ClaveUnidad, ClaveProdServ — **Descripcion = "catálogo + descripción + marca"; NO se incluye lote ni pedimento (OBS-039)** |
-| TimbrarFAAResponseDto | IdCFDI, UUID, Serie, Folio, FechaEmision, Total, XmlBase64, Exitoso, ErrorDescripcion |
+| StampAdvanceInvoiceRequestDto | IdProformaAdelanto, RecipientData (RFC, RazonSocial, CP, RegimenFiscal, UsoCFDI), IssuerData (RFC, RazonSocial, RegimenFiscal, EmpresaClave), Conceptos[], MetodoPago="PPD", FormaPago="99", TipoComprobante="I", Moneda, TipoCambio |
+| AdvanceInvoiceItemDto | Cantidad, Descripcion, PrecioUnitario, Importe, ClaveUnidad, ClaveProdServ — **Descripcion = "catálogo + descripción + marca"; NO se incluye lote ni pedimento (OBS-039)** |
+| StampAdvanceInvoiceResponseDto | Uuid, Serie, Folio, FechaEmision, Total, XmlBase64, Exitoso, ErrorDescripcion — **sin IdCFDI**: el Id de negocio real (`IdCFDIGenerada`) lo asigna Finanzas al persistir, no Timbrado |
 
 #### Infrastructure — EmpresaFolioRepository
 
@@ -96,11 +98,11 @@ public class EmpresaFolioRepository : GenericRepository<EmpresaFolio>, IEmpresaF
 }
 ```
 
-#### API — CfdiController (Ampliación)
+#### API — StampingController (Ampliación)
 
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| POST | /api/v1/cfdi | Recibe request FAA (discriminado por FiscalDocumentTypeId), retorna TimbrarFAAResponseDto — reutiliza el endpoint único creado en RE-FU-018, sin controller ni ruta separados |
+| Método | Endpoint       | Descripción                                                                                                                     |
+| ------ | -------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| POST   | /api/v1/stamp  | Recibe el request técnico de timbrado FAA armado por Finanzas, retorna StampAdvanceInvoiceResponseDto — reutiliza el endpoint técnico único creado en RE-FU-018 (`StampingController`), sin controller ni ruta separados. El recurso de negocio `cfdi` (`CfdiController`, `POST /api/v1/cfdi`) vive en Finanzas, no aquí. |
 
 ---
 
@@ -112,12 +114,14 @@ Ampliar el módulo FAA en Finanzas (creado en RE-FU-018) con los endpoints de De
 
 ### Endpoints Nuevos
 
-| Método | Endpoint | Descripción |
-|--------|----------|-------------|
-| POST | /api/factura-adelantado/detalle | Listado de pedidos del cliente con estado FAA |
-| POST | /api/factura-adelantado/generar | Orquesta: arma datos, llama Timbrado, persiste resultado |
-| POST | /api/factura-adelantado/previsualizar-pdf | Genera PDF preview sin timbrar (para modal previsualización) |
-| POST | /api/factura-adelantado/enviar | Envía correo con PDF+XML, marca Enviada, ejecuta salida operativa |
+> **Nota (Reglas al diseñar — regla 9, corrección):** las rutas se corrigen de `/api/factura-adelantado/*` (español, sin versionar) a `api/v1/{resource}/{id}/{subresource}` — recurso singular en inglés `advanceInvoice` (ya establecido en RE-FU-018 para `POST /api/v1/advanceInvoice/search`), con subrecursos en inglés.
+
+| Método | Endpoint                                  | Descripción                                                       |
+| ------ | ----------------------------------------- | ----------------------------------------------------------------- |
+| POST   | /api/v1/advanceInvoice/{clientId}/detail  | Listado de pedidos del cliente con estado FAA                     |
+| POST   | /api/v1/advanceInvoice/{id}/generate      | Orquesta: arma datos, llama CfdiService (Timbrado), persiste resultado |
+| POST   | /api/v1/advanceInvoice/{id}/preview       | Genera PDF preview sin timbrar (para modal previsualización)      |
+| POST   | /api/v1/advanceInvoice/{id}/send          | Envía correo con PDF+XML, marca Enviada, ejecuta salida operativa |
 
 ---
 
@@ -152,7 +156,7 @@ Ampliar el módulo FAA en Finanzas (creado en RE-FU-018) con los endpoints de De
   "TotalResults": 5,
   "Results": [
     {
-      "IdTPProformaAdelanto": "guid",
+      "IdFccFactura": "guid",
       "IdTPPedido": "guid",
       "FolioPedidoInterno": "string",
       "FechaPedido": "datetime",
@@ -172,10 +176,12 @@ Ampliar el módulo FAA en Finanzas (creado en RE-FU-018) con los endpoints de De
 }
 ```
 
-#### Consulta BD (Vista vtpProformaAdelanto)
+#### Consulta BD (Vista vfccFactura — RE-FU-015)
+
+> **Migración (06/07/2026):** este listado ya no consulta `vtpProformaAdelanto`. Consulta directamente **`vfccFactura`** (vista definida y creada en R16A-RE-FU-015_BD.md), que cubre tanto pedidos Prepago como Crédito sin la cadena de JOINs original.
 
 ```
-SELECT FROM vtpProformaAdelanto
+SELECT FROM vfccFactura
 WHERE IdCliente = @IdCliente
   AND RegionClave = 'MEX'
   AND EstadoFAA IN ('PendienteGenerar', 'PendienteEnviar')
@@ -183,7 +189,7 @@ WHERE IdCliente = @IdCliente
 ORDER BY FechaTramitacion DESC
 ```
 
-> La vista vtpProformaAdelanto (CREATE VIEW en BD) resuelve los JOINs complejos de la cadena tpProformaAdelanto → fccPagoFacturaAdelanto → tpProformaPedido → tpPedidoProformaPedido → tpPedido.
+> `vfccFactura` lee `fccFactura` directamente por FK (`IdTPPedido`), sin necesidad de la cadena `tpProformaAdelanto → fccPagoFacturaAdelanto → tpProformaPedido → tpPedidoProformaPedido → tpPedido` que usaba la vista anterior (`vtpProformaAdelanto`, retirada — ver H-01 en R16A-RE-FU-018_DIS-SOL_Revision.md).
 
 ---
 
@@ -193,7 +199,7 @@ ORDER BY FechaTramitacion DESC
 
 ```json
 {
-  "IdTPProformaAdelanto": "guid",
+  "IdFccFactura": "guid",
   "UsoCFDI": "G03"
 }
 ```
@@ -201,25 +207,29 @@ ORDER BY FechaTramitacion DESC
 #### Flujo interno
 
 ```
-1. Validar que IdTPProformaAdelanto existe y EstadoFAA = 'PendienteGenerar'
+1. Validar que IdFccFactura existe y EstadoFAA = 'PendienteGenerar' (vfccFactura)
 2. Obtener datos del pedido (tpPedido, partidas)
 3. Obtener datos fiscales del cliente (DatosFacturacionCliente)
 4. Obtener datos del emisor (Empresa)
 5. Obtener Tipo de Cambio del día (si moneda != MXN)
-6. Armar TimbrarFAARequestDto con:
+6. Armar StampAdvanceInvoiceRequestDto con:
    - Receptor: RFC, RazonSocial, CP, RegimenFiscal, UsoCFDI, Moneda, TipoCambio
    - Emisor: RFC, RazonSocial, RegimenFiscal, EmpresaClave
    - Conceptos: partidas del pedido (cantidad, precioUnitario, importe). La descripción de cada concepto CFDI se construye como "catálogo + descripción + marca"; no se incluye lote ni pedimento (OBS-039).
    - Forzados: MetodoPago="PPD", FormaPago="99", TipoComprobante="I"
-7. Llamar ProquifaDotNet.Timbrado POST /api/v1/cfdi
-8. Si EXITOSO:
-   a. Persistir IdCFDIGenerada en tpProformaAdelanto (UPDATE SET IdCFDIGenerada = @id)
-   b. Almacenar PDF+XML en Minio (bucket 'facturas')
-   c. Insertar registros en Archivo (2 registros: PDF + XML)
-   d. Retornar éxito con datos de la factura generada
+7. Llamar ProquifaDotNet.Timbrado POST /api/v1/stamp (servicio técnico, sin persistir CFDI)
+8. Si EXITOSO (Timbrado regresa Uuid, Serie, Folio, FechaEmision, Total, XmlBase64):
+   a. INSERT CFDIGenerada (CfdiService, en ProquifaDotNet): UUID, Serie, Folio, FechaEmision, Total,
+      IdCatTipoCFDI, IdCatUsoCFDI, IdCatMetodoDePagoCFDI, IdCatMoneda, TipoCambio, Estado='Timbrado'
+   b. Persistir IdCFDIGenerada en fccFactura (UPDATE SET IdCFDIGenerada = @IdCFDIGenerada, EsFacturaPorAdelantado = 0 — el Id real del registro insertado en el paso anterior, no un Id de Timbrado)
+   c. Almacenar PDF+XML en Minio (bucket 'facturas')
+   d. Insertar registros en Archivo (2 registros: PDF + XML) + UPDATE CFDIGenerada SET IdArchivoXml
+   e. Registrar el guardado de la factura en ProquifaDotNet.BitacoraCambios (Aplicativo Nuevo — regla 8)
+   f. Retornar éxito con datos de la factura generada
 9. Si ERROR:
-   a. Retornar error con descripción del PAC SAT
-   b. NO modificar estado del pedido
+   a. Si ya existía un registro Pendiente en CFDIGenerada, UPDATE Estado='Fallido', MensajeError
+   b. Retornar error con descripción del PAC SAT
+   c. NO modificar estado del pedido
 ```
 
 #### Response Exitoso
@@ -256,7 +266,7 @@ ORDER BY FechaTramitacion DESC
 
 ```json
 {
-  "IdTPProformaAdelanto": "guid",
+  "IdFccFactura": "guid",
   "UsoCFDI": "G03"
 }
 ```
@@ -279,7 +289,7 @@ ORDER BY FechaTramitacion DESC
 
 ```json
 {
-  "IdTPProformaAdelanto": "guid",
+  "IdFccFactura": "guid",
   "Destinatario": "cliente@email.com",
   "CC": "esac@proquifa.com",
   "Notas": "Texto adicional opcional"
@@ -289,13 +299,13 @@ ORDER BY FechaTramitacion DESC
 #### Flujo interno
 
 ```
-1. Validar que IdTPProformaAdelanto tiene EstadoFAA = 'PendienteEnviar'
+1. Validar que IdFccFactura tiene EstadoFAA = 'PendienteEnviar' (vfccFactura)
 2. Obtener PDF y XML de Minio (bucket 'facturas')
 3. Armar asunto con folio factura + folio pedido interno
 4. Enviar correo via Brevo con adjuntos PDF+XML
 5. Si envío EXITOSO:
    a. INSERT CorreoEnviado + ArchivoCorreoEnviado (PDF, XML)
-   b. UPDATE tpProformaAdelanto SET Enviada = 1
+   b. UPDATE fccFactura SET Enviada = 1 (antes: UPDATE tpProformaAdelanto SET Enviada = 1)
    c. Ejecutar salida operativa según tipo de pedido:
       - Crédito: transferir factura a Legacy (Pendientes, Pedido, Partidas, Cobro, PDF)
       - Prepago: generar pendiente en Validar Cobro
@@ -322,52 +332,52 @@ ORDER BY FechaTramitacion DESC
 
 | DTO | Propósito |
 |-----|-----------|
-| FAADetalleRequestDto | Request del detalle (IdCliente, filtros, paginación) |
-| FAADetalleResponseDto | Response con datos cliente + lista pedidos |
-| FAAClienteCabeceraDto | RazonSocial, RFC, Moneda, Clasificación |
-| FAAPedidoDetalleDto | Pedido con estado, montos, empresa, condiciones pago |
-| FAAGenerarRequestDto | IdTPProformaAdelanto + UsoCFDI |
-| FAAGenerarResponseDto | Resultado del timbrado (éxito/error) |
-| FAAEnviarRequestDto | IdTPProformaAdelanto + Destinatario + CC + Notas |
-| FAAEnviarResponseDto | Resultado del envío |
-| FAADatosFiscalesClienteDto | RFC, RazonSocial, CP, Régimen, Correo, Moneda, TC |
-| FAADatosFiscalesEmisorDto | RFC, RazonSocial, Régimen, EmpresaClave |
-| FAAPreviewPdfRequestDto | IdTPProformaAdelanto + UsoCFDI |
+| AdvanceInvoiceDetailRequestDto | Request del detalle (IdCliente, filtros, paginación) |
+| AdvanceInvoiceDetailResponseDto | Response con datos cliente + lista pedidos |
+| ClientHeaderDto | RazonSocial, RFC, Moneda, Clasificación |
+| OrderDetailDto | Pedido con estado, montos, empresa, condiciones pago |
+| AdvanceInvoiceGenerateRequestDto | IdFccFactura + UsoCFDI |
+| AdvanceInvoiceGenerateResponseDto | Resultado del timbrado (éxito/error) |
+| AdvanceInvoiceSendRequestDto | IdFccFactura + Destinatario + CC + Notas |
+| AdvanceInvoiceSendResponseDto | Resultado del envío |
+| ClientFiscalDataDto | RFC, RazonSocial, CP, Régimen, Correo, Moneda, TC |
+| IssuerFiscalDataDto | RFC, RazonSocial, Régimen, EmpresaClave |
+| AdvanceInvoicePreviewPdfRequestDto | IdFccFactura + UsoCFDI |
 
 #### Application — Servicios
 
 | Servicio | Responsabilidad |
 |----------|----------------|
-| FacturaAdelantadoDetalleService | Obtener pedidos del cliente con estado FAA |
-| FacturaAdelantadoGenerarService | Orquestar generación: armar request, llamar Timbrado, persistir |
-| FacturaAdelantadoEnviarService | Orquestar envío: correo Brevo, marcar Enviada, salida operativa |
-| FacturaAdelantadoPreviewService | Generar PDF preview sin timbrar (via DocumentBuilder) |
+| AdvanceInvoiceDetailService | Obtener pedidos del cliente con estado FAA |
+| AdvanceInvoiceGenerateService | Orquestar generación: armar request, llamar Timbrado, persistir |
+| AdvanceInvoiceSendService | Orquestar envío: correo Brevo, marcar Enviada, salida operativa |
+| AdvanceInvoicePreviewService | Generar PDF preview sin timbrar (via DocumentBuilder) |
 
 #### Application — Interfaces
 
 | Interface | Métodos |
 |-----------|---------|
-| IFacturaAdelantadoDetalleService | GetPedidosClienteAsync(FAADetalleRequestDto) |
-| IFacturaAdelantadoGenerarService | GenerarFacturaAsync(FAAGenerarRequestDto) |
-| IFacturaAdelantadoEnviarService | EnviarFacturaAsync(FAAEnviarRequestDto) |
-| IFacturaAdelantadoPreviewService | GenerarPreviewPdfAsync(FAAPreviewPdfRequestDto) |
+| IAdvanceInvoiceDetailService | GetClientOrdersAsync(AdvanceInvoiceDetailRequestDto) |
+| IAdvanceInvoiceGenerateService | GenerateInvoiceAsync(AdvanceInvoiceGenerateRequestDto) |
+| IAdvanceInvoiceSendService | SendInvoiceAsync(AdvanceInvoiceSendRequestDto) |
+| IAdvanceInvoicePreviewService | GeneratePreviewPdfAsync(AdvanceInvoicePreviewPdfRequestDto) |
 
 #### Infrastructure — Repositorios
 
 | Repositorio | Consulta |
 |-------------|----------|
-| FacturaAdelantadoDetalleRepository | SELECT FROM vtpProformaAdelanto WHERE IdCliente + filtros cartera |
-| FacturaAdelantadoDatosFiscalesRepository | JOIN DatosFacturacionCliente + Empresa + catUsoCFDI + catRegimenFiscal |
-| FacturaAdelantadoPartidasRepository | tpProformaAdelantoPartida o partidas del pedido vinculado |
+| AdvanceInvoiceDetailRepository | SELECT FROM vfccFactura WHERE IdCliente + filtros cartera (antes: vtpProformaAdelanto — ver RE-FU-015) |
+| AdvanceInvoiceFiscalDataRepository | JOIN DatosFacturacionCliente + Empresa + catUsoCFDI + catRegimenFiscal |
+| AdvanceInvoiceItemsRepository | fccFacturaPartida (antes: tpProformaAdelantoPartida) o partidas del pedido vinculado |
 
 #### Infrastructure — Integraciones Externas
 
 | Integración | Componente | Descripción |
 |-------------|-----------|-------------|
-| ProquifaDotNet.Timbrado | ApiCallerStamping | POST /api/v1/cfdi (HttpClient con Polly) |
+| ProquifaDotNet.Timbrado | ApiCallerStamping (existente, RE-FU-018) | POST /api/v1/stamp — servicio técnico (HttpClient con Polly), Finanzas persiste CFDIGenerada tras la respuesta |
 | DocumentBuilder | ApiCallerDocumentBuilder | Generar PDF factura desde template HTML |
-| Brevo | BrevoEmailService (existente) | Enviar correo con adjuntos PDF+XML |
-| Minio | MinioStorageService (existente) | Almacenar/obtener PDF y XML (bucket 'facturas') |
+| ProquifaDotNet.EnvioCorreo (Aplicativo Nuevo) | ApiCallerMail (existente, RE-FU-016) | Enviar correo con adjuntos PDF+XML — regla 7, sin cliente Brevo propio |
+| Minio | MinioStorageService (existente, RE-FU-018) | Almacenar/obtener PDF y XML (bucket 'facturas') |
 
 #### Infrastructure — FinanzasContext (Ampliación)
 
@@ -375,22 +385,22 @@ Agregar al contexto EF Core:
 
 | DbSet nuevo | Tabla/Vista | Uso |
 |-------------|------------|-----|
-| VtpProformaAdelanto | vtpProformaAdelanto (VIEW) | Consultas de detalle |
+| VfccFactura | vfccFactura (VIEW, `.ToView().HasNoKey()` — RE-FU-015; reemplaza VtpProformaAdelanto/vtpProformaAdelanto) | Consultas de detalle |
 | Archivo | Archivo | Persistencia PDF+XML |
 | CorreoEnviado | CorreoEnviado | Registro de envío |
 | ArchivoCorreoEnviado | ArchivoCorreoEnviado | Vinculo archivo-correo |
 | CatUsoCFDI | catUsoCFDI | Catálogo SAT |
 
-#### API — FacturaAdelantadoController (Ampliación)
+#### API — AdvanceInvoiceController (Ampliación)
 
 Ampliar el controlador creado en RE-FU-018:
 
 | Método | Endpoint | Servicio |
 |--------|----------|----------|
-| POST | /api/factura-adelantado/detalle | FacturaAdelantadoDetalleService |
-| POST | /api/factura-adelantado/generar | FacturaAdelantadoGenerarService |
-| POST | /api/factura-adelantado/previsualizar-pdf | FacturaAdelantadoPreviewService |
-| POST | /api/factura-adelantado/enviar | FacturaAdelantadoEnviarService |
+| POST | /api/v1/advanceInvoice/{clientId}/detail | AdvanceInvoiceDetailService |
+| POST | /api/v1/advanceInvoice/{id}/generate | AdvanceInvoiceGenerateService |
+| POST | /api/v1/advanceInvoice/{id}/preview | AdvanceInvoicePreviewService |
+| POST | /api/v1/advanceInvoice/{id}/send | AdvanceInvoiceSendService |
 
 ---
 
@@ -404,10 +414,10 @@ Ampliar el controlador FAA existente en Venta Interna (creado en RE-FU-018) con 
 
 | Método | Endpoint Finanzas | Descripción |
 |--------|------------------|-------------|
-| ObtenerDetalleFAAAsync | POST /api/factura-adelantado/detalle | Pedidos del cliente |
-| GenerarFacturaFAAAsync | POST /api/factura-adelantado/generar | Genera y timbra |
-| PrevisualizarPdfFAAAsync | POST /api/factura-adelantado/previsualizar-pdf | Preview PDF |
-| EnviarFacturaFAAAsync | POST /api/factura-adelantado/enviar | Envía correo |
+| GetAdvanceInvoiceDetailAsync | POST /api/v1/advanceInvoice/{clientId}/detail | Pedidos del cliente |
+| GenerateAdvanceInvoiceAsync | POST /api/v1/advanceInvoice/{id}/generate | Genera y timbra |
+| PreviewAdvanceInvoicePdfAsync | POST /api/v1/advanceInvoice/{id}/preview | Preview PDF |
+| SendAdvanceInvoiceAsync | POST /api/v1/advanceInvoice/{id}/send | Envía correo |
 
 ### Controlador FAA Detalle (Ampliación)
 
@@ -448,10 +458,7 @@ Cuando el tipo de pedido es Prepago y la factura se envió exitosamente:
 
 ### ProquifaDotNet
 
-| # | Script | Descripción |
-|---|--------|-------------|
-| 1 | ALTER TABLE tpProformaAdelanto ADD Enviada bit NOT NULL DEFAULT(0) | Flag de envío exitoso |
-| 2 | CREATE VIEW dbo.vtpProformaAdelanto | Vista con JOINs resueltos y EstadoFAA calculado |
+> **Migración (06/07/2026):** `ALTER TABLE tpProformaAdelanto ADD Enviada` y `CREATE VIEW dbo.vtpProformaAdelanto` se retiraron de este requisito. La columna `Enviada` ahora vive en `fccFactura` y la vista `vfccFactura` se crea en **R16A-RE-FU-015_BD.md** (sección "Migración de `tpProformaAdelanto`"), que unifica el pendiente FAA de Prepago y Crédito. Este requisito ya no ejecuta scripts DDL propios sobre ProquifaDotNet.
 
 ### ProquifaDotNetTimbrado
 
@@ -463,10 +470,9 @@ Cuando el tipo de pedido es Prepago y la factura se envió exitosamente:
 ### Orden de ejecución
 
 ```
-1. ALTER TABLE tpProformaAdelanto ADD Enviada (ProquifaDotNet)
-2. CREATE VIEW vtpProformaAdelanto (ProquifaDotNet) — requiere paso 1
-3. CREATE TABLE EmpresaFolio (ProquifaDotNetTimbrado)
-4. INSERT EmpresaFolio datos iniciales (ProquifaDotNetTimbrado) — requiere paso 3
+1. CREATE TABLE fccFactura + fccFacturaPartida + fccFacturaReferenciaBancaria + CREATE VIEW vfccFactura (R16A-RE-FU-015 — prerequisito, ya no se ejecuta en este requisito)
+2. CREATE TABLE EmpresaFolio (ProquifaDotNetTimbrado)
+3. INSERT EmpresaFolio datos iniciales (ProquifaDotNetTimbrado) — requiere paso 2
 ```
 
 ---
@@ -478,24 +484,24 @@ Cuando el tipo de pedido es Prepago y la factura se envió exitosamente:
 | # | Gap | Acción | Esfuerzo |
 |---|-----|--------|----------|
 | GAP-01 | Domain: Entidad EmpresaFolio + Interface IEmpresaFolioRepository | Crear entidad, mapeo, interface con consumo atómico | Medio |
-| GAP-02 | Application: EmpresaFolioService + StampingService ampliación | Consumo folio + nuevo método TimbrarFacturaAdelantadoAsync | Alto |
+| GAP-02 | Application: EmpresaFolioService + StampingService ampliación | Consumo folio + nuevo método StampAdvanceInvoiceAsync | Alto |
 | GAP-03 | Infrastructure: EmpresaFolioRepository con UPDATE atómico (UPDLOCK) | Implementar consumo seguro de folio con raw SQL | Medio |
-| GAP-04 | Application: DTOs TimbrarFAARequestDto, ConceptoFAADto, TimbrarFAAResponseDto | Modelos de request/response para FAA | Bajo |
-| GAP-05 | API: CfdiController — sin endpoint nuevo (reutiliza POST /api/v1/cfdi creado en RE-FU-018, discriminado por FiscalDocumentTypeId) | Ajuste de orquestación interna para FAA | Bajo |
+| GAP-04 | Application: DTOs StampAdvanceInvoiceRequestDto, AdvanceInvoiceItemDto, StampAdvanceInvoiceResponseDto | Modelos de request/response para FAA | Bajo |
+| GAP-05 | API: StampingController — sin endpoint nuevo (reutiliza POST /api/v1/stamp creado en RE-FU-018) | Ajuste de orquestación interna para FAA | Bajo |
 | GAP-06 | Scripts DDL: CREATE TABLE EmpresaFolio + DML INSERT 4 empresas | Scripts BD ProquifaDotNetTimbrado | Bajo |
 
 ### En ProquifaDotNet.Finanzas (Módulo FAA — Detalle)
 
 | # | Gap | Acción | Esfuerzo |
 |---|-----|--------|----------|
-| GAP-07 | Application: DTOs del Detalle FAA (11 DTOs: Request, Response, Cabecera, Pedido, DatosFiscales, etc.) | Modelos completos para todos los modales | Medio |
-| GAP-08 | Infrastructure: FacturaAdelantadoDetalleRepository (consulta vista vtpProformaAdelanto) | Query paginada por cliente con filtros cartera | Medio |
-| GAP-09 | Infrastructure: FacturaAdelantadoDatosFiscalesRepository (DatosFacturacionCliente + Empresa + catálogos SAT) | Datos fiscales para modal generación | Medio |
-| GAP-10 | Application: FacturaAdelantadoGenerarService (orquestación completa: datos fiscales, armar request, llamar Timbrado, persistir CFDI+archivos) | Servicio de alta complejidad, manejo errores PAC | Alto |
-| GAP-11 | Application: FacturaAdelantadoEnviarService (correo Brevo + marcar Enviada + salida operativa) | Servicio con lógica diferenciada Crédito/Prepago | Alto |
-| GAP-12 | Application: FacturaAdelantadoPreviewService (generar PDF sin timbrar via DocumentBuilder) | Generar preview para modal previsualización | Medio |
-| GAP-13 | Infrastructure: ApiCallerStamping (HttpClient + Polly para POST /api/v1/cfdi) | Cliente HTTP con retry policy hacia Timbrado | Medio |
-| GAP-14 | API: FacturaAdelantadoController ampliación (4 endpoints: detalle, generar, previsualizar-pdf, enviar) | Controlador con validaciones y respuestas | Medio |
+| GAP-07 | Application: DTOs del Detalle FAA (11 DTOs: Request, Response, Cabecera, Pedido, FiscalData, etc.) | Modelos completos para todos los modales | Medio |
+| GAP-08 | Infrastructure: AdvanceInvoiceDetailRepository (consulta vista vfccFactura — RE-FU-015) | Query paginada por cliente con filtros cartera | Medio |
+| GAP-09 | Infrastructure: AdvanceInvoiceFiscalDataRepository (DatosFacturacionCliente + Empresa + catálogos SAT) | Datos fiscales para modal generación | Medio |
+| GAP-10 | Application: AdvanceInvoiceGenerateService (orquestación completa: datos fiscales, armar request, invocar CfdiService.GenerateAsync — que a su vez llama Timbrado y persiste CFDIGenerada+Archivo) | Servicio de alta complejidad, manejo errores PAC | Alto |
+| GAP-11 | Application: AdvanceInvoiceSendService (correo via ProquifaDotNet.EnvioCorreo + marcar Enviada + salida operativa) | Servicio con lógica diferenciada Crédito/Prepago | Alto |
+| GAP-12 | Application: AdvanceInvoicePreviewService (generar PDF sin timbrar via DocumentBuilder) | Generar preview para modal previsualización | Medio |
+| GAP-13 | (Ya cubierto en RE-FU-018, Parte B, GAP-10/GAP-11) Reutilizar CfdiService / ApiCallerStamping existentes — no se duplica aquí | Sin esfuerzo adicional, solo consumo | - |
+| GAP-14 | API: AdvanceInvoiceController ampliación (4 endpoints: detalle, generar, previsualizar-pdf, enviar) | Controlador con validaciones y respuestas | Medio |
 | GAP-15 | Infrastructure: FinanzasContext ampliación (DbSets vista, Archivo, CorreoEnviado, catUsoCFDI) | Mapeo EF Core de vista + tablas auxiliares | Medio |
 
 ### En ProquifaDotNet (Venta Interna)
@@ -509,10 +515,7 @@ Cuando el tipo de pedido es Prepago y la factura se envió exitosamente:
 
 ### En Base de Datos
 
-| # | Gap | Acción | Esfuerzo |
-|---|-----|--------|----------|
-| GAP-20 | ALTER TABLE tpProformaAdelanto ADD Enviada bit NOT NULL DEFAULT(0) | ProquifaDotNet | Bajo |
-| GAP-21 | CREATE VIEW dbo.vtpProformaAdelanto (cadena JOINs + EstadoFAA calculado) | ProquifaDotNet | Medio |
+> **Migración (06/07/2026):** GAP-20 y GAP-21 (ALTER TABLE tpProformaAdelanto / CREATE VIEW vtpProformaAdelanto) se eliminan de este requisito — la columna `Enviada` y la vista `vfccFactura` ya están cubiertas por los gaps de BD de **R16A-RE-FU-015**. Este requisito no aporta gaps propios de Base de Datos.
 
 ---
 
@@ -526,9 +529,9 @@ Cuando el tipo de pedido es Prepago y la factura se envió exitosamente:
      |                                 | 1. Validar EstadoFAA             |                      |
      |                                 | 2. Obtener datos fiscales        |                      |
      |                                 | 3. Obtener partidas pedido       |                      |
-     |                                 | 4. Armar TimbrarFAARequestDto    |                      |
+     |                                 | 4. Armar StampAdvanceInvoiceRequestDto    |                      |
      |                                 |                                  |                      |
-     |                                 | POST /api/v1/cfdi                |                      |
+     |                                 | POST /api/v1/stamp (tecnico)     |                      |
      |                                 |--------------------------------->|                      |
      |                                 |                                  | 5. Consumir folio    |
      |                                 |                                  | 6. Armar XML CFDI    |
@@ -536,14 +539,14 @@ Cuando el tipo de pedido es Prepago y la factura se envió exitosamente:
      |                                 |                                  |--------------------->|
      |                                 |                                  |    CFDI timbrado      |
      |                                 |                                  |<---------------------|
-     |                                 |                                  | 8. Persistir CFDI    |
-     |                                 |                                  | 9. Log timbrado      |
-     |                                 |    TimbrarFAAResponseDto         |                      |
+     |                                 |                                  | 8. Log StampingLog   |
+     |                                 |    StampAdvanceInvoiceResponseDto         |                      |
      |                                 |<---------------------------------|                      |
-     |                                 | 10. UPDATE tpProformaAdelanto    |                      |
+     |                                 | 9. INSERT CFDIGenerada (Finanzas)|                      |
+     |                                 | 10. UPDATE fccFactura            |                      |
      |                                 | 11. Guardar PDF+XML Minio        |                      |
-     |                                 | 12. INSERT Archivo x2            |                      |
-     |   FAAGenerarResponseDto         |                                  |                      |
+     |                                 | 12. INSERT Archivo x2 + UPDATE CFDIGenerada.IdArchivoXml |
+     |   AdvanceInvoiceGenerateResponseDto         |                                  |                      |
      |<--------------------------------|                                  |                      |
 ```
 
@@ -566,7 +569,7 @@ Cuando el tipo de pedido es Prepago y la factura se envió exitosamente:
      |                                 |<-----------------------------|               |
      |                                 | 4. INSERT CorreoEnviado      |               |
      |                                 | 5. UPDATE Enviada=1          |               |
-     |   FAAEnviarResponseDto          |                              |               |
+     |   AdvanceInvoiceSendResponseDto          |                              |               |
      |<--------------------------------|                              |               |
      |                                 |                              |               |
      | [Si Crédito]                    |                              |               |
@@ -586,7 +589,7 @@ Cuando el tipo de pedido es Prepago y la factura se envió exitosamente:
 
 | Tabla | Uso |
 |-------|-----|
-| vtpProformaAdelanto (VIEW) | Listado detalle por cliente con EstadoFAA |
+| vfccFactura (VIEW — RE-FU-015, reemplaza vtpProformaAdelanto) | Listado detalle por cliente con EstadoFAA |
 | tpPedido | Datos del pedido (folio, fecha, condiciones pago) |
 | DatosFacturacionCliente | RFC, RazonSocial, CP, RegimenFiscal del cliente |
 | Empresa | RFC, RazonSocial, Régimen del emisor |
@@ -594,7 +597,7 @@ Cuando el tipo de pedido es Prepago y la factura se envió exitosamente:
 | catRegimenFiscal | Catálogo SAT de regímenes |
 | catCondicionesDePago | Texto condiciones pago |
 | ClienteCarteraCliente / ClienteCartera | Validación cartera del usuario |
-| tpProformaAdelantoPartida (o partidas pedido) | Conceptos de la factura |
+| fccFacturaPartida (reemplaza tpProformaAdelantoPartida, o partidas pedido) | Conceptos de la factura |
 | catMoneda | Moneda y tipo de cambio |
 | Contacto | Nombre, correo, teléfono del contacto |
 
@@ -602,18 +605,18 @@ Cuando el tipo de pedido es Prepago y la factura se envió exitosamente:
 
 | Tabla | Operación |
 |-------|-----------|
-| tpProformaAdelanto | UPDATE SET IdCFDIGenerada, UPDATE SET Enviada=1 |
-| Archivo | INSERT x2 (PDF + XML) |
+| CFDIGenerada | INSERT al timbrar exitosamente (UUID, Serie, Folio, FechaEmision, Total, catalogos, Estado) — propiedad de Finanzas |
+| fccFactura (reemplaza tpProformaAdelanto) | UPDATE SET IdCFDIGenerada (Id real de CFDIGenerada), EsFacturaPorAdelantado=0; UPDATE SET Enviada=1 |
+| Archivo | INSERT x2 (PDF + XML) + vínculo en CFDIGenerada.IdArchivoXml |
 | CorreoEnviado | INSERT registro de envío |
 | ArchivoCorreoEnviado | INSERT vínculo archivo-correo |
 
-### ProquifaDotNetTimbrado (Lectura/Escritura)
+### ProquifaDotNetTimbrado (Lectura/Escritura — solo técnico, sin tabla de negocio del CFDI)
 
 | Tabla | Operación |
 |-------|-----------|
 | EmpresaFolio | UPDATE atómico UltimoFolio+1 (consumo folio) |
-| CFDI | INSERT (al crear) + UPDATE (al timbrar exitoso: UUID, XML, Estatus) |
-| StampingLog | INSERT (registro de cada intento) |
+| StampingLog | INSERT (auditoría técnica de cada intento; `CfdiGeneradaId` es referencia informativa, no FK) |
 
 ---
 
@@ -637,10 +640,10 @@ Cuando el tipo de pedido es Prepago y la factura se envió exitosamente:
 
 | Requisito | Relación |
 |-----------|----------|
-| R16A-RE-FU-018 | Prerequisito: ProquifaDotNet.Timbrado creada + módulo FAA listado inicial |
+| R16A-RE-FU-018 | Prerequisito: ProquifaDotNet.Timbrado (servicio técnico) + módulo FAA listado inicial + CfdiController/CfdiService en Finanzas (Parte B) |
 | R16A-RE-FU-016 | Prerequisito: ProquifaDotNet.Finanzas (solución base) |
-| R16A-RE-FU-012 | Genera pendiente FAA desde tramitación Crédito con FAA |
-| R16A-RE-FU-015 | Genera pendiente FAA desde tramitación Prepago con FAA |
+| R16A-RE-FU-012 | Genera pendiente FAA (`fccFactura`, origen Crédito) desde tramitación Crédito con FAA |
+| R16A-RE-FU-015 | Origen y dueño de `fccFactura`/`fccFacturaPartida`/`fccFacturaReferenciaBancaria`/`vfccFactura` — genera pendiente FAA de Prepago |
 | R16A-RE-FU-005 | Brecha timbrado SUNAT Perú (bloquea FAA para Perú) |
 | DocumentBuilder | Generación de PDF de factura (template pendiente de requisito independiente) |
 
@@ -653,5 +656,5 @@ Cuando el tipo de pedido es Prepago y la factura se envió exitosamente:
 | ProquifaDotNet.Timbrado | 6 (GAP-01 a GAP-06) | EmpresaFolio + endpoint timbrar-faa |
 | ProquifaDotNet.Finanzas | 9 (GAP-07 a GAP-15) | Detalle + Generar + Enviar + Preview + ApiCallerStamping |
 | ProquifaDotNet | 4 (GAP-16 a GAP-19) | Consumidor + Legacy + Validar Cobro |
-| Base de Datos | 2 (GAP-20 a GAP-21) | ALTER + VIEW en ProquifaDotNet |
-| **Total** | **21 gaps** | |
+| Base de Datos | 0 (GAP-20/GAP-21 migrados a RE-FU-015) | Sin scripts DDL propios — reutiliza `fccFactura`/`vfccFactura` |
+| **Total** | **19 gaps** | |

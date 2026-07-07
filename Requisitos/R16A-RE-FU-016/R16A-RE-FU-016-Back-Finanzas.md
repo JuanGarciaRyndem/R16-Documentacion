@@ -22,21 +22,20 @@ ProquifaDotNet.Finanzas/
 |   +-- Interfaces/
 |   |   +-- IGenericRepository.cs
 |   |   +-- IProformaRepository.cs
-|   |   +-- IEmailService.cs
 |   |   +-- IMinioStorageService.cs
 |   |   +-- IUnitOfWork.cs
-|   +-- Models/
-|       +-- EmailModel.cs
-|       +-- EmailTemplateModel.cs
 +-- Application/
 |   +-- Proquifa.Finanzas.Application.csproj (net10.0)
 |   +-- DTOs/
 |   |   +-- QueryResultDto.cs
 |   |   +-- ProformaDto.cs
 |   |   +-- ProformaPdfModel.cs
+|   |   +-- EmailRequestDto.cs
+|   |   +-- EmailTemplateRequestDto.cs
 |   +-- Interfaces/
 |   |   +-- IProformaService.cs
 |   |   +-- IDocumentBuilderClient.cs
+|   |   +-- IApiCallerMail.cs
 |   +-- Services/
 |   |   +-- ProformaService.cs
 |   +-- Mappers/
@@ -52,7 +51,7 @@ ProquifaDotNet.Finanzas/
 |   |       +-- GenericRepository.cs
 |   |       +-- ProformaRepository.cs
 |   +-- Services/
-|   |   +-- BrevoEmailService.cs
+|   |   +-- ApiCallerMail.cs
 |   |   +-- MinioStorageService.cs
 |   |   +-- DocumentBuilderHttpClient.cs
 |   +-- RabbitMQ/
@@ -60,7 +59,7 @@ ProquifaDotNet.Finanzas/
 |   |   +-- RabbitMQClient.cs
 |   |   +-- RabbitMQSettings.cs
 |   +-- Configuration/
-|   |   +-- BrevoSettings.cs
+|   |   +-- MailSettings.cs
 |   |   +-- MinioSettings.cs
 |   |   +-- DocumentBuilderSettings.cs
 |   +-- Extensions/
@@ -272,20 +271,20 @@ public class ProformaRepository : IProformaRepository
 
     public ProformaRepository(FinanzasContext context) => _context = context;
 
-    public async Task<QueryResultDto<VtpProformaPedido>> ListarProformas(QueryInfo queryInfo)
+    public async Task<QueryResultDto<VtpProformaPedido>> ListProformas(QueryInfo queryInfo)
     {
         var query = _context.VtpProformaPedido.AsNoTracking().AsQueryable();
 
-        // Aplicar filtros dinamicos
+        // Apply dynamic filters
         foreach (var filter in queryInfo.Filters)
         {
-            query = AplicarFiltro(query, filter);
+            query = ApplyFilter(query, filter);
         }
 
-        // Total antes de paginar
+        // Total before pagination
         var totalResults = await query.CountAsync();
 
-        // Ordenamiento
+        // Sorting
         if (!string.IsNullOrEmpty(queryInfo.SortField))
         {
             query = queryInfo.SortDirection == SortDirection.Asc
@@ -293,7 +292,7 @@ public class ProformaRepository : IProformaRepository
                 : query.OrderByDescending(e => EF.Property<object>(e, queryInfo.SortField));
         }
 
-        // Paginacion
+        // Pagination
         if (queryInfo.PageSize.HasValue && queryInfo.DesiredPage.HasValue)
         {
             var skip = (queryInfo.DesiredPage.Value - 1) * queryInfo.PageSize.Value;
@@ -309,7 +308,7 @@ public class ProformaRepository : IProformaRepository
         };
     }
 
-    private static IQueryable<VtpProformaPedido> AplicarFiltro(
+    private static IQueryable<VtpProformaPedido> ApplyFilter(
         IQueryable<VtpProformaPedido> query, FilterItem filter)
     {
         return filter.FieldName.ToLower() switch
@@ -375,10 +374,12 @@ public class ProformaService : IProformaService
         return result;
     }
 
-    public async Task<QueryResultDto<VtpProformaPedido>> Listar(QueryInfo queryInfo)
-        => await _proformaRepository.ListarProformas(queryInfo);
+    public async Task<QueryResultDto<VtpProformaPedido>> List(QueryInfo queryInfo)
+        => await _proformaRepository.ListProformas(queryInfo);
 }
 ```
+
+> **Bitácora (Reglas al diseñar — regla 8):** `Create`/`Update`/`Delete` de `ProformaService` deben registrar el resultado de la operación en **ProquifaDotNet.BitacoraCambios** (Aplicativo Nuevo), igual que Finanzas debe hacerlo al guardar una factura o validar un cobro (ver R16A-RE-FU-018-Back.md). El contrato/endpoint de este aplicativo aún no está documentado en un requisito propio; aquí solo se referencia el punto de integración, no su detalle técnico.
 
 ---
 
@@ -388,7 +389,7 @@ public class ProformaService : IProformaService
 namespace Proquifa.Finanzas.API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v1/proforma")] // Reglas al diseñar - regla 9: api/v1/{resource}, recurso explícito en minúsculas (no [controller])
 public class ProformaController : ControllerBase
 {
     private readonly IProformaService _proformaService;
@@ -425,10 +426,10 @@ public class ProformaController : ControllerBase
         return result ? NoContent() : NotFound();
     }
 
-    [HttpPost("listar")]
-    public async Task<IActionResult> Listar([FromBody] QueryInfo queryInfo)
+    [HttpPost("list")]
+    public async Task<IActionResult> List([FromBody] QueryInfo queryInfo)
     {
-        var result = await _proformaService.Listar(queryInfo);
+        var result = await _proformaService.List(queryInfo);
         return Ok(result);
     }
 }
@@ -471,9 +472,11 @@ public class MinioStorageService : IMinioStorageService
 }
 ```
 
-#### BrevoEmailService.cs (patron PunchOut)
-- Envio transaccional via REST API v3
-- Soporta HTML, texto plano y templates
+#### ApiCallerMail.cs (Reglas al diseñar — regla 7)
+
+> Finanzas **no** integra con Brevo directamente. El envío de correo se delega al Aplicativo Nuevo **ProquifaDotNet.EnvioCorreo** (solución independiente, distinta de ProquifaDotNet.SendInBlue — que solo migra el envío de correo del sistema legacy ProquifaDotNet/Venta Interna) vía llamadas HTTP entre APIs. `ApiCallerMail` es un cliente HTTP (Polly para timeout, sin reintento interno) que llama al API de ProquifaDotNet.EnvioCorreo con el `EmailRequestDto` / `EmailTemplateRequestDto` correspondiente.
+- Soporta envío por plantilla y HTML/texto plano (según lo que exponga el API de EnvioCorreo)
+- Autenticación via IdentityServer
 
 #### RabbitMQClient.cs (patron PunchOut)
 - Publish/Subscribe con ACK/NACK
@@ -491,7 +494,7 @@ public class DocumentBuilderHttpClient : IDocumentBuilderClient
     public DocumentBuilderHttpClient(HttpClient httpClient)
         => _httpClient = httpClient;
 
-    public async Task<byte[]> GenerarProformaPdf(object proformaDto)
+    public async Task<byte[]> GenerateProformaPdf(object proformaDto)
     {
         var response = await _httpClient.PostAsJsonAsync("api/Report/proforma", proformaDto);
         response.EnsureSuccessStatusCode();
@@ -511,8 +514,7 @@ public class DocumentBuilderHttpClient : IDocumentBuilderClient
 | Infrastructure | RabbitMQ.Client | 7.x | Colas |
 | Infrastructure | Minio | 6.x | Almacenamiento objetos |
 | Infrastructure | Serilog | 4.x | Logs |
-| Infrastructure | Polly | 8.x | Reintentos HTTP |
-| Infrastructure | sib_api_v3_sdk | 4.x | Brevo (email) |
+| Infrastructure | Polly | 8.x | Timeout HTTP (ApiCallerMail, ApiCallerStamping) |
 | Application | FluentValidation | 11.x | Validaciones |
 | API | Serilog.AspNetCore | 9.x | Logs en API |
 | API | Swashbuckle.AspNetCore | 6.x | Swagger |
@@ -530,10 +532,10 @@ public class DocumentBuilderHttpClient : IDocumentBuilderClient
 | 5   | Infrastructure Context                   | FinanzasContext con scaffold de tablas necesarias                          |
 | 6   | Infrastructure GenericRepository         | CRUD genérico                                                              |
 | 7   | Infrastructure ProformaRepository        | Consulta vtpProformaPedido con QueryInfo y paginado                        |
-| 8   | Application ProformaService              | CRUD + Listar con paginado                                                 |
-| 9   | API ProformaController                   | Endpoints REST (CRUD + listar + PDF)                                       |
+| 8   | Application ProformaService              | CRUD + List con paginado                                                 |
+| 9   | API ProformaController                   | Endpoints REST (CRUD + list + PDF)                                       |
 | 10  | Infrastructure MinioStorageService       | Upload/Download PDF a Minio                                                |
-| 11  | Infrastructure BrevoEmailService         | Envío correos                                                              |
+| 11  | Infrastructure ApiCallerMail      | Cliente HTTP hacia ProquifaDotNet.EnvioCorreo (Aplicativo Nuevo)           |
 | 12  | Infrastructure RabbitMQClient            | Cliente RabbitMQ                                                           |
 | 13  | Infrastructure DocumentBuilderHttpClient | Cliente HTTP para DocumentBuilder                                          |
 | 14  | Configuración DI + appsettings           | Registrar servicios, connection strings, settings                          |

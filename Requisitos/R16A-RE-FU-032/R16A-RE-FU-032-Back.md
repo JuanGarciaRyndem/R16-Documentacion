@@ -35,12 +35,12 @@ La NC aplica exclusivamente a **clientes prepago** y a **facturas vigentes con a
 | BD — DML bucket          | ProquifaDotNet               | `RegionConfiguracionMinioBucket`: INSERT bucket NC MEX si no existe                                 |
 | Wizard Paso 1            | ProquifaDotNet.Finanzas      | Búsqueda y listado de facturas vigentes prepago del cliente (máx. 5 años)                           |
 | Wizard Paso 2            | ProquifaDotNet.Finanzas      | Captura de modalidad, motivo, partidas/monto, cancelación condicional de factura                    |
-| Previsualización PDF     | ProquifaDotNet.Finanzas      | `NCMexicoPdfMappingService.MapearPreviewAsync()` — sin sello, sin UUID                              |
+| Previsualización PDF     | ProquifaDotNet.Finanzas      | `CreditNoteMexicoPdfMappingService.MapearPreviewAsync()` — sin sello, sin UUID                              |
 | Wizard Paso 3            | ProquifaDotNet.Finanzas      | Confirmación, resumen, previsualización PDF, acción Timbrar                                         |
-| Construcción XML CFDI E  | ProquifaDotNet.Finanzas      | Armado del `NotaCreditoMexicoRequest`: CFDI 4.0 TipoDocumento=E, conceptos, impuestos               |
+| Construcción XML CFDI E  | ProquifaDotNet.Finanzas      | Armado del `CreditNoteMexicoRequest`: CFDI 4.0 TipoDocumento=E, conceptos, impuestos               |
 | Timbrado NC              | ProquifaDotNet.Timbrado      | Generación CFDI E + PAC TurboPac + `INSERT CFDIGenerada` + `UPDATE EmpresaFolio` Serie P2           |
 | Cancelación factura      | ProquifaDotNet.Timbrado      | Llamada condicional al PAC para cancelar la factura origen ante el SAT                              |
-| Persistencia post-timbre | ProquifaDotNet.Finanzas      | `PersistirNCMexicoPdfService`: DocumentBuilder → MinIO → `INSERT Archivo` → `UPDATE fccNotaCredito` |
+| Persistencia post-timbre | ProquifaDotNet.Finanzas      | `PersistMexicoCreditNotePdfService`: DocumentBuilder → MinIO → `INSERT Archivo` → `UPDATE fccNotaCredito` |
 | Correo automático        | ProquifaDotNet.Finanzas      | Envío con PDF + XML adjuntos al timbrar (Para = contacto; CC = ESAC + CxC)                         |
 | Acoplamiento Validar Cobro | ProquifaDotNet.Finanzas    | NCs VIGENTE quedan disponibles en Paso 2 de Validar Cobro vía query sobre `fccNotaCredito`          |
 | ETL Legacy               | SSIS                         | Transferencia de NC timbrada a PCconnect                                                            |
@@ -65,8 +65,8 @@ La NC aplica exclusivamente a **clientes prepago** y a **facturas vigentes con a
 | `Archivo`                                      | Pre-R16   | PDF + XML de la NC almacenados en MinIO                                                |
 | `CorreoEnviado` + `ArchivoCorreoEnviado`       | Pre-R16   | Trazabilidad del correo automático al timbrar y reenvíos                               |
 | `ApiCallerStamping` (HttpClient + Polly)       | RE-019    | Cliente HTTP con retry hacia Timbrado — reutilizado sin cambios                        |
-| `FacturaMexicoPdfMappingService`               | RE-021    | Patrón de referencia para `NCMexicoPdfMappingService`                                  |
-| `PersistirFacturaMexicoPdfService`             | RE-021    | Patrón de referencia para `PersistirNCMexicoPdfService`                                |
+| `MexicoInvoicePdfMappingService`               | RE-021    | Patrón de referencia para `CreditNoteMexicoPdfMappingService`                                  |
+| `PersistMexicoInvoicePdfService`             | RE-021    | Patrón de referencia para `PersistMexicoCreditNotePdfService`                                |
 | Templates `GOL/MUN/PRO/PQF_MEX_FAC`           | RE-021    | Referencia de branding para diseño de templates NC                                     |
 | `DatosFacturacionCliente`                      | RE-004    | RFC, Razón Social, RegimenFiscalReceptor del CFDI 4.0                                  |
 | `Empresa`                                      | Existente | RFC Emisor, RegimenFiscal, Prefijo por empresa PROQUIFA México                         |
@@ -219,7 +219,7 @@ Discriminador de tipo CFDI para las NCs. Prereq: RE-028 crea la tabla `catTipoCF
 
 ### B4 — Armado del XML CFDI E (CFDI 4.0)
 
-**Descripción:** Finanzas construye el `NotaCreditoMexicoRequest` que enviará a Timbrado. Todos los campos del XML se calculan antes del timbrado.
+**Descripción:** Finanzas construye el `CreditNoteMexicoRequest` que enviará a Timbrado. Todos los campos del XML se calculan antes del timbrado.
 
 **Campos fijos del XML (Regla 6):**
 
@@ -265,14 +265,14 @@ Un único nodo `Concepto` con:
 **Descripción:** Antes de timbrar, Finanzas genera el PDF representativo de la NC en memoria para validación visual del usuario (Criterio I3).
 
 **Flujo:**
-1. Finanzas consolida los datos de la NC en `NCMexicoPdfModel` (sin TimbreFiscalDigital, sin UUID, sin QR).
-2. Invoca `NCMexicoPdfMappingService.MapearPreviewAsync()`.
+1. Finanzas consolida los datos de la NC en `CreditNoteMexicoPdfModel` (sin TimbreFiscalDigital, sin UUID, sin QR).
+2. Invoca `CreditNoteMexicoPdfMappingService.MapearPreviewAsync()`.
 3. Resuelve `TemplateKey` dinámicamente según empresa emisora: `{Prefijo}_MEX_NC` (GOL_MEX_NC, MUN_MEX_NC, PRO_MEX_NC, PQF_MEX_NC).
 4. Llama a DocumentBuilder con el `TemplateKey` y el modelo.
 5. Retorna PDF en memoria al frontend.
 6. Sin escrituras en BD.
 
-**Modelo `NCMexicoPdfModel` — secciones:**
+**Modelo `CreditNoteMexicoPdfModel` — secciones:**
 
 | Sección                    | Campos clave                                                                |
 | -------------------------- | --------------------------------------------------------------------------- |
@@ -293,15 +293,15 @@ Un único nodo `Concepto` con:
 **Flujo:**
 
 **Paso 1 — Enviar a Timbrado:**
-Finanzas construye el `NotaCreditoMexicoRequest` (sección B4) y llama al API de Timbrado:
+Finanzas construye el `CreditNoteMexicoRequest` (sección B4) y llama al API de Timbrado:
 ```
 POST /api/v1/cfdi
-Body: NotaCreditoMexicoRequest
+Body: CreditNoteMexicoRequest
 ```
 Muestra feedback visual de progreso al usuario (Criterio J1).
 
 **Paso 2 — Timbrado exitoso:**
-Timbrado retorna `NotaCreditoMexicoResponse` con:
+Timbrado retorna `CreditNoteMexicoResponse` con:
 - `IdCFDIGenerada` recién insertado
 - `UUID` SAT
 - `XML` timbrado completo con `TimbreFiscalDigital`
@@ -317,7 +317,7 @@ Si `fccNotaCredito.CancelarFacturaOrigen = 1`:
 - Timbrado actualiza `CFDICancelacion` con `ClaveMotivo`, `Estatus='CANCELADA'`.
 
 **Paso 4 — Persistencia post-timbrado:**
-Finanzas ejecuta `PersistirNCMexicoPdfService.PersistirAsync()`:
+Finanzas ejecuta `PersistMexicoCreditNotePdfService.PersistirAsync()`:
 1. Genera PDF final con sello digital, UUID y QR (llamada a DocumentBuilder con modelo completo).
 2. Resuelve bucket MinIO:
    ```sql
@@ -340,14 +340,17 @@ Finanzas ejecuta `PersistirNCMexicoPdfService.PersistirAsync()`:
 10. Si modalidad MANUAL: UPDATE `fccNotaCredito.ConceptoManual`.
 
 **Paso 5 — Correo automático al cliente (Criterio J3):**
-Finanzas envía correo al timbrar exitosamente:
+Finanzas envía correo al timbrar exitosamente, a través del Aplicativo Nuevo **ProquifaDotNet.EnvioCorreo** (Reglas al diseñar, regla 7 — no se integra Brevo directamente desde Finanzas):
 - **Para:** contacto del cliente vinculado a la factura origen (editable).
 - **CC:** ESAC asignado al cliente + analista de Cuentas por Cobrar (editable).
 - **Adjuntos:** PDF + XML de la NC.
 - **Asunto:** "Nota de Crédito {Folio NC} — Factura {Folio Factura Origen}" ⚠️ plantilla final PMO #31.
 - INSERT `CorreoEnviado` + INSERT `ArchivoCorreoEnviado` (PDF + XML).
 
-**Paso 6 — Navegación al Paso 4:**
+**Paso 6 — Bitácora:**
+Finanzas registra el guardado de la Nota de Crédito en **ProquifaDotNet.BitacoraCambios** (Aplicativo Nuevo — Reglas al diseñar, regla 8).
+
+**Paso 7 — Navegación al Paso 4:**
 Finanzas retorna al frontend la respuesta con todos los datos de la NC timbrada para renderizar el Paso 4 NC Emitida (Criterio J4).
 
 ### B7 — Consulta de NCs (Pantalla Principal + Drill-down)
@@ -400,10 +403,10 @@ Fecha, Cobrador, Folio NC (acción → PDF), XML (descarga), Emisor, Monto+Moned
 
 ### C1 — Endpoint: Timbrar NC México
 
-**Descripción:** Timbrado recibe el `NotaCreditoMexicoRequest` de Finanzas, construye el XML CFDI E, lo envía al PAC TurboPac, guarda el XML y retorna el CFDI timbrado.
+**Descripción:** Timbrado recibe el `CreditNoteMexicoRequest` de Finanzas, construye el XML CFDI E, lo envía al PAC TurboPac, guarda el XML y retorna el CFDI timbrado.
 
 **Flujo:**
-1. Timbrado recibe `NotaCreditoMexicoRequest`.
+1. Timbrado recibe `CreditNoteMexicoRequest`.
 2. Construye XML CFDI 4.0 TipoDocumento='E' con todos los nodos (Emisor, Receptor, CfdiRelacionados TipoRelacion='01', Conceptos, Impuestos, MetodoPago='PUE').
 3. Obtiene folio con UPDLOCK atómico: `SELECT UltimoFolio+1 FROM EmpresaFolio WITH (UPDLOCK) WHERE Serie='P2' AND IdEmpresa=@IdEmpresa`.
 4. Envía XML al PAC TurboPac.
@@ -412,7 +415,7 @@ Fecha, Cobrador, Folio NC (acción → PDF), XML (descarga), Emisor, Monto+Moned
 7. INSERT `CFDI` con UUID SAT.
 8. Guarda XML timbrado en BD (o MinIO — mismo patrón que Factura).
 9. UPDATE `EmpresaFolio.UltimoFolio`.
-10. Retorna `NotaCreditoMexicoResponse` a Finanzas.
+10. Retorna `CreditNoteMexicoResponse` a Finanzas.
 
 **Manejo de errores (Regla 16 / Criterio J5):**
 - Si PAC retorna error: no se persiste la NC, se retorna el error a Finanzas con detalle del PAC.
@@ -446,8 +449,8 @@ Se crean 4 archivos HTML de template (H/B/F × 4 empresas) para el PDF represent
 El diseño del PDF de la NC se documenta en un requisito independiente (análogo a R16A-RE-FU-021 para Factura México). Esta sección cubre únicamente el registro de los `TemplateKey` en BD y la integración funcional.
 
 **Preview vs Timbrado:**
-- **Preview (Paso 3):** PDF sin sello, sin UUID, sin QR — generado por `NCMexicoPdfMappingService.MapearPreviewAsync()`.
-- **Post-timbrado:** PDF completo con `TimbreFiscalDigital`, UUID, QR — generado por `PersistirNCMexicoPdfService.PersistirAsync()`.
+- **Preview (Paso 3):** PDF sin sello, sin UUID, sin QR — generado por `CreditNoteMexicoPdfMappingService.MapearPreviewAsync()`.
+- **Post-timbrado:** PDF completo con `TimbreFiscalDigital`, UUID, QR — generado por `PersistMexicoCreditNotePdfService.PersistirAsync()`.
 
 ---
 
@@ -476,8 +479,8 @@ WHERE rcmb.BucketClave = 'notas_credito'
 ### E3 — Flujo completo de persistencia
 
 ```
-PersistirNCMexicoPdfService.PersistirAsync()
-  ├── DocumentBuilder.GenerarPdf(TemplateKey, NCMexicoPdfModel)   → PDF bytes
+PersistMexicoCreditNotePdfService.PersistirAsync()
+  ├── DocumentBuilder.GenerarPdf(TemplateKey, CreditNoteMexicoPdfModel)   → PDF bytes
   ├── MinIO.PutObject(bucket, path_pdf, PDF bytes)                → OK
   ├── MinIO.PutObject(bucket, path_xml, XML bytes)                → OK
   ├── INSERT Archivo (PDF) → IdArchivoPdf

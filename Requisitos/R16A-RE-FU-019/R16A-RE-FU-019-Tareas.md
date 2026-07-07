@@ -197,33 +197,33 @@ Corresponde a GAP-03. Patrón documentado en R16A-RE-FU-019_BD.md sección "Cons
 **Módulos:** Application/DTOs
 
 **Consideraciones previas:**
-- Los DTOs modelan el contrato del endpoint `POST /api/v1/cfdi` (discriminado por FiscalDocumentTypeId)
+- Los DTOs modelan el contrato del endpoint técnico `POST /api/v1/stamp` (ProquifaDotNet.Timbrado) — **no** `/api/v1/cfdi` (ese es el recurso de negocio expuesto por `CfdiController` en Finanzas, ver R16A-RE-FU-018-Back.md Parte B)
 - Valores forzados por normativa SAT (PPD, 99, I) se incluyen como propiedades con defaults
-- El response indica éxito/error con datos del CFDI generado
+- El response indica éxito/error con el resultado del timbrado (UUID, XML, Serie, Folio) — **sin Id de negocio**: Timbrado no tiene tabla `Cfdi` propia, el Id real (`IdCFDIGenerada`) lo asigna Finanzas al persistir
 
 **Objetivo general:**
-Crear los modelos DTO específicos para el timbrado de Factura por Adelantado.
+Crear los modelos DTO específicos para el timbrado técnico de Factura por Adelantado.
 
 **Objetivos específicos:**
-- Crear `DTOs/TimbrarFAARequestDto.cs` con: IdProformaAdelanto, DatosReceptor, DatosEmisor, `Conceptos[]`, MetodoPago (default "PPD"), FormaPago (default "99"), TipoComprobante (default "I"), Moneda, TipoCambio
-- Crear `DTOs/ConceptoFAADto.cs` con: Cantidad, Descripcion, PrecioUnitario, Importe, ClaveUnidad, ClaveProdServ — el campo Descripcion debe construirse como "catálogo + descripción + marca"; no incluir lote ni pedimento (OBS-039)
-- Crear `DTOs/TimbrarFAAResponseDto.cs` con: IdCFDI, UUID, Serie, Folio, FechaEmision, Total, XmlBase64, Exitoso, ErrorDescripcion, ErrorCodigo
-- Crear `DTOs/DatosReceptorDto.cs` con: RFC, RazonSocial, CP, RegimenFiscal, UsoCFDI
-- Crear `DTOs/DatosEmisorDto.cs` con: RFC, RazonSocial, RegimenFiscal, EmpresaClave
+- Crear `DTOs/StampAdvanceInvoiceRequestDto.cs` con: IdProformaAdelanto, RecipientData, IssuerData, `Conceptos[]`, MetodoPago (default "PPD"), FormaPago (default "99"), TipoComprobante (default "I"), Moneda, TipoCambio
+- Crear `DTOs/AdvanceInvoiceItemDto.cs` con: Cantidad, Descripcion, PrecioUnitario, Importe, ClaveUnidad, ClaveProdServ — el campo Descripcion debe construirse como "catálogo + descripción + marca"; no incluir lote ni pedimento (OBS-039)
+- Crear `DTOs/StampAdvanceInvoiceResponseDto.cs` con: Uuid, Serie, Folio, FechaEmision, Total, XmlBase64, Exitoso, ErrorDescripcion, ErrorCodigo — sin IdCFDI
+- Crear `DTOs/RecipientDataDto.cs` con: RFC, RazonSocial, CP, RegimenFiscal, UsoCFDI
+- Crear `DTOs/IssuerDataDto.cs` con: RFC, RazonSocial, RegimenFiscal, EmpresaClave
 
 **Resultado esperado:**
-DTOs completos que modelan el contrato de comunicación del endpoint `/api/v1/cfdi`.
+DTOs completos que modelan el contrato de comunicación del endpoint técnico `/api/v1/stamp`.
 
 **Entregables:**
-- `DTOs/TimbrarFAARequestDto.cs`
-- `DTOs/ConceptoFAADto.cs`
-- `DTOs/TimbrarFAAResponseDto.cs`
-- `DTOs/DatosReceptorDto.cs`
-- `DTOs/DatosEmisorDto.cs`
+- `DTOs/StampAdvanceInvoiceRequestDto.cs`
+- `DTOs/AdvanceInvoiceItemDto.cs`
+- `DTOs/StampAdvanceInvoiceResponseDto.cs`
+- `DTOs/RecipientDataDto.cs`
+- `DTOs/IssuerDataDto.cs`
 
 **Criterios de aceptación:**
 - MetodoPago, FormaPago y TipoComprobante tienen valores default forzados por normativa SAT
-- `TimbrarFAAResponseDto` incluye campo Exitoso (bool) y ErrorDescripcion para manejo de errores PAC
+- `StampAdvanceInvoiceResponseDto` incluye campo Exitoso (bool) y ErrorDescripcion para manejo de errores PAC, y NO incluye ningún Id de negocio
 - Los DTOs compilan sin errores
 
 **Más información de la tarea:**
@@ -237,7 +237,7 @@ Corresponde a GAP-04. Valores forzados SAT para factura PPD documentados en R16A
 
 ### Tarea 5
 
-**Título:** [ R16A-RE-FU-019 ] [ALG-COMPLX-LOGIC] Ampliar StampingService con `EmpresaFolioService` y método `TimbrarFacturaAdelantadoAsync`
+**Título:** [ R16A-RE-FU-019 ] [ALG-COMPLX-LOGIC] Ampliar StampingService con `EmpresaFolioService` y método `StampAdvanceInvoiceAsync`
 
 **Aplicativos:** ProquifaDotNet.Timbrado
 
@@ -246,8 +246,8 @@ Corresponde a GAP-04. Valores forzados SAT para factura PPD documentados en R16A
 **Consideraciones previas:**
 - Depende de Tarea 3 (`EmpresaFolioRepository`) y Tarea 4 (DTOs)
 - `StampingService` ya existe (RE-FU-018); se amplía con método específico para FAA
-- El nuevo método orquesta: validar datos fiscales → consumir folio → armar XML → llamar SAP → persistir CFDI → log
-- Si SAP retorna error, retornar `TimbrarFAAResponseDto` con Exitoso=false sin modificar BD
+- El nuevo método orquesta: validar datos fiscales → consumir folio → armar XML → llamar SAP → registrar StampingLog → regresar resultado a Finanzas (Timbrado **no persiste** el CFDI como entidad de negocio)
+- Si SAP retorna error, retornar `StampAdvanceInvoiceResponseDto` con Exitoso=false sin modificar BD
 
 **Objetivo general:**
 Ampliar la capa Application con el servicio de consumo de folio y el método de timbrado de Factura por Adelantado.
@@ -255,24 +255,24 @@ Ampliar la capa Application con el servicio de consumo de folio y el método de 
 **Objetivos específicos:**
 - Crear `Interfaces/IEmpresaFolioService.cs` con métodos `GetNextFolioAsync` y `GetByClaveAsync`
 - Crear `Services/EmpresaFolioService.cs` que consume folio atómico y retorna folio formateado (padding a 6 chars)
-- Ampliar `IStampingService.cs` agregando `TimbrarFacturaAdelantadoAsync(TimbrarFAARequestDto)`
+- Ampliar `IStampingService.cs` agregando `StampAdvanceInvoiceAsync(StampAdvanceInvoiceRequestDto)`
 - Ampliar `StampingService.cs` implementando el flujo:
 
 ```
 1. Validar request (FluentValidation)
 2. Consumir folio via EmpresaFolioService.GetNextFolioAsync(EmpresaClave)
 3. Armar estructura XML CFDI con datos fiscales + conceptos
-4. INSERT CFDI en BD (EstatusTimbrado = Pendiente)
+4. INSERT StampingLog (NewStatus=Pending)
 5. Llamar SapStampingClient -> PAC SAP
-6. Si ERROR: retornar TimbrarFAAResponseDto con Exitoso=false + ErrorDescripcion
-7. Si ÉXITO: UPDATE CFDI (UUID, XML firmado, EstatusTimbrado = Timbrado)
-8. Subir XML a Minio (bucket 'timbrado')
-9. INSERT StampingLog (request, response, duración)
-10. Retornar TimbrarFAAResponseDto con Exitoso=true
+6. Si ERROR: UPDATE StampingLog (NewStatus=Failed, ErrorMessage) y retornar StampAdvanceInvoiceResponseDto con Exitoso=false + ErrorDescripcion (sin persistir ningun CFDI de negocio)
+7. Si ÉXITO: UPDATE StampingLog (NewStatus=Stamped)
+8. Retornar StampAdvanceInvoiceResponseDto con Exitoso=true, Uuid, Serie, Folio, FechaEmision, XmlBase64 (el XML se regresa en el response; Finanzas es quien lo sube a Minio y lo persiste, ver R16A-RE-FU-018-Back.md Parte B)
 ```
 
+> Nota: los pasos "INSERT/UPDATE CFDI" y "Subir XML a Minio (bucket 'timbrado')" de versiones previas de esta tarea se eliminaron — Timbrado no tiene tabla `Cfdi` propia ni sube el XML a Minio; ambas responsabilidades son de Finanzas (`CfdiService`, ver R16A-RE-FU-018-Back.md Parte B).
+
 **Resultado esperado:**
-Servicio de timbrado FAA funcional que orquesta el flujo completo con manejo de errores PAC.
+Servicio de timbrado FAA funcional que orquesta el flujo técnico completo con manejo de errores PAC, sin persistir el CFDI como entidad de negocio.
 
 **Entregables:**
 - `Interfaces/IEmpresaFolioService.cs`
@@ -295,45 +295,47 @@ Corresponde a GAP-02. Ver diagrama de flujo "Generar Factura" en R16A-RE-FU-019-
 
 ### Tarea 6
 
-**Título:** [ R16A-RE-FU-019 ] [IMP-EXIST-SERVICE] Enrutar timbrado FAA a través de `POST /api/v1/cfdi` en CfdiController
+**Título:** [ R16A-RE-FU-019 ] [IMP-EXIST-SERVICE] Enrutar timbrado FAA a través de `POST /api/v1/stamp` en StampingController
 
 **Aplicativos:** ProquifaDotNet.Timbrado
 
 **Módulos:** API/Controllers
 
 **Consideraciones previas:**
-- Depende de Tarea 5 (`StampingService.TimbrarFacturaAdelantadoAsync`) y Tarea 4 (DTOs)
-- `CfdiController` y el endpoint `POST /api/v1/cfdi` ya existen (RE-FU-018); no se crea endpoint ni ruta nueva — se amplía la lógica interna para discriminar el tipo FAA vía `FiscalDocumentTypeId` en el payload
+- Depende de Tarea 5 (`StampingService.StampAdvanceInvoiceAsync`) y Tarea 4 (DTOs)
+- `StampingController` y el endpoint técnico `POST /api/v1/stamp` ya existen (RE-FU-018); no se crea endpoint ni ruta nueva
+- Timbrado no discrimina por catálogo propio (no tiene `FiscalDocumentType`): el tipo de documento lo resuelve Finanzas (via `catTipoCFDI`) antes de llamar a Timbrado; Timbrado solo recibe los datos fiscales ya armados
+- El recurso de negocio `cfdi` (`CfdiController`, `POST /api/v1/cfdi`) vive en Finanzas, no aquí (ver R16A-RE-FU-018-Back.md Parte B)
 - Autenticación via IdentityServer (token desde Finanzas)
 
 **Objetivo general:**
-Conectar el timbrado de Factura por Adelantado al endpoint único de timbrado del controlador existente.
+Conectar el timbrado técnico de Factura por Adelantado al endpoint único de timbrado del controlador existente.
 
 **Objetivos específicos:**
-- Ampliar la acción `POST` de `CfdiController` para que, al recibir `FiscalDocumentTypeId` = FAA, delegue a `IStampingService.TimbrarFacturaAdelantadoAsync([FromBody] TimbrarFAARequestDto request)`
-- Ruta: `/api/v1/cfdi` (sin ruta ni recurso separados)
-- Retornar 200 OK con `TimbrarFAAResponseDto` (tanto en éxito como en error de PAC)
+- Ampliar la acción `POST` de `StampingController` para que delegue a `IStampingService.StampAdvanceInvoiceAsync([FromBody] StampAdvanceInvoiceRequestDto request)`
+- Ruta: `/api/v1/stamp` (sin ruta ni recurso separados)
+- Retornar 200 OK con `StampAdvanceInvoiceResponseDto` (tanto en éxito como en error de PAC)
 - Retornar 400 BadRequest si validación de request falla
 - Retornar 500 si error interno no controlado
 
 **Resultado esperado:**
-Endpoint único funcional que recibe solicitud de timbrado FAA desde Finanzas y retorna el resultado.
+Endpoint técnico único funcional que recibe la solicitud de timbrado FAA desde Finanzas y retorna el resultado (sin persistir el CFDI).
 
 **Entregables:**
-- Ampliación de `Controllers/CfdiController.cs`
+- Ampliación de `Controllers/StampingController.cs`
 
 **Criterios de aceptación:**
-- El endpoint es accesible en `/api/v1/cfdi`
+- El endpoint es accesible en `/api/v1/stamp`
 - Valida autenticación IdentityServer
-- Retorna `TimbrarFAAResponseDto` con Exitoso=true y datos CFDI cuando el timbrado es exitoso
-- Retorna `TimbrarFAAResponseDto` con Exitoso=false y ErrorDescripcion cuando PAC falla
+- Retorna `StampAdvanceInvoiceResponseDto` con Exitoso=true y datos del timbrado cuando es exitoso
+- Retorna `StampAdvanceInvoiceResponseDto` con Exitoso=false y ErrorDescripcion cuando PAC falla
 - Errores de validación retornan 400
 
 **Más información de la tarea:**
-Corresponde a GAP-05. Consumido exclusivamente por ProquifaDotNet.Finanzas.
+Corresponde a GAP-05. Consumido exclusivamente por ProquifaDotNet.Finanzas (via `IApiCallerStamping`, creado en RE-FU-018 Parte B).
 
 **Recursos:**
-- R16A-RE-FU-019-Back.md (Parte A — API CfdiController)
+- R16A-RE-FU-019-Back.md (Parte A — API StampingController)
 
 ---
 
@@ -343,120 +345,29 @@ Corresponde a GAP-05. Consumido exclusivamente por ProquifaDotNet.Finanzas.
 
 ### Tarea 7
 
-**Título:** [ R16A-RE-FU-019 ] [CREATE-SCRIPT-CONTROL] Crear scripts DDL: ALTER TABLE tpProformaAdelanto y CREATE VIEW vtpProformaAdelanto
-
-**Aplicativos:** ProquifaDotNet (BD)
-
-**Módulos:** Base de Datos — ProquifaDotNet
-
-**Consideraciones previas:**
-- El ALTER agrega la columna Enviada (bit NOT NULL DEFAULT 0) para rastrear el envío exitoso de la factura
-- La vista resuelve la cadena compleja de JOINs (8 tablas) y calcula el campo EstadoFAA
-- La vista debe crearse DESPUÉS del ALTER (requiere que la columna Enviada exista)
-- Ejecutar ANTES de implementar `FacturaAdelantadoDetalleRepository` y `FinanzasContext` (Tareas 8 y 9)
-
-**Objetivo general:**
-Preparar la estructura de BD en ProquifaDotNet con la columna Enviada y la vista vtpProformaAdelanto necesarias para el flujo Detalle FAA.
-
-**Objetivos específicos:**
-- Crear script ALTER TABLE:
-
-```sql
-ALTER TABLE dbo.tpProformaAdelanto
-    ADD Enviada bit NOT NULL
-        CONSTRAINT [DF_tpProformaAdelanto_Enviada] DEFAULT (0);
-```
-
-- Crear script CREATE VIEW con cadena de JOINs y EstadoFAA calculado:
-
-```sql
-CREATE VIEW dbo.vtpProformaAdelanto AS
-SELECT
-    pa.IdTPProformaAdelanto,
-    pa.Monto, pa.MXN, pa.USD, pa.TipoDeCambio,
-    pa.IdCliente,
-    c.Nombre           AS ClienteNombre,
-    dfc.RazonSocial    AS ClienteRazonSocial,
-    dfc.RFC            AS ClienteRFC,
-    pa.IdEmpresa,
-    e.Prefijo          AS EmpresaPrefijo,
-    e.Alias            AS EmpresaAlias,
-    pa.IdCFDIGenerada,
-    cg.Folio           AS FolioFactura,
-    cg.Serie           AS SerieFactura,
-    pa.Enviada,
-    pa.FechaRegistro,
-    pa.Activo,
-    CASE
-        WHEN pa.IdCFDIGenerada IS NULL                              THEN 'PendienteGenerar'
-        WHEN pa.IdCFDIGenerada IS NOT NULL AND pa.Enviada = 0       THEN 'PendienteEnviar'
-        ELSE 'Completada'
-    END AS EstadoFAA,
-    tp.IdTPPedido,
-    tp.FolioPedidoInterno,
-    tp.FechaTramitacion,
-    tp.IdCatCondicionesDePago,
-    cdp.CondicionesDePago,
-    cdp.SinCredito AS EsPrepago,
-    r.ClaveISO     AS RegionClave
-FROM dbo.tpProformaAdelanto pa
-LEFT JOIN dbo.Cliente c                     ON pa.IdCliente  = c.IdCliente
-LEFT JOIN dbo.DatosFacturacionCliente dfc   ON pa.IdCliente  = dfc.IdCliente AND dfc.Activo = 1
-LEFT JOIN dbo.Empresa e                     ON pa.IdEmpresa  = e.IdEmpresa
-LEFT JOIN dbo.CFDIGenerada cg               ON pa.IdCFDIGenerada = cg.IdCFDIGenerada
-LEFT JOIN dbo.fccPagoFacturaAdelanto fpfa   ON fpfa.IdTPProformaAdelanto = pa.IdTPProformaAdelanto AND fpfa.Activo = 1
-LEFT JOIN dbo.tpProformaPedido pp           ON fpfa.IdTPProformaPedido   = pp.IdTPProformaPedido
-LEFT JOIN dbo.tpPedidoProformaPedido tpp    ON pp.IdTPProformaPedido     = tpp.IdTPProformaPedido AND tpp.Activo = 1
-LEFT JOIN dbo.tpPedido tp                   ON tpp.IdTPPedido            = tp.IdTPPedido
-LEFT JOIN dbo.Region r                      ON tp.IdRegion               = r.IdRegion
-LEFT JOIN dbo.catCondicionesDePago cdp      ON tp.IdCatCondicionesDePago = cdp.IdCatCondicionesDePago;
-```
-
-- Incluir script de validación: `SELECT TOP 5 * FROM vtpProformaAdelanto`
-- Scripts idempotentes (verificar existencia antes de ejecutar)
-
-**Resultado esperado:**
-Columna Enviada disponible en tpProformaAdelanto y vista vtpProformaAdelanto creada con EstadoFAA calculado.
-
-**Entregables:**
-- Script DDL: ALTER TABLE tpProformaAdelanto
-- Script DDL: CREATE VIEW vtpProformaAdelanto
-- Script de validación
-
-**Criterios de aceptación:**
-- El ALTER se ejecuta sin errores y el campo Enviada tiene default 0
-- La vista calcula correctamente los 3 estados: PendienteGenerar, PendienteEnviar, Completada
-- La cadena de JOINs retorna datos correctos para pedidos existentes
-- Scripts idempotentes
-
-**Más información de la tarea:**
-Corresponde a GAP-20 y GAP-21. Ejecutar en orden: primero ALTER, luego VIEW. Ejecutar ANTES de Tareas 8 y 9.
-
-**Recursos:**
-- R16A-RE-FU-019_BD.md (ALTER TABLE + CREATE VIEW completa)
-- R16A-RE-FU-019-Back.md (Parte D — Scripts)
+> **Tarea eliminada de este requisito — migrada a R16A-RE-FU-015 (06/07/2026):** el `ALTER TABLE tpProformaAdelanto ADD Enviada` y el `CREATE VIEW dbo.vtpProformaAdelanto` (cadena de 8 tablas) originalmente planeados aquí se retiran por completo. La columna `Enviada` y la vista equivalente (`vfccFactura`, que unifica origen Prepago y Crédito sobre la tabla `fccFactura`) se crean en **R16A-RE-FU-015-Tareas.md** como parte de la tarea de BD de ese requisito. Razón: `RE-FU-015` no genera registros en `tpProformaAdelanto` (usa el nuevo esquema `fccFactura` desde su origen), por lo que esta vista nunca hubiera cubierto los pendientes FAA de Prepago (ver hallazgo H-01 en `R16A-RE-FU-018_DIS-SOL_Revision.md`, resuelto el 06/07/2026). Las Tareas 8-18 de este documento ahora dependen de `fccFactura`/`vfccFactura` (R16A-RE-FU-015) en vez de `tpProformaAdelanto`/`vtpProformaAdelanto`. No se aporta tarea de BD propia en este requisito.
 
 ---
 
 ### Tarea 8
 
-**Título:** [ R16A-RE-FU-019 ] [SIMPLE-CRUD] Ampliar FinanzasContext con `DbSet` de vista vtpProformaAdelanto y tablas auxiliares
+**Título:** [ R16A-RE-FU-019 ] [SIMPLE-CRUD] Ampliar FinanzasContext con `DbSet` de vista vfccFactura y tablas auxiliares
 
 **Aplicativos:** ProquifaDotNet.Finanzas
 
 **Módulos:** Infrastructure/Persistence/Context
 
 **Consideraciones previas:**
-- Depende de Tarea 7 (ALTER + VIEW ejecutados en BD)
+- Depende de que `fccFactura`/`vfccFactura` ya existan en BD (script DDL en **R16A-RE-FU-015-Tareas.md**, no en este requisito — ver nota en Tarea 7)
 - El FinanzasContext fue creado en RE-FU-016 y ampliado en RE-FU-018
-- La vista vtpProformaAdelanto se mapea con `HasNoKey()` y `ToView()` (solo lectura)
+- La vista vfccFactura se mapea con `HasNoKey()` y `ToView()` (solo lectura)
 - Las tablas Archivo, CorreoEnviado, ArchivoCorreoEnviado se usan para escritura post-timbrado/envío
 
 **Objetivo general:**
 Ampliar el contexto EF Core con los mapeos necesarios para el flujo Detalle FAA.
 
 **Objetivos específicos:**
-- Agregar `DbSet<VtpProformaAdelanto>` mapeado con `.ToView("vtpProformaAdelanto").HasNoKey()`
+- Agregar `DbSet<VfccFactura>` mapeado con `.ToView("vfccFactura").HasNoKey()` (reemplaza el `DbSet<VtpProformaAdelanto>` planeado originalmente sobre `vtpProformaAdelanto`)
 - Agregar `DbSet<Archivo>` con mapeo a tabla Archivo
 - Agregar `DbSet<CorreoEnviado>` con mapeo a tabla CorreoEnviado
 - Agregar `DbSet<ArchivoCorreoEnviado>` con mapeo a tabla ArchivoCorreoEnviado
@@ -468,20 +379,20 @@ FinanzasContext con todos los DbSets necesarios para consultar la vista y persis
 
 **Entregables:**
 - Ampliación de `Context/FinanzasContext.cs`
-- Entidades de dominio: `VtpProformaAdelanto.cs`, `Archivo.cs`, `CorreoEnviado.cs`, `ArchivoCorreoEnviado.cs`, `CatUsoCFDI.cs`
+- Entidades de dominio: `VfccFactura.cs`, `Archivo.cs`, `CorreoEnviado.cs`, `ArchivoCorreoEnviado.cs`, `CatUsoCFDI.cs`
 
 **Criterios de aceptación:**
-- `VtpProformaAdelanto` se mapea como vista (HasNoKey, sin tracking de cambios)
+- `VfccFactura` se mapea como vista (HasNoKey, sin tracking de cambios)
 - Las entidades de escritura (Archivo, CorreoEnviado) permiten INSERT sin errores
 - El contexto compila sin conflictos con DbSets existentes
 - Los tipos de columna coinciden con la BD
 
 **Más información de la tarea:**
-Corresponde a GAP-15. La vista vtpProformaAdelanto resuelve la cadena compleja de JOINs.
+Corresponde a GAP-15. La vista vfccFactura (R16A-RE-FU-015) resuelve el acceso directo a `fccFactura` sin la cadena de JOINs original.
 
 **Recursos:**
 - R16A-RE-FU-019-Back.md (Parte B — FinanzasContext Ampliación)
-- R16A-RE-FU-019_BD.md (columnas de vtpProformaAdelanto)
+- R16A-RE-FU-015_BD.md (columnas de vfccFactura)
 
 ---
 
@@ -501,27 +412,27 @@ Corresponde a GAP-15. La vista vtpProformaAdelanto resuelve la cadena compleja d
 Crear los modelos DTO completos para todos los endpoints del Detalle FAA.
 
 **Objetivos específicos:**
-- Crear `FAADetalleRequestDto` (IdCliente, `Filters[]`, SortField, SortDirection, PageSize, DesiredPage)
-- Crear `FAADetalleResponseDto` (Cliente: cabecera, TotalResults, `Results[]`)
-- Crear `FAAClienteCabeceraDto` (IdCliente, RazonSocial, RFC, MonedaFacturacion, ClasificacionCrediticia)
-- Crear `FAAPedidoDetalleDto` (IdTPProformaAdelanto, IdTPPedido, FolioPedidoInterno, FechaPedido, CondicionesDePago, EsPrepago, EmpresaAlias, EmpresaClave, Subtotal, IVA, MontoTotal, Moneda, EstadoFAA, FolioFactura, SerieFactura, EsacCorreo)
-- Crear `FAAGenerarRequestDto` (IdTPProformaAdelanto, UsoCFDI)
-- Crear `FAAGenerarResponseDto` (Exitoso, IdCFDIGenerada, UUID, Folio, Serie, FechaEmision, Total, PdfUrl, XmlUrl, ErrorDescripcion, ErrorCodigo)
-- Crear `FAAEnviarRequestDto` (IdTPProformaAdelanto, Destinatario, CC, Notas)
-- Crear `FAAEnviarResponseDto` (Exitoso, TipoPedido, AccionPostEnvio)
-- Crear `FAADatosFiscalesClienteDto` (RFC, RazonSocial, CP, RegimenFiscal, Correo, Moneda, TipoCambio)
-- Crear `FAADatosFiscalesEmisorDto` (RFC, RazonSocial, RegimenFiscal, EmpresaClave)
-- Crear `FAAPreviewPdfRequestDto` (IdTPProformaAdelanto, UsoCFDI)
+- Crear `AdvanceInvoiceDetailRequestDto` (IdCliente, `Filters[]`, SortField, SortDirection, PageSize, DesiredPage)
+- Crear `AdvanceInvoiceDetailResponseDto` (Cliente: cabecera, TotalResults, `Results[]`)
+- Crear `ClientHeaderDto` (IdCliente, RazonSocial, RFC, MonedaFacturacion, ClasificacionCrediticia)
+- Crear `OrderDetailDto` (IdFccFactura, IdTPPedido, FolioPedidoInterno, FechaPedido, CondicionesDePago, EsPrepago, EmpresaAlias, EmpresaClave, Subtotal, IVA, MontoTotal, Moneda, EstadoFAA, FolioFactura, SerieFactura, EsacCorreo)
+- Crear `AdvanceInvoiceGenerateRequestDto` (IdFccFactura, UsoCFDI)
+- Crear `AdvanceInvoiceGenerateResponseDto` (Exitoso, IdCFDIGenerada, UUID, Folio, Serie, FechaEmision, Total, PdfUrl, XmlUrl, ErrorDescripcion, ErrorCodigo)
+- Crear `AdvanceInvoiceSendRequestDto` (IdFccFactura, Destinatario, CC, Notas)
+- Crear `AdvanceInvoiceSendResponseDto` (Exitoso, TipoPedido, AccionPostEnvio)
+- Crear `ClientFiscalDataDto` (RFC, RazonSocial, CP, RegimenFiscal, Correo, Moneda, TipoCambio)
+- Crear `IssuerFiscalDataDto` (RFC, RazonSocial, RegimenFiscal, EmpresaClave)
+- Crear `AdvanceInvoicePreviewPdfRequestDto` (IdFccFactura, UsoCFDI)
 
 **Resultado esperado:**
 11 DTOs que cubren el contrato completo de los 4 endpoints del Detalle FAA.
 
 **Entregables:**
-- 11 archivos `.cs` en `Application/DTOs/FacturaAdelantado/`
+- 11 archivos `.cs` en `Application/DTOs/AdvanceInvoice/`
 
 **Criterios de aceptación:**
-- `FAAPedidoDetalleDto` incluye campo EstadoFAA (string: PendienteGenerar/PendienteEnviar) y campo EsacCorreo (correo del ESAC asignado al cliente, default del campo CC en modal de Envío)
-- `FAAGenerarResponseDto` incluye Exitoso y ErrorDescripcion para manejo de errores SAT
+- `OrderDetailDto` incluye campo EstadoFAA (string: PendienteGenerar/PendienteEnviar) y campo EsacCorreo (correo del ESAC asignado al cliente, default del campo CC en modal de Envío)
+- `AdvanceInvoiceGenerateResponseDto` incluye Exitoso y ErrorDescripcion para manejo de errores SAT
 - Los DTOs compilan sin errores
 
 **Más información de la tarea:**
@@ -535,25 +446,25 @@ Corresponde a GAP-07. Los DTOs definen el contrato público de los 4 endpoints n
 
 ### Tarea 10
 
-**Título:** [ R16A-RE-FU-019 ] [LIST-PAG-MULT-FILTER] Implementar `FacturaAdelantadoDetalleRepository` (consulta vista vtpProformaAdelanto)
+**Título:** [ R16A-RE-FU-019 ] [LIST-PAG-MULT-FILTER] Implementar `AdvanceInvoiceDetailRepository` (consulta vista vfccFactura)
 
 **Aplicativos:** ProquifaDotNet.Finanzas
 
 **Módulos:** Infrastructure/Persistence/Repository
 
 **Consideraciones previas:**
-- Depende de Tarea 7 (vista vtpProformaAdelanto en BD) y Tarea 8 (`DbSet<VtpProformaAdelanto>` en contexto)
-- La vista resuelve los JOINs complejos y calcula EstadoFAA; el repositorio consulta la vista directamente
+- Depende de que `vfccFactura` ya exista en BD (R16A-RE-FU-015-Tareas.md) y de Tarea 8 (`DbSet<VfccFactura>` en contexto)
+- La vista resuelve el acceso directo a `fccFactura` y calcula EstadoFAA sin la cadena de JOINs original de `vtpProformaAdelanto`
 - Filtra por IdCliente + RegionClave='MEX' + EstadoFAA IN ('PendienteGenerar','PendienteEnviar')
 - Requiere validación de cartera del usuario (ClienteCarteraCliente)
 - Debe resolver el correo del ESAC asignado al cliente via `ClienteCartera.IDUsuarioESAC` para pre-rellenar el campo CC del modal de Envío (Criterio F3)
 
 **Objetivo general:**
-Implementar el repositorio que consulta los pedidos pendientes de un cliente usando la vista vtpProformaAdelanto.
+Implementar el repositorio que consulta los pedidos pendientes de un cliente usando la vista vfccFactura.
 
 **Objetivos específicos:**
-- Crear `FacturaAdelantadoDetalleRepository` con método `GetPedidosClienteAsync(Guid idCliente, QueryInfo info)`
-- Consultar `vtpProformaAdelanto` filtrado por IdCliente, RegionClave='MEX', EstadoFAA != 'Completada', Activo=1
+- Crear `AdvanceInvoiceDetailRepository` con método `GetPedidosClienteAsync(Guid idCliente, QueryInfo info)`
+- Consultar `vfccFactura` filtrado por IdCliente, RegionClave='MEX', EstadoFAA != 'Completada', Activo=1
 - Implementar paginación con PageSize y DesiredPage
 - Implementar ordenamiento dinámico (FechaTramitacion, MontoTotal, FolioPedidoInterno)
 - Validar acceso por cartera del usuario (filtro idUsuarioCobrador via ClienteCarteraCliente)
@@ -563,11 +474,11 @@ Implementar el repositorio que consulta los pedidos pendientes de un cliente usa
 Repositorio funcional que retorna los pedidos pendientes del cliente paginados y validados por cartera.
 
 **Entregables:**
-- `Infrastructure/Persistence/Repository/FacturaAdelantadoDetalleRepository.cs`
-- Interface `IFacturaAdelantadoDetalleRepository` en Application
+- `Infrastructure/Persistence/Repository/AdvanceInvoiceDetailRepository.cs`
+- Interface `IAdvanceInvoiceDetailRepository` en Application
 
 **Criterios de aceptación:**
-- La consulta usa la vista vtpProformaAdelanto (no JOINs directos a tablas base)
+- La consulta usa la vista vfccFactura (no JOINs directos a tablas base)
 - Filtra correctamente por IdCliente + Region MEX + estados pendientes
 - Soporta paginación con TotalResults correcto
 - Valida que el cliente pertenece a la cartera del usuario logueado
@@ -578,13 +489,13 @@ Corresponde a GAP-08.
 
 **Recursos:**
 - R16A-RE-FU-019-Back.md (Parte B — Endpoint Detalle, Consulta BD)
-- R16A-RE-FU-019_BD.md (CREATE VIEW vtpProformaAdelanto)
+- R16A-RE-FU-015_BD.md (CREATE VIEW vfccFactura)
 
 ---
 
 ### Tarea 11
 
-**Título:** [ R16A-RE-FU-019 ] [LIST-MULT-FILTER] Implementar `FacturaAdelantadoDatosFiscalesRepository` (datos fiscales cliente + emisor + catálogos SAT + Comentarios de Facturación)
+**Título:** [ R16A-RE-FU-019 ] [LIST-MULT-FILTER] Implementar `AdvanceInvoiceFiscalDataRepository` (datos fiscales cliente + emisor + catálogos SAT + Comentarios de Facturación)
 
 **Aplicativos:** ProquifaDotNet.Finanzas
 
@@ -602,11 +513,11 @@ Corresponde a GAP-08.
 Implementar el repositorio que obtiene los datos fiscales y datos complementarios necesarios para el modal de Generación de Factura.
 
 **Objetivos específicos:**
-- Crear `FacturaAdelantadoDatosFiscalesRepository` con métodos:
-  - `GetDatosFiscalesClienteAsync(Guid idCliente)` — RFC, RazonSocial, CP, RegimenFiscal, Correo, Moneda
-  - `GetDatosFiscalesEmisorAsync(Guid idEmpresa)` — RFC, RazonSocial, RegimenFiscal, EmpresaClave
-  - `GetContactoClienteAsync(Guid idCliente)` — Nombre, Correo, Teléfono
-  - `GetUsoCFDICatalogoAsync()` — Lista de usos CFDI SAT activos
+- Crear `AdvanceInvoiceFiscalDataRepository` con métodos:
+  - `GetClientFiscalDataAsync(Guid idCliente)` — RFC, RazonSocial, CP, RegimenFiscal, Correo, Moneda
+  - `GetIssuerFiscalDataAsync(Guid idEmpresa)` — RFC, RazonSocial, RegimenFiscal, EmpresaClave
+  - `GetClientContactAsync(Guid idCliente)` — Nombre, Correo, Teléfono
+  - `GetCfdiUsageCatalogAsync()` — Lista de usos CFDI SAT activos
   - `GetComentariosFacturacionAsync(Guid idTPPedido)` — Texto de Comentarios de Facturación del pedido (puede ser null)
 - JOIN entre DatosFacturacionCliente + catRegimenFiscal para datos del cliente
 - JOIN entre Empresa + datos fiscales emisor para datos de la empresa
@@ -616,13 +527,13 @@ Implementar el repositorio que obtiene los datos fiscales y datos complementario
 Repositorio que provee todos los datos necesarios para armar el modal de Generación (datos fiscales cliente, emisor, contacto, catálogo Uso CFDI y Comentarios de Facturación) y el request de timbrado.
 
 **Entregables:**
-- `Infrastructure/Persistence/Repository/FacturaAdelantadoDatosFiscalesRepository.cs`
-- Interface `IFacturaAdelantadoDatosFiscalesRepository` en Application
+- `Infrastructure/Persistence/Repository/AdvanceInvoiceFiscalDataRepository.cs`
+- Interface `IAdvanceInvoiceFiscalDataRepository` en Application
 
 **Criterios de aceptación:**
-- `GetDatosFiscalesClienteAsync` retorna datos del registro activo (Activo=1) de DatosFacturacionCliente
-- `GetDatosFiscalesEmisorAsync` retorna datos fiscales de la empresa emisora del pedido
-- `GetUsoCFDICatalogoAsync` retorna solo registros activos del catálogo SAT
+- `GetClientFiscalDataAsync` retorna datos del registro activo (Activo=1) de DatosFacturacionCliente
+- `GetIssuerFiscalDataAsync` retorna datos fiscales de la empresa emisora del pedido
+- `GetCfdiUsageCatalogAsync` retorna solo registros activos del catálogo SAT
 - `GetComentariosFacturacionAsync` retorna el texto de Comentarios de Facturación (null/vacío si no tiene)
 - Todos los métodos manejan null safety (cliente sin datos fiscales = error controlado)
 
@@ -637,101 +548,93 @@ Corresponde a GAP-09. Datos fiscales y Comentarios de Facturación alimentan el 
 
 ### Tarea 12
 
-**Título:** [ R16A-RE-FU-019 ] [IMPL-THIRD-SERV] Implementar `ApiCallerStamping` (HttpClient hacia ProquifaDotNet.Timbrado, sin reintentos)
+> **Tarea ya cubierta en RE-FU-018 (Parte B, Tarea 10 — no se duplica aquí):** `IApiCallerStamping`/`ApiCallerStamping` (cliente HTTP hacia `POST /api/v1/stamp` en ProquifaDotNet.Timbrado, sin reintentos, con Polly solo para timeout) se crea en **R16A-RE-FU-018-Tareas.md, Parte B, Tarea 10**, junto con `CfdiService` (Tarea 9) y `CfdiController` (Tarea 12 de ese requisito). Este requisito (RE-FU-019) **consume** esos componentes existentes desde `AdvanceInvoiceGenerateService` (ver Tarea 13) — no crea un `ApiCallerStamping` propio ni llama a Timbrado directamente.
+
+**Título:** [ R16A-RE-FU-019 ] [IMP-EXIST-SERVICE] Verificar disponibilidad de `IApiCallerStamping`/`ICfdiService` (dependencia de RE-FU-018)
 
 **Aplicativos:** ProquifaDotNet.Finanzas
 
-**Módulos:** Infrastructure/Services
+**Módulos:** Application/Interfaces
 
 **Consideraciones previas:**
-- Finanzas llama a Timbrado via HTTP; usar `IHttpClientFactory` con named client "Stamping"
-- Un solo intento por petición: Timbrado es síncrono y no reintenta (ver R16A-RE-FU-018). Polly se usa únicamente para timeout, no como política de retry
-- Autenticación via token IdentityServer en header Authorization
-- Flujo SÍNCRONO: el usuario espera respuesta directa (no se encola en RabbitMQ)
-- Si la llamada falla o Timbrado responde error, se retorna el error de inmediato al flujo llamante; el reintento (pendiente + contador de reintentos + notificacion a soporte si supera el limite) se implementa en el propio flujo de generacion de FAA en Finanzas, no en este cliente ni en Timbrado
+- `IApiCallerStamping`, `ApiCallerStamping`, `ICfdiService` y `CfdiService` ya fueron creados en R16A-RE-FU-018 (Parte B, Tareas 9 y 10) — este requisito solo verifica que estén disponibles e inyectables antes de implementar `AdvanceInvoiceGenerateService` (Tarea 13)
+- No se crea ningún cliente HTTP nuevo hacia Timbrado en este requisito
 
 **Objetivo general:**
-Implementar el cliente HTTP que permite a Finanzas solicitar timbrado de FAA con manejo de timeout controlado.
+Confirmar que `ICfdiService` (y transitivamente `IApiCallerStamping`) de RE-FU-018 están disponibles para ser consumidos por el flujo de Generar Factura de este requisito.
 
 **Objetivos específicos:**
-- Crear `Services/ApiCallerStamping.cs` con interface `IApiCallerStamping`
-- Implementar método `TimbrarFAAAsync(TimbrarFAARequestDto)` que llama `POST /api/v1/cfdi`
-- Configurar Polly solo para timeout (30s), sin política de retry
-- Incluir token IdentityServer en headers de la petición
-- Deserializar `TimbrarFAAResponseDto` del response
-- Manejar timeout: retornar error controlado al servicio llamante (sin reintentar internamente)
-- Crear `StampingSettings.cs` (BaseUrl, Timeout)
-- Registrar en `InfrastructureServiceExtensions` con DI + Polly (timeout)
+- Verificar registro en DI de `ICfdiService` en el proyecto Application de Finanzas
+- Verificar que `CfdiService.GenerateAsync` acepta los datos fiscales de Factura por Adelantado (Recipient/Issuer/Items) sin requerir cambios
 
 **Resultado esperado:**
-Cliente HTTP funcional, de un solo intento por petición, para que Finanzas solicite timbrado a la solución Timbrado.
+Confirmación de que `AdvanceInvoiceGenerateService` (Tarea 13) puede inyectar `ICfdiService` directamente, sin necesidad de un cliente HTTP adicional.
 
 **Entregables:**
-- `Services/ApiCallerStamping.cs`
-- Interface `IApiCallerStamping`
-- `Configuration/StampingSettings.cs`
-- Registro en `InfrastructureServiceExtensions`
+- Nota de verificación (sin código nuevo si RE-FU-018 ya cubre el contrato)
 
 **Criterios de aceptación:**
-- La llamada HTTP incluye autenticación IdentityServer
-- No hay reintento automático: 1 petición HTTP = 1 intento
-- Si timeout excede 30s retorna error controlado (no deja request colgado)
-- El HttpClient se resuelve via `IHttpClientFactory` (no `new HttpClient()`)
+- `ICfdiService` se resuelve correctamente via DI en Finanzas
+- No existe una segunda implementación de `IApiCallerStamping` duplicada
 
 **Más información de la tarea:**
-Corresponde a GAP-13. Flujo síncrono, sin reintentos en este cliente; el reintento ante fallo lo gestiona Finanzas en el propio flujo de generación de FAA, no RabbitMQ ni un Worker de Timbrado (que no existe, ver R16A-RE-FU-018).
+Corresponde a GAP-13 (ya satisfecho por RE-FU-018 GAP-10/GAP-11; esta tarea es de verificación, no de construcción).
 
 **Recursos:**
+- R16A-RE-FU-018-Tareas.md (Parte B, Tareas 9 y 10)
 - R16A-RE-FU-019-Back.md (Parte B — Infrastructure Integraciones, Consideraciones Técnicas)
 
 ---
 
 ### Tarea 13
 
-**Título:** [ R16A-RE-FU-019 ] [ALG-COMPLX-LOGIC] Implementar `FacturaAdelantadoGenerarService` (orquestación completa: datos fiscales → timbrado → persistencia)
+**Título:** [ R16A-RE-FU-019 ] [ALG-COMPLX-LOGIC] Implementar `AdvanceInvoiceGenerateService` (orquestación completa: datos fiscales → timbrado → persistencia)
 
 **Aplicativos:** ProquifaDotNet.Finanzas
 
 **Módulos:** Application/Services
 
 **Consideraciones previas:**
-- Depende de Tareas 9 (DTOs), 11 (DatosFiscalesRepository) y 12 (ApiCallerStamping)
-- Servicio de ALTA complejidad: orquesta 12 pasos del flujo Generar Factura
+- Depende de Tareas 9 (DTOs), 11 (AdvanceInvoiceFiscalDataRepository) y 12 (verificación de `ICfdiService`/`IApiCallerStamping`, ya creados en RE-FU-018)
+- Servicio de ALTA complejidad: orquesta el flujo Generar Factura delegando el timbrado y la persistencia del CFDI a `ICfdiService` (RE-FU-018, Parte B) — **no llama a Timbrado directamente ni persiste CFDIGenerada/Archivo por su cuenta**, para no duplicar esa lógica
 - Si PAC falla, retorna error sin modificar estado del pedido
 - La factura es inmutable una vez timbrada exitosamente (Regla 9)
 
 **Objetivo general:**
-Implementar el servicio que orquesta el flujo completo desde la obtención de datos fiscales hasta la persistencia post-timbrado.
+Implementar el servicio que orquesta el flujo completo desde la obtención de datos fiscales hasta la actualización de `fccFactura` post-timbrado, delegando el timbrado y la persistencia del CFDI a `ICfdiService`.
 
 **Objetivos específicos:**
-- Crear `Services/FacturaAdelantadoGenerarService.cs` implementando `IFacturaAdelantadoGenerarService`
-- Implementar flujo de 12 pasos:
+- Crear `Services/AdvanceInvoiceGenerateService.cs` implementando `IAdvanceInvoiceGenerateService`
+- Implementar flujo:
 
 ```
-1.  Validar que IdTPProformaAdelanto existe y EstadoFAA='PendienteGenerar'
-2.  Obtener datos del pedido (partidas, montos, ComentariosFacturacion)
-3.  Obtener datos fiscales del cliente (DatosFiscalesRepository)
-4.  Obtener datos del emisor (empresa del pedido)
-5.  Obtener Tipo de Cambio del día (si moneda != MXN)
-6.  Armar TimbrarFAARequestDto con valores forzados SAT (PPD, 99, I)
-7.  Llamar ApiCallerStamping POST /api/v1/cfdi
-8.  Si ERROR: retornar FAAGenerarResponseDto con Exitoso=false + ErrorDescripcion
-9.  Si ÉXITO: UPDATE tpProformaAdelanto SET IdCFDIGenerada = @idCFDI
-10. Almacenar PDF+XML en Minio (bucket 'facturas')
-11. INSERT Archivo x2 (PDF + XML, FileBucket='facturas')
-12. Retornar FAAGenerarResponseDto con Exitoso=true + datos factura
+1. Validar que IdFccFactura existe y EstadoFAA='PendienteGenerar' (vfccFactura)
+2. Obtener datos del pedido (partidas, montos, ComentariosFacturacion)
+3. Obtener datos fiscales del cliente (AdvanceInvoiceFiscalDataRepository)
+4. Obtener datos del emisor (empresa del pedido)
+5. Obtener Tipo de Cambio del día (si moneda != MXN)
+6. Armar StampAdvanceInvoiceRequestDto con valores forzados SAT (PPD, 99, I)
+7. Llamar ICfdiService.GenerateAsync(request) — internamente: llama IApiCallerStamping -> Timbrado
+   POST /api/v1/stamp, y si es exitoso INSERT CFDIGenerada + Archivo (XML) en ProquifaDotNet
+8. Si ERROR: retornar AdvanceInvoiceGenerateResponseDto con Exitoso=false + ErrorDescripcion (sin
+   modificar fccFactura)
+9. Si ÉXITO: UPDATE fccFactura SET IdCFDIGenerada = @IdCFDIGenerada, EsFacturaPorAdelantado = 0
+   (Id real retornado por ICfdiService.GenerateAsync, correspondiente al registro insertado en CFDIGenerada)
+10. Retornar AdvanceInvoiceGenerateResponseDto con Exitoso=true + datos factura
 ```
+
+> Nota: los pasos "Almacenar PDF+XML en Minio" e "INSERT Archivo" de versiones previas de esta tarea ya no los ejecuta `AdvanceInvoiceGenerateService` — `ICfdiService.GenerateAsync` (RE-FU-018) se encarga de la subida del XML a Minio y de vincularlo en `CFDIGenerada.IdArchivoXml`. Este servicio solo persiste el PDF (que no es responsabilidad de Timbrado ni de CfdiService) si aplica, o delega tambien esa persistencia segun se defina en el detalle de DocumentBuilder.
 
 **Resultado esperado:**
-Servicio funcional que ejecuta el flujo completo de generación de factura con manejo de errores robusto.
+Servicio funcional que ejecuta el flujo completo de generación de factura con manejo de errores robusto, sin duplicar la logica de timbrado/persistencia del CFDI ya resuelta en RE-FU-018.
 
 **Entregables:**
-- `Services/FacturaAdelantadoGenerarService.cs`
-- Interface `IFacturaAdelantadoGenerarService`
+- `Services/AdvanceInvoiceGenerateService.cs`
+- Interface `IAdvanceInvoiceGenerateService`
 
 **Criterios de aceptación:**
 - Si el PAC falla, retorna error sin modificar estado del pedido
-- Si el timbrado es exitoso, persiste CFDI + archivos y actualiza tpProformaAdelanto
+- Si el timbrado es exitoso, `ICfdiService.GenerateAsync` persiste CFDIGenerada + Archivo y este servicio actualiza `fccFactura.IdCFDIGenerada` (y `EsFacturaPorAdelantado=0`) con el Id real retornado
 - La factura es inmutable post-timbrado (rechaza reintentos de generación para misma proforma)
 - Validación inicial rechaza pedidos que no estén en estado PendienteGenerar
 - La descripción de cada concepto CFDI se construye como "catálogo + descripción + marca"; no se incluye lote ni pedimento (OBS-039)
@@ -747,7 +650,7 @@ Corresponde a GAP-10. Servicio de alta complejidad. Ver diagrama "Generar Factur
 
 ### Tarea 14
 
-**Título:** [ R16A-RE-FU-019 ] [ALG-COMPLX-LOGIC] Implementar `FacturaAdelantadoEnviarService` (correo Brevo + Enviada=1 + salida operativa)
+**Título:** [ R16A-RE-FU-019 ] [ALG-COMPLX-LOGIC] Implementar `AdvanceInvoiceSendService` (correo vía ProquifaDotNet.EnvioCorreo + Enviada=1 + salida operativa)
 
 **Aplicativos:** ProquifaDotNet.Finanzas
 
@@ -755,7 +658,7 @@ Corresponde a GAP-10. Servicio de alta complejidad. Ver diagrama "Generar Factur
 
 **Consideraciones previas:**
 - Depende de Tarea 9 (DTOs)
-- El envío usa Brevo con adjuntos PDF+XML obtenidos desde Minio
+- El envío usa ProquifaDotNet.EnvioCorreo (Aplicativo Nuevo — regla 7, sin cliente Brevo propio de Finanzas) con adjuntos PDF+XML obtenidos desde Minio
 - Post-envío: Crédito → Finanzas ejecuta directamente la transferencia a Legacy (Tarea 17) / Prepago → Finanzas genera el pendiente en Validar Cobro (Tarea 18)
 - Finanzas es responsable de ejecutar la salida operativa completa (no requiere intermediario en Venta Interna)
 - Si el correo falla, el estado permanece PendienteEnviar (idempotente)
@@ -764,34 +667,35 @@ Corresponde a GAP-10. Servicio de alta complejidad. Ver diagrama "Generar Factur
 Implementar el servicio de envío de factura que envía el correo, marca como enviada y prepara la salida operativa.
 
 **Objetivos específicos:**
-- Crear `Services/FacturaAdelantadoEnviarService.cs` implementando `IFacturaAdelantadoEnviarService`
+- Crear `Services/AdvanceInvoiceSendService.cs` implementando `IAdvanceInvoiceSendService`
 - Implementar flujo:
 
 ```
-1. Validar que IdTPProformaAdelanto tiene EstadoFAA='PendienteEnviar'
+1. Validar que IdFccFactura tiene EstadoFAA='PendienteEnviar' (vfccFactura)
 2. Obtener PDF y XML desde Minio (bucket 'facturas')
 3. Armar asunto: formato canónico con folio factura + folio pedido interno
-4. Enviar correo via Brevo con destinatario, CC, adjuntos PDF+XML, notas
+4. Enviar correo vía ProquifaDotNet.EnvioCorreo con destinatario, CC, adjuntos PDF+XML, notas
 5. Si envío FALLA: retornar error sin modificar estado
 6. INSERT CorreoEnviado + ArchivoCorreoEnviado (2 registros: PDF, XML)
-7. UPDATE tpProformaAdelanto SET Enviada = 1
-8. Si Crédito: ejecutar FacturaAdelantadoLegacyService.TransferirFacturaALegacy
-9. Si Prepago: ejecutar FacturaAdelantadoValidarCobroService.GenerarPendienteValidarCobro
-10. Retornar FAAEnviarResponseDto con Exitoso=true y AccionPostEnvio
+7. UPDATE fccFactura SET Enviada = 1 (antes: UPDATE tpProformaAdelanto SET Enviada = 1)
+8. Registrar el guardado/envío de la factura en ProquifaDotNet.BitacoraCambios (Aplicativo Nuevo — regla 8)
+9. Si Crédito (fccFactura.IdTPProformaPedido NOT NULL): ejecutar AdvanceInvoiceLegacyService.TransferInvoiceToLegacy
+10. Si Prepago (fccFactura.IdTPProformaPedido NULL): ejecutar AdvanceInvoiceValidateCollectionService.GenerarPendienteValidarCobro
+11. Retornar AdvanceInvoiceSendResponseDto con Exitoso=true y AccionPostEnvio
 ```
 
 **Resultado esperado:**
 Servicio funcional que ejecuta el envío de factura y la salida operativa diferenciada.
 
 **Entregables:**
-- `Services/FacturaAdelantadoEnviarService.cs`
-- Interface `IFacturaAdelantadoEnviarService`
+- `Services/AdvanceInvoiceSendService.cs`
+- Interface `IAdvanceInvoiceSendService`
 
 **Criterios de aceptación:**
 - El correo se envía con PDF y XML como adjuntos no removibles
 - Si el envío falla, el estado permanece PendienteEnviar
-- POST-envío Crédito: invoca `FacturaAdelantadoLegacyService` directamente desde Finanzas
-- POST-envío Prepago: invoca `FacturaAdelantadoValidarCobroService` directamente desde Finanzas
+- POST-envío Crédito: invoca `AdvanceInvoiceLegacyService` directamente desde Finanzas
+- POST-envío Prepago: invoca `AdvanceInvoiceValidateCollectionService` directamente desde Finanzas
 - INSERT CorreoEnviado registra fecha, destinatario, asunto y archivos adjuntos
 
 **Más información de la tarea:**
@@ -805,7 +709,7 @@ Corresponde a GAP-11. Ver diagrama "Enviar Factura" en Back.md. La salida operat
 
 ### Tarea 15
 
-**Título:** [ R16A-RE-FU-019 ] [IMP-EXIST-SERVICE] Implementar `FacturaAdelantadoPreviewService` (PDF sin timbrar via DocumentBuilder)
+**Título:** [ R16A-RE-FU-019 ] [IMP-EXIST-SERVICE] Implementar `AdvanceInvoicePreviewService` (PDF sin timbrar via DocumentBuilder)
 
 **Aplicativos:** ProquifaDotNet.Finanzas
 
@@ -821,12 +725,12 @@ Corresponde a GAP-11. Ver diagrama "Enviar Factura" en Back.md. La salida operat
 Implementar el servicio que genera el PDF de previsualización de la factura sin timbrar.
 
 **Objetivos específicos:**
-- Crear `Services/FacturaAdelantadoPreviewService.cs` implementando `IFacturaAdelantadoPreviewService`
+- Crear `Services/AdvanceInvoicePreviewService.cs` implementando `IAdvanceInvoicePreviewService`
 - Implementar flujo:
 
 ```
 1. Obtener datos del pedido y partidas
-2. Obtener datos fiscales cliente y emisor (reutilizar DatosFiscalesRepository)
+2. Obtener datos fiscales cliente y emisor (reutilizar AdvanceInvoiceFiscalDataRepository)
 3. Armar modelo para DocumentBuilder (sin UUID, sin sello, sin cadena original)
 4. Llamar DocumentBuilder para generar PDF desde template
 5. Retornar PDF como byte[]
@@ -836,8 +740,8 @@ Implementar el servicio que genera el PDF de previsualización de la factura sin
 Servicio que genera un PDF preview de la factura para el modal de previsualización.
 
 **Entregables:**
-- `Services/FacturaAdelantadoPreviewService.cs`
-- Interface `IFacturaAdelantadoPreviewService`
+- `Services/AdvanceInvoicePreviewService.cs`
+- Interface `IAdvanceInvoicePreviewService`
 
 **Criterios de aceptación:**
 - El PDF se genera sin datos de timbrado (sin UUID, sin sello)
@@ -856,45 +760,46 @@ Corresponde a GAP-12. Contenido visual del PDF definido en requisito independien
 
 ### Tarea 16
 
-**Título:** [ R16A-RE-FU-019 ] [IMP-EXIST-SERVICE] Ampliar `FacturaAdelantadoController` con 4 endpoints de Detalle
+**Título:** [ R16A-RE-FU-019 ] [IMP-EXIST-SERVICE] Ampliar `AdvanceInvoiceController` con 4 endpoints de Detalle
 
 **Aplicativos:** ProquifaDotNet.Finanzas
 
 **Módulos:** API/Controllers
 
 **Consideraciones previas:**
-- El controlador `FacturaAdelantadoController` fue creado en RE-FU-018 (endpoint `/listar`)
+- El controlador `AdvanceInvoiceController` fue creado en RE-FU-018 (endpoint `/search`)
 - Se amplía con 4 endpoints nuevos que delegan a sus servicios correspondientes
 - Depende de Tareas 10-15 (repositorios y servicios)
+- **Rutas (Reglas al diseñar — regla 9, corrección):** en inglés bajo `api/v1/advanceInvoice/{id}/{subresource}`, no `/api/factura-adelantado/*`
 
 **Objetivo general:**
 Ampliar el controlador existente con los 4 endpoints del flujo Detalle FAA.
 
 **Objetivos específicos:**
-- Agregar `POST /api/factura-adelantado/detalle` → `FacturaAdelantadoDetalleService`
-- Agregar `POST /api/factura-adelantado/generar` → `FacturaAdelantadoGenerarService`
-- Agregar `POST /api/factura-adelantado/previsualizar-pdf` → `FacturaAdelantadoPreviewService`
-- Agregar `POST /api/factura-adelantado/enviar` → `FacturaAdelantadoEnviarService`
+- Agregar `POST /api/v1/advanceInvoice/{clientId}/detail` → `AdvanceInvoiceDetailService`
+- Agregar `POST /api/v1/advanceInvoice/{id}/generate` → `AdvanceInvoiceGenerateService`
+- Agregar `POST /api/v1/advanceInvoice/{id}/preview` → `AdvanceInvoicePreviewService`
+- Agregar `POST /api/v1/advanceInvoice/{id}/send` → `AdvanceInvoiceSendService`
 - Inyectar las 4 interfaces de servicio via constructor
 - Manejar respuestas: 200 OK, 400 (validación), 401 (no autenticado), 500 (error interno)
 
 **Resultado esperado:**
-Controlador con 5 endpoints totales (listar + 4 nuevos) que cubren el flujo completo del módulo FAA.
+Controlador con 5 endpoints totales (search + 4 nuevos) que cubren el flujo completo del módulo FAA.
 
 **Entregables:**
-- Ampliación de `Controllers/FacturaAdelantadoController.cs`
+- Ampliación de `Controllers/AdvanceInvoiceController.cs`
 
 **Criterios de aceptación:**
-- El endpoint `/generar` retorna `FAAGenerarResponseDto` (con error SAT si aplica)
-- El endpoint `/previsualizar-pdf` retorna `FileContentResult` con PDF `byte[]`
-- El endpoint `/enviar` retorna `FAAEnviarResponseDto` con TipoPedido para salida operativa
+- El endpoint `/generate` retorna `AdvanceInvoiceGenerateResponseDto` (con error SAT si aplica)
+- El endpoint `/preview` retorna `FileContentResult` con PDF `byte[]`
+- El endpoint `/send` retorna `AdvanceInvoiceSendResponseDto` con TipoPedido para salida operativa
 - Todos los endpoints validan autenticación IdentityServer
 
 **Más información de la tarea:**
 Corresponde a GAP-14. Los endpoints son consumidos por ProquifaDotNet (Venta Interna).
 
 **Recursos:**
-- R16A-RE-FU-019-Back.md (Parte B — API FacturaAdelantadoController)
+- R16A-RE-FU-019-Back.md (Parte B — API AdvanceInvoiceController)
 
 ---
 
@@ -922,8 +827,8 @@ Corresponde a GAP-14. Los endpoints son consumidos por ProquifaDotNet (Venta Int
 Implementar la lógica de transferencia de datos de factura a Legacy para pedidos Crédito tras envío exitoso.
 
 **Objetivos específicos:**
-- Crear `Services/FacturaAdelantado/FacturaAdelantadoLegacyService.cs` implementando `IFacturaAdelantadoLegacyService`
-- Implementar método `TransferirFacturaALegacy(Guid idTPProformaAdelanto)`:
+- Crear `Services/AdvanceInvoice/AdvanceInvoiceLegacyService.cs` implementando `IAdvanceInvoiceLegacyService`
+- Implementar método `TransferInvoiceToLegacy(Guid idFccFactura)`:
 
 ```
 1. Obtener datos de la factura timbrada (CFDI: UUID, Folio, Serie, Total)
@@ -940,7 +845,7 @@ Implementar la lógica de transferencia de datos de factura a Legacy para pedido
 Lógica de transferencia funcional que envía datos de factura a Legacy para continuar el flujo Crédito.
 
 **Entregables:**
-- `Services/FacturaAdelantado/FacturaAdelantadoLegacyService.cs`
+- `Services/AdvanceInvoice/AdvanceInvoiceLegacyService.cs`
 
 **Criterios de aceptación:**
 - La transferencia envía los 5 elementos a Legacy (Factura, Pedido, Partidas, Cobro, PDF)
@@ -975,14 +880,14 @@ Corresponde a GAP-18. Patrón de referencia: `ServicioLegacyBO` en `L05.Tramitar
 Implementar la lógica de generación del pendiente en Validar Cobro para pedidos Prepago tras envío exitoso.
 
 **Objetivos específicos:**
-- Crear `Services/FacturaAdelantado/FacturaAdelantadoValidarCobroService.cs` implementando `IFacturaAdelantadoValidarCobroService`
-- Implementar método `GenerarPendienteValidarCobro(Guid idTPProformaAdelanto)`:
+- Crear `Services/AdvanceInvoice/AdvanceInvoiceValidateCollectionService.cs` implementando `IAdvanceInvoiceValidateCollectionService`
+- Implementar método `GeneratePendingCollectionValidation(Guid idFccFactura)`:
 
 ```
 1. Obtener datos del pedido y la factura enviada
 2. Verificar que no exista pendiente previo para esta proforma (idempotencia)
 3. INSERT en tabla de pendientes Validar Cobro:
-   vincula IdTPProformaAdelanto + IdTPPedido + IdCFDIGenerada + MontoTotal
+   vincula IdFccFactura + IdTPPedido + IdCFDIGenerada + MontoTotal
 4. Establecer estado inicial del pendiente como activo/pendiente
 5. Registrar resultado
 ```
@@ -993,7 +898,7 @@ Implementar la lógica de generación del pendiente en Validar Cobro para pedido
 Lógica funcional que genera el pendiente en Validar Cobro para que Cobranza procese el pago contra la factura emitida.
 
 **Entregables:**
-- `Services/FacturaAdelantado/FacturaAdelantadoValidarCobroService.cs`
+- `Services/AdvanceInvoice/AdvanceInvoiceValidateCollectionService.cs`
 
 **Criterios de aceptación:**
 - El pendiente se genera solo para pedidos Prepago (SinCredito=1)

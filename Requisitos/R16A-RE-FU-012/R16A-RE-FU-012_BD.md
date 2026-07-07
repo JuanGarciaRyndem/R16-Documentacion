@@ -1,24 +1,38 @@
 # Impacto en BD - Tramitacion Pedidos Credito con Factura por Adelantado
 **Requisito:** R16A-RE-FU-012
 **Base de Datos:** ProquifaDotNet
-**Version:** 1.0
+**Version:** 2.0 (adopta el esquema fccFactura de RE-FU-015 — reemplaza tpProformaAdelanto)
 
 ---
 
 ## Resumen
 Activacion opcional de Factura por Adelantado para pedidos Credito (MEX) sin controlados.
-Al tramitar genera pendiente en modulo FAA (tpProformaAdelanto). Confirmacion de Pedido
-se genera de inmediato sin esperar la factura. Datos de facturacion se bloquean.
+Al tramitar genera pendiente en modulo FAA (`fccFactura` + `fccFacturaPartida` +
+`fccFacturaReferenciaBancaria`, propiedad de `ProquifaDotNet.Finanzas`). Confirmacion de
+Pedido (`tpProformaPedido`) se genera de inmediato sin esperar la factura, en paralelo
+al pendiente FAA dentro de la misma transaccion. Datos de facturacion se bloquean.
 Peru NO tiene esta opcion para Credito en R16.
+
+**CAMBIO ESTRUCTURAL (migracion 06/07/2026):** el pendiente FAA de Credito ya NO se
+modela con `tpProformaAdelanto`. Se unifica con el esquema `fccFactura` definido en
+RE-FU-015 (Prepago), reutilizando la misma tabla para ambos origenes (Prepago y
+Credito), diferenciados por `fccFactura.IdTPProformaPedido` (NULL en Prepago, poblado
+en Credito con el `IdTPProformaPedido` de la Confirmacion de Pedido generada en
+paralelo). Ver `R16A-RE-FU-015_BD.md`, seccion "Migracion de tpProformaAdelanto".
 
 ---
 
-## Impacto en BD: SIN CAMBIOS ESTRUCTURALES
+## Impacto en BD: SIN TABLAS NUEVAS PROPIAS — REUTILIZA fccFactura (RE-FU-015)
 
-> Las tablas necesarias para Factura por Adelantado ya existen en la BD:
-> tpProformaAdelanto, tpProformaAdelantoProformaPedido y fccPagoFacturaAdelanto.
-> El campo tpPedido.FacturaPorAdelantado (bit) ya existe.
-> No se requiere ALTER TABLE ni CREATE TABLE.
+> Las tablas del pendiente FAA (`fccFactura`, `fccFacturaPartida`,
+> `fccFacturaReferenciaBancaria`, vista `vfccFactura`) se crean en RE-FU-015; este
+> requisito NO las vuelve a crear, solo las consume con `IdTPProformaPedido` poblado.
+> `tpProformaAdelanto`, `tpProformaAdelantoProformaPedido` y `vtpProformaAdelanto`
+> **ya NO aplican** a este requisito.
+> `fccPagoFacturaAdelanto.IdTPProformaAdelanto` se retarget a `IdFccFactura` (migracion
+> documentada en RE-FU-026/027 `_BD.md`).
+> El campo `tpPedido.FacturaPorAdelantado` (bit) ya existe, sin cambios.
+> No se requiere ALTER TABLE ni CREATE TABLE adicional en este requisito.
 
 ---
 
@@ -30,21 +44,27 @@ Peru NO tiene esta opcion para Credito en R16.
         IdCatCondicionesDePago -> catCondicionesDePago (Credito: SinCredito=0)
         Tramitado = 1 al completar
 
-    tpProformaPedido (Confirmacion de Pedido - se genera inmediatamente)
+    tpProformaPedido (Confirmacion de Pedido - se genera inmediatamente,
+                      EN PARALELO al pendiente FAA, misma transaccion)
         Controlados = 0 (sin controlados en este flujo)
 
-    tpProformaAdelanto (Pendiente FAA - se genera al tramitar)
-        IdCliente, IdEmpresa, Monto, NumeroOrdenDeCompra
-        -> Posteriormente: IdCFDIGenerada, IdCFDI (al emitir factura PPD)
+    fccFactura (Pendiente FAA - se genera al tramitar, EN PARALELO a tpProformaPedido)
+        IdTPPedido FK -> tpPedido (FK directa, reemplaza el vinculo ambiguo
+                                    IdCliente+NumeroOrdenDeCompra de tpProformaAdelanto)
+        IdTPProformaPedido FK -> tpProformaPedido (POBLADO en este flujo Credito;
+                                    reemplaza tpProformaAdelantoProformaPedido)
+        EsFacturaPorAdelantado = 1
+        IdCliente, IdEmpresa, MontoTotal, IdCatMoneda
+        IdCFDIGenerada = NULL (hasta que Finanzas emita la factura PPD)
+        Enviada = 0 (hasta el envio de la factura final)
 
-    tpProformaAdelantoProformaPedido (Relacion proforma-adelanto con proforma-pedido)
-        IdTPProformaPedido FK -> tpProformaPedido
-        IdFCCPagoFacturaAdelanto FK -> fccPagoFacturaAdelanto
-        MontoAplicado
+    fccFacturaPartida (1:N de fccFactura - snapshot de partidas del pedido)
+
+    fccFacturaReferenciaBancaria (1:N de fccFactura - cuentas bancarias del grupo)
 
     fccPagoFacturaAdelanto (Pagos contra la factura adelanto)
         IdFCCPagoCliente FK -> fccPagoCliente
-        IdTPProformaAdelanto FK -> tpProformaAdelanto
+        IdFccFactura FK -> fccFactura (antes: IdTPProformaAdelanto -> tpProformaAdelanto)
 
 ---
 
@@ -53,13 +73,16 @@ Peru NO tiene esta opcion para Credito en R16.
 | Tabla | Rol | Estado |
 |-------|-----|--------|
 | tpPedido | Cabecera - FacturaPorAdelantado = 1 | Existente - sin cambios |
-| tpProformaPedido | Confirmacion de Pedido (se genera inmediatamente) | Existente - sin cambios |
-| tpProformaAdelanto | Pendiente generado en modulo FAA | Existente - sin cambios |
-| tpProformaAdelantoProformaPedido | Relacion proforma-adelanto con proforma-pedido | Existente - sin cambios |
-| fccPagoFacturaAdelanto | Pagos contra la factura adelanto | Existente - sin cambios |
-| DatosFacturacionCliente | Datos de facturacion del cliente (se fijan al activar) | Existente - sin cambios |
+| tpProformaPedido | Confirmacion de Pedido (se genera inmediatamente, en paralelo) | Existente - sin cambios |
+| **fccFactura** | Pendiente FAA (cabecera) — reemplaza `tpProformaAdelanto` | Reutilizada de RE-FU-015 (no se crea aqui) |
+| **fccFacturaPartida** | Detalle de partidas del pendiente FAA | Reutilizada de RE-FU-015 |
+| **fccFacturaReferenciaBancaria** | Referencias bancarias del pendiente FAA | Reutilizada de RE-FU-015 |
+| fccPagoFacturaAdelanto | Pagos contra la factura adelanto — FK retargeteada a `fccFactura` | Existente — requiere migracion de FK (ver RE-FU-026/027) |
+| DatosFacturacionCliente | Datos de facturacion del cliente (se fijan como snapshot en `fccFactura`) | Existente - sin cambios |
 | catCondicionesDePago | Determina Credito (SinCredito=0) | Existente - sin cambios |
 | tpPedidoCorreoEnviado | Correo de confirmacion | Existente - sin cambios |
+
+> `tpProformaAdelanto` y `tpProformaAdelantoProformaPedido` **ya no aplican** a este requisito.
 
 ---
 
@@ -76,19 +99,26 @@ Peru NO tiene esta opcion para Credito en R16.
 
 ---
 
-## tpProformaAdelanto (Pendiente FAA)
+## fccFactura (Pendiente FAA — reemplaza tpProformaAdelanto)
 
-| Campo | Tipo | Descripcion |
+> Tabla completa definida y creada en `R16A-RE-FU-015_BD.md`. Este requisito solo
+> puebla las columnas relevantes para el origen Crédito. No se repite aquí el
+> diccionario de datos completo — ver el original en RE-FU-015.
+
+| Campo (relevante para Crédito) | Tipo | Descripcion |
 |-------|------|-------------|
-| IdTPProformaAdelanto | uniqueidentifier | PK |
-| Monto | decimal | Monto total del pedido a facturar |
-| MXN / USD | bit | Moneda de la factura |
-| IdCFDIGenerada | uniqueidentifier | NULL hasta que Finanzas emita la factura PPD |
-| IdCFDI | uniqueidentifier | NULL hasta el timbrado |
-| TipoDeCambio | decimal | Tipo de cambio al momento de emision |
+| IdFccFactura | uniqueidentifier | PK (antes: `IdTPProformaAdelanto`) |
+| IdTPPedido | uniqueidentifier | FK directa → `tpPedido` (antes: vínculo ambiguo `IdCliente+NumeroOrdenDeCompra`) |
+| IdTPProformaPedido | uniqueidentifier | **Poblado en este flujo** → `tpProformaPedido` (Confirmación de Pedido generada en paralelo). Reemplaza `tpProformaAdelantoProformaPedido` |
+| EsFacturaPorAdelantado | bit | = 1 en este flujo |
+| MontoTotal | decimal | Monto total del pedido a facturar |
+| IdCatMoneda | uniqueidentifier | Moneda de la factura (MXN / USD) |
+| IdCFDIGenerada | uniqueidentifier NULL | NULL hasta que Finanzas emita la factura PPD (FK a `CFDIGenerada`) |
+| Enviada | bit | 0 hasta enviar la factura final |
+| TipoCambio | decimal NULL | Tipo de cambio al momento de emisión, si aplica |
 | IdCliente | uniqueidentifier | Cliente del pedido |
 | IdEmpresa | uniqueidentifier | Empresa que factura |
-| NumeroOrdenDeCompra | varchar(80) | Referencia del pedido |
+| FolioPedidoInterno | varchar | ← `tpPedido.FolioPedidoInterno` (reemplaza `NumeroOrdenDeCompra` como referencia) |
 | Activo | bit | 1 = pendiente vigente |
 
 ---
@@ -114,9 +144,18 @@ Peru NO tiene esta opcion para Credito en R16.
     1. tpPedido.FacturaPorAdelantado = 1
     2. tpPedido.Tramitado = 1, FechaTramitacion = GETDATE()
     3. INSERT tpProformaPedido (Confirmacion de Pedido - inmediata)
-    4. INSERT tpProformaAdelanto (Pendiente FAA - datos del pedido)
+    4. ProquifaDotNet.Finanzas INSERT atomico (mismo patron que RE-FU-015):
+       - fccFactura (EsFacturaPorAdelantado=1, IdTPProformaPedido = Id de la
+         Confirmacion de Pedido insertada en el paso 3, IdCFDIGenerada=NULL)
+       - fccFacturaPartida (una por partida del pedido)
+       - fccFacturaReferenciaBancaria (cuentas M.N./DLS + ReferenciaCliente)
     5. INSERT tpPedidoCorreoEnviado (Correo de confirmacion al cliente)
     6. Transferencia a Legacy (solo MEX, con marca detencion si Pago c/e)
+
+> Los pasos 3 y 4 son **paralelos** dentro de la misma transacción de tramitación
+> (no secuenciales): `tpProformaPedido` no es un prerrequisito de `fccFactura`, ambos
+> se insertan como parte de la misma operación atómica, y `fccFactura.IdTPProformaPedido`
+> enlaza al registro de `tpProformaPedido` recién insertado.
 
 ---
 
@@ -133,22 +172,19 @@ Peru NO tiene esta opcion para Credito en R16.
 ## Consulta - Pedidos con FAA activa
 
     -- Created by GitHub Copilot in SSMS - review carefully before executing
+    -- Ahora usa la vista vfccFactura (RE-FU-015) con JOIN directo por IdTPPedido,
+    -- reemplaza el vinculo ambiguo IdCliente+NumeroOrdenDeCompra de tpProformaAdelanto
     SELECT
-        tp.FolioPedidoInterno,
-        c.Nombre          AS Cliente,
-        tp.Monto,
-        tp.FechaTramitacion,
-        pa.IdTPProformaAdelanto,
-        CASE WHEN pa.IdCFDIGenerada IS NOT NULL THEN 'Emitida' ELSE 'Pendiente' END AS EstadoFAA
-    FROM dbo.tpPedido tp
-    INNER JOIN dbo.Cliente c ON tp.IdCliente = c.IdCliente
-    LEFT  JOIN dbo.tpProformaAdelanto pa ON pa.IdCliente = tp.IdCliente
-                                       AND pa.NumeroOrdenDeCompra = tp.NumeroOrdenDeCompra
-                                       AND pa.Activo = 1
-    WHERE tp.FacturaPorAdelantado = 1
-      AND tp.Tramitado           = 1
-      AND tp.Activo              = 1
-    ORDER BY tp.FechaTramitacion DESC;
+        v.FolioPedidoInterno,
+        v.ClienteNombre AS Cliente,
+        v.MontoTotal,
+        v.FechaTramitacion,
+        v.IdFccFactura,
+        v.EstadoFAA
+    FROM dbo.vfccFactura v
+    WHERE v.FacturaPorAdelantado = 1
+      AND v.Activo = 1
+    ORDER BY v.FechaTramitacion DESC;
 
 ---
 
@@ -168,9 +204,10 @@ Peru NO tiene esta opcion para Credito en R16.
 
 | # | Gap | Accion |
 |---|-----|--------|
-| 1 | Relacion tpProformaAdelanto con tpPedido no es FK directa | Se vincula via IdCliente + NumeroOrdenDeCompra - confirmar logica |
+| 1 | ~~Relacion tpProformaAdelanto con tpPedido no es FK directa~~ | **Resuelto por la migración**: `fccFactura.IdTPPedido` es FK directa y obligatoria |
 | 2 | Rol que gestiona FAA no confirmado | Finanzas o Coordinador de Planeacion - confirmar con cliente |
 | 3 | Pendiente 'Relacionar facturas' en Legacy | Mecanismo PQF2->Legacy para este pendiente fuera de scope |
+| 4 | Migración de `fccPagoFacturaAdelanto.IdTPProformaAdelanto` → `IdFccFactura` | Ver `R16A-RE-FU-026_BD.md`/`R16A-RE-FU-027-Back.md` — impacta la asociación de cobro para FAA de Crédito |
 
 ---
 
@@ -181,6 +218,7 @@ Peru NO tiene esta opcion para Credito en R16.
 | R16A-RE-FU-010 | Flujo base Credito sin FAA |
 | R16A-RE-FU-011 | Con controlados: FAA no disponible (mutuamente excluyentes) |
 | R16A-RE-FU-005 | Datos de facturacion (IdCatUsoCFDI, IdCatMetodoDePagoCFDI) |
+| R16A-RE-FU-015 | Origen y dueño de `fccFactura`/`fccFacturaPartida`/`fccFacturaReferenciaBancaria`/`vfccFactura` — este requisito solo consume |
 
 ---
 

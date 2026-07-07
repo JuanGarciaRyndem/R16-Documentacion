@@ -35,8 +35,8 @@ Endpoints del aplicativo principal ProquifaDotNet (WebApi.Catalogos / WebApi.Log
 | DELETE | `/EmpresaDatosBancarios` | Desactivar cuenta bancaria de empresa | `?id={guid}` query param | `bool` | Existente |
 | POST | `/EmpresaDatosBancariosDetalle` | Listado paginado de detalles de cuentas bancarias | Body: `QueryInfo` | `QueryResult<EmpresaDatosBancariosDetalleDto>` | Existente |
 | POST | `/EmpresaDatosBancariosDetalle/GrupoLista` | Listado agrupado de detalles de cuentas bancarias | Body: `QueryInfo` | `List<GrupoEmpresaDatosBancarios>` | Existente |
-| GET | `/vEmpresaDatosBancarios` | Detalle de cuenta bancaria empresa vigente filtrado por región del usuario autenticado | `?idEmpresaDatosBancarios={guid}` query param | `vEmpresaDatosBancariosDto` ó `204 NoContent` | **Nuevo** |
-| POST | `/vEmpresaDatosBancarios` | Listado paginado de cuentas vigentes filtradas por región del usuario logueado | Body: `QueryInfo` | `QueryResult<vEmpresaDatosBancariosDto>` | **Nuevo** |
+| GET | `/vEmpresaDatosBancarios` | Detalle de cuenta bancaria empresa vigente filtrado por región del usuario autenticado | `?idEmpresaDatosBancarios={guid}` query param | `vEmpresaDatosBancariosDto` ó `204 NoContent` | **Nuevo** — sigue activo (Catálogos/Venta Interna); consumido directamente (sin endpoint propio) por el wizard de Validar Cobro en Finanzas para el combo Cuenta destino — ver `Endpoints-Finanzas.md` (RE-024) |
+| POST | `/vEmpresaDatosBancarios` | Listado paginado de cuentas vigentes filtradas por región del usuario logueado | Body: `QueryInfo` | `QueryResult<vEmpresaDatosBancariosDto>` | **Nuevo** — sigue activo (Catálogos/Venta Interna); consumido directamente (sin endpoint propio) por el wizard de Validar Cobro en Finanzas para el combo Cuenta destino — ver `Endpoints-Finanzas.md` (RE-024) |
 
 **Regla:** Los endpoints PUT/DELETE de `EmpresaDatosBancariosController` existen para Soporte a la Producción; ninguna pantalla de R16 los consume directamente.
 
@@ -94,7 +94,7 @@ Endpoints del aplicativo principal ProquifaDotNet (WebApi.Catalogos / WebApi.Log
 |--------|------|-------------|-------------------|-----------|--------|
 | POST | `/catMetodoDePagoCFDI` | Listado de métodos de pago CFDI — **ahora con filtro de región** del usuario autenticado | Body: `QueryInfo` | `QueryResult<catMetodoDePagoCFDIDto>` | **Modificado** |
 | POST | `/catUsoCFDI` | Listado de usos CFDI — **ahora con filtro de región** | Body: `QueryInfo` | `QueryResult<catUsoCFDIDto>` | **Modificado** |
-| POST | `/catMedioDePago` | Listado de medios de pago — **ahora con filtro de región** | Body: `QueryInfo` | `QueryResult<catMedioDePagoDto>` | **Modificado** |
+| POST | `/catMedioDePago` | Listado de medios de pago — **ahora con filtro de región** | Body: `QueryInfo` | `QueryResult<catMedioDePagoDto>` | **Modificado** — sigue activo (Catálogos/Venta Interna); consumido directamente (sin endpoint propio) por el wizard de Validar Cobro en Finanzas para el combo Medio de pago — ver `Endpoints-Finanzas.md` (RE-024) |
 
 ---
 
@@ -145,6 +145,33 @@ Endpoints del aplicativo principal ProquifaDotNet (WebApi.Catalogos / WebApi.Log
 
 ---
 
+## RE-024 — Catálogo de Monedas (también consumido por Finanzas — Validar Cobro Paso 1)
+
+**Controller:** catálogo existente en Área Catálogos (mismo patrón `TablaGenericaBO<T>` que `catMedioDePago`, RE-005)
+
+| Método | Ruta | Descripción | Parámetros entrada | Respuesta | Estado |
+|--------|------|-------------|-------------------|-----------|--------|
+| POST | `/Catalogos/catMoneda` | Listado de monedas activas | Body: `QueryInfo (Activo=1)` | `QueryResult<catMonedaDto>` | Existente — Catálogos/Venta Interna, no deprecado |
+
+> Endpoint de Catálogos, sigue activo y en uso por Venta Interna. El wizard de Validar Cobro en Finanzas lo consume **directamente** para el combo Moneda del Paso 1 — sin endpoint propio en Finanzas — ver `Endpoints-Finanzas.md` (RE-024).
+
+---
+
+## RE-024 — Buzón de Correo: Detalle y Adjuntos (también consumido por Finanzas — Validar Cobro Paso 1)
+
+**Controllers:** catálogos existentes en Área Catálogos, confirmados por captura de tráfico HTTP real (07/07/2026)
+
+| Método | Ruta                        | Descripción                                     | Parámetros entrada | Respuesta | Estado |
+| ------ | --------------------------- | ------------------------------------------------ | ------------------- | --------- | ------ |
+| GET | `/Catalogos/CorreoRecibido` | Datos del correo: asunto, fecha, hora, contacto | `?idCorreoRecibido={guid}` | `CorreoRecibidoDto` | Existente — no deprecado |
+| GET | `/Catalogos/CorreoRecibidoContenido` | Cuerpo/contenido del correo | `?idCorreoRecibidoContenido={guid}` | `CorreoRecibidoContenidoDto` | Existente — no deprecado |
+| POST | `/Catalogos/ArchivoCorreoRecibido` | Lista de adjuntos del correo, candidatos a comprobante de pago | Body: `{ Filters: [{Activo:true},{IdCorreoRecibido:{guid}},{Mostrar:true}], GroupColumn }` | `QueryResult<ArchivoCorreoRecibidoDto>` | Existente — no deprecado |
+| GET | `/Catalogos/Archivo` | Detalle/descarga de un adjunto específico | `?idArchivo={guid}` | `ArchivoDto` | Existente — no deprecado |
+
+> **Confirmado por captura de tráfico HTTP real (07/07/2026):** el frontend de Validar Cobro (Finanzas) consume estos 4 endpoints **directamente** — Finanzas no crea un endpoint propio de "detalle de correo y adjuntos". Siguen activos y en uso por Venta Interna, sin deprecar — ver `Endpoints-Finanzas.md` (RE-024, sección B2).
+
+---
+
 ## Resumen de Controllers afectados por R16
 
 | Controller                                              | Módulo             | Nuevos endpoints          | Modificados       | Req.      |
@@ -159,4 +186,5 @@ Endpoints del aplicativo principal ProquifaDotNet (WebApi.Catalogos / WebApi.Log
 | `ClienteDatosBancariosController`                       | Catálogos/Clientes | 4                         | —                 | RE-006    |
 | `tpPedidoCancelacionController`                         | Logística/Pedidos  | 1                         | —                 | RE-010    |
 | `tpPedidoController`                                    | Logística/Pedidos  | 1 (`cancelar-falta-pago`) | —                 | RE-023    |
-
+| `catMoneda` (Área Catálogos)                            | Catálogos          | —                         | Sin cambios — consumido directamente por Finanzas | RE-024    |
+| `CorreoRecibido` / `CorreoRecibidoContenido` / `ArchivoCorreoRecibido` / `Archivo` (Área Catálogos) | Catálogos/Buzón | — | Sin cambios — consumidos directamente por Finanzas | RE-024 |

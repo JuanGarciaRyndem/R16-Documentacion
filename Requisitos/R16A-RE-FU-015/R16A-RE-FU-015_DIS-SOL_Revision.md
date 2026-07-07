@@ -7,7 +7,7 @@
 | **Autor** | Osmar Calderón Vázquez |
 | **Revisor** | Juan David García Cruz |
 | **Fecha de revisión** | 02 jul 2026 |
-| **Estatus** | ⚠️ Con hallazgo crítico — requiere aclaración antes de iniciar desarrollo |
+| **Estatus** | ⚠️ Diseño adoptado en `Back.md`/`_BD.md`/`Tareas.md` (06/07/2026) — H-01 (Perú) sigue abierto como gap documentado (GAP-08 / Riesgo 1), no bloquea el desarrollo de México |
 
 ---
 
@@ -89,7 +89,7 @@ RT-10 decide que `fccFactura` es una tabla única para la FAA y la factura final
 
 ## Notas de contexto
 
-- Este DIS-SOL introduce arquitectura (`fccFactura` + tablas relacionadas, endpoints `/v1/api/invoices/advance-invoice/...`) que **no fue adoptada** en `R16A-RE-FU-015-Back.md` / `_BD.md` / `-Tareas.md` por instrucción tuya explícita ("actualizar respecto al requisito, no al diseño"). Esos tres documentos siguen asumiendo `tpProformaAdelanto` como entidad del pendiente FAA. Cuando decidas adoptar el diseño, esos tres documentos requerirán una segunda pasada de actualización.
+- **Actualización 06/07/2026:** la arquitectura de este DIS-SOL (`fccFactura` + `fccFacturaPartida` + `fccFacturaReferenciaBancaria`, endpoints `/v1/api/invoices/advance-invoice/...`) ya fue adoptada en `R16A-RE-FU-015-Back.md`, `R16A-RE-FU-015_BD.md` y `R16A-RE-FU-015-Tareas.md` (segunda pasada de actualización mencionada abajo). `tpProformaAdelanto` ya no aparece en esos documentos como entidad del pendiente FAA de RE-015. H-01 (campos fiscales de Perú) se conservó como gap documentado (GAP-08 en `Back.md`, hallazgo abierto en `_BD.md`) en lugar de bloquear la adopción del resto del diseño; H-02/H-04/H-05 quedan como estaban, sin acción adicional requerida sobre el DIS-SOL.
 
 ---
 

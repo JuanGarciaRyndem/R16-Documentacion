@@ -1,7 +1,7 @@
 # Impacto en BD - Factura por Adelantado (Pantalla Inicial)
 **Requisito:** R16A-RE-FU-018
-**Bases de Datos:** ProquifaDotNet (lectura) + ProquifaDotNetTimbrado (nueva)
-**Version:** 2.0
+**Bases de Datos:** ProquifaDotNet (lectura/escritura) + ProquifaDotNetTimbrado (nueva)
+**Version:** 3.0 - CFDI se persiste en Finanzas (CFDIGenerada), Timbrado sin tabla de negocio propia
 
 ---
 
@@ -10,51 +10,72 @@ Pantalla inicial del modulo NUEVO Factura por Adelantado. Listado agrupado por c
 con pedidos pendientes de facturar por adelantado. Filtrado por cartera del usuario (Cobrador).
 Monto total dolarizado. Buscador por RazonSocial/RFC-RUC/FolioPedido.
 
-Adicionalmente se crea la base de datos **ProquifaDotNetTimbrado** como soporte al flujo
-completo de timbrado fiscal que se dispara desde este modulo.
+Adicionalmente se crea la base de datos **ProquifaDotNetTimbrado** como soporte tecnico
+del servicio de timbrado (config + auditoria de llamadas al PAC). El **registro de negocio
+del CFDI vive en `CFDIGenerada` (ProquifaDotNet), propiedad de ProquifaDotNet.Finanzas** —
+ver nota de arquitectura abajo.
+
+---
+
+> **Nota de arquitectura (correccion v3.0 — el CFDI no va en Timbrado, va en Finanzas):**
+> Las versiones previas de este documento creaban una tabla `Cfdi` + catalogo `FiscalDocumentType`
+> dentro de `ProquifaDotNetTimbrado`, duplicando lo que `ER-Finanzas.md` ya diseño para
+> `ProquifaDotNet.Finanzas`: la tabla **`CFDIGenerada`** (mas `catTipoCFDI`, `CFDIGeneradaConcepto`,
+> `CFDIGeneradaRelacionado`, `CFDICancelacion`) fisicamente en la base de datos **ProquifaDotNet**,
+> gestionada via EF Core Scaffold por Finanzas. Se corrige de la siguiente forma:
+> - Se **elimina** la tabla `Cfdi` y el catalogo `FiscalDocumentType` de `ProquifaDotNetTimbrado`.
+>   El tipo de documento fiscal se resuelve con el catalogo **`catTipoCFDI`** (ya existente en el
+>   diseño de Finanzas / `ER-Finanzas.md`), no con un catalogo propio de Timbrado.
+> - **`ProquifaDotNet.Finanzas`** es quien crea/actualiza el registro de negocio del CFDI —
+>   `INSERT`/`UPDATE` sobre `CFDIGenerada` (ProquifaDotNet) — despues de invocar a Timbrado.
+> - **`ProquifaDotNet.Timbrado`** deja de tener tabla de negocio propia (`Cfdi`). Se reduce a un
+>   **servicio tecnico** interno: recibe los datos fiscales ya armados por Finanzas, invoca al PAC
+>   (SAP), y regresa UUID + XML + estatus del timbrado a Finanzas. Su unica persistencia propia es
+>   `AppSetting` (configuracion) y `StampingLog` (auditoria tecnica de la llamada al PAC).
+> - `CFDIGenerada` se **extiende** (ALTER TABLE, Parte 3 de este documento) con las columnas
+>   tecnicas que antes vivian en `Cfdi` (estatus, error, moneda, tipo de cambio, uso CFDI,
+>   metodo de pago, referencia al XML) para que Finanzas tenga todo lo necesario en un solo lugar.
+> - Ver tambien `R16A-RE-FU-018-Back.md` y `R16A-RE-FU-018-Tareas.md` para el cambio de
+>   `CfdiController` (pasa de Timbrado a Finanzas).
 
 ---
 
 ## Impacto en BD
 
-| #   | Cambio                                       | Base de Datos              | Tipo | Prioridad |
-| --- | -------------------------------------------- | -------------------------- | ---- | --------- |
-| 1   | CREATE DATABASE ProquifaDotNetTimbrado       | Nueva                      | DDL  | Alta      |
-| 2   | CREATE TABLE AppSetting                      | ProquifaDotNetTimbrado     | DDL  | Alta      |
-| 3   | CREATE TABLE FiscalDocumentType               | ProquifaDotNetTimbrado     | DDL  | Alta      |
-| 4   | CREATE TABLE Cfdi                            | ProquifaDotNetTimbrado     | DDL  | Alta      |
-| 5   | CREATE TABLE StampingLog                     | ProquifaDotNetTimbrado     | DDL  | Alta      |
-| 6   | INSERT FiscalDocumentType (datos iniciales)  | ProquifaDotNetTimbrado     | DML  | Alta      |
-| -   | ProquifaDotNet                               | Solo lectura - sin cambios | -    | -         |
+| #   | Cambio                                                          | Base de Datos              | Tipo | Prioridad |
+| --- | ---------------------------------------------------------------- | -------------------------- | ---- | --------- |
+| 1   | CREATE DATABASE ProquifaDotNetTimbrado                          | Nueva                      | DDL  | Alta      |
+| 2   | CREATE TABLE AppSetting                                         | ProquifaDotNetTimbrado     | DDL  | Alta      |
+| 3   | CREATE TABLE StampingLog                                        | ProquifaDotNetTimbrado     | DDL  | Alta      |
+| 4   | ALTER TABLE CFDIGenerada (columnas tecnicas de timbrado)        | ProquifaDotNet              | DDL  | Alta      |
+| -   | ProquifaDotNet (Parte 1 — pendientes FAA)                        | Solo lectura - sin cambios | -    | -         |
 
-> **Nota (Reglas al diseñar — regla 2):** `ProquifaDotNetTimbrado` es una base de datos **nueva**, por lo que su estructura (tablas, columnas, PK/FK, constraints) se nombra en **inglés**. La BD `ProquifaDotNet` (Parte 1, solo lectura) conserva su nomenclatura en español por ser la base de datos existente (regla 1).
+> **Nota (Reglas al diseñar — regla 2):** `ProquifaDotNetTimbrado` es una base de datos **nueva**, por lo que su estructura (tablas, columnas, PK/FK, constraints) se nombra en **inglés**. La BD `ProquifaDotNet` (Parte 1 y Parte 3, incluyendo `CFDIGenerada`) conserva su nomenclatura en español por ser la base de datos existente (regla 1) — `CFDIGenerada` es una tabla nueva, pero vive dentro de `ProquifaDotNet`, por lo que sigue la convención española ya establecida en `ER-Finanzas.md`.
 >
 > **Nota (nomenclatura Timbrado -> Stamping):** la tabla `StampingLog` (antes `TimbradoLog`) se traduce a inglés para no mezclar idiomas dentro de la estructura de la BD nueva. El nombre de la base de datos (`ProquifaDotNetTimbrado`) y de la solución (`ProquifaDotNet.Timbrado`) se mantienen sin traducir por ser nomenclatura ya establecida en las instrucciones del proyecto — la excepción aplica solo al nombre de la solución/BD, no a las tablas ni al código interno.
 
 ---
 
-## Parte 1: Lectura de ProquifaDotNet (sin cambios)
+## Parte 1: Lectura de ProquifaDotNet (migrada a `fccFactura`/`vfccFactura` — 06/07/2026)
 
-### Cadena de Datos - Pendientes FAA
+> **Migración:** este requisito consultaba la cadena `tpPedido → tpPedidoProformaPedido → tpProformaPedido → tpProformaAdelantoProformaPedido → fccPagoFacturaAdelanto → tpProformaAdelanto`. Esa cadena de 5 saltos **ya no existe** para pedidos Prepago (RE-FU-015 no genera `tpProformaPedido` ni `tpProformaAdelanto`), lo cual dejaba fuera del listado a los pedidos Prepago con FAA — hallazgo H-01 de `R16A-RE-FU-018_DIS-SOL_Revision.md`. Se resuelve unificando el origen de lectura en `fccFactura` (RE-FU-015), que tiene FK directa a `tpPedido` y cubre ambos orígenes (Prepago y Crédito, este último vía `IdTPProformaPedido`). Ver `R16A-RE-FU-015_BD.md`, sección "Migración de tpProformaAdelanto".
 
-    tpPedido (FacturaPorAdelantado=1, Tramitado=1)
-        -> tpPedidoProformaPedido -> tpProformaPedido (IdCliente, MontoTotal)
+### Cadena de Datos - Pendientes FAA (nueva)
 
-    tpProformaAdelanto (pendiente FAA)
+    fccFactura (pendiente FAA, EsFacturaPorAdelantado=1)
+        IdTPPedido -> tpPedido (FK directa, cubre Prepago y Crédito)
+        IdTPProformaPedido -> tpProformaPedido (poblado solo en origen Crédito, RE-FU-012)
         IdCFDIGenerada IS NULL = factura NO generada
-        IdCFDI IS NULL = factura NO timbrada
+        Enviada = 0 = factura generada pero NO enviada
 
-    tpProformaAdelantoProformaPedido
-        IdTPProformaPedido -> tpProformaPedido
-        IdFCCPagoFacturaAdelanto -> fccPagoFacturaAdelanto -> tpProformaAdelanto
+    vfccFactura (vista, ver R16A-RE-FU-015_BD.md) resuelve EstadoFAA:
+        'PendienteGenerar' | 'PendienteEnviar' | 'Completada'
 
 ### Identificacion de Pendientes
 
-    tpPedido.FacturaPorAdelantado = 1
-    AND tpPedido.Tramitado = 1
-    AND tpPedido.Activo = 1
-    AND tpProformaAdelanto.Activo = 1
-    AND tpProformaAdelanto.IdCFDIGenerada IS NULL (o generada pero no enviada)
+    vfccFactura.FacturaPorAdelantado = 1
+    AND vfccFactura.Activo = 1
+    AND vfccFactura.EstadoFAA IN ('PendienteGenerar', 'PendienteEnviar')
 
 ### Filtro por Cartera del Usuario
 
@@ -70,12 +91,12 @@ completo de timbrado fiscal que se dispara desde este modulo.
 ### Datos del Listado
 
 | Columna UI | Tabla Fuente | Campo |
-|------------|-------------|-------|
-| Razon Social | DatosFacturacionCliente | RazonSocial |
-| RFC/RUC | DatosFacturacionCliente | RFC |
-| Facturas Pendientes | COUNT(tpProformaAdelanto) | WHERE Activo=1 AND no enviada |
-| Monto Total (USD) | SUM(tpProformaAdelanto.Monto) | Convertido a USD |
-| Antiguedad | MIN(tpProformaAdelanto.FechaRegistro) | Pendiente mas antiguo |
+|------------|-------------|-----|
+| Razon Social | fccFactura (snapshot) / vfccFactura | RazonSocialReceptor / ClienteRazonSocial |
+| RFC/RUC | fccFactura (snapshot) / vfccFactura | RfcReceptor / ClienteRFC |
+| Facturas Pendientes | COUNT(vfccFactura) | WHERE Activo=1 AND EstadoFAA IN ('PendienteGenerar','PendienteEnviar') |
+| Monto Total (USD) | SUM(vfccFactura.MontoTotal) | Convertido a USD |
+| Antiguedad | MIN(vfccFactura.FechaRegistro) | Pendiente mas antiguo |
 
 ### Buscador
 
@@ -89,27 +110,27 @@ completo de timbrado fiscal que se dispara desde este modulo.
 
 | Tabla | Rol |
 |-------|-----|
-| tpPedido | FacturaPorAdelantado=1, Tramitado=1, FolioPedidoInterno |
-| tpProformaAdelanto | Pendiente FAA: Monto, IdCFDIGenerada, FechaRegistro |
-| tpProformaPedido | Vinculo proforma-pedido |
-| tpPedidoProformaPedido | Relacion pedido-proforma |
-| tpProformaAdelantoProformaPedido | Relacion adelanto-proforma |
-| fccPagoFacturaAdelanto | Relacion pago-adelanto |
+| vfccFactura | Vista consolidada del pendiente FAA — MontoTotal, IdCFDIGenerada, Enviada, EstadoFAA, FechaRegistro, FolioPedidoInterno, Region (reemplaza la cadena `tpProformaAdelanto`/`vtpProformaAdelanto`) |
+| fccFactura | Tabla base de la vista — snapshot RazonSocialReceptor/RfcReceptor (ya no requiere JOIN a `DatosFacturacionCliente` para estos campos) |
+| tpPedido | FacturaPorAdelantado=1, Tramitado=1, FolioPedidoInterno (vía FK directa `fccFactura.IdTPPedido`) |
 | Cliente | IdCliente |
-| DatosFacturacionCliente | RazonSocial, RFC (RFC/RUC) |
 | ClienteCarteraCliente | Vinculo cliente-cartera |
 | ClienteCartera | IdUsuarioCobrador |
 | catMoneda | Para conversion a USD |
 | Region | MEX/PER |
+
+> `tpProformaAdelanto`, `tpProformaPedido`, `tpPedidoProformaPedido`, `tpProformaAdelantoProformaPedido` **ya no se consultan directamente** desde este requisito — sustituidos por `fccFactura`/`vfccFactura`. `fccPagoFacturaAdelanto` deja de ser necesaria en la cadena de lectura de este listado (aunque sigue vigente para RE-FU-026/027/028/029/030, con su FK migrada a `IdFccFactura`).
 
 ---
 
 ## Parte 2: Base de Datos Nueva - ProquifaDotNetTimbrado
 
 ### Proposito
-BD independiente para el servicio ProquifaDotNet.Timbrado (.NET 10).
-Almacena peticiones, respuestas del PAC (SAP), CFDI generados y configuracion.
-Se comunica con ProquifaDotNet.Finanzas via API.
+BD independiente y **puramente tecnica** para el servicio ProquifaDotNet.Timbrado (.NET 10).
+Almacena configuracion y auditoria de la llamada al PAC (SAP). **No almacena el registro de
+negocio del CFDI** — ese vive en `CFDIGenerada` (ProquifaDotNet), propiedad de Finanzas.
+Se comunica con ProquifaDotNet.Finanzas via API: Finanzas envia los datos fiscales ya armados,
+Timbrado invoca al PAC y regresa UUID + XML + estatus (sin persistirlos como entidad de negocio propia).
 
 ### Servidor y rutas
 
@@ -124,17 +145,10 @@ Se comunica con ProquifaDotNet.Finanzas via API.
 
     AppSetting (configuracion del servicio)
 
-    FiscalDocumentType (catalogo)
+    StampingLog (auditoria tecnica de la llamada al PAC)
         PK: Id
-        UQ: Code
-
-    Cfdi (documento fiscal)
-        PK: Id
-        FK: FiscalDocumentTypeId -> FiscalDocumentType
-
-    StampingLog (auditoria)
-        PK: Id
-        FK: CfdiId -> Cfdi
+        CfdiGeneradaId: uniqueidentifier (referencia informativa a CFDIGenerada.IdCFDIGenerada
+                        en ProquifaDotNet; NO es FK real por tratarse de bases de datos distintas)
 
 ---
 
@@ -153,68 +167,13 @@ Se comunica con ProquifaDotNet.Finanzas via API.
 
 ---
 
-### Tabla: FiscalDocumentType
-**Proposito:** Catalogo de tipos de documentos fiscales.
-
-| Columna | Tipo | Nulo | Default | Descripcion |
-|---------|------|------|---------|-------------|
-| Id | uniqueidentifier | NO | NEWID() | PK |
-| Code | varchar(50) | NO | - | Clave unica (UQ) |
-| Description | varchar(200) | NO | - | Descripcion del tipo |
-| CreatedAt | datetime2(7) | NO | SYSUTCDATETIME() | Fecha creacion |
-| UpdatedAt | datetime2(7) | NO | SYSUTCDATETIME() | Fecha actualizacion |
-| IsActive | bit | NO | 1 | Activo |
-
-**Datos iniciales:**
-
-| Code                    | Description                                                              |
-| ----------------------- | ------------------------------------------------------------------------ |
-| AdvanceInvoice          | Factura emitida por adelantado previo a entrega de mercancia (FAA)       |
-| RegularInvoice          | Factura estandar de venta                                                |
-| AnticipatedInvoice      | Factura de anticipo para pedidos con sustancias controladas              |
-| CreditNote              | Nota de credito por devolucion o ajuste                                  |
-
-> Nota: `AdvanceInvoice` (Factura por Adelantado, este requisito) y `AnticipatedInvoice` (Factura Anticipo, sustancias controladas) son instrumentos distintos — ver OBS-037 en R16A-RE-FU-018-Back.md.
-
----
-
-### Tabla: Cfdi
-**Proposito:** Documento fiscal generado y timbrado. Almacena XML y referencia Minio. `Cfdi`, `Uuid` y `Rfc` se mantienen como términos fiscales (no se traducen, son estándar en la industria).
-
-| Columna               | Tipo             | Nulo | Default          | Descripcion                          |
-| --------------------- | ---------------- | ---- | ---------------- | ------------------------------------ |
-| Id                    | uniqueidentifier | NO   | NEWID()          | PK                                   |
-| FiscalDocumentTypeId  | uniqueidentifier | NO   | -                | FK -> FiscalDocumentType             |
-| Uuid                  | varchar(36)      | SI   | -                | UUID del timbrado (asignado por PAC) |
-| Series                | varchar(25)      | SI   | -                | Serie del CFDI                       |
-| Folio                 | varchar(40)      | SI   | -                | Folio del CFDI                       |
-| IssueDate             | datetime2(7)     | SI   | -                | Fecha de emision                     |
-| IssuerRfc             | varchar(13)      | NO   | -                | RFC de la empresa emisora            |
-| ReceiverRfc           | varchar(50)      | NO   | -                | RFC/RUC del cliente receptor         |
-| Total                 | decimal(18,2)    | NO   | -                | Monto total del documento            |
-| Currency              | varchar(5)       | NO   | -                | Clave moneda (MXN/USD/PEN)           |
-| ExchangeRate          | decimal(18,6)    | SI   | -                | Tipo de cambio aplicado              |
-| PaymentMethod         | varchar(5)       | SI   | -                | Clave SAT metodo pago (PUE/PPD)      |
-| PaymentForm           | varchar(5)       | SI   | -                | Clave SAT forma pago (03/99/etc)     |
-| CfdiUse               | varchar(10)      | SI   | -                | Clave SAT uso CFDI (G03/P01/etc)     |
-| XmlContent            | varchar(max)     | SI   | -                | XML completo del CFDI timbrado       |
-| MinioFileKey          | varchar(600)     | SI   | -                | Path del XML en Minio                |
-| MinioBucket           | varchar(100)     | SI   | -                | Bucket en Minio                      |
-| Status                | varchar(30)      | NO   | 'Pending'        | Pending/Stamped/Failed (alineado con StampingLog.NewStatus, sin contador de reintentos) |
-| ErrorMessage          | varchar(max)     | SI   | -                | Detalle del error si fallo           |
-| CreatedAt             | datetime2(7)     | NO   | SYSUTCDATETIME() | Fecha creacion                       |
-| UpdatedAt             | datetime2(7)     | NO   | SYSUTCDATETIME() | Fecha actualizacion                  |
-| IsActive              | bit              | NO   | 1                | Activo                               |
-
----
-
 ### Tabla: StampingLog
-**Proposito:** Auditoria de la peticion de timbrado con el PAC (SAP). Un solo registro por solicitud recibida de Finanzas (sin reintentos internos): Timbrado invoca al PAC una vez y registra el resultado.
+**Proposito:** Auditoria tecnica de la peticion de timbrado con el PAC (SAP). Un solo registro por solicitud recibida de Finanzas (sin reintentos internos): Timbrado invoca al PAC una vez y registra el resultado. No tiene FK real a `CFDIGenerada` (esta en otra base de datos); `CfdiGeneradaId` se guarda solo como referencia informativa para trazabilidad/soporte.
 
 | Columna | Tipo | Nulo | Default | Descripcion |
 |---------|------|------|---------|-------------|
 | Id | uniqueidentifier | NO | NEWID() | PK |
-| CfdiId | uniqueidentifier | NO | - | FK -> Cfdi |
+| CfdiGeneradaId | uniqueidentifier | SI | - | Referencia informativa a `CFDIGenerada.IdCFDIGenerada` (ProquifaDotNet) — no es FK real, es cross-database |
 | Action | varchar(50) | NO | - | Stamp/Cancel |
 | PreviousStatus | varchar(30) | SI | - | Estado antes de la accion |
 | NewStatus | varchar(30) | NO | - | Estado despues de la accion |
@@ -227,10 +186,10 @@ Se comunica con ProquifaDotNet.Finanzas via API.
 
 ---
 
-### Script completo
+### Script completo (ProquifaDotNetTimbrado)
 
     -- Created by GitHub Copilot in SSMS - review carefully before executing
-    -- Crear base de datos ProquifaDotNetTimbrado y tablas iniciales
+    -- Crear base de datos ProquifaDotNetTimbrado y tablas iniciales (solo tecnicas)
 
     CREATE DATABASE [ProquifaDotNetTimbrado]
     ON PRIMARY (
@@ -265,50 +224,9 @@ Se comunica con ProquifaDotNet.Finanzas via API.
     );
     GO
 
-    CREATE TABLE [dbo].[FiscalDocumentType](
-        [Id] uniqueidentifier NOT NULL CONSTRAINT [DF_FiscalDocumentType_Id] DEFAULT (NEWID()),
-        [Code] varchar(50) NOT NULL,
-        [Description] varchar(200) NOT NULL,
-        [CreatedAt] datetime2(7) NOT NULL CONSTRAINT [DF_FiscalDocumentType_CreatedAt] DEFAULT (SYSUTCDATETIME()),
-        [UpdatedAt] datetime2(7) NOT NULL CONSTRAINT [DF_FiscalDocumentType_UpdatedAt] DEFAULT (SYSUTCDATETIME()),
-        [IsActive] bit NOT NULL CONSTRAINT [DF_FiscalDocumentType_IsActive] DEFAULT (1),
-        CONSTRAINT [PK_FiscalDocumentType] PRIMARY KEY CLUSTERED ([Id]),
-        CONSTRAINT [UQ_FiscalDocumentType_Code] UNIQUE ([Code])
-    );
-    GO
-
-    CREATE TABLE [dbo].[Cfdi](
-        [Id] uniqueidentifier NOT NULL CONSTRAINT [DF_Cfdi_Id] DEFAULT (NEWID()),
-        [FiscalDocumentTypeId] uniqueidentifier NOT NULL,
-        [Uuid] varchar(36) NULL,
-        [Series] varchar(25) NULL,
-        [Folio] varchar(40) NULL,
-        [IssueDate] datetime2(7) NULL,
-        [IssuerRfc] varchar(13) NOT NULL,
-        [ReceiverRfc] varchar(50) NOT NULL,
-        [Total] decimal(18,2) NOT NULL,
-        [Currency] varchar(5) NOT NULL,
-        [ExchangeRate] decimal(18,6) NULL,
-        [PaymentMethod] varchar(5) NULL,
-        [PaymentForm] varchar(5) NULL,
-        [CfdiUse] varchar(10) NULL,
-        [XmlContent] varchar(max) NULL,
-        [MinioFileKey] varchar(600) NULL,
-        [MinioBucket] varchar(100) NULL,
-        [Status] varchar(30) NOT NULL CONSTRAINT [DF_Cfdi_Status] DEFAULT ('Pending'),
-        [ErrorMessage] varchar(max) NULL,
-        [CreatedAt] datetime2(7) NOT NULL CONSTRAINT [DF_Cfdi_CreatedAt] DEFAULT (SYSUTCDATETIME()),
-        [UpdatedAt] datetime2(7) NOT NULL CONSTRAINT [DF_Cfdi_UpdatedAt] DEFAULT (SYSUTCDATETIME()),
-        [IsActive] bit NOT NULL CONSTRAINT [DF_Cfdi_IsActive] DEFAULT (1),
-        CONSTRAINT [PK_Cfdi] PRIMARY KEY CLUSTERED ([Id]),
-        CONSTRAINT [FK_Cfdi_FiscalDocumentType] FOREIGN KEY ([FiscalDocumentTypeId])
-            REFERENCES [dbo].[FiscalDocumentType]([Id])
-    );
-    GO
-
     CREATE TABLE [dbo].[StampingLog](
         [Id] uniqueidentifier NOT NULL CONSTRAINT [DF_StampingLog_Id] DEFAULT (NEWID()),
-        [CfdiId] uniqueidentifier NOT NULL,
+        [CfdiGeneradaId] uniqueidentifier NULL,
         [Action] varchar(50) NOT NULL,
         [PreviousStatus] varchar(30) NULL,
         [NewStatus] varchar(30) NOT NULL,
@@ -318,19 +236,83 @@ Se comunica con ProquifaDotNet.Finanzas via API.
         [DurationMs] int NULL,
         [CreatedAt] datetime2(7) NOT NULL CONSTRAINT [DF_StampingLog_CreatedAt] DEFAULT (SYSUTCDATETIME()),
         [IsActive] bit NOT NULL CONSTRAINT [DF_StampingLog_IsActive] DEFAULT (1),
-        CONSTRAINT [PK_StampingLog] PRIMARY KEY CLUSTERED ([Id]),
-        CONSTRAINT [FK_StampingLog_Cfdi] FOREIGN KEY ([CfdiId])
-            REFERENCES [dbo].[Cfdi]([Id])
+        CONSTRAINT [PK_StampingLog] PRIMARY KEY CLUSTERED ([Id])
+        -- Sin FK: CfdiGeneradaId referencia CFDIGenerada en la base de datos ProquifaDotNet (otra BD)
     );
     GO
 
-    INSERT INTO [dbo].[FiscalDocumentType] ([Code], [Description])
-    VALUES
-        ('AdvanceInvoice', 'Factura emitida por adelantado previo a entrega de mercancia (FAA)'),
-        ('RegularInvoice', 'Factura estandar de venta'),
-        ('AnticipatedInvoice', 'Factura de anticipo para pedidos con sustancias controladas'),
-        ('CreditNote', 'Nota de credito por devolucion o ajuste');
+---
+
+## Parte 3: Extension de CFDIGenerada (ProquifaDotNet — propiedad de Finanzas)
+
+### Proposito
+`CFDIGenerada` (diseñada en `ER-Finanzas.md`, propiedad de `ProquifaDotNet.Finanzas`) es el
+registro central de negocio de todo CFDI emitido. Se extiende aqui con las columnas tecnicas
+que el flujo de timbrado de este requisito necesita (estatus, error, moneda, tipo de cambio,
+uso CFDI, metodo de pago, referencia al archivo XML). El catalogo de tipo de documento sigue
+siendo **`catTipoCFDI`** (ya diseñado en Finanzas) — no se crea un catalogo adicional.
+
+> **Catalogos reutilizados (ya existen en ProquifaDotNet, sin cambios):** `catUsoCFDI`, `catMetodoDePagoCFDI`, `catMoneda`. `catTipoCFDI` se crea/altera en `R16A-RE-FU-028` (no se duplica aqui, solo se referencia como dependencia).
+
+### ALTER TABLE CFDIGenerada
+
+    -- Created by GitHub Copilot in SSMS - review carefully before executing
+    -- Ejecutar sobre ProquifaDotNet. Prerequisito: CFDIGenerada debe existir (ER-Finanzas.md / RE-FU-019)
+    ALTER TABLE dbo.CFDIGenerada
+        ADD [IdCatUsoCFDI]         uniqueidentifier NULL,
+            [IdCatMetodoDePagoCFDI] uniqueidentifier NULL,
+            [IdCatMoneda]           uniqueidentifier NULL,
+            [TipoCambio]            decimal(18,6) NULL,
+            [Total]                 decimal(18,2) NULL,
+            [IdArchivoXml]          uniqueidentifier NULL,
+            [Estado]                varchar(30) NOT NULL
+                CONSTRAINT [DF_CFDIGenerada_Estado] DEFAULT ('Pendiente'),
+            [MensajeError]          varchar(max) NULL,
+            [FechaUltimaActualizacion] datetime2(7) NOT NULL
+                CONSTRAINT [DF_CFDIGenerada_FechaUltimaActualizacion] DEFAULT (SYSUTCDATETIME());
     GO
+
+    ALTER TABLE dbo.CFDIGenerada
+        ADD CONSTRAINT [FK_CFDIGenerada_CatUsoCFDI]
+            FOREIGN KEY ([IdCatUsoCFDI]) REFERENCES dbo.catUsoCFDI([IdCatUsoCFDI]),
+        CONSTRAINT [FK_CFDIGenerada_CatMetodoDePagoCFDI]
+            FOREIGN KEY ([IdCatMetodoDePagoCFDI]) REFERENCES dbo.catMetodoDePagoCFDI([IdCatMetodoDePagoCFDI]),
+        CONSTRAINT [FK_CFDIGenerada_CatMoneda]
+            FOREIGN KEY ([IdCatMoneda]) REFERENCES dbo.catMoneda([IdCatMoneda]),
+        CONSTRAINT [FK_CFDIGenerada_Archivo]
+            FOREIGN KEY ([IdArchivoXml]) REFERENCES dbo.Archivo([IdArchivo]);
+    GO
+
+### Columnas agregadas a CFDIGenerada
+
+| Columna | Tipo | Nulo | Default | Descripcion |
+|---------|------|------|---------|-------------|
+| IdCatUsoCFDI | uniqueidentifier | SI | - | FK -> catUsoCFDI (clave SAT uso CFDI, ej. G03/P01) |
+| IdCatMetodoDePagoCFDI | uniqueidentifier | SI | - | FK -> catMetodoDePagoCFDI (PUE/PPD) |
+| IdCatMoneda | uniqueidentifier | SI | - | FK -> catMoneda (MXN/USD/PEN) |
+| TipoCambio | decimal(18,6) | SI | - | Tipo de cambio aplicado al emitir |
+| Total | decimal(18,2) | SI | - | Monto total del CFDI (usado ya por `vtpProformaAdelanto`, formalizado aqui) |
+| IdArchivoXml | uniqueidentifier | SI | - | FK -> Archivo (XML del CFDI timbrado, mismo patron que `fccNotaCredito.IdArchivoXml`) |
+| Estado | varchar(30) | NO | 'Pendiente' | Pendiente/Timbrado/Fallido — mapea al enum `StampStatus` (Pending/Stamped/Failed) del lado de Finanzas |
+| MensajeError | varchar(max) | SI | - | Detalle del error si el timbrado fallo |
+| FechaUltimaActualizacion | datetime2(7) | NO | SYSUTCDATETIME() | Fecha de la ultima actualizacion de estatus |
+
+> **Nota:** el XML no se guarda como blob en `CFDIGenerada` — se sube a Minio y se registra en `Archivo` (patron ya usado por `RE-FU-016` y por `fccNotaCredito.IdArchivoXml`/`IdArchivoPdf`), y `CFDIGenerada.IdArchivoXml` solo referencia ese registro.
+
+---
+
+## Flujo de Datos (timbrado, corregido)
+
+    1. Finanzas arma los datos fiscales (RFC emisor/receptor, conceptos, uso CFDI, metodo de pago)
+    2. Finanzas llama a ProquifaDotNet.Timbrado (servicio tecnico) con esos datos
+    3. Timbrado invoca al PAC (SAP), registra el intento en StampingLog (ProquifaDotNetTimbrado)
+       y regresa a Finanzas: UUID, Serie, Folio, XML, estatus
+    4. Finanzas:
+       - INSERT/UPDATE CFDIGenerada (ProquifaDotNet) con UUID, Folio, Serie, FechaEmision,
+         IdCatTipoCFDI, Total, IdCatUsoCFDI, IdCatMetodoDePagoCFDI, IdCatMoneda, TipoCambio, Estado
+       - INSERT Archivo (XML en Minio) + UPDATE CFDIGenerada SET IdArchivoXml
+       - UPDATE fccFactura SET IdCFDIGenerada = @IdCFDIGenerada (el Id real de CFDIGenerada;
+         antes: UPDATE tpProformaAdelanto SET IdCFDIGenerada — ver migración RE-FU-015)
 
 ---
 
@@ -338,7 +320,7 @@ Se comunica con ProquifaDotNet.Finanzas via API.
 
 | # | Gap | Tipo | Accion |
 |---|-----|------|--------|
-| 1 | Campo/logica 'factura generada pero no enviada' | Tecnico | Verificar flag de envio en tpProformaAdelanto |
+| 1 | ~~Campo/logica 'factura generada pero no enviada'~~ | Tecnico | **Resuelto**: `fccFactura.Enviada` (migrado de `tpProformaAdelanto.Enviada`, ver RE-FU-015/019) |
 | 2 | Tipo de cambio para dolarizacion | Negocio | Confirmar TC historico vs dia actual |
 | 3 | Rol operativo: Gestor Cobranza vs Analista CxC | Negocio | Confirmar denominacion |
 | 4 | Timbrado Peru (OSE/SUNAT) | Tecnico | Brecha mayor - RE-FU-005 B5 |
@@ -349,13 +331,15 @@ Se comunica con ProquifaDotNet.Finanzas via API.
 ## Dependencias
 
 | Requisito      | Relacion                                     |
-| -------------- | -------------------------------------------- |
-| R16A-RE-FU-012 | Genera pendiente FAA para Credito con FAA    |
-| R16A-RE-FU-015 | Genera pendiente FAA para Prepago con FAA    |
+| -------------- | --------------------------------------------- |
+| R16A-RE-FU-012 | Genera pendiente FAA (`fccFactura`, `IdTPProformaPedido` poblado) para Credito con FAA |
+| R16A-RE-FU-015 | Origen y dueño de `fccFactura`/`fccFacturaPartida`/`fccFacturaReferenciaBancaria`/`vfccFactura` — genera el pendiente FAA para Prepago (`IdTPProformaPedido` NULL) |
 | R16A-RE-FU-005 | Timbrado Peru (brecha)                       |
 | R16A-RE-FU-016 | Proforma MEX (flujo previo a FAA en Prepago) |
+| R16A-RE-FU-019 | CREATE TABLE CFDIGenerada (ER-Finanzas.md)    |
+| R16A-RE-FU-028 | catTipoCFDI (catalogo de tipo de CFDI)        |
 
 ---
 
 **Generado por:** GitHub Copilot in SSMS
-**Bases de Datos:** ProquifaDotNet (lectura) + ProquifaDotNetTimbrado (nueva)
+**Bases de Datos:** ProquifaDotNet (lectura/escritura) + ProquifaDotNetTimbrado (nueva)

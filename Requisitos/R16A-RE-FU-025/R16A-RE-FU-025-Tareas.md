@@ -139,7 +139,7 @@ Implementar en Finanzas el servicio `TipoCambioPeruService` que calcula el TC de
 - Crear `ITipoCambioPeruService` con método `ObtenerTCDelDiaAsync(ClaveMonedaCobro, ClaveMonedaFacturacion)`.
 - Implementar la lógica de selección de moneda (cobro vs facturación vs N/A) con base PEN.
 - Integrar con la fuente del TC peruana (pendiente de confirmar con PROQUIFA).
-- Exponer `GET /api/validar-cobro/tipo-cambio-peru?monedaCobro=USD&monedaFacturacion=PEN` en Finanzas.
+- Exponer `GET /api/v1/validate-collection/exchangeRate?monedaCobro=USD&monedaFacturacion=PEN` en Finanzas.
 - Registrar en logs Serilog si la fuente del TC no está disponible.
 
 **Resultado esperado:**
@@ -147,7 +147,7 @@ Servicio `TipoCambioPeruService` en Finanzas que retorna el TC del día para cob
 
 **Entregables:**
 - `ITipoCambioPeruService` + `TipoCambioPeruService` en Infrastructure de Finanzas
-- Endpoint `GET /api/validar-cobro/tipo-cambio-peru`
+- Endpoint `GET /api/v1/validate-collection/exchangeRate`
 - Pruebas unitarias (3 escenarios: N/A, moneda facturación, moneda cobro)
 
 **Criterios de aceptación:**

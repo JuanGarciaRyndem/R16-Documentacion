@@ -246,7 +246,7 @@ CREATE INDEX [IX_fccDocumentoFiscalCobro_PagoFacturaAdelanto]
 | ------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | IdFCCDocumentoFiscalCobro       | uniqueidentifier PK          | Identificador único de la línea                                                                                                                                                        |
 | IdFCCPagoFacturaPedido          | uniqueidentifier FK NULL     | FK a `fccPagoFacturaPedido`; NOT NULL cuando el origen es proforma (normal o con controlados). Provee acceso a `IdFCCPagoCliente` e `IdTPProformaPedido` sin duplicarlos.              |
-| IdFCCPagoFacturaAdelanto        | uniqueidentifier FK NULL     | FK a `fccPagoFacturaAdelanto`; NOT NULL cuando el origen es FAA. Provee acceso a `IdFCCPagoCliente`, `IdTPProformaAdelanto` e `IdCFDIGenerada` (UUID de la FAA para CFDIRelacionados). |
+| IdFCCPagoFacturaAdelanto        | uniqueidentifier FK NULL     | FK a `fccPagoFacturaAdelanto`; NOT NULL cuando el origen es FAA. Provee acceso a `IdFCCPagoCliente`, `IdFccFactura` (RE-FU-015, antes `IdTPProformaAdelanto`) e `IdCFDIGenerada` (UUID de la FAA para CFDIRelacionados). |
 | IdCatTipoDocumentoFiscal        | uniqueidentifier FK NOT NULL | FK a `catTipoDocumentoFiscal`. Tipo de CFDI a generar: `FACTURA`, `FACTURA_ANTICIPO` o `COMPLEMENTO_PAGO`. Determinado al crear la línea.                                              |
 | IdCatDocumentoFiscalCobroEstado | uniqueidentifier FK NOT NULL | FK a `catDocumentoFiscalCobroEstado`. Estado actual de la línea: `PENDIENTE`, `GENERADO` o `ENVIADO`.                                                                                  |
 | IdCatUsoCFDI                    | uniqueidentifier FK NULL     | FK a `catUsoCFDI`. Uso CFDI seleccionado por el usuario antes del timbrado. Default: Uso CFDI configurado en el cliente o en el pedido original.                                       |
@@ -541,8 +541,8 @@ SELECT
     -- Origen FAA (cuando IdFCCPagoFacturaAdelanto IS NOT NULL)
     p3l.IdFCCPagoFacturaAdelanto,
     pfa.IdFCCPagoCliente        AS IdFCCPagoCliente_PFA,
-    pfa.IdTPProformaAdelanto,
-    pa.Monto                    AS MontoFAA,
+    pfa.IdFccFactura,           -- RE-FU-015 (antes: pfa.IdTPProformaAdelanto)
+    fc.MontoTotal                AS MontoFAA,
     cg_faa.UUID                 AS UUID_FAA,        -- UUID de la FAA para CFDIRelacionados
     -- Cobro (fuente de verdad: tabla de asociación Paso 2)
     COALESCE(pfp.IdFCCPagoCliente, pfa.IdFCCPagoCliente) AS IdFCCPagoCliente,
@@ -590,10 +590,10 @@ LEFT JOIN dbo.Empresa e_pp
 -- Asociación Paso 2 — FAA
 LEFT JOIN dbo.fccPagoFacturaAdelanto pfa
     ON p3l.IdFCCPagoFacturaAdelanto = pfa.IdFCCPagoFacturaAdelanto
-LEFT JOIN dbo.tpProformaAdelanto pa
-    ON pfa.IdTPProformaAdelanto = pa.IdTPProformaAdelanto
+LEFT JOIN dbo.fccFactura fc
+    ON pfa.IdFccFactura = fc.IdFccFactura   -- RE-FU-015 (antes: LEFT JOIN dbo.tpProformaAdelanto pa ON pfa.IdTPProformaAdelanto = pa.IdTPProformaAdelanto)
 LEFT JOIN dbo.CFDIGenerada cg_faa
-    ON pa.IdCFDIGenerada = cg_faa.IdCFDIGenerada   -- UUID de la FAA para CFDIRelacionados
+    ON fc.IdCFDIGenerada = cg_faa.IdCFDIGenerada   -- UUID de la FAA para CFDIRelacionados
 -- Cobro (resuelto desde la asociación Paso 2 activa)
 LEFT JOIN dbo.fccPagoCliente fpc
     ON fpc.IdFCCPagoCliente = COALESCE(pfp.IdFCCPagoCliente, pfa.IdFCCPagoCliente)
@@ -629,7 +629,7 @@ LEFT JOIN dbo.CFDIGenerada cg_c
 | **EstadoDescripcion** | Calculado | Descripción legible del estado para la UI |
 | IdCatUsoCFDI / UsoCFDIClave | fccDocumentoFiscalCobro + catUsoCFDI | Uso CFDI seleccionado por el usuario, con clave y descripción del catálogo |
 | IdCatMetodoDePagoCFDI / MetodoPagoClave | fccDocumentoFiscalCobro + catMetodoDePagoCFDI | Método de pago (PPD/PUE) con descripción del catálogo |
-| UUID_FAA | CFDIGenerada (via tpProformaAdelanto) | UUID de la FAA existente; se incluye en CFDIRelacionados del Complemento |
+| UUID_FAA | CFDIGenerada (via fccFactura — RE-FU-015, antes tpProformaAdelanto) | UUID de la FAA existente; se incluye en CFDIRelacionados del Complemento |
 | UUID_Factura | CFDIGenerada (alias cg_f) | UUID SAT del CFDI principal timbrado en Paso 3 |
 | UUID_Complemento | CFDIGenerada (alias cg_c) | UUID SAT del Complemento (solo cascada PPD) |
 | IdTPPedido / FolioPedidoInterno | tpPedido | Pedido asociado al documento |
@@ -643,10 +643,10 @@ LEFT JOIN dbo.CFDIGenerada cg_c
 |-------|-------------|---------------|
 | fccDocumentoFiscalCobro | Todas las columnas | Estado del wizard al reingresar a un cliente |
 | fccPagoFacturaPedido | IdFCCPagoCliente, IdTPProformaPedido, Monto, NumeroDeParcialidad | Navegar al cobro y proforma desde la línea Paso 3 |
-| fccPagoFacturaAdelanto | IdFCCPagoCliente, IdTPProformaAdelanto, IdCFDIGenerada, Monto | Navegar al cobro y FAA; IdCFDIGenerada = UUID FAA para CFDIRelacionados |
+| fccPagoFacturaAdelanto | IdFCCPagoCliente, IdFccFactura (RE-FU-015, antes IdTPProformaAdelanto), IdCFDIGenerada, Monto | Navegar al cobro y FAA; IdCFDIGenerada = UUID FAA para CFDIRelacionados |
 | fccPagoCliente | Folio, Monto, MXN, USD, TipoDeCambio, IdCliente | Cobro origen del wizard |
 | tpProformaPedido | Folio, MontoTotal, MontoPendiente, IdEmpresa, HayControlados, IdCFDIGenerada | Datos para armar el CFDI de la línea; HayControlados determina Factura vs Anticipo |
-| tpProformaAdelanto | Monto, IdEmpresa, IdCFDIGenerada (UUID FAA) | Datos para armar el Complemento desde FAA |
+| fccFactura (RE-FU-015, reemplaza tpProformaAdelanto) | MontoTotal, IdEmpresa, IdCFDIGenerada (UUID FAA) | Datos para armar el Complemento desde FAA |
 | CFDIGenerada | UUID, Folio, Serie, FechaEmision, Total, TipoCFDI | UUID de la FAA (para CFDIRelacionados del Complemento) |
 | fccNotaCredito | IdCFDI (UUID NC), Monto, MXN, USD | NCs aplicadas en Paso 2 → nodo CFDIRelacionados al timbrar |
 | DatosFacturacionCliente | RazonSocial, RFC, UsoCFDI, RegimenFiscal, DomicilioFiscalReceptor | Datos del receptor CFDI 4.0 |
@@ -779,7 +779,7 @@ LEFT JOIN dbo.CFDIGenerada cg_c
 | R16A-RE-FU-026 | fccPagoFacturaAdelanto, fccNotaCredito (NCs con UUID para CFDIRelacionados) |
 | R16A-RE-FU-021 | Diseño PDF Factura México — DocumentBuilder |
 | R16A-RE-FU-013/014 | Genera `tpProformaPedido` con flag `HayControlados` (origen de la lógica condicional) |
-| R16A-RE-FU-015 | Genera pendiente FAA → `tpProformaAdelanto` usada en línea tipo COMPLEMENTO_PAGO |
+| R16A-RE-FU-015 | Origen y dueño de `fccFactura`/`vfccFactura` — genera pendiente FAA usada en línea tipo COMPLEMENTO_PAGO (antes referenciaba `tpProformaAdelanto`) |
 
 ---
 

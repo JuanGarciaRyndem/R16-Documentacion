@@ -2,6 +2,8 @@
 
 Tablas físicas en ProquifaDotNet gestionadas por la solución ProquifaDotNet.Finanzas via EF Core Scaffold: fcc*, CFDIGenerada, NC, catálogos SAT/SUNAT.
 
+> **Migración (06/07/2026):** `fccFactura`/`fccFacturaPartida`/`fccFacturaReferenciaBancaria` (agregadas aquí) reemplazan a la tabla legada `tpProformaAdelanto` (ver `ER-ProquifaDotNet.md`) como pendiente único de Factura por Adelantado, tanto de origen Prepago (RE-FU-015) como Crédito (RE-FU-012). `fccPagoFacturaAdelanto.IdFccFactura` reemplaza a `fccPagoFacturaAdelanto.IdTPProformaAdelanto`. Detalle completo en `R16A-RE-FU-015_BD.md`, sección "Migración de `tpProformaAdelanto`".
+
 ```mermaid
 erDiagram
     catTipoCFDI {
@@ -136,11 +138,44 @@ erDiagram
         int NumeroDeParcialidad
         datetime2 FechaAplicacion
     }
+    fccFactura {
+        uniqueidentifier IdFccFactura PK
+        uniqueidentifier IdTPPedido FK
+        uniqueidentifier IdTPProformaPedido FK
+        bit EsFacturaPorAdelantado
+        bit Enviada
+        uniqueidentifier IdCliente FK
+        uniqueidentifier IdEmpresa FK
+        varchar FolioPedidoInterno
+        decimal MontoTotal
+        uniqueidentifier IdCatMoneda FK
+        uniqueidentifier IdCFDIGenerada FK
+        bit Activo
+        datetime2 FechaRegistro
+    }
+    fccFacturaPartida {
+        uniqueidentifier IdFccFacturaPartida PK
+        uniqueidentifier IdFccFactura FK
+        varchar Descripcion
+        decimal Cantidad
+        decimal ValorUnitario
+        decimal Importe
+        datetime2 FechaRegistro
+    }
+    fccFacturaReferenciaBancaria {
+        uniqueidentifier IdFccFacturaReferenciaBancaria PK
+        uniqueidentifier IdFccFactura FK
+        uniqueidentifier IdCatMoneda FK
+        varchar Banco
+        varchar NumeroCuenta
+        varchar Clabe
+        datetime2 FechaRegistro
+    }
     fccPagoFacturaAdelanto {
         uniqueidentifier IdFCCPagoFacturaAdelanto PK
         uniqueidentifier IdFCCPagoCliente FK
         uniqueidentifier IdTPProformaPedido FK
-        uniqueidentifier IdTPProformaAdelanto FK
+        uniqueidentifier IdFccFactura FK
         uniqueidentifier IdCFDIGenerada FK
         decimal Monto
         int NumeroParcialidad
@@ -251,6 +286,10 @@ erDiagram
     fccFolioPagoCliente ||--o{ fccPagoCliente : "origina"
     fccPagoCliente ||--o{ fccPagoFacturaPedido : "aplica a"
     fccPagoCliente ||--o{ fccPagoFacturaAdelanto : "aplica a"
+    fccFactura ||--o{ fccFacturaPartida : "tiene"
+    fccFactura ||--o{ fccFacturaReferenciaBancaria : "tiene"
+    fccFactura ||--o{ fccPagoFacturaAdelanto : "recibe cobro"
+    CFDIGenerada ||--o{ fccFactura : "timbra"
     fccPagoCliente ||--o{ fccSaldoFavorCliente : "genera"
     fccPagoCliente ||--o{ fccNotaCredito : "asociado a"
     fccPagoFacturaPedido ||--o{ fccDocumentoFiscalCobro : "genera"

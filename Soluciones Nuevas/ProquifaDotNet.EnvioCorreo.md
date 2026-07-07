@@ -40,7 +40,7 @@ La integración de ProquifaDotNet.EnvioCorreo con el ecosistema se realiza de la
     - Implementación de **CQRS** con MediatR.
     - Commands: `EnviarCorreoCommand`, `EnviarCorreoSimpleCommand`, `EnviarCorreoHtmlCommand`, `EnviarCorreoPlantillaBrevoCommand`, `SincronizarEstadoCorreoCommand`.
     - Queries: `ObtenerSolicitudCorreoQuery`, `ObtenerBitacoraCorreoQuery`.
-    - DTOs: `EnviarCorreoDto`, `EnviarCorreoSimpleDto`, `EnviarCorreoHtmlDto`, `EnviarCorreoPlantillaBrevoDto`, `SolicitudCorreoDto`.
+    - DTOs: `SendEmailDto`, `EnviarCorreoSimpleDto`, `EnviarCorreoHtmlDto`, `EnviarCorreoPlantillaBrevoDto`, `SolicitudCorreoDto`.
     - Validators FluentValidation por cada command de envío.
 - **Infrastructure**
     - Persistencia con EF Core — 2 contextos:

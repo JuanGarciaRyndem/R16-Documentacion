@@ -2,6 +2,8 @@
 
 Entidades base del sistema operacional: Region, Empresa, Cliente, Archivo, DatosBancarios, Cartera de Cobranza, Correo, Pedidos y catálogos de pagos.
 
+> **Migración (06/07/2026):** `tpProformaAdelanto` (abajo) se conserva como tabla legada — sigue existiendo físicamente, pero los flujos de Factura por Adelantado (RE-FU-012, 018, 019, 020, 026, 027, 028, 029, 030) ya no leen/escriben en ella. Esos flujos usan `fccFactura`/`fccFacturaPartida`/`fccFacturaReferenciaBancaria` (propiedad de ProquifaDotNet.Finanzas) — ver `ER-Finanzas.md` y `R16A-RE-FU-015_BD.md` ("Migración de `tpProformaAdelanto`").
+
 ```mermaid
 erDiagram
     Region {
@@ -227,6 +229,11 @@ erDiagram
         bit Activo
         datetime2 FechaRegistro
     }
+    %% MIGRACIÓN (06/07/2026): tpProformaAdelanto queda como tabla legada, ya no es el
+    %% destino de los flujos de Factura por Adelantado (RE-FU-012/018/019/020/026-030).
+    %% Esos flujos ahora usan fccFactura/fccFacturaPartida/fccFacturaReferenciaBancaria,
+    %% propiedad de ProquifaDotNet.Finanzas — ver ER-Finanzas.md y
+    %% R16A-RE-FU-015_BD.md ("Migración de tpProformaAdelanto").
     Region ||--o{ Empresa : "tiene"
     Region ||--o{ EmpresaRegion : "tiene"
     Empresa ||--o{ EmpresaRegion : "pertenece a"

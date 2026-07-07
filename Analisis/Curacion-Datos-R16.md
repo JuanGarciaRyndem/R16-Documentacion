@@ -26,7 +26,7 @@ Un requisito requiere curación de datos cuando, además de los cambios DDL (CRE
 | 3   | RE-008    | Backfill `fccPagoCliente.IdCatCobroEstatus` + renombre clasificación correo         | 🔴 Alto    | Medio                                |
 | 4   | RE-009    | `ppPedido.AceptaEntregasParciales` NOT NULL (DEFAULT automático)                    | 🟢 Bajo    | Mínimo                               |
 | 5   | RE-015    | Backfill `tpPedido.IdEstatusPedido` en todos los pedidos históricos (OBS-027)       | 🔴 Crítico | Alto — BLOQUEANTE (pendiente cliente)|
-| 6   | RE-019    | `tpProformaAdelanto.Enviada` NOT NULL DEFAULT(0) + revisión historial FAA           | 🟡 Medio   | Bajo                                 |
+| 6   | RE-019    | Decisión: ¿migrar historial `tpProformaAdelanto` → `fccFactura` (RE-FU-015)? (ya no es ALTER+backfill de columna) | 🟡 Medio   | Bajo si no se migra; Medio si sí     |
 | 7   | RE-020    | Datos fiscales SUNAT en productos y unidades (curación manual)                      | 🔴 Alto    | Alto (negocio)                       |
 | 8   | RE-021    | `ClaveProdServSAT` y `ClaveSAT` en productos y unidades (curación manual)           | 🔴 Alto    | Alto (negocio)                       |
 | 9   | RE-023    | `tpPedido` campos de trazabilidad de cancelación (NULL — brecha de historial)       | 🟡 Medio   | Bajo (decisión sobre historial)      |
@@ -190,21 +190,25 @@ El ALTER TABLE es seguro para datos existentes — SQL Server rellena NULL autom
 
 ### RE-019 — Factura por Adelantado: Detalle México
 
-**Tipo:** Columna NOT NULL con DEFAULT + posible curación de historial.
+> **Migración (06/07/2026):** este punto cambió de naturaleza. La columna `Enviada` ya **no** se agrega con `ALTER TABLE` a la tabla legada `tpProformaAdelanto` (que sí tiene historial) — ahora nace como parte de la tabla **nueva** `fccFactura` (RE-FU-015), que arranca vacía. La preocupación original de "curación de historial" para `Enviada` **ya no aplica** tal cual: no hay filas previas en `fccFactura` que requieran backfill de `Enviada`.
+>
+> Lo que sí queda abierto es una decisión distinta: **¿se migran los registros históricos de `tpProformaAdelanto` hacia `fccFactura`, o `fccFactura` solo aplica a FAA generadas a partir del go-live de R16?** Si se decide migrar historial, sí seria necesario un script de backfill (incluyendo el cálculo de `Enviada` a partir de `IdCFDIGenerada`, igual que se planteaba antes). Ver `R16A-RE-FU-015_BD.md`, sección "Migración de `tpProformaAdelanto`".
 
-**Contexto:** Se agrega `Enviada bit NOT NULL DEFAULT(0)` a `tpProformaAdelanto`. SQL Server pone 0 automáticamente. Sin embargo, las facturas por adelantado que ya fueron enviadas antes de R16 quedarán con `Enviada = 0`, lo que puede afectar la vista de historial si el módulo muestra el estado de envío.
+**Tipo:** Decisión de negocio sobre migración de historial (ya no es un simple ALTER + backfill de columna).
 
-**Decisión de negocio requerida:** ¿Las FAA previas al release se consideran "enviadas" o no importa el historial? Si importa:
+**Contexto (vigente sólo si se decide migrar historial):** Si se migran registros de `tpProformaAdelanto` a `fccFactura`, las facturas por adelantado que ya fueron enviadas antes de R16 necesitarían poblar `fccFactura.Enviada` explícitamente (no hay DEFAULT automático de SQL Server que ayude aquí, al ser un INSERT de migración, no un ALTER):
 
 ```sql
--- Marcar como enviadas las FAA que ya tienen IdCFDIGenerada (timbradas y enviadas)
-UPDATE dbo.tpProformaAdelanto
+-- Si se decide migrar historial: marcar como enviadas las FAA que ya tenían IdCFDIGenerada
+-- (ejecutar como parte del script de migración de tpProformaAdelanto -> fccFactura, no como ALTER)
+UPDATE dbo.fccFactura
 SET Enviada = 1
-WHERE IdCFDIGenerada IS NOT NULL;
+WHERE IdCFDIGenerada IS NOT NULL
+  AND EsFacturaPorAdelantado = 1;
 ```
 
-**Riesgo:** Medio — el ALTER es seguro, pero el historial puede quedar con estado incorrecto si no se toma decisión sobre registros previos.  
-**Esfuerzo:** Bajo (30 min de análisis + script simple).
+**Riesgo:** Medio — si NO se migra historial, no hay riesgo (tabla nueva, vacía). Si SÍ se migra, el riesgo es el mismo de antes: estado incorrecto si no se decide bien el criterio de `Enviada` para registros legados.
+**Esfuerzo:** Bajo si no se migra historial (no aplica). Medio si se decide migrar (requiere script de migración completo, no solo esta columna).
 
 ---
 
@@ -371,7 +375,7 @@ SELECT 'FACTURA_CPE', 'Factura electrónica SUNAT — CPE tipo 01 UBL 2.1 (Perú
 | B1 | `tpPedido.IdEstatusPedido`: catálogo y campo pendientes de propuesta del cliente — backfill masivo requerido | RE-015 | Propuesta del cliente → diseño de mapeo → script |
 | B2 | `fccNotaCredito.IdTPProformaPedido` NOT NULL impide INSERT de NCs R16 | RE-032 | Decisión: hacer nullable o placeholder |
 | B3 | `CFDIGenerada.IdCatTipoCFDI` backfill: ¿PPD o PUE para FAAs históricas? | RE-028 | Consultar área fiscal antes del script |
-| B4 | `tpProformaAdelanto.Enviada`: ¿se marcan como enviadas las FAA históricas? | RE-019 | Consultar área operativa |
+| B4 | ¿Se migra el historial de `tpProformaAdelanto` a `fccFactura` (RE-FU-015)? Si sí, ¿se marcan como enviadas las FAA históricas migradas? | RE-019 | Consultar área operativa |
 | B5 | `tpPedido` campos de cancelación: ¿se reconstruye historial pre-R16? | RE-023 | Decisión del negocio sobre auditoría histórica |
 | B6 | Ningún proceso de mantenimiento de `ClaveProdServSAT` definido en la UI | RE-021 | Definir pantalla de administración o carga masiva |
 

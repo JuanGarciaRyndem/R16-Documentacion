@@ -54,13 +54,13 @@ La lógica de INSERT en `fccFolioPagoCliente` **ya existe** en `CorreoRecibidoCl
 | Scaffold `fccFolioPagoCliente`       | EF Core en Finanzas.Infrastructure  | Queries/Commands del módulo Validar Cobro                    |
 | Scaffold `fccPagoCliente`            | EF Core en Finanzas.Infrastructure  | Queries/Commands del módulo Validar Cobro                    |
 | Scaffold `tpProformaPedido`          | EF Core en Finanzas.Infrastructure  | Listado modal + actualizar fecha pago + cancelación          |
-| `GetFolioPagoClientePendientesQuery` | Finanzas.Application — CQRS Query   | Conteo `CobrosRecibidosPendientes` en listado principal      |
-| `CerrarFolioPagoClienteCommand`      | Finanzas.Application — CQRS Command | Cierra pendiente (`Activo=0`) al confirmar cobro (RE-FU-024) |
-| `GetPagoClienteQuery`                | Finanzas.Application — CQRS Query   | Lee cobro por Id / por cliente                               |
-| `UpsertPagoClienteCommand`           | Finanzas.Application — CQRS Command | INSERT borrador Paso 1 / UPDATE borrador                     |
-| `GetProformaPedidoClienteQuery`      | Finanzas.Application — CQRS Query   | Listado pedidos pendientes modal Gestionar Cobranza          |
-| `UpdateFechaPromesaPagoCommand`      | Finanzas.Application — CQRS Command | Actualiza FechaPromesaPagoMonitoreoCobros por pedido         |
-| `CancelarPedidoFaltaPagoCommand`     | ProquifaDotNet — endpoint dedicado  | UPDATE tpProformaPedido + UPDATE tpPedido (trazabilidad)     |
+| `GetPendingPaymentFoliosQuery` | Finanzas.Application — CQRS Query   | Conteo `PendingPaymentsReceived` en listado principal      |
+| `ClosePaymentFolioCommand`      | Finanzas.Application — CQRS Command | Cierra pendiente (`Activo=0`) al confirmar cobro (RE-FU-024) |
+| `GetClientPaymentQuery`                | Finanzas.Application — CQRS Query   | Lee cobro por Id / por cliente                               |
+| `UpsertClientPaymentCommand`           | Finanzas.Application — CQRS Command | INSERT borrador Paso 1 / UPDATE borrador                     |
+| `GetClientQuoteQuery`      | Finanzas.Application — CQRS Query   | Listado pedidos pendientes modal Gestionar Cobranza          |
+| `UpdatePromiseDateCommand`      | Finanzas.Application — CQRS Command | Actualiza FechaPromesaPagoMonitoreoCobros por pedido         |
+| `CancelOrderForNonPaymentCommand`     | ProquifaDotNet — endpoint dedicado  | UPDATE tpProformaPedido + UPDATE tpPedido (trazabilidad)     |
 
 ---
 
@@ -152,17 +152,17 @@ dotnet ef dbcontext scaffold "Server=RYNL010;Database=ProquifaDotNet;Integrated 
 
 **Capa:** `ProquifaDotNet.Finanzas.Application`
 
-**Query — `GetFolioPagoClientePendientesQuery`:**
+**Query — `GetPendingPaymentFoliosQuery`:**
 Retorna los pendientes del Buzón activos por cliente. Consumido por el listado principal
-(Parte C, sección C1) para calcular `CobrosRecibidosPendientes`.
+(Parte C, sección C1) para calcular `PendingPaymentsReceived`.
 
 ```
 Filtro: fccFolioPagoCliente.Activo = true
         JOIN CorreoRecibidoCliente WHERE IdCliente = @idCliente
-Retorna: List<FolioPagoClientePendienteDto> (Id, Folio, TotalMailBot, FechaRecepcion)
+Retorna: List<PendingPaymentFolioDto> (Id, Folio, TotalMailBot, FechaRecepcion)
 ```
 
-**Command — `CerrarFolioPagoClienteCommand`:**
+**Command — `ClosePaymentFolioCommand`:**
 Marca `Activo=0` en el pendiente del Buzón al confirmar el cobro. Se invoca desde
 el servicio de confirmación de RE-FU-024.
 
@@ -176,29 +176,29 @@ Operación: UPDATE fccFolioPagoCliente SET Activo=0, FechaUltimaActualizacion=Ut
 
 | Método | Ruta | Descripción |
 | ------ | ---- | ----------- |
-| `GET` | `/api/validar-cobro/buzon/{idCliente}/pendientes` | Lista pendientes activos del cliente |
-| `PUT` | `/api/validar-cobro/buzon/{id}/cerrar` | Cierra pendiente (`Activo=0`) |
+| `GET` | `/api/v1/validate-collection/mailbox/{idCliente}/pending` | Lista pendientes activos del cliente |
+| `PUT` | `/api/v1/validate-collection/mailbox/{id}/close` | Cierra pendiente (`Activo=0`) |
 
 ### B3 — CQRS: fccPagoCliente — Query cobro + Command upsert
 
 **Capa:** `ProquifaDotNet.Finanzas.Application`
 
-**Query — `GetPagoClienteQuery`:**
+**Query — `GetClientPaymentQuery`:**
 Obtiene un cobro por Id o lista cobros activos por cliente.
 
 ```
 Por Id:      fccPagoCliente WHERE IdFCCPagoCliente = @id AND Activo = true
 Por cliente: fccPagoCliente WHERE IdCliente = @idCliente AND Activo = true
-Retorna: PagoClienteDto (todos los campos base + campos de RE-FU-023: Confirmado,
+Retorna: ClientPaymentDto (todos los campos base + campos de RE-FU-023: Confirmado,
          FechaConfirmacion, IdUsuarioConfirmacion, Notas, IdCatMoneda)
 ```
 
-**Command — `UpsertPagoClienteCommand`:**
+**Command — `UpsertClientPaymentCommand`:**
 INSERT si `IdFCCPagoCliente` es vacío / UPDATE si ya existe. Maneja el borrador del
 Paso 1. El borrador se identifica por `Confirmado = 0`.
 
 ```
-Input: PagoClienteDto
+Input: ClientPaymentDto
 INSERT: nuevo registro con Activo=1, Confirmado=0 (borrador)
 UPDATE: actualiza campos editables del formulario Paso 1 (Monto, FechaPago, TipoDeCambio,
         IdCatMedioDePago, IdDatosBancarios, MXN, USD, CuentaOrdenante, ReferenciaBancaria)
@@ -206,34 +206,34 @@ UPDATE: actualiza campos editables del formulario Paso 1 (Monto, FechaPago, Tipo
 
 > La lógica de confirmación del cobro (generar Folio, poblar `Confirmado=1`, `FechaConfirmacion`,
 > `IdUsuarioConfirmacion`) corresponde a RE-FU-024 y extiende este comando o crea
-> un `ConfirmarPagoClienteCommand`.
+> un `ConfirmClientPaymentCommand`.
 
 **Endpoints expuestos:**
 
 | Método | Ruta                                       | Descripción                       |
 | ------ | ------------------------------------------ | --------------------------------- |
-| `GET`  | `/api/validar-cobro/cobros/{id}`           | Obtener cobro por Id              |
-| `GET`  | `/api/validar-cobro/cobros?idCliente={id}` | Lista cobros activos del cliente  |
-| `PUT`  | `/api/validar-cobro/cobros`                | INSERT borrador / UPDATE borrador |
+| `GET`  | `/api/v1/validate-collection/payment/{id}`           | Obtener cobro por Id              |
+| `GET`  | `/api/v1/validate-collection/payment?idCliente={id}` | Lista cobros activos del cliente  |
+| `PUT`  | `/api/v1/validate-collection/payment`                | INSERT borrador / UPDATE borrador |
 
 ### B4 — CQRS: tpProformaPedido — Query listado + Commands fecha y cancelación
 
 **Capa:** `ProquifaDotNet.Finanzas.Application`
 
-**Query — `GetProformaPedidoClienteQuery`:**
+**Query — `GetClientQuoteQuery`:**
 Lista pedidos pendientes de un cliente para el modal Gestionar Cobranza.
 
 ```
 Filtro: tpProformaPedido WHERE IdCliente = @idCliente AND MontoPendiente > 0 AND Cancelada = 0
 JOIN:   tpPedido (PedidoInterno, ReferenciaPedidoCliente)
 JOIN:   ContactoCliente (Nombre, Correo, Telefono)
-Retorna: ProformaPedidoDto (IdTpProformaPedido, IdTpPedido, PedidoInterno,
+Retorna: QuoteDto (IdTpProformaPedido, IdTpPedido, PedidoInterno,
          ReferenciaPedidoCliente, MontoPendiente, FechaPromesaPagoMonitoreoCobros,
          ContactoNombre, ContactoCorreo, ContactoTelefono)
 Cabecera: MontoTotalPendiente = SUM(MontoPendiente)
 ```
 
-**Command — `UpdateFechaPromesaPagoCommand`:**
+**Command — `UpdatePromiseDateCommand`:**
 Actualiza la fecha estimada de pago de uno o más pedidos desde el modal Gestionar Cobranza.
 
 ```
@@ -252,8 +252,8 @@ Operación (por cada ítem):
 
 | Método | Ruta                                          | Descripción                                  |
 | ------ | --------------------------------------------- | -------------------------------------------- |
-| `GET`  | `/api/validar-cobro/proformas?idCliente={id}` | Lista pedidos pendientes del cliente (modal) |
-| `PUT`  | `/api/validar-cobro/proformas/fecha-promesa`  | Actualiza fecha estimada de pago             |
+| `GET`  | `/api/v1/validate-collection/quote?idCliente={id}` | Lista pedidos pendientes del cliente (modal) |
+| `PUT`  | `/api/v1/validate-collection/quote/promiseDate`  | Actualiza fecha estimada de pago             |
 
 ---
 
@@ -261,16 +261,16 @@ Operación (por cada ítem):
 
 ### C1 — Listado de clientes con acción contextual
 
-**Patrón:** `QueryInfo` (mismo que Punchout) — `[HttpPost]` recibe `[FromBody] QueryInfo`. Retorna `QueryResultDto<ClienteValidarCobroDto>` con `TotalResults` + `Results`.
+**Patrón:** `QueryInfo` (mismo que Punchout) — `[HttpPost]` recibe `[FromBody] QueryInfo`. Retorna `QueryResultDto<PaymentValidationClientDto>` con `TotalResults` + `Results`.
 
 **Tablas (vía Scaffold Finanzas):** `ClienteCartera`, `ClienteCarteraCliente`, `Cliente`,
 `DatosFacturacionCliente`, `tpProformaPedido`, `fccFolioPagoCliente`
 
 **Endpoint:**
 ```
-POST /api/validar-cobro/clientes
+POST /api/v1/validate-collection/client/search
 Body: QueryInfo { SortField, SortDirection, Filters, PageSize, DesiredPage }
-Response: QueryResultDto<ClienteValidarCobroDto>
+Response: QueryResultDto<PaymentValidationClientDto>
 ```
 
 **Filtros soportados vía `QueryInfo.Filters`:**
@@ -283,24 +283,24 @@ Response: QueryResultDto<ClienteValidarCobroDto>
 > La región del usuario se resuelve del token de autenticación (IdentityServer), no como filtro explícito.
 > La cartera del usuario (campo Cobrador en Catálogo de Clientes) también se resuelve del contexto del usuario autenticado.
 
-**Campos calculados en `ClienteValidarCobroDto`:**
+**Campos calculados en `PaymentValidationClientDto`:**
 
 | Campo calculado | Cálculo |
 | --------------- | ------- |
-| `CobrosRecibidosPendientes` | COUNT `fccFolioPagoCliente.Activo=1` por cliente (Scaffold Finanzas) |
-| `ProformasFacturasPendientes` | COUNT `tpProformaPedido` con `MontoPendiente > 0` y `Cancelada=0` (Scaffold Finanzas) |
-| `SaldoPendienteTotal` | SUM `tpProformaPedido.MontoPendiente` por cliente convertido a USD (OBS-046: el listado siempre se muestra dolarizado en USD, usando ConversorDivisas existente) |
-| `AccionContextual` | `REALIZAR_COBROS` si `CobrosRecibidosPendientes > 0`; `GESTIONAR_COBRANZA` si no |
-| `FechaCobroMasAntiguo` | MIN `fccFolioPagoCliente.FechaRecepcion` donde `Activo=1` por cliente — para ordenamiento por antigüedad (OBS-047) |
-| `TieneSlaVencido` | `true` si `FechaCobroMasAntiguo` lleva más de 72 horas sin procesar; se muestra indicador visual de alerta en UI (OBS-047) |
+| `PendingPaymentsReceived` | COUNT `fccFolioPagoCliente.Activo=1` por cliente (Scaffold Finanzas) |
+| `PendingQuoteInvoices` | COUNT `tpProformaPedido` con `MontoPendiente > 0` y `Cancelada=0` (Scaffold Finanzas) |
+| `TotalPendingBalance` | SUM `tpProformaPedido.MontoPendiente` por cliente convertido a USD (OBS-046: el listado siempre se muestra dolarizado en USD, usando ConversorDivisas existente) |
+| `ContextualAction` | `PROCESS_PAYMENTS` si `PendingPaymentsReceived > 0`; `MANAGE_COLLECTIONS` si no |
+| `OldestPendingPayment` | MIN `fccFolioPagoCliente.FechaRecepcion` donde `Activo=1` por cliente — para ordenamiento por antigüedad (OBS-047) |
+| `HasSlaExpired` | `true` si `OldestPendingPayment` lleva más de 72 horas sin procesar; se muestra indicador visual de alerta en UI (OBS-047) |
 
 **Componentes capa Finanzas (patrón Punchout):**
-- `Domain.Interfaces` → `IClienteValidarCobroQueryRepository` con `GetFilteredAsync(QueryInfo)`
-- `Application.Interfaces` → `IClienteValidarCobroService`
-- `Application.Services` → `ClienteValidarCobroService`
-- `Application.DTOs` → `ClienteValidarCobroDto` + `QueryResultDto<ClienteValidarCobroDto>`
-- `Infrastructure.Repository` → `ClienteValidarCobroRepository` — usa `QueryableExtensions` (`ToPagedList`, `ApplyFilter`)
-- `API.Controllers` → `[HttpPost]` `/api/validar-cobro/clientes` con `[FromBody] QueryInfo`
+- `Domain.Interfaces` → `IPaymentValidationClientQueryRepository` con `GetFilteredAsync(QueryInfo)`
+- `Application.Interfaces` → `IPaymentValidationClientService`
+- `Application.Services` → `PaymentValidationClientService`
+- `Application.DTOs` → `PaymentValidationClientDto` + `QueryResultDto<PaymentValidationClientDto>`
+- `Infrastructure.Repository` → `PaymentValidationClientRepository` — usa `QueryableExtensions` (`ToPagedList`, `ApplyFilter`)
+- `API.Controllers` → `[HttpPost]` `/api/v1/validate-collection/client/search` con `[FromBody] QueryInfo`
 
 ### C2 — Listado de pedidos para Modal Gestionar Cobranza
 
@@ -309,18 +309,18 @@ Response: QueryResultDto<ClienteValidarCobroDto>
 Filtra `tpProformaPedido` del cliente con `MontoPendiente > 0` y `Cancelada=0` directamente
 desde Finanzas via Scaffold EF Core. La cabecera del modal incluye `MontoTotalPendiente` (SUM).
 
-**Endpoint:** `GET /api/validar-cobro/proformas?idCliente={id}` (definido en B4)
+**Endpoint:** `GET /api/v1/validate-collection/quote?idCliente={id}` (definido en B4)
 
 ### C3 — Actualizar fecha estimada de pago (OBS-044)
 
 **Capa:** `ProquifaDotNet.Finanzas` — vía Scaffold `tpProformaPedido` (B4).
 
 Actualiza `tpProformaPedido.FechaPromesaPagoMonitoreoCobros` directamente desde Finanzas
-via Scaffold EF Core mediante `UpdateFechaPromesaPagoCommand`.
+via Scaffold EF Core mediante `UpdatePromiseDateCommand`.
 
-> **OBS-044:** El `UpdateFechaPromesaPagoCommand` guarda el **historial completo** de cambios en `fccFechaEstimadaPagoHistorial` (tabla nueva, ver A3 en _BD.md). Cada cambio genera un INSERT con el valor anterior y el nuevo — no se sobreescribe el registro. El endpoint debe exponer `IdUsuarioCambio` y opcionalmente `Motivo`.
+> **OBS-044:** El `UpdatePromiseDateCommand` guarda el **historial completo** de cambios en `fccFechaEstimadaPagoHistorial` (tabla nueva, ver A3 en _BD.md). Cada cambio genera un INSERT con el valor anterior y el nuevo — no se sobreescribe el registro. El endpoint debe exponer `IdUsuarioCambio` y opcionalmente `Motivo`.
 
-**Endpoint:** `PUT /api/validar-cobro/proformas/fecha-promesa` (definido en B4)
+**Endpoint:** `PUT /api/v1/validate-collection/quote/promiseDate` (definido en B4)
 
 ### C4 — Cancelar pedido por falta de pago + cancelación CFDI (OBS-042)
 
@@ -374,10 +374,9 @@ UPDATE tpPedido SET FechaCancelacionPorFaltaPago = SYSUTCDATETIME(),
 > Decisión OBS-047: el listado se ordena por antigüedad del cobro recibido más antiguo del cliente (MIN `fccFolioPagoCliente.FechaRecepcion`, ASC). Clientes sin cobros pendientes se ubican al final. Indicador SLA 72h cuando el cobro más antiguo lleva más de 72 horas sin procesar.
 
 > ⚠️ **BRECHA — Moneda del Saldo Pendiente Perú**
-> Para clientes Región Perú, confirmar denominación monetaria del `SaldoPendienteTotal`
+> Para clientes Región Perú, confirmar denominación monetaria del `TotalPendingBalance`
 > (MXN, USD, PEN). El ConversorDivisas existe en ProquifaDotNet.
 
 ---
 
-**Generado por:** GitHub Copilot
-**Aplicativos:** ProquifaDotNet (.NET Framework 4.8) + ProquifaDotNet.Finanzas (.NET Core 10)
+**Gen

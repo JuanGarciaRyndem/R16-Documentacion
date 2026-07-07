@@ -172,7 +172,7 @@ Ver sección *"Parte A / A3"* en `R16A-RE-FU-026-Back.md` y sección *"Inconsist
 **Consideraciones previas:**
 - Tareas 1-3 de BD deben estar ejecutadas.
 - El listado es el panel central del Paso 2: proformas y facturas mezcladas, sin filtros adicionales.
-- Finanzas llama a ProquifaDotNet para obtener documentos de `tpProformaPedido` (proformas normales) y `tpProformaAdelanto` (FAA).
+- Finanzas llama a ProquifaDotNet para obtener documentos de `tpProformaPedido` (proformas normales) y `vfccFactura` (FAA — RE-FU-015, antes `tpProformaAdelanto`).
 - Pueden coexistir documentos de diferentes empresas emisoras del grupo (GOL, MUN, PRO, PQF) en el mismo listado.
 - El orden de selección de los documentos por el usuario determina la prioridad de aplicación del cobro.
 - No requiere paginación (todos los documentos pendientes del cliente en el panel del Paso 2).
@@ -181,19 +181,19 @@ Ver sección *"Parte A / A3"* en `R16A-RE-FU-026-Back.md` y sección *"Inconsist
 Implementar en Finanzas el endpoint que retorna todas las proformas y facturas pendientes de cobrar del cliente, mezcladas en un listado único sin filtros, para el panel central del Paso 2.
 
 **Objetivos específicos:**
-- Implementar `GET /api/validar-cobro/clientes/{idCliente}/documentos-pendientes` en Finanzas.
-- Crear `GetValidarCobroPaso2DocumentosQuery` + Handler.
-- Llamar a ProquifaDotNet para obtener `tpProformaPedido` (proformas) + `tpProformaAdelanto` (FAA), unificados en un solo listado.
+- Implementar `GET /api/v1/validate-collection/client/{idCliente}/pendingDocument` en Finanzas.
+- Crear `GetPaymentValidationStep2DocumentsQuery` + Handler.
+- Llamar a ProquifaDotNet para obtener `tpProformaPedido` (proformas) + `vfccFactura` (FAA — RE-FU-015), unificados en un solo listado.
 - Retornar por documento: Tipo (PROFORMA / FAA), Folio, PedidoInterno, EmpresaEmisora, ImporteTotal, SaldoPendiente, ClaveMoneda.
-- DTO: `ValidarCobroPaso2DocumentoDto`, `ValidarCobroPaso2DocumentosResponseDto`.
+- DTO: `PendingDocumentDto`, `PendingDocumentsResponseDto`.
 
 **Resultado esperado:**
-Endpoint `GET /api/validar-cobro/clientes/{idCliente}/documentos-pendientes` en Finanzas que retorna el listado unificado de proformas y facturas pendientes del cliente para el panel central del Paso 2.
+Endpoint `GET /api/v1/validate-collection/client/{idCliente}/pendingDocument` en Finanzas que retorna el listado unificado de proformas y facturas pendientes del cliente para el panel central del Paso 2.
 
 **Entregables:**
-- Endpoint `GET /api/validar-cobro/clientes/{idCliente}/documentos-pendientes`
-- Query + Handler: `GetValidarCobroPaso2DocumentosQuery`
-- DTOs: `ValidarCobroPaso2DocumentoDto`, `ValidarCobroPaso2DocumentosResponseDto`
+- Endpoint `GET /api/v1/validate-collection/client/{idCliente}/pendingDocument`
+- Query + Handler: `GetPaymentValidationStep2DocumentsQuery`
+- DTOs: `PendingDocumentDto`, `PendingDocumentsResponseDto`
 - Pruebas unitarias del Handler
 
 **Criterios de aceptación:**
@@ -231,19 +231,19 @@ Ver sección *"Parte B / B1"* en `R16A-RE-FU-026-Back.md`. Ver regla 4 en `R16A-
 Implementar en Finanzas el endpoint que retorna las Notas de Crédito vigentes del cliente disponibles para aplicar en el Paso 2, con los campos necesarios para su selección y posterior uso en el Paso 3.
 
 **Objetivos específicos:**
-- Implementar `GET /api/validar-cobro/clientes/{idCliente}/notas-credito-vigentes` en Finanzas.
-- Crear `GetNotasCreditoVigentesQuery` + Handler.
+- Implementar `GET /api/v1/validate-collection/client/{idCliente}/activeCreditNote` en Finanzas.
+- Crear `GetActiveCreditNotesQuery` + Handler.
 - Llamar a ProquifaDotNet: `SELECT FROM fccNotaCredito WHERE Aplicada=0 AND Activo=1 AND IdCliente=@Id`.
 - Retornar: `IdFCCNotaCredito`, `Folio`, `IdCFDI` (UUID SAT), `Monto`, `ClaveMoneda`.
-- DTO: `NotaCreditoVigenteDto`, `NotasCreditoVigentesResponseDto`.
+- DTO: `ActiveCreditNoteDto`, `ActiveCreditNotesResponseDto`.
 
 **Resultado esperado:**
-Endpoint `GET /api/validar-cobro/clientes/{idCliente}/notas-credito-vigentes` en Finanzas que retorna las NCs vigentes del cliente listas para ser seleccionadas opcionalmente en el Paso 2.
+Endpoint `GET /api/v1/validate-collection/client/{idCliente}/activeCreditNote` en Finanzas que retorna las NCs vigentes del cliente listas para ser seleccionadas opcionalmente en el Paso 2.
 
 **Entregables:**
-- Endpoint `GET /api/validar-cobro/clientes/{idCliente}/notas-credito-vigentes`
-- Query + Handler: `GetNotasCreditoVigentesQuery`
-- DTOs: `NotaCreditoVigenteDto`, `NotasCreditoVigentesResponseDto`
+- Endpoint `GET /api/v1/validate-collection/client/{idCliente}/activeCreditNote`
+- Query + Handler: `GetActiveCreditNotesQuery`
+- DTOs: `ActiveCreditNoteDto`, `ActiveCreditNotesResponseDto`
 - Pruebas unitarias del Handler
 
 **Criterios de aceptación:**
@@ -271,38 +271,38 @@ Ver sección *"Parte B / B2"* en `R16A-RE-FU-026-Back.md`. Ver regla 6 en `R16A-
 
 **Consideraciones previas:**
 - Este motor es la lógica central del Paso 2: se invoca cada vez que el usuario selecciona/deselecciona cobros, documentos o NCs.
-- La fórmula base: `SaldoAsociacion = (SumaCobrosAplicados + SumaNCAplicadas) - SumaAdeudoDocumentosSeleccionados`.
+- La fórmula base: `AssociationBalance = (SumAppliedPayments + SumAppliedCreditNotes) - SumSelectedDocumentsDebt`.
 - **Multi-divisa:** cuando los documentos están en moneda distinta a la del cobro, Finanzas convierte el importe del documento a moneda del cobro usando `fccPagoCliente.TipoDeCambio` (TC capturado en Paso 1). Todos los totales del panel se expresan en moneda del cobro.
 - El orden de selección de documentos determina la prioridad de aplicación del cobro (primer documento seleccionado = primera cobertura).
 - La lógica de escenarios: exacto (=0), sobrepago (>0), tolerancia (≤100 MXN negativo), insuficiente (>100 MXN negativo).
 - ⚠️ Pendiente confirmar tratamiento de tolerancia en monedas distintas a MXN.
 
 **Objetivo general:**
-Implementar en Finanzas el servicio `SaldoAsociacionCalculatorService` que calcula el saldo dinámico de la asociación, aplica las conversiones multi-divisa con el TC del cobro, determina el escenario resultante y retorna el desglose completo para visualización en el panel de totales del Paso 2.
+Implementar en Finanzas el servicio `AssociationBalanceCalculatorService` que calcula el saldo dinámico de la asociación, aplica las conversiones multi-divisa con el TC del cobro, determina el escenario resultante y retorna el desglose completo para visualización en el panel de totales del Paso 2.
 
 **Objetivos específicos:**
-- Crear `ISaldoAsociacionCalculatorService` con método `Calcular(cobrosSeleccionados, documentosSeleccionados, NCsAplicadas, TCCobro)`.
+- Crear `IAssociationBalanceCalculatorService` con método `Calculate(selectedPayments, selectedDocuments, appliedCreditNotes, paymentExchangeRate)`.
 - Implementar la conversión multi-divisa: importe documento en moneda distinta a cobro → convertir a moneda cobro usando TC del Paso 1.
-- Calcular los totales del panel: AdeudoDocumentos (en moneda cobro), NCsAplicadas (en moneda cobro), CobrosAplicados, SaldoAsociacion, escenario resultante.
-- Determinar el escenario: EXACTO, SOBREPAGO, TOLERANCIA_100_MXN, INSUFICIENTE.
-- Exponer `POST /api/validar-cobro/clientes/{idCliente}/calcular-saldo` para llamada del Front al seleccionar/deseleccionar elementos.
-- DTO de request: `CalcularSaldoRequestDto` (cobros, documentos con orden de selección, NCs).
-- DTO de response: `CalcularSaldoResponseDto` (totales por línea, SaldoAsociacion, Escenario, TC aplicado por documento).
+- Calcular los totales del panel: DocumentsDebt (en moneda cobro), AppliedCreditNotes (en moneda cobro), AppliedPayments, AssociationBalance, escenario resultante.
+- Determinar el escenario: EXACT, OVERPAYMENT, TOLERANCE_100_MXN, INSUFFICIENT.
+- Exponer `POST /api/v1/validate-collection/client/{idCliente}/balance/calculate` para llamada del Front al seleccionar/deseleccionar elementos.
+- DTO de request: `CalculateBalanceRequestDto` (cobros, documentos con orden de selección, NCs).
+- DTO de response: `CalculateBalanceResponseDto` (totales por línea, AssociationBalance, Scenario, TC aplicado por documento).
 
 **Resultado esperado:**
-Servicio `SaldoAsociacionCalculatorService` en Finanzas que calcula y retorna el saldo dinámico de la asociación con multi-divisa y determinación del escenario, listo para ser consumido por el panel de totales del Paso 2 en tiempo real.
+Servicio `AssociationBalanceCalculatorService` en Finanzas que calcula y retorna el saldo dinámico de la asociación con multi-divisa y determinación del escenario, listo para ser consumido por el panel de totales del Paso 2 en tiempo real.
 
 **Entregables:**
-- `ISaldoAsociacionCalculatorService` + `SaldoAsociacionCalculatorService` en Application de Finanzas
-- Endpoint `POST /api/validar-cobro/clientes/{idCliente}/calcular-saldo`
-- DTOs: `CalcularSaldoRequestDto`, `CalcularSaldoResponseDto`
-- Pruebas unitarias para los 4 escenarios (exacto, sobrepago, tolerancia, insuficiente) y para conversión multi-divisa
+- `IAssociationBalanceCalculatorService` + `AssociationBalanceCalculatorService` en Application de Finanzas
+- Endpoint `POST /api/v1/validate-collection/client/{idCliente}/balance/calculate`
+- DTOs: `CalculateBalanceRequestDto`, `CalculateBalanceResponseDto`
+- Pruebas unitarias para los 4 escenarios (EXACT, OVERPAYMENT, TOLERANCE, INSUFFICIENT) y para conversión multi-divisa
 
 **Criterios de aceptación:**
-- `Escenario = EXACTO` cuando SaldoAsociacion = 0.
-- `Escenario = SOBREPAGO` cuando SaldoAsociacion > 0.
-- `Escenario = TOLERANCIA_100_MXN` cuando 0 > SaldoAsociacion AND ABS ≤ 100 MXN.
-- `Escenario = INSUFICIENTE` cuando SaldoAsociacion < 0 AND ABS > 100 MXN.
+- `Scenario = EXACT` cuando AssociationBalance = 0.
+- `Scenario = OVERPAYMENT` cuando AssociationBalance > 0.
+- `Scenario = TOLERANCE_100_MXN` cuando 0 > AssociationBalance AND ABS ≤ 100 MXN.
+- `Scenario = INSUFFICIENT` cuando AssociationBalance < 0 AND ABS > 100 MXN.
 - Los importes de documentos en moneda distinta a la del cobro se convierten correctamente al TC del Paso 1.
 - El TC aplicado por documento está disponible en el DTO de response para el tooltip del Front.
 
@@ -334,8 +334,8 @@ Ver sección *"Parte B / B3"* en `R16A-RE-FU-026-Back.md`. Ver reglas 7-11 y cri
 Implementar en Finanzas el endpoint transaccional que persiste en ProquifaDotNet toda la asociación del Paso 2 en una sola transacción: INSERT asociaciones cobro↔documentos, UPDATE NCs aplicadas, INSERT saldo a favor si aplica.
 
 **Objetivos específicos:**
-- Implementar `POST /api/validar-cobro/clientes/{idCliente}/confirmar-asociacion` en Finanzas.
-- Crear `ConfirmarAsociacionPaso2Command` + Handler.
+- Implementar `POST /api/v1/validate-collection/client/{idCliente}/associationConfirmation` en Finanzas.
+- Crear `ConfirmAssociationStep2Command` + Handler.
 - Validar en Finanzas que el escenario resultante no es INSUFICIENTE antes de enviar.
 - Llamar a ProquifaDotNet en transacción:
   - `INSERT fccPagoFacturaPedido` por cada cobro↔proforma normal.
@@ -346,20 +346,20 @@ Implementar en Finanzas el endpoint transaccional que persiste en ProquifaDotNet
 - Registrar en Serilog con contexto (usuario, módulo, operación).
 
 **Resultado esperado:**
-Endpoint `POST .../confirmar-asociacion` en Finanzas que persiste toda la asociación del Paso 2 en ProquifaDotNet en una sola transacción, lista para avanzar al Paso 3.
+Endpoint `POST .../associationConfirmation` en Finanzas que persiste toda la asociación del Paso 2 en ProquifaDotNet en una sola transacción, lista para avanzar al Paso 3.
 
 **Entregables:**
-- Endpoint `POST /api/validar-cobro/clientes/{idCliente}/confirmar-asociacion`
-- Command + Handler: `ConfirmarAsociacionPaso2Command`
-- DTO de request: `ConfirmarAsociacionRequestDto`
-- Pruebas unitarias (incluyendo rollback en error y bloqueo si escenario=INSUFICIENTE)
+- Endpoint `POST /api/v1/validate-collection/client/{idCliente}/associationConfirmation`
+- Command + Handler: `ConfirmAssociationStep2Command`
+- DTO de request: `ConfirmAssociationRequestDto`
+- Pruebas unitarias (incluyendo rollback en error y bloqueo si scenario=INSUFFICIENT)
 
 **Criterios de aceptación:**
 - Las asociaciones se insertan correctamente en `fccPagoFacturaPedido` y/o `fccPagoFacturaAdelanto`.
 - Las NCs aplicadas quedan con `Aplicada=1` e `IdFCCPagoCliente` poblado.
 - Si hay sobrepago, se inserta `fccSaldoFavorCliente` con `TipoSaldo='SaldoFavor'`.
 - Si hay tolerancia, se inserta `fccSaldoFavorCliente` con `TipoSaldo='ToleranciaAplicada'`.
-- Si el escenario es INSUFICIENTE, el endpoint retorna error y NO persiste nada.
+- Si el escenario es INSUFFICIENT, el endpoint retorna error y NO persiste nada.
 - Si cualquier operación falla, la transacción hace rollback completo.
 
 **Más información de la tarea:**
@@ -390,7 +390,7 @@ Ver sección *"Parte B / B4"* en `R16A-RE-FU-026-Back.md`. Ver reglas 8-11 en `R
 Extender en Finanzas el modal de inconsistencias para el Paso 2: filtrar tipos por `AplicaPaso='2'`, registrar la inconsistencia contra el cobro, y para el tipo `PAGO_INCOMPLETO_VENCIDO` habilitar y procesar el marcado del pedido como "Pendiente de cancelación por falta de pago".
 
 **Objetivos específicos:**
-- Extender el endpoint de catálogo de tipos de inconsistencia: `GET /api/validar-cobro/inconsistencias/tipos?paso=2`.
+- Extender el endpoint de catálogo de tipos de inconsistencia: `GET /api/v1/validate-collection/inconsistencyType?step=2`.
 - Extender el endpoint de registro de inconsistencias para el Paso 2 con detección del flag `AplicaMarkPendienteCancelacion`.
 - Si el tipo tiene `AplicaMarkPendienteCancelacion=1` y el usuario confirma el marcado: llamar a ProquifaDotNet para actualizar el estado del pedido.
 - Registrar en Serilog las inconsistencias del Paso 2 con contexto de usuario, módulo y operación.
@@ -399,8 +399,8 @@ Extender en Finanzas el modal de inconsistencias para el Paso 2: filtrar tipos p
 El modal de inconsistencias del Paso 2 en Finanzas retorna los tipos correctos (`AplicaPaso='2'`) y procesa el marcado del pedido cuando el tipo es `PAGO_INCOMPLETO_VENCIDO`.
 
 **Entregables:**
-- Extensión del endpoint `GET /api/validar-cobro/inconsistencias/tipos?paso=2`
-- Extensión del Command `RegistrarInconsistenciaCobroCommand` para manejar el flujo del Paso 2
+- Extensión del endpoint `GET /api/v1/validate-collection/inconsistencyType?step=2`
+- Extensión del Command `RegisterPaymentInconsistencyCommand` para manejar el flujo del Paso 2
 - Pruebas unitarias (incluyendo: solo tipos AplicaPaso=2, flujo PAGO_INCOMPLETO_VENCIDO con y sin marcado del pedido)
 
 **Criterios de aceptación:**
@@ -439,8 +439,8 @@ Ver sección *"Parte B / B5"* en `R16A-RE-FU-026-Back.md`. Ver reglas 12-14 en `
 Implementar en Finanzas el mecanismo de auto-guardado del estado de la asociación del Paso 2, preservando el progreso del usuario de forma transparente para que pueda retomar la sesión si navega fuera del Paso 2.
 
 **Objetivos específicos:**
-- Implementar `PUT /api/validar-cobro/clientes/{idCliente}/asociacion/borrador` en Finanzas.
-- Crear `AutoGuardarAsociacionCommand` + Handler.
+- Implementar `PUT /api/v1/validate-collection/client/{idCliente}/association/draft` en Finanzas.
+- Crear `AutoSaveAssociationCommand` + Handler.
 - Persistir en una estructura de sesión/borrador en ProquifaDotNet o en Finanzas: cobros seleccionados, documentos con orden, NCs seleccionadas, inconsistencias marcadas.
 - Respetar la editabilidad: el borrador puede sobrescribirse hasta que se ejecute la Tarea 7 (confirmación).
 - Definir el enfoque de persistencia del borrador (tabla auxiliar `fccAsociacionBorrador` u otro patrón).
@@ -449,9 +449,9 @@ Implementar en Finanzas el mecanismo de auto-guardado del estado de la asociaci�
 Mecanismo de auto-guardado del Paso 2 en Finanzas que preserva el estado de la asociación en progreso, permitiendo al usuario retomar la sesión del Paso 2 sin perder su trabajo.
 
 **Entregables:**
-- Endpoint `PUT /api/validar-cobro/clientes/{idCliente}/asociacion/borrador`
-- Command + Handler: `AutoGuardarAsociacionCommand`
-- DTO: `AutoGuardarAsociacionRequestDto`
+- Endpoint `PUT /api/v1/validate-collection/client/{idCliente}/association/draft`
+- Command + Handler: `AutoSaveAssociationCommand`
+- DTO: `AutoSaveAssociationRequestDto`
 - Pruebas unitarias (incluyendo sobrescritura de borrador previo)
 
 **Criterios de aceptación:**
@@ -465,4 +465,4 @@ Ver sección *"Parte B / B6"* en `R16A-RE-FU-026-Back.md`. Ver reglas 15 y 16 en
 
 **Recursos:**
 - `R16A-RE-FU-026-Back.md` — Parte B, sección B6
-- `R16A-RE-FU-026.md` — Reglas 15 y 16
+- `R16A-RE-FU-026.md` — Reglas 15 

@@ -17,16 +17,25 @@ Este requisito reutiliza el flujo de tramitacion Credito existente (R16A-RE-FU-0
 ## Nota importante sobre codigo existente
 
 > **El flujo anterior de Factura por Adelantado NO se reutilizara directamente.**
-> El desarrollador asignado debera revisar las entidades y logica existentes para determinar que es aprovechable.
+> **Actualización (06/07/2026):** el pendiente FAA de este requisito ya NO se modela con
+> `tpProformaAdelanto`. Se unifica con el esquema `fccFactura` + `fccFacturaPartida` +
+> `fccFacturaReferenciaBancaria` definido y creado en RE-FU-015, propiedad de
+> `ProquifaDotNet.Finanzas`. La diferencia con Prepago (RE-015) es que aquí
+> `fccFactura.IdTPProformaPedido` se puebla con la Confirmación de Pedido
+> (`tpProformaPedido`) generada en paralelo — ver `R16A-RE-FU-015_BD.md`, sección
+> "Migración de tpProformaAdelanto".
 >
-> **Archivos existentes a revisar:**
+> El desarrollador asignado debera revisar las entidades y logica existentes para determinar que es aprovechable, con el entendido de que el destino final es `fccFactura` (Finanzas), no `tpProformaAdelanto` (ProquifaDotNet).
+>
+> **Archivos legacy a revisar (solo como referencia de lógica de negocio, ya no como destino de datos):**
 > - `Logic.Pqf.Logistica\L05.TramitarPedido\Facturas\Anticipos\tpProformaAdelantoBO.cs`
 > - `Logic.Pqf.Logistica\L05.TramitarPedido\Facturas\Anticipos\tpProformaAdelantoBO.Extensions.cs`
 > - `WebApi.Logistica\Controllers\Procesos\L05.TramitarPedido\Facturas\tpProformaAdelantoController.cs`
 > - `Logic.Pqf.Logistica\L05.TramitarPedido\Facturas\Generadores\Anticipo\tpProformaAdelantoToCFDIGeneradaBO.cs`
 > - `Logic.Pqf.Logistica\L05.TramitarPedido\Facturas\Generadores\Anticipo\CFDIGeneradaConceptoAnticipoFactory.cs`
-> - Tablas BD: `tpProformaAdelanto`, `tpProformaAdelantoProformaPedido`, `fccPagoFacturaAdelanto`
-> - Entidades CFDI: `CFDIGenerada`, `CFDI`, `CFDIGeneradaConcepto`
+> - Tablas BD legacy (ya no aplican como destino): `tpProformaAdelanto`, `tpProformaAdelantoProformaPedido`
+> - Tabla BD vigente (FK migrada): `fccPagoFacturaAdelanto` (ver RE-FU-026/027)
+> - Entidades CFDI: `CFDIGenerada` (Finanzas, single source of truth), `CFDIGeneradaConcepto`
 
 ---
 
@@ -42,23 +51,28 @@ Este requisito reutiliza el flujo de tramitacion Credito existente (R16A-RE-FU-0
 | 1    | ESAC activa FAA en UI     | Front envia `tpPedido.FacturaPorAdelantado = 1`              |
 | 2    | Validaciones              | FAA solo Mexico, sin controlados, datos facturacion vigentes |
 | 3    | Tramitacion normal        | Flujo Credito completo (folio, PDF, partidas, correo)        |
-| 4    | Genera pendiente FAA      | INSERT en tabla de pendientes FAA (atomico con tramitacion)  |
+| 4    | Genera pendiente FAA      | INSERT atómico en `fccFactura`+`fccFacturaPartida`+`fccFacturaReferenciaBancaria` (Finanzas), en paralelo a `tpProformaPedido` |
 | 5    | Bloquea datos facturacion | Se fijan del catalogo del cliente                            |
 | 6    | Confirmacion de Pedido    | Se genera inmediatamente (no espera factura)                 |
 | 7    | Transferencia Legacy      | Solo Mexico (independiente de FAA)                           |
 
-### Datos del pendiente FAA a generar
+### Datos del pendiente FAA a generar (en `fccFactura` + detalle)
 
 | Dato | Origen |
 |------|--------|
+| IdTPPedido | tpPedido.IdTPPedido (FK directa) |
+| IdTPProformaPedido | Id de `tpProformaPedido` (Confirmación de Pedido) generada en paralelo |
 | Cliente | tpPedido.IdCliente |
 | Empresa | tpPedido.IdEmpresa |
 | Monto total | Calculado desde partidas del pedido |
-| Orden de compra | tpPedido.OrdenDeCompra / FolioPedidoInterno |
-| Datos facturacion | DatosFacturacionCliente vigente |
+| FolioPedidoInterno | tpPedido.FolioPedidoInterno |
+| Datos facturacion | Snapshot de DatosFacturacionCliente vigente |
 | Region | tpPedido.IdRegion (solo Mexico) |
 | Moneda | MXN o USD segun pedido |
-| Estado inicial | Pendiente de emision |
+| IdCFDIGenerada | NULL (pendiente de emisión) |
+| Enviada | 0 (pendiente de envío) |
+| fccFacturaPartida | Snapshot de las partidas del pedido |
+| fccFacturaReferenciaBancaria | Cuentas M.N./DLS del grupo PROQUIFA |
 
 ---
 
@@ -137,8 +151,8 @@ Dependencia de R16A-RE-FU-010 T3.
 
 | # | Gap | Accion | Esfuerzo |
 |---|-----|--------|----------|
-| GAP-01 | Revision de tpProformaAdelanto existente | Desarrollador revisa codigo/tablas para determinar aprovechabilidad | Medio |
-| GAP-02 | Generacion de pendiente FAA en transaccion de tramitacion | INSERT pendiente dentro de GenerarCorreoTramitarPedido() cuando FAA=1 | Medio |
+| GAP-01 | Revision de tpProformaAdelanto existente (solo como referencia de lógica) | Desarrollador revisa codigo/tablas legacy para determinar qué lógica es aprovechable hacia `fccFactura` | Medio |
+| GAP-02 | Generacion de pendiente FAA en transaccion de tramitacion | INSERT atómico en `fccFactura`+`fccFacturaPartida`+`fccFacturaReferenciaBancaria` (Finanzas) dentro de `GenerarCorreoTramitarPedido()` cuando FAA=1, en paralelo a `tpProformaPedido`, poblando `IdTPProformaPedido` | Medio |
 | GAP-03 | Validacion Back: FAA solo Mexico | Rechazar si FAA=1 y region != Mexico | Bajo |
 | GAP-04 | Eliminar codigo de autorizacion para FAA | Buscar y eliminar si existe | Bajo |
 | GAP-05 | Bloquear edicion datos facturacion con FAA activa | Validacion en endpoint de edicion | Bajo |
@@ -165,9 +179,11 @@ Sin cambios respecto a RE-FU-010. La FAA es un proceso paralelo independiente.
 | -------------- | ------------------------------------------------- |
 | R16A-RE-FU-010 | Flujo base Credito + Endpoint Cancelacion         |
 | R16A-RE-FU-011 | Restriccion: FAA NO compatible con controlados    |
-| R16A-RE-FU-018 | Generacion de factura (consumo del pendiente FAA) |
+| R16A-RE-FU-015 | Origen y dueño de `fccFactura`/`fccFacturaPartida`/`fccFacturaReferenciaBancaria`/`vfccFactura` — este requisito solo consume, poblando `IdTPProformaPedido` |
+| R16A-RE-FU-018 | Generacion de factura (consumo del pendiente FAA vía `vfccFactura`) |
 | R16A-RE-FU-019 | Generacion de CFDI                                |
 | R16A-RE-FU-020 | Timbrado fiscal (PAC)                             |
+| R16A-RE-FU-026/027 | Migración de `fccPagoFacturaAdelanto.IdTPProformaAdelanto` → `IdFccFactura` |
 
 ---
 
@@ -175,8 +191,8 @@ Sin cambios respecto a RE-FU-010. La FAA es un proceso paralelo independiente.
 
 El requisito R16A-RE-FU-012 tiene **impacto medio** en desarrollo. Comprende:
 
-**Bloque 1 (Tramitar Pedido):** Generar pendiente FAA atomicamente con la tramitacion + validaciones (solo Mexico, sin controlados, bloqueo datos, sin codigo autorizacion).
+**Bloque 1 (Tramitar Pedido):** Generar pendiente FAA en `fccFactura` (esquema de RE-FU-015) atomicamente con la tramitacion + validaciones (solo Mexico, sin controlados, bloqueo datos, sin codigo autorizacion). La diferencia con Prepago es que aquí `IdTPProformaPedido` se puebla con la Confirmación de Pedido generada en paralelo.
 
-**Bloque 2 (Vinculacion):** Asegurar que el pendiente generado sea consumido por el modulo de facturacion desarrollado en RE-FU-018/019/020.
+**Bloque 2 (Vinculacion):** Asegurar que el pendiente generado en `fccFactura` sea consumido por el modulo de facturacion desarrollado en RE-FU-018/019/020 (vía `vfccFactura`).
 
-El desarrollador asignado debe revisar `tpProformaAdelantoToCFDIGeneradaBO.cs` (codigo comentado) como referencia de la logica anterior de generacion de CFDI para anticipos.
+El desarrollador asignado debe revisar `tpProformaAdelantoToCFDIGeneradaBO.cs` (codigo comentado) como referencia de la logica anterior de generacion de CFDI para anticipos, adaptándola al destino `fccFactura`/`CFDIGenerada` en Finanzas.

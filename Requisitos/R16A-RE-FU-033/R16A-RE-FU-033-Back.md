@@ -33,12 +33,12 @@ Ver `R16A-RE-FU-033_BD.md` para scripts completos.
 
 ### B1 — Endpoint GET catálogo 09 SUNAT
 
-`GET /api/catalogos/motivos-nota-credito-sunat`
+`GET /api/v1/creditNoteReasonSunat`
 
 Retorna la lista de motivos activos del `catMotivoCreditoSUNAT09` con su `Modalidad`, para que el frontend determine automáticamente si debe mostrar la tabla de partidas o el formulario manual al seleccionar el motivo.
 
 ```
-MotivoCreditoSUNATDto {
+SunatCreditReasonDto {
     clave: string          // '01', '04', etc.
     descripcion: string    // Descripción SUNAT
     modalidad: string      // 'POR_PARTIDAS' | 'MANUAL'
@@ -56,7 +56,7 @@ Respuesta de ejemplo:
 
 ### B2 — Wizard Paso 1 — Búsqueda de factura origen (CPE vigente)
 
-Endpoint: `GET /api/nc-peru/facturas-elegibles?idCliente={id}`
+Endpoint: `GET /api/v1/client/{id}/eligibleInvoice`
 
 - Filtra `CFDIGenerada` con `TipoDocumento='01'` (CPE Factura) de la empresa Golocaer S.A.C., de clientes prepago de Región Perú.
 - Solo facturas con constancia SUNAT aceptada y sin NC de anulación previa (sin `fccNotaCredito` relacionada con `ResponseCode='01'` vigente).
@@ -64,7 +64,7 @@ Endpoint: `GET /api/nc-peru/facturas-elegibles?idCliente={id}`
 
 ### B3 — Wizard Paso 2 — Modalidad por partidas (motivos 01, 02, 03, 05, 06, 07)
 
-Endpoint: `GET /api/nc-peru/partidas-factura?idCFDIGenerada={id}`
+Endpoint: `GET /api/v1/cfdi/{id}/lineItem`
 
 - Carga `CFDIGeneradaConcepto` del CPE origen.
 - **Motivo 01 (Anulación):** pre-carga todas las partidas con `CantidadNC = CantidadFacturada`; no es editable por el usuario.
@@ -79,7 +79,7 @@ Endpoint: `GET /api/nc-peru/partidas-factura?idCFDIGenerada={id}`
 - Campo `Observaciones` opcional.
 - Cálculo automático: `IGV = MontoTotalNC × (18/118)`, `Subtotal = MontoTotalNC - IGV`.
 
-### B5 — Armado XML CPE tipo 07 (UBL 2.1) — NCPeruXmlBuilder
+### B5 — Armado XML CPE tipo 07 (UBL 2.1) — CreditNotePeruXmlBuilder
 
 Construye el XML de la NC conforme a la estructura UBL 2.1 SUNAT:
 
@@ -101,49 +101,50 @@ Construye el XML de la NC conforme a la estructura UBL 2.1 SUNAT:
 | `cac:CreditNoteLine` | Por partida (modalidad POR_PARTIDAS) o línea única (modalidad MANUAL) |
 | Régimen Tributario | Configuración empresa emisora + catálogo clientes ⚠️ pendiente validar P8 |
 
-**Diferencias clave vs NCMexicoXmlBuilder (RE-032):**
+**Diferencias clave vs CreditNoteMexicoXmlBuilder (RE-032):**
 - Sin `TipoRelacion='01'`, sin `UsoCFDI`, sin `MetodoPago`, sin `FormaPago`, sin UUID.
 - La referencia al CPE origen es por `serie-correlativo` en `cac:BillingReference`.
 - El tipo de cambio es `TipoCambioOrigen` (fecha de la factura origen), no el del día del timbrado.
 - No hay cancelación SAT condicional.
 
-### B6 — Previsualización PDF — Paso 3 (NCPeruPdfMappingService)
+### B6 — Previsualización PDF — Paso 3 (CreditNotePeruPdfMappingService)
 
-`NCPeruPdfMappingService` sigue el patrón de `NCMexicoPdfMappingService` (RE-032) con adaptaciones SUNAT:
+`CreditNotePeruPdfMappingService` sigue el patrón de `CreditNoteMexicoPdfMappingService` (RE-032) con adaptaciones SUNAT:
 
 - **Preview (Paso 3):** sin constancia SUNAT, sin número de orden OSE. Template `GOL_PER_NC`.
 - **Post-timbrado:** con datos de la constancia SUNAT (número, fecha, QR SUNAT si aplica).
 - `TemplateKey = 'GOL_PER_NC'` (fijo — solo empresa Golocaer S.A.C.).
 - El PDF muestra: folio serie-correlativo, RUC emisor/receptor, BillingReference, motivo catálogo 09, modalidad partidas o manual, IGV 18 %, total NC, moneda.
 
-Endpoint: `GET /api/nc-peru/preview-pdf?idFCCNotaCredito={id}` — retorna PDF en memoria sin timbrar.
+Endpoint: `GET /api/v1/creditNote/{id}/pdf/preview` — retorna PDF en memoria sin timbrar.
 
 ### B7 — Timbrado NC Perú, persistencia MinIO y correo automático
 
-`POST /api/nc-peru/timbrar?idFCCNotaCredito={id}`
+`POST /api/v1/creditNote/{id}/stamp`
 
 Orquesta la secuencia post-timbrado (⚠️ bloqueado por Brecha B1 — modalidad SUNAT pendiente):
 
-1. Llama al endpoint único de Timbrado (`POST /api/v1/cfdi`, discriminado por FiscalDocumentTypeId) con el `NCPeruTimbradorRequest`.
+1. Llama al endpoint único de Timbrado (`POST /api/v1/cfdi`, discriminado por FiscalDocumentTypeId) con el `CreditNotePeruStampingRequest`.
 2. Recibe respuesta con constancia SUNAT (número, estado, fecha).
-3. Genera PDF post-timbrado vía DocumentBuilder con `NCPeruPdfMappingService.MapearPostTimbrAsync()`.
-4. `PersistirNCPeruPdfService.PersistirAsync()`:
+3. Genera PDF post-timbrado vía DocumentBuilder con `CreditNotePeruPdfMappingService.MapearPostTimbrAsync()`.
+4. `PersistPeruCreditNotePdfService.PersistirAsync()`:
    - Resuelve bucket MinIO Perú desde `RegionConfiguracionMinioBucket` (Region='PER').
    - Sube PDF → MinIO en `notas-credito-per/notas_credito/{anio}/{mes}/{serie_correlativo}.pdf`.
    - Sube XML → MinIO en `notas-credito-per/notas_credito/{anio}/{mes}/{serie_correlativo}.xml`.
    - INSERT `Archivo` × 2 (PDF + XML).
    - INSERT `CFDIGeneradaConcepto` (si por partidas).
    - UPDATE `fccNotaCredito` (Estado='VIGENTE', IdArchivoPdf, IdArchivoXml, IdCFDIGenerada).
-5. Envía correo automático al cliente (PDF + XML adjuntos).
+5. Envía correo automático al cliente (PDF + XML adjuntos) vía el Aplicativo Nuevo **ProquifaDotNet.EnvioCorreo** (Reglas al diseñar, regla 7 — no se integra Brevo directamente desde Finanzas).
 6. INSERT `CorreoEnviado` + `ArchivoCorreoEnviado`.
-7. Navega al Paso 4 (NC Emitida).
+7. Registra el guardado de la Nota de Crédito en ProquifaDotNet.BitacoraCambios (Aplicativo Nuevo — Reglas al diseñar, regla 8).
+8. Navega al Paso 4 (NC Emitida).
 
 **Manejo de errores:** Si SUNAT retorna error, la NC permanece en estado previo (sin VIGENTE). El usuario puede reintentar.
 
 ### B8 — Consulta principal y drill-down por cliente
 
-- **Pantalla principal:** `GET /api/nc-peru?idCliente={id?}&moneda={m?}&fechaDesde={d?}&fechaHasta={h?}` — retorna NCs agrupadas por cliente (Total NC, Vigentes, Por Aplicar, Monto Total, Moneda).
-- **Drill-down:** `GET /api/nc-peru/cliente/{idCliente}` — lista NCs del cliente con folio (serie-correlativo), fecha, monto, estado, comprobante origen.
+- **Pantalla principal:** `GET /api/v1/creditNote?clientId={id?}&currency={m?}&dateFrom={d?}&dateTo={h?}` — retorna NCs agrupadas por cliente (Total NC, Vigentes, Por Aplicar, Monto Total, Moneda).
+- **Drill-down:** `GET /api/v1/client/{idCliente}/creditNote` — lista NCs del cliente con folio (serie-correlativo), fecha, monto, estado, comprobante origen.
 
 **Criterio A3 — Visibilidad por cartera del Cobrador — Perú (OBS-004) ⚠️ Pendiente de alcance:**
 Al igual que en México (RE-032 Criterio A5), la pantalla principal de NC Perú debe filtrar por los clientes asignados al Cobrador autenticado, usando JOIN sobre `vUsuarioCartera`. Sin embargo, el alcance de la cartera de Cobrador para Perú en R16 está pendiente de confirmación con el cliente.
@@ -152,7 +153,7 @@ Al igual que en México (RE-032 Criterio A5), la pantalla principal de NC Perú 
 
 ### B9 — Reenvío de correo
 
-`POST /api/nc-peru/{idFCCNotaCredito}/reenviar-correo` — reutiliza el mismo PDF/XML del `Archivo` y genera nuevo `CorreoEnviado`.
+`POST /api/v1/creditNote/{idFCCNotaCredito}/resendEmail` — reutiliza el mismo PDF/XML del `Archivo` y genera nuevo `CorreoEnviado`.
 
 ---
 
@@ -165,13 +166,13 @@ Al igual que en México (RE-032 Criterio A5), la pantalla principal de NC Perú 
 ⚠️ **Brecha B1 bloqueante:** La modalidad de emisión electrónica ante SUNAT no está definida. No se asume OSE ni se reutiliza TurboPac de México. Esta orquestación no puede implementarse hasta que RE-029 resuelva la brecha de timbrado SUNAT.
 
 Diseño anticipado (sujeto a cambio):
-- Recibe `NCPeruTimbradorRequest` con el XML UBL 2.1 armado por Finanzas.
+- Recibe `CreditNotePeruStampingRequest` con el XML UBL 2.1 armado por Finanzas.
 - Obtiene folio con UPDLOCK atómico sobre `EmpresaFolio` Serie NC Perú.
 - Envía XML al proveedor SUNAT (OSE/directa — pendiente).
 - Recibe respuesta con constancia de recepción.
 - INSERT `CFDIGenerada` con `TipoDocumento='07'`, `IdCatTipoCFDI`=NOTA_CREDITO_PERU.
 - UPDATE `EmpresaFolio.UltimoFolio`.
-- Retorna `NCPeruTimbradorResponse` a Finanzas.
+- Retorna `CreditNotePeruStampingResponse` a Finanzas.
 
 ---
 
@@ -223,7 +224,7 @@ Donde `{serie}` = ej. `FC01` y `{correlativo}` = ej. `00000001`.
 ### E3 — Flujo de persistencia
 
 ```
-Finanzas llama PersistirNCPeruPdfService
+Finanzas llama PersistPeruCreditNotePdfService
   → ResolveBucket(Region='PER', BucketClave='notas_credito')
   → DocumentBuilder.Generate(TemplateKey='GOL_PER_NC', model)
   → MinIO.Upload(pdf, ruta_pdf)
@@ -245,10 +246,10 @@ Perú **no transfiere datos a PCconnect** (mismo comportamiento que RE-029 Factu
 
 | Aspecto | RE-032 México | RE-033 Perú |
 |---|---|---|
-| Servicio XML | `NCMexicoXmlBuilder` | `NCPeruXmlBuilder` (nuevo) |
-| Servicio PDF | `NCMexicoPdfMappingService` | `NCPeruPdfMappingService` (nuevo) |
-| Servicio persistencia | `PersistirNCMexicoPdfService` | `PersistirNCPeruPdfService` (nuevo) |
-| Motivo endpoint | `GET /api/catalogos/motivos-cancelacion` | `GET /api/catalogos/motivos-nota-credito-sunat` |
+| Servicio XML | `CreditNoteMexicoXmlBuilder` | `CreditNotePeruXmlBuilder` (nuevo) |
+| Servicio PDF | `CreditNoteMexicoPdfMappingService` | `CreditNotePeruPdfMappingService` (nuevo) |
+| Servicio persistencia | `PersistMexicoCreditNotePdfService` | `PersistPeruCreditNotePdfService` (nuevo) |
+| Motivo endpoint | `GET /api/v1/cancellationReason` | `GET /api/v1/creditNoteReasonSunat` |
 | Cancelación SAT | POST cancelar-cfdi (condicional) | NO APLICA |
 | Tipo de cambio XML | Del día del timbrado | `TipoCambioOrigen` de la factura origen |
 | Referencia origen | `CFDIGeneradaRelacionado` (UUID) | `cac:BillingReference` en XML (serie-correlativo) |
@@ -264,13 +265,13 @@ Perú **no transfiere datos a PCconnect** (mismo comportamiento que RE-029 Factu
 |---|---|---|
 | P1 | Modalidad de emisión SUNAT — define la arquitectura del endpoint de Timbrado (Parte C) | C1 — bloqueante |
 | P2 | Motivos habilitados catálogo 09 (R16) — afecta DML y qué motivos se exponen en el endpoint | B1, B3, B4 |
-| P3 | Origen de `cbc:Description` — auto-generado o capturado por el usuario | B5, NCPeruXmlBuilder |
+| P3 | Origen de `cbc:Description` — auto-generado o capturado por el usuario | B5, CreditNotePeruXmlBuilder |
 | P4 | Serie y formato de folio NC Perú con PMO | C1, EmpresaFolio |
 | P5 | Estructura respuesta timbrado SUNAT (número constancia, estado, QR) — compartida RE-029 | C1, B7 |
 | P6 | Implementación Comunicación de Baja en R16 | Scope futuro — no en este requisito |
 | P7 | Tipo de cambio en aplicación de NC en moneda extranjera en Validar Cobro | Validar Cobro (fuera de scope RE-033) |
-| P8 | Régimen Tributario Perú emisor/receptor — etiqueta y valores en XML | NCPeruXmlBuilder |
-| P9 | Plantilla correo NC Perú en Brevo | B7 — correo automático |
+| P8 | Régimen Tributario Perú emisor/receptor — etiqueta y valores en XML | CreditNotePeruXmlBuilder |
+| P9 | Plantilla correo NC Perú en ProquifaDotNet.EnvioCorreo | B7 — correo automático |
 | P10 | Maquetas PDF NC Perú (R16A-RE-FU-035) | Parte D |
 
 ---
@@ -280,6 +281,6 @@ Perú **no transfiere datos a PCconnect** (mismo comportamiento que RE-029 Factu
 | ID | Brecha | Impacto |
 |---|---|---|
 | B1 | **Modalidad emisión SUNAT no definida** (OSE/directa) — no se reutiliza TurboPac de México | **Bloqueante para T7 y T10.** Las demás tareas pueden avanzar. |
-| B2 | **Estructura respuesta timbrado SUNAT desconocida** — constancia, número orden OSE, estado SUNAT | Depende de B1. Afecta PersistirNCPeruPdfService y template PDF post-timbrado. |
+| B2 | **Estructura respuesta timbrado SUNAT desconocida** — constancia, número orden OSE, estado SUNAT | Depende de B1. Afecta PersistPeruCreditNotePdfService y template PDF post-timbrado. |
 | B3 | **`fccNotaCredito.IdTPProformaPedido` NOT NULL** — heredada de RE-032 B1. Bloquea el ALTER TABLE si no fue resuelta. | Bloquea T1 si RE-032 B1 no está resuelta. |
 | B4 | **Comunicación de Baja sin definir** — si se implementa, requiere tabla `fccComunicacionBaja` y endpoint adicional fuera de este requisito | Sin bloqueo en RE-033. Documentado como pendiente P6. |

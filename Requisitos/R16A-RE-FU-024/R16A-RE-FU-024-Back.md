@@ -1,11 +1,11 @@
-﻿# Impacto en Back — R16A-RE-FU-024
+# Impacto en Back — R16A-RE-FU-024
 **Requisito:** Validar Cobro: Paso 1 México — Captura del Cobro
 **Aplicativos:** ProquifaDotNet (.NET Framework 4.8) + ProquifaDotNet.Finanzas (.NET Core 10)
 **Módulo:** Validar Cobro — Wizard Paso 1 (México)
-**Impacto:** Scripts BD ProquifaDotNet (ALTER fccPagoCliente x5 RE-FU-023 + **ALTER fccPagoCliente x2 NUEVOS RE-FU-024 (BloqueadoPorTimbrado, FechaBloqueoTimbrado)** + CREATE catTipoInconsistenciaCobro + CREATE fccInconsistenciaCobro + CREATE SEQUENCE SeqFolioCobro) + Endpoints Finanzas: listado cobros, detalle correo, captura/autoguardado/finalización cobro, **edición del cobro mientras no esté timbrado**, foliador COB, TC del día, modal inconsistencia + llamadas entre APIs (Finanzas → ProquifaDotNet)
+**Impacto:** Scripts BD ProquifaDotNet (ALTER fccPagoCliente x5 RE-FU-023 + **ALTER fccPagoCliente x2 NUEVOS RE-FU-024 (BloqueadoPorTimbrado, FechaBloqueoTimbrado)** + CREATE catTipoInconsistenciaCobro + CREATE fccInconsistenciaCobro + CREATE SEQUENCE SeqFolioCobro) + Endpoints Finanzas: listado cobros, detalle correo, captura/autoguardado/finalización cobro, **edición del cobro mientras no esté timbrado**, foliador COB, TC del día, modal inconsistencia + llamadas entre APIs (Finanzas → ProquifaDotNet, incluye catálogos existentes de moneda/medio de pago/cuenta destino)
 
 > **🔄 Cambio funcional 2026-06-23 — Editabilidad del cobro hasta el timbrado:**
-> La regla "cobro inmutable al confirmar" se actualizó a "cobro inmutable al timbrar el documento asociado en el Paso 3". Impacto en Back: (1) nuevo campo BD `BloqueadoPorTimbrado` + `FechaBloqueoTimbrado` en `fccPagoCliente`; (2) el endpoint de finalización de la captura (B5) ya no aplica inmutabilidad, solo genera folio COB y marca `Confirmado=1`; (3) **nuevo endpoint B9 — Editar cobro** que permite UPDATE del formulario completo mientras `BloqueadoPorTimbrado=0` (aun si el cobro ya está asociado en Paso 2); (4) el listado de cobros (B1) debe retornar el flag `puedeEditar` para que la UI condicione el botón Editar; (5) las guardias de los endpoints de auto-guardado y edición evalúan `BloqueadoPorTimbrado` en lugar de `Confirmado`; (6) el flip de `BloqueadoPorTimbrado=1` lo dispara el Paso 3 al timbrar el documento asociado (UPDATE sobre todas las `fccPagoCliente` aplicadas a ese documento).
+> La regla "cobro inmutable al confirmar" se actualizó a "cobro inmutable al timbrar el documento asociado en el Paso 3". Impacto en Back: (1) nuevo campo BD `BloqueadoPorTimbrado` + `FechaBloqueoTimbrado` en `fccPagoCliente`; (2) el endpoint de finalización de la captura (B5) ya no aplica inmutabilidad, solo genera folio COB y marca `Confirmado=1`; (3) **nuevo endpoint B9 — Editar cobro** que permite UPDATE del formulario completo mientras `BloqueadoPorTimbrado=0` (aun si el cobro ya está asociado en Paso 2); (4) el listado de cobros (B1) debe retornar el flag `canEdit` para que la UI condicione el botón Editar; (5) las guardias de los endpoints de auto-guardado y edición evalúan `BloqueadoPorTimbrado` en lugar de `Confirmado`; (6) el flip de `BloqueadoPorTimbrado=1` lo dispara el Paso 3 al timbrar el documento asociado (UPDATE sobre todas las `fccPagoCliente` aplicadas a ese documento).
 
 ---
 
@@ -13,7 +13,7 @@
 
 Este requisito implementa la **primera pantalla del wizard de Validar Cobro (Paso 1 - Captura del Cobro) para Región México** en ProquifaDotNet.Finanzas. El usuario revisa los correos del Buzón del cliente, selecciona el comprobante de pago adjunto y captura los datos del cobro (folio, monto, fecha, forma de pago SAT, cuenta origen/destino, **moneda via combo catMoneda**, TC del día). Un cobro capturado se guarda en modo lectura y permanece **editable mediante botón Editar mientras el documento asociado no haya sido timbrado en el Paso 3**, aun si el cobro ya está asociado en el Paso 2. Al timbrar el documento asociado, el cobro queda inmutable (sin botón Editar). Permite capturar múltiples cobros en la misma sesión con auto-guardado transparente.
 
-> **OBS-048 — Reanudación del wizard en el último paso activo:** Al ingresar al wizard para un cliente, Finanzas evalúa el estado actual del flujo (via `GET /api/validar-cobro/clientes/{idCliente}/estado-wizard`) y redirige al último paso activo donde el usuario se encontraba, no necesariamente al Paso 1. Si el Paso 1 ya tiene cobros confirmados pero el Paso 2 está pendiente, el wizard abre en el Paso 2 directamente.
+> **OBS-048 — Reanudación del wizard en el último paso activo:** Al ingresar al wizard para un cliente, Finanzas evalúa el estado actual del flujo (via `GET /api/v1/validate-collection/client/{idCliente}/wizardStatus`) y redirige al último paso activo donde el usuario se encontraba, no necesariamente al Paso 1. Si el Paso 1 ya tiene cobros confirmados pero el Paso 2 está pendiente, el wizard abre en el Paso 2 directamente.
 
 El impacto en BD (ProquifaDotNet) es **moderado**: 5 ALTER ya ejecutados en RE-FU-023 (Confirmado + FechaConfirmacion + IdUsuarioConfirmacion + Notas + IdCatMoneda) + **2 ALTER nuevos en RE-FU-024 (BloqueadoPorTimbrado + FechaBloqueoTimbrado)** + 2 tablas nuevas + 1 SEQUENCE. El impacto en servicios (Finanzas) es **alto**: orquestación completa del Paso 1 más un nuevo endpoint de edición del cobro post-captura.
 
@@ -22,10 +22,11 @@ El impacto en BD (ProquifaDotNet) es **moderado**: 5 ALTER ya ejecutados en RE-F
 | Capa | Aplicativo | Responsabilidad |
 |------|-----------|----------------|
 | BD | ProquifaDotNet | `fccPagoCliente`, `catTipoInconsistenciaCobro`, `fccInconsistenciaCobro`, `SeqFolioCobro` |
-| API Datos | ProquifaDotNet | Expone endpoints de Buzón (correos, adjuntos), cobros, catálogos (moneda, medio de pago, cuentas), inconsistencias |
+| API Datos | ProquifaDotNet | Expone endpoints de Buzón (correos, adjuntos) — siguen activos para Venta Interna, no deprecados; Finanzas construye sus propios endpoints en paralelo (ver Parte C) |
+| Catálogos | ProquifaDotNet (existente) | `POST /Catalogos/{catMoneda,catMedioDePago,vEmpresaDatosBancarios}` — consumidos directamente por el frontend de Validar Cobro; Finanzas no crea endpoints propios (activos, no deprecados — ver Parte C) |
 | Lógica Paso 1 | ProquifaDotNet.Finanzas | Orquesta el Paso 1: listado cobros, captura, auto-guardado, confirmación, TC, inconsistencias |
 | TC del día | ProquifaDotNet.Finanzas | Calcula TC FIX Banxico/DOF (fuente pendiente de confirmar) para la moneda no-MXN involucrada |
-| Comunicación | Finanzas → ProquifaDotNet | Llamadas entre APIs para leer Buzón y escribir cobros e inconsistencias |
+| Comunicación | Finanzas → ProquifaDotNet | Lecturas de origen de datos (`CorreoRecibido`, `Archivo`) para construir sus propios endpoints `/api/v1/validate-collection/*` (Buzón); catálogos (`catMoneda`, `catMedioDePago`, `EmpresaDatosBancarios`) consumidos directamente por el frontend sin intermediario; escritura de cobros e inconsistencias |
 
 ### Infraestructura reutilizada
 
@@ -174,37 +175,34 @@ CREATE SEQUENCE dbo.SeqFolioCobro
 
 **Datos (vía API ProquifaDotNet):** `fccFolioPagoCliente`, `CorreoRecibidoCliente`, `fccPagoCliente`, `catMoneda`
 
-| Estado item | Muestra | Ordenamiento | `puedeEditar` (flag DTO) |
+| Estado item | Muestra | Ordenamiento | `canEdit` (flag DTO) |
 |-------------|---------|-------------|--------------------------|
 | Capturado editable (`Confirmado=1 AND BloqueadoPorTimbrado=0`) | Folio COB-mmddaa-NNNN, fecha, monto + moneda | Por `FechaPago ASC` | `true` (UI muestra botón Editar) |
 | Capturado inmutable (`Confirmado=1 AND BloqueadoPorTimbrado=1`) | Folio COB-mmddaa-NNNN, fecha, monto + moneda; o etiqueta "Saldo a favor" si aplica | Por `FechaPago ASC` | `false` (UI NO muestra botón Editar) |
 | Sin capturar | Etiqueta temporal "COB-N" | Por `FechaRecepcion ASC` del correo | N/A |
 
-> El DTO `ValidarCobroPaso1ItemDto` debe exponer el flag `puedeEditar` para que el Front condicione la visibilidad del botón Editar. Cálculo en el Handler: `puedeEditar = Confirmado && !BloqueadoPorTimbrado`.
+> El DTO `PaymentValidationStep1ItemDto` debe exponer el flag `canEdit` para que el Front condicione la visibilidad del botón Editar. Cálculo en el Handler: `canEdit = Confirmado && !BloqueadoPorTimbrado`.
 
 ---
 
 ### B2 — Detalle del correo y adjuntos (selección del comprobante)
 
-**Descripción:** Endpoint que retorna el detalle del correo seleccionado (asunto, cuerpo, fecha, hora, contacto del cliente) y la lista de adjuntos como opciones de radio button para seleccionar el comprobante.
+**Descripción:** El detalle del correo seleccionado (asunto, cuerpo, fecha, hora, contacto del cliente) y la lista de adjuntos como opciones de radio button para seleccionar el comprobante se consumen **directamente** de los endpoints existentes de ProquifaDotNet — Finanzas **no crea endpoint propio** para este flujo (confirmado por captura de tráfico HTTP real, 07/07/2026).
 
-**Datos (vía API ProquifaDotNet):** `CorreoRecibido`, `ArchivoCorreoRecibido`, `ContactoCliente`, `Archivo`
+| Endpoint | Método | Parámetros | Descripción |
+|----------|--------|-----------|-------------|
+| `/Catalogos/CorreoRecibido` | GET | `?idCorreoRecibido={guid}` | Datos del correo: asunto, fecha, hora, contacto |
+| `/Catalogos/CorreoRecibidoContenido` | GET | `?idCorreoRecibidoContenido={guid}` | Cuerpo/contenido del correo |
+| `/Catalogos/ArchivoCorreoRecibido` | POST | Body: `{ Filters: [{Activo:true},{IdCorreoRecibido:{guid}},{Mostrar:true}], GroupColumn }` | Lista de adjuntos del correo, candidatos a comprobante |
+| `/Catalogos/Archivo` | GET | `?idArchivo={guid}` | Detalle/descarga de un adjunto específico |
 
----
+> **Catálogos, no deprecados:** los endpoints de ProquifaDotNet (`/Catalogos/CorreoRecibido`, `/Catalogos/CorreoRecibidoContenido`, `/Catalogos/ArchivoCorreoRecibido`, `/Catalogos/Archivo`) siguen activos y en uso por Venta Interna — no se deprecan, y el frontend de Validar Cobro (Finanzas) los consume directamente sin intermediario — ver `Endpoints-ProquifaDotNet.md`.
 
-### B3 — Catálogos del formulario del Paso 1
-
-**Descripción:** Endpoints de catálogos para poblar los combos del formulario de captura del cobro.
-
-| Endpoint | Catálogo | Filtro |
-|----------|---------|--------|
-| `GET /api/validar-cobro/catalogos/monedas` | `catMoneda` | `Activo=1` |
-| `GET /api/validar-cobro/catalogos/medios-pago?region=MEX` | `catMedioDePago` | `ClaveFormaDePago IS NOT NULL` (SAT) |
-| `GET /api/validar-cobro/catalogos/cuentas-destino?region=MEX` | `EmpresaDatosBancarios + DatosBancarios` | Empresas GOL/MUN/PRO/PQF, región MEX |
-
-> El combo "Moneda" carga desde `catMoneda` y se persiste como `IdCatMoneda` en `fccPagoCliente`.
+**Datos (vía API ProquifaDotNet, consumidos directamente por el frontend):** `CorreoRecibido`, `CorreoRecibidoContenido`, `ArchivoCorreoRecibido`, `Archivo`, `ContactoCliente`
 
 ---
+
+> **Nota:** Los catálogos del formulario del Paso 1 (moneda, medio de pago, cuenta destino) son endpoints de **Finanzas** — ver Parte C. Los equivalentes en ProquifaDotNet (Catálogos) no se deprecan — siguen activos para Venta Interna.
 
 ### B4 — Auto-guardado del cobro en borrador
 
@@ -263,8 +261,8 @@ WHERE IdFCCPagoCliente    = @Id
 **Descripción:** Endpoint en Finanzas que obtiene los tipos del catálogo filtrados por `AplicaPaso='1'` y registra la inconsistencia en `fccInconsistenciaCobro`.
 
 **Endpoints:**
-- `GET /api/validar-cobro/inconsistencias/tipos?paso=1` → catálogo filtrado (solo tipos del Paso 1)
-- `POST /api/validar-cobro/clientes/{idCliente}/cobros/{idFCCPagoCliente}/inconsistencias` → INSERT en `fccInconsistenciaCobro`
+- `GET /api/v1/validate-collection/inconsistencyType?step=1` → catálogo filtrado (solo tipos del Paso 1)
+- `POST /api/v1/validate-collection/client/{idCliente}/payment/{idFCCPagoCliente}/inconsistency` → INSERT en `fccInconsistenciaCobro`
 
 ---
 
@@ -272,7 +270,7 @@ WHERE IdFCCPagoCliente    = @Id
 
 **Descripción:** Endpoint en Finanzas que retorna el paso activo actual del wizard para un cliente, permitiendo que la UI rediriga al último paso donde el usuario se encontraba en lugar de siempre abrir en el Paso 1.
 
-**Endpoint:** `GET /api/validar-cobro/clientes/{idCliente}/estado-wizard`
+**Endpoint:** `GET /api/v1/validate-collection/client/{idCliente}/wizardStatus`
 
 **Lógica de determinación del paso activo:**
 
@@ -286,10 +284,10 @@ WHERE IdFCCPagoCliente    = @Id
 **DTO de respuesta:**
 ```json
 {
-  "pasoActivo": 1,
-  "descripcion": "Captura del Cobro",
-  "tieneBorador": true,
-  "idFCCPagoClienteBorrador": "guid-opcional"
+  "activeStep": 1,
+  "description": "Captura del Cobro",
+  "hasDraft": true,
+  "draftPaymentId": "guid-opcional"
 }
 ```
 
@@ -301,12 +299,12 @@ WHERE IdFCCPagoCliente    = @Id
 
 **Descripción:** Endpoint `PUT` en Finanzas que permite **editar un cobro ya capturado** (`Confirmado=1`) mientras el documento asociado al cobro NO haya sido timbrado (`BloqueadoPorTimbrado=0`). Disparado por el botón "Editar" del item del listado del Paso 1. Aplica aun si el cobro ya está asociado en el Paso 2 (no requiere desasociar para editar).
 
-**Endpoint:** `PUT /api/validar-cobro/clientes/{idCliente}/cobros/{idFCCPagoCliente}/editar`
+**Endpoint:** `PUT /api/v1/validate-collection/payment/{idFCCPagoCliente}/edit`
 
 **Flujo en Finanzas:**
 1. Cargar el cobro y verificar `Confirmado=1`
 2. Verificar `BloqueadoPorTimbrado=0` (si está bloqueado, retornar `409 Conflict — Cobro inmutable por timbrado`)
-3. Si el usuario cambia `IdCatMoneda` o `FechaPago`, **recalcular TC** vía B6 (`TipoCambioMexicoService`)
+3. Si el usuario cambia `IdCatMoneda` o `FechaPago`, **recalcular TC** vía B6 (`MexicoExchangeRateService`)
 4. Validar comprobante seleccionado (sigue siendo obligatorio) y campos obligatorios
 5. NO regenerar `Folio` (el folio se mantiene)
 6. Persistir cambios vía UPDATE en ProquifaDotNet
@@ -366,6 +364,26 @@ WHERE ap.IdDocumento           = @IdDocumentoTimbrado
 
 ---
 
+## Parte C — Catálogos del formulario del Paso 1 (ProquifaDotNet.Finanzas)
+
+### C1 — Catálogos del formulario del Paso 1
+
+**Descripción:** Los 3 combos del formulario de captura del cobro (Moneda, Medio de pago, Cuenta destino) consumen **directamente** los endpoints existentes de ProquifaDotNet (Área Catálogos) — Finanzas **no crea endpoints propios** para estos catálogos; no es una nueva app ni un wrapper.
+
+| Endpoint | Método | Body | Descripción |
+|----------|--------|------|-------------|
+| `/Catalogos/catMoneda` | POST | `QueryInfo` (`Activo = 1`) | Obtener las monedas activas dependiendo de la región del usuario logueado |
+| `/Catalogos/catMedioDePago` | POST | `QueryInfo` (`Activo = 1`) | Obtener los medios de pago activos dependiendo de la región del usuario logueado |
+| `/Catalogos/vEmpresaDatosBancarios` | POST | `QueryInfo` (`Activo = 1`) | Obtener los datos bancarios de las empresas activas dependiendo de la región del usuario logueado |
+
+> **Catálogos, no deprecados:** los endpoints de ProquifaDotNet (`/Catalogos/catMoneda`, `/Catalogos/catMedioDePago`, `/Catalogos/vEmpresaDatosBancarios`) siguen activos y en uso por Venta Interna — no se deprecan, y el frontend de Validar Cobro (Finanzas) los consume directamente sin intermediario — ver `Endpoints-ProquifaDotNet.md`.
+
+> El combo "Moneda" carga desde `catMoneda` y se persiste como `IdCatMoneda` en `fccPagoCliente`.
+> `catMedioDePago` y `vEmpresaDatosBancarios` ya tienen filtro de región implementado (RE-FU-005 y RE-FU-001 respectivamente — ver `Endpoints-ProquifaDotNet.md`). Pendiente confirmar si `catMoneda` ya cuenta con el mismo filtro de región o si requiere el mismo tratamiento aplicado a `catMedioDePago` en RE-FU-005 (columna `IdRegion` + `BaseApiController`/`AsegurarFiltroRegion`) — ver Brechas.
+> Estos endpoints son de propósito general (no exclusivos de Validar Cobro); no deben re-implementarse ni envolverse en requisitos posteriores que también los necesiten (p. ej. RE-FU-025, RE-FU-032/033) — solo referenciarlos como dependencia de consumo directo.
+
+---
+
 ## Brechas
 
 > ⚠️ **BRECHA — Catálogo de Tipos de Inconsistencia del Paso 1 pendiente (Riesgo 1)**
@@ -380,8 +398,7 @@ WHERE ap.IdDocumento           = @IdDocumentoTimbrado
 > ⚠️ **BRECHA — Flags MXN/USD vs IdCatMoneda**
 > Pendiente confirmar si los flags `MXN`/`USD` existentes se deprecan o conviven con `IdCatMoneda`.
 
-> ⚠️ **BRECHA — Re-evaluación del Paso 2 al editar un cobro asociado (RE-FU-024)**
-> Cuando el cobro se edita vía B9 (Editar) y ya estaba asociado a uno o varios documentos en el Paso 2, las conversiones operativas dependientes del cobro (monto aplicado, TC, residual, saldo) pueden quedar desactualizadas. Pendiente definir en RE-FU-026 (Paso 2 México) el mecanismo de re-evaluación: recalcular automáticamente al consultar, exigir reconfirmar la asociación al usuario, o emitir evento/notificación al usuario del Paso 2.
+> ⚠️ **BRECHA — Filtro de región en `/Catalogos/catMoneda` (RE-FU-024)**
+> `catMedioDePago` y `vEmpresaDatosBancarios` ya filtran por región del usuario logueado (RE-FU-005 / RE-FU-001). No hay confirmación de que `catMoneda` tenga el mismo tratamiento — la tabla `catMoneda` no muestra columna `IdRegion` en el ER actual. Si falta, requiere el mismo patrón aplicado en RE-FU-005 (GAP-04): ALTER TABLE + `IdRegion` + Controller heredando `BaseApiController` con `AsegurarFiltroRegion`.
 
-> ⚠️ **BRECHA — Disparador del bloqueo desde Paso 3 (RE-FU-024)**
-> La tabla de aplicación del Paso 2 (`<tabla_aplicacion_paso2>`) referenciada en el UPDATE de B10 se define formalmente en RE-FU-026. La invocación de B10 desde el flujo del Paso 3 debe cubrirse en el requisito correspondiente de Paso 3 (aún no asignado).
+> ⚠

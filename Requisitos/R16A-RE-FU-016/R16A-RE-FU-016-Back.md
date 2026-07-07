@@ -37,7 +37,9 @@ ProquifaDotNet (Venta Interna)     ProquifaDotNet.Finanzas          DocumentBuil
 | **Domain** | Entidad Proforma, interfaces de repositorio |
 | **Application** | Command GenerarProformaPDF, Query ConsultarProformaPDF, DTO ProformaModel |
 | **Infrastructure** | EF Core (consulta BD ProquifaDotNet), Minio (almacenamiento PDF), cliente HTTP DocumentBuilder |
-| **API** | Endpoint POST /api/proforma/generar-pdf, GET /api/proforma/{id}/pdf |
+| **API** | Endpoint POST /api/v1/proforma/{id}/pdf (generar/previsualizar), GET /api/v1/proforma/{id}/pdf (consultar ya persistido) |
+
+> **Nota (Reglas al diseñar — regla 9, corrección):** las rutas de este endpoint se corrigieron de `/api/proforma/generar-pdf` y `/api/proforma/{id}/pdf` (sin versionar) a `api/v1/{resource}/{id}/{subresource}` — recurso singular `proforma`, subrecurso `pdf`, diferenciado por verbo HTTP (POST genera/previsualiza, GET consulta lo ya persistido). `POST api/Report/proforma` (DocumentBuilder) es un servicio externo existente y no está sujeto a esta regla.
 
 ### Integraciones de Finanzas para este requisito
 | Integración | Uso |
@@ -178,8 +180,8 @@ ProquifaDotNet (Venta Interna)     ProquifaDotNet.Finanzas          DocumentBuil
 | GAP-02 | Crear DTO ProformaModel y BO de armado | Consultar BD ProquifaDotNet (EF Core scaffold), armar objeto completo con datos de 15+ tablas | Alto |
 | GAP-03 | Integración con DocumentBuilder (cliente HTTP) | Llamar `POST api/Report/proforma` desde Infrastructure, retornar byte[] | Medio |
 | GAP-04 | Integración con Minio (persistencia PDF) | Al envío exitoso: subir PDF al bucket 'pedidos', registrar en tabla Archivo | Medio |
-| GAP-05 | Endpoint generación bajo demanda (previsualización) | `POST /api/proforma/generar-pdf` — genera sin persistir, retorna byte[] | Medio |
-| GAP-06 | Endpoint consulta histórica | `GET /api/proforma/{id}/pdf` — descarga PDF de Minio (sin regenerar) | Bajo |
+| GAP-05 | Endpoint generación bajo demanda (previsualización) | `POST /api/v1/proforma/{id}/pdf` — genera sin persistir, retorna byte[] | Medio |
+| GAP-06 | Endpoint consulta histórica | `GET /api/v1/proforma/{id}/pdf` — descarga PDF de Minio (sin regenerar) | Bajo |
 | GAP-07 | Foliador con SEQUENCE | Consumir `NEXT VALUE FOR dbo.SeqFolioProforma` al confirmar envío, formato MMDDAA-Consecutivo | Medio |
 | GAP-08 | Lógica del Código Validador (REF. CLIENTE) | Banamex=7 segmentos; no-Banamex=nombre cliente directo | Medio |
 | GAP-09 | Conversión monto a letras | MXN: "PESOS XX/100 M.N." / USD: "DOLARES XX/100" | Bajo |
@@ -211,7 +213,7 @@ ProquifaDotNet (Venta Interna)     ProquifaDotNet.Finanzas          DocumentBuil
 
 ```
 1. ESAC presiona "Tramitar" (Prepago sin FAA, México)
-2. ProquifaDotNet llama API ProquifaDotNet.Finanzas: POST /api/proforma/generar-pdf
+2. ProquifaDotNet llama API ProquifaDotNet.Finanzas: POST /api/v1/proforma/{id}/pdf
 3. Finanzas consulta datos de BD ProquifaDotNet (EF Core scaffold):
    - tpPedido, tpProformaPedido, tpProformaPartidaPedido, Producto, MarcaFamilia
    - Cliente, DatosFacturacionCliente, Empresa, EmpresaDatosBancarios
@@ -229,7 +231,7 @@ ProquifaDotNet (Venta Interna)     ProquifaDotNet.Finanzas          DocumentBuil
     - Sube PDF a Minio (bucket 'pedidos', key 'proformas/PRF-MMDDAA-XXX.pdf')
     - INSERT Archivo + UPDATE tpPedido.IdArchivo
     - UPDATE tpProformaPedido.FolioProforma + ConsecutivoProforma
-12. PDF consultable desde Validar Cobro via GET /api/proforma/{id}/pdf
+12. PDF consultable desde Validar Cobro via GET /api/v1/proforma/{id}/pdf
 ```
 
 ---

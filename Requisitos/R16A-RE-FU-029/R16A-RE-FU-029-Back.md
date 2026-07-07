@@ -2,7 +2,7 @@
 **Requisito:** Validar Cobro: Paso 3 Perú — Facturación y Envío
 **Aplicativos:** ProquifaDotNet (.NET Framework 4.8) + ProquifaDotNet.Finanzas (.NET Core 10) + ProquifaDotNet.Timbrado (.NET Core 10) + DocumentBuilder
 **Módulo:** Validar Cobro — Wizard Paso 3 (Perú)
-**Impacto:** Scripts BD ProquifaDotNet (1 catálogo nuevo + 2 ALTER tablas + 1 ALTER vista) + Endpoints Finanzas: inicialización Paso 3 Perú, auto-guardado catálogos SUNAT, previsualización PDF, timbrado CPE único (sin cascada), envío Brevo con adjuntos + acciones post-envío (FEE, Confirmación de Pedido). Comunicación Finanzas → Timbrado vía API. **Sin transferencia a Legacy. Solo Perú — operaciones unitarias por línea, tipo único: Factura electrónica.**
+**Impacto:** Scripts BD ProquifaDotNet (1 catálogo nuevo + 2 ALTER tablas + 1 ALTER vista) + Endpoints Finanzas: inicialización Paso 3 Perú, auto-guardado catálogos SUNAT, previsualización PDF, timbrado CPE único (sin cascada), envío vía ProquifaDotNet.EnvioCorreo con adjuntos + acciones post-envío (FEE, Confirmación de Pedido). Comunicación Finanzas → Timbrado vía API. **Sin transferencia a Legacy. Solo Perú — operaciones unitarias por línea, tipo único: Factura electrónica.**
 
 ---
 
@@ -33,7 +33,7 @@ Al confirmar el envío de cada línea, Finanzas dispara dos acciones automática
 | Timbrado | ProquifaDotNet.Timbrado | Timbrado CPE SUNAT, `INSERT CFDIGenerada` (`IdCatTipoCFDI = FACTURA_CPE`), `UPDATE EmpresaFolio GOLPERU` |
 | Previsualización PDF | DocumentBuilder | PDF CPE Perú via template `GOLPERU_PER_FAC` (RE-FU-020) |
 | Generación CDP | DocumentBuilder | PDF Confirmación de Pedido Perú via `GOLPERU_PER_CDP` (nueva — este requisito) |
-| Envío | ProquifaDotNet.Finanzas | Modal envío, integración Brevo (PDF CPE + XML CPE + PDF CDP adjuntos) |
+| Envío | ProquifaDotNet.Finanzas | Modal envío, integración con ProquifaDotNet.EnvioCorreo (Aplicativo Nuevo — PDF CPE + XML CPE + PDF CDP adjuntos, regla 7) |
 | Post-envío | ProquifaDotNet.Finanzas | FEE en `tpPedido`, generación `fccConfirmacionPedido` en MinIO. **Sin Legacy.** |
 | Comunicación | Finanzas → Timbrado | Llamadas entre APIs para timbrado de cada CPE |
 | Comunicación | Finanzas → ProquifaDotNet | Llamadas entre APIs para leer datos y escribir resultados del Paso 3 |
@@ -55,7 +55,7 @@ Al confirmar el envío de cada línea, Finanzas dispara dos acciones automática
 | `fccPagoFacturaAdelanto` | RE-FU-026 | FK desde `fccDocumentoFiscalCobro` (origen FAA Perú; sin documento fiscal — Regla 4) |
 | `DatosFacturacionCliente` | RE-FU-004 | RUC, Razón Social receptor del CPE UBL 2.1 |
 | `Empresa` (GOLPERU) | RE-FU-020 | RUC Emisor, Razón Social emisora; datos fiscales pendientes (Brecha B4) |
-| `FacturaPdfMappingService` Perú | RE-FU-020 | Consolidación datos CPE en `FacturaPdfModel`; template `GOLPERU_PER_FAC` |
+| `FacturaPdfMappingService` Perú | RE-FU-020 | Consolidación datos CPE en `InvoicePdfModel`; template `GOLPERU_PER_FAC` |
 | `ApiCallerStamping` (HttpClient + Polly) | RE-FU-019 | Cliente HTTP con retry policy hacia Timbrado — reutilizado sin cambios |
 | `tpProformaPedido.IdCFDIGenerada` | RE-FU-026 | Campo existente; Perú lo puebla con el `IdCFDIGenerada` del CPE timbrado |
 
@@ -181,7 +181,7 @@ WHERE IdFCCDocumentoFiscalCobro = @Id
 
 **Flujo:**
 1. Finanzas lee `vfccDocumentoFiscalCobro` + `fccNotaCredito` (NCs a incluir en la factura, pendiente de mecánica SUNAT — ver Brecha B3).
-2. Invoca `FacturaPdfMappingService.MapearPreviewAsync()` Perú (RE-FU-020) — consolida datos en `FacturaPdfModel` UBL 2.1 sin CDR/sello digital, resuelve `TemplateKey` = `GOLPERU_PER_FAC`.
+2. Invoca `FacturaPdfMappingService.MapearPreviewAsync()` Perú (RE-FU-020) — consolida datos en `InvoicePdfModel` UBL 2.1 sin CDR/sello digital, resuelve `TemplateKey` = `GOLPERU_PER_FAC`.
 3. Genera PDF en memoria vía DocumentBuilder.
 4. Retorna el PDF en memoria al frontend para el modal de previsualización.
 5. Sin escrituras en BD.
@@ -217,9 +217,9 @@ WHERE IdFCCDocumentoFiscalCobro = @Id
 
 > ⚠️ **Brecha B1 — BLOQUEANTE:** Modalidad de emisión SUNAT no definida. No se puede implementar el módulo de timbrado Perú hasta que se resuelva (ver Brechas).
 
-### B5 — Modal de Envío y despacho con Brevo
+### B5 — Modal de Envío y despacho vía ProquifaDotNet.EnvioCorreo
 
-**Descripción:** Al presionar "Enviar" en una línea en estado `GENERADO`, Finanzas abre el modal de envío y, al confirmar, despacha el correo vía Brevo.
+**Descripción:** Al presionar "Enviar" en una línea en estado `GENERADO`, Finanzas abre el modal de envío y, al confirmar, despacha el correo a través del Aplicativo Nuevo **ProquifaDotNet.EnvioCorreo** (Reglas al diseñar, regla 7).
 
 **Destinatarios:**
 - **Para:** Contacto del cliente del pedido (`tpPedido.IdContacto`) — editable en el modal.
@@ -241,6 +241,7 @@ Propuesta: `"{FolioPedidoInterno} — Factura {Serie}-{Correlativo}"`
 **Escritura al confirmar envío exitoso:**
 - `UPDATE fccDocumentoFiscalCobro SET EstadoLinea = ENVIADO, FechaEnvio`
 - `INSERT CorreoEnviado` + `INSERT ArchivoCorreoEnviado` (×3 adjuntos)
+- Registrar la validación de cobro en ProquifaDotNet.BitacoraCambios (Aplicativo Nuevo — Reglas al diseñar, regla 8)
 
 ### B6 — Acciones post-envío automáticas (Perú — sin Legacy)
 

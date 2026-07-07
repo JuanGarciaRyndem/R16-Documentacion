@@ -42,11 +42,13 @@ Estado de Cuenta para registrar saldo a favor y diferencias de tolerancia 100 MX
 
 ### fccPagoFacturaAdelanto - cobro aplicado a Factura por Adelantado (FAA)
 
+> **Migración (06/07/2026):** la columna `IdTPProformaAdelanto` (FK a la extinta `tpProformaAdelanto`) se retarget a **`IdFccFactura`** (FK a `fccFactura`, creada en **R16A-RE-FU-015**), que unifica el pendiente FAA de origen Prepago y Crédito. Ver "Migración de `tpProformaAdelanto`" en `R16A-RE-FU-015_BD.md`.
+
 | Columna | Tipo | Uso Paso 2 |
 |---------|------|------------|
 | IdFCCPagoCliente | uniqueidentifier | FK cobro |
 | IdTPProformaPedido | uniqueidentifier | FK proforma vinculada a FAA |
-| IdTPProformaAdelanto | uniqueidentifier | FK FAA |
+| IdFccFactura (antes: IdTPProformaAdelanto) | uniqueidentifier | FK a `fccFactura` (RE-FU-015) |
 | IdCFDIGenerada | uniqueidentifier | FK CFDI generado |
 | Monto | decimal | Monto aplicado |
 | NumeroParcialidad | int | Numero de parcialidad |
@@ -233,6 +235,7 @@ tolerancia 100 MXN, para uso en futuras sesiones de Validar Cobro.
 |-----------|----------|
 | R16A-RE-FU-024 | Paso 1 MEX (fccPagoCliente confirmado, catTipoInconsistenciaCobro) |
 | R16A-RE-FU-023 | fccPagoCliente -> fccPagoFacturaPedido (Validar Cobro) |
+| R16A-RE-FU-015 | Origen y dueño de `fccFactura` — destino de `fccPagoFacturaAdelanto.IdFccFactura` |
 
 ---
 

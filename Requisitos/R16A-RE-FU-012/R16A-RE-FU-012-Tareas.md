@@ -15,27 +15,28 @@
 
 ### Consideraciones previas
 - El flujo anterior de Factura por Adelantado NO se reutilizara directamente
+- **Actualización (06/07/2026):** el destino final de datos ya NO es `tpProformaAdelanto` — es `fccFactura` (+ `fccFacturaPartida` + `fccFacturaReferenciaBancaria`), esquema definido y creado en RE-FU-015, propiedad de `ProquifaDotNet.Finanzas`. Esta revisión de código legacy sirve para identificar lógica de negocio reutilizable, no estructura de datos
 - El desarrollador debe analizar que logica/entidades son aprovechables
 
 ### Objetivo general
-Revisar el codigo existente relacionado con tpProformaAdelanto y determinar que es reutilizable para el nuevo flujo FAA.
+Revisar el codigo existente relacionado con tpProformaAdelanto y determinar que logica es reutilizable para el nuevo flujo FAA sobre `fccFactura`.
 
 ### Objetivos especificos
-- Revisar `tpProformaAdelantoBO.cs` y sus extensiones
-- Revisar `tpProformaAdelantoToCFDIGeneradaBO.cs` (codigo comentado)
+- Revisar `tpProformaAdelantoBO.cs` y sus extensiones (lógica de negocio, no estructura)
+- Revisar `tpProformaAdelantoToCFDIGeneradaBO.cs` (codigo comentado, guía para el mapeo hacia `CFDIGenerada`)
 - Revisar `CFDIGeneradaConceptoAnticipoFactory.cs`
-- Revisar tablas BD: `tpProformaAdelanto`, `tpProformaAdelantoProformaPedido`, `fccPagoFacturaAdelanto`
-- Documentar que es aprovechable y que debe crearse desde cero
+- Revisar tablas BD legacy: `tpProformaAdelanto`, `tpProformaAdelantoProformaPedido` (ya no aplican como destino) y `fccPagoFacturaAdelanto` (vigente, FK migrada a `IdFccFactura`)
+- Documentar que logica es aprovechable hacia `fccFactura` y que debe crearse desde cero
 
 ### Resultado esperado
-Documento de analisis con decision de aprovechabilidad del codigo/tablas existentes.
+Documento de analisis con decision de aprovechabilidad del codigo legacy, mapeado contra el esquema `fccFactura`.
 
 ### Entregables
 - Documento de analisis tecnico
 
 ### Criterios de aceptacion
 - Se identifican claramente los componentes aprovechables vs los que requieren nuevo desarrollo
-- Se valida contra el nuevo modelo de datos de BD (R16A-RE-FU-012_BD)
+- Se valida contra el modelo de datos `fccFactura` de `R16A-RE-FU-015_BD.md` (no contra `tpProformaAdelanto`)
 
 ---
 
@@ -49,31 +50,34 @@ Documento de analisis con decision de aprovechabilidad del codigo/tablas existen
 
 ### Consideraciones previas
 - Depende de T1 (revision de codigo existente)
-- El INSERT del pendiente debe ser atomico con la tramitacion del pedido
+- **Actualización (06/07/2026):** el INSERT del pendiente ya NO es en `tpProformaAdelanto` — es en `fccFactura` + `fccFacturaPartida` + `fccFacturaReferenciaBancaria` (esquema de RE-FU-015, `ProquifaDotNet.Finanzas`), en paralelo a `tpProformaPedido` dentro de la misma transacción
+- El INSERT del pendiente debe ser atomico con la tramitacion del pedido y con la Confirmación de Pedido
 - Solo aplica cuando `tpPedido.FacturaPorAdelantado = 1`
 - Solo region Mexico
+- `fccFactura.IdTPProformaPedido` debe poblarse con el Id de la Confirmación de Pedido (`tpProformaPedido`) recién insertada — es la diferencia clave frente al flujo Prepago (RE-015), donde ese campo queda NULL
 - **Campos fiscales regionalizados (Regla 9 — sincronización matriz):** Los datos de facturación que se fijan varían por región. Para México: RFC, RazonSocial, UsoCFDI, MetodoPago, RegimenFiscal. Para Perú (fuera de alcance R16 FAA-Crédito): RUC, RazonSocial, TipoOperacion, CondicionPago SUNAT. La Forma de Pago y el correo de envío NO se incluyen en el Panel de Información de Facturación. Ver Back.md Sección C.
 
 ### Objetivo general
-Implementar la generacion del pendiente FAA dentro de la transaccion de tramitacion del pedido cuando FAA esta activa.
+Implementar la generacion del pendiente FAA en `fccFactura` dentro de la transaccion de tramitacion del pedido cuando FAA esta activa.
 
 ### Objetivos especificos
 - Modificar `tpPedidoTramitarTransaccionBO.GenerarCorreoTramitarPedido()` para detectar FAA=1
-- INSERT pendiente FAA con datos: Cliente, Empresa, Monto, OrdenCompra, DatosFacturacion, Region, Moneda, Estado=Pendiente
-- Fijar datos de facturacion del catalogo vigente del cliente
-- Asegurar atomicidad (misma transaccion que tramitacion)
-- Generar confirmacion de pedido inmediatamente (no espera factura)
+- INSERT atómico en `fccFactura` (`IdTPPedido`, `IdTPProformaPedido`, `EsFacturaPorAdelantado=1`, `IdCliente`, `IdEmpresa`, `MontoTotal`, `IdCatMoneda`, `IdCFDIGenerada=NULL`, `Enviada=0`) + `fccFacturaPartida` (snapshot de partidas) + `fccFacturaReferenciaBancaria` (cuentas del grupo)
+- Fijar datos de facturacion del catalogo vigente del cliente como snapshot en `fccFactura`
+- Asegurar atomicidad (misma transaccion que tramitacion y que el INSERT de `tpProformaPedido`)
+- Generar confirmacion de pedido inmediatamente (no espera factura), en paralelo al pendiente FAA
 
 ### Resultado esperado
-Al tramitar un pedido con FAA=1 en Mexico, se genera un registro pendiente FAA con todos los datos necesarios para que el modulo de facturacion lo consuma posteriormente.
+Al tramitar un pedido con FAA=1 en Mexico, se genera un registro pendiente FAA en `fccFactura` (+ detalle) con todos los datos necesarios para que el modulo de facturacion lo consuma posteriormente vía `vfccFactura`.
 
 ### Entregables
 - Modificacion de `tpPedidoTramitarTransaccionBO.cs`
-- BO/metodo para INSERT del pendiente FAA
+- Llamada al servicio de Finanzas para INSERT del pendiente FAA en `fccFactura`
 
 ### Criterios de aceptacion
-- El pendiente se genera atomicamente con la tramitacion
-- Contiene todos los datos requeridos (cliente, empresa, monto, datos facturacion, moneda)
+- El pendiente se genera atomicamente con la tramitacion y con la Confirmación de Pedido
+- Contiene todos los datos requeridos (cliente, empresa, monto, datos facturacion, moneda, partidas, referencias bancarias)
+- `fccFactura.IdTPProformaPedido` queda poblado con la Confirmación de Pedido generada
 - No se genera pendiente si FAA=0
 - No se genera pendiente si region != Mexico
 - La confirmacion de pedido se genera sin esperar factura
@@ -132,9 +136,9 @@ El sistema rechaza tramitaciones con FAA activa que no cumplan las reglas de neg
 Vincular el proceso de generacion del pendiente FAA con el flujo de facturacion desarrollado en los requisitos RE-FU-018/019/020.
 
 ### Objetivos especificos
-- Verificar que la estructura del pendiente FAA es compatible con lo esperado por RE-FU-018
+- Verificar que `fccFactura` (con `IdTPProformaPedido` poblado) es compatible con lo que consulta RE-FU-018 vía `vfccFactura`
 - Ajustar campos/relaciones si es necesario para la integracion
-- Validar que el estado del pendiente se actualice correctamente cuando facturacion lo consume
+- Validar que el estado del pendiente (`EstadoFAA` calculado en `vfccFactura`) se actualice correctamente cuando facturacion lo consume (UPDATE de `IdCFDIGenerada`/`Enviada` sobre el mismo registro, no INSERT duplicado — RT-10)
 - Documentar contrato de datos entre pendiente y modulo de facturacion
 
 ### Resultado esperado

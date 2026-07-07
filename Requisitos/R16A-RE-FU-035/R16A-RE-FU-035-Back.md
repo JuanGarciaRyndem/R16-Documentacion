@@ -201,7 +201,7 @@ Un único `cac:CreditNoteLine`:
 ### Descripción
 Servicio que mapea el `NCPeruVm` al `NCPeruPdfModel` para el template HTML `GOL_PER_NC` en DocumentBuilder. Cubre dos modos.
 
-**Patrón base:** `FacturaPeruPdfMappingService` (R16A-RE-FU-022)
+**Patrón base:** `PeruInvoicePdfMappingService` (R16A-RE-FU-022)
 
 ---
 
@@ -284,7 +284,7 @@ Un único set de 3 archivos HTML (Header, Body, Footer) para Golocaer S.A.C. —
 
 ## Parte D — PersistirNCPeruPdfService
 
-**Patrón base:** `PersistirFacturaPeruPdfService` (R16A-RE-FU-022)
+**Patrón base:** `PersistPeruInvoicePdfService` (R16A-RE-FU-022)
 
 ### Rutas MinIO
 
@@ -318,5 +318,5 @@ Un único set de 3 archivos HTML (Header, Body, Footer) para Golocaer S.A.C. —
 | P4  | **Código de afectación IGV** en modalidad manual — confirmar valor aplicable                    | Afecta `TaxExemptionReasonCode` del único concepto manual      |
 | P5  | **Maquetas PDF NC Perú** no disponibles — diseño se validará contra ellas cuando lleguen         | Puede requerir ajustes al template GOL\_PER\_NC                |
 | P6  | **Sustento (cbc:Description):** confirmar si es editable o fijo por catálogo 09                  | Afecta `DiscrepancyResponse/cbc:Description`                   |
-| P7  | **Plantilla correo Perú:** asunto y cuerpo del correo pendientes de confirmar                    | Bloquea `EnviarNCPeruMailService`                              |
+| P7  | **Plantilla correo Perú:** asunto y cuerpo del correo pendientes de confirmar                    | Bloquea `SendPeruCreditNoteMailService`                              |
 | P8  | **Formato QR SUNAT** para NC Perú — confirmar parámetros exactos de la URL de verificación      | Afecta Footer del template GOL\_PER\_NC                        |

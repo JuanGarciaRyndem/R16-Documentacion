@@ -243,12 +243,12 @@ Ver sección **Parte A** de `R16A-RE-FU-034-Back.md` — mapa completo de campos
 **Módulos:** Application — Services — NC — Mexico — NCMexicoPdfMappingService
 
 **Consideraciones previas:**
-- Patrón base: `FacturaMexicoPdfMappingService` (RE-021). Misma separación Preview / PostTimbrado.
+- Patrón base: `MexicoInvoicePdfMappingService` (RE-021). Misma separación Preview / PostTimbrado.
 - Prerrequisito: T1–T4 (templates HTML) deben estar registrados en `DocumentTemplate` para validar el renderizado end-to-end.
 - Prerrequisito: RE-032 T6 (DML `DocumentTemplate`) debe estar ejecutado.
 - El modo Preview no incluye UUID, sellos ni QR; el modo PostTimbrado sí los incluye.
 - El QR SAT codifica: `https://verificacfdi.facturaelectronica.sat.gob.mx/default.aspx?id={UUID}&re={RFCEmisor}&rr={RFCReceptor}&tt={Total}&fe={últimos8SelloCFD}`.
-- `PersistirNCMexicoPdfService` usa el mismo patrón que `PersistirFacturaMexicoPdfService` — rutas MinIO: `notas-credito-mex/notas_credito/{anio}/{mes}/{UUID}.pdf`.
+- `PersistirNCMexicoPdfService` usa el mismo patrón que `PersistMexicoInvoicePdfService` — rutas MinIO: `notas-credito-mex/notas_credito/{anio}/{mes}/{UUID}.pdf`.
 
 **Objetivo general:**
 Implementar `NCMexicoPdfMappingService` que mapea el `NCMexicoVm` al `NCMexicoPdfModel` y lo pasa a DocumentBuilder para generar el PDF, en modo Preview (wizard Paso 2) y PostTimbrado (confirmación exitosa).
@@ -288,6 +288,6 @@ Ver sección **Parte B** y **Parte D** de `R16A-RE-FU-034-Back.md`.
 
 **Recursos:**
 - `R16A-RE-FU-034-Back.md` — Partes B y D
-- `FacturaMexicoPdfMappingService` — patrón base
-- `PersistirFacturaMexicoPdfService` — patrón base para MinIO
+- `MexicoInvoicePdfMappingService` — patrón base
+- `PersistMexicoInvoicePdfService` — patrón base para MinIO
 - Templates `GOL/MUN/PRO/PQF_MEX_NC` (entregables de T1–T4)

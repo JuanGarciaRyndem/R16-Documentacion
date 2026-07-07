@@ -8,7 +8,7 @@
 | **Autor** | Samuel Hernández Delgado |
 | **Revisor** | Juan David García Cruz |
 | **Fecha de revisión** | 02 jul 2026 |
-| **Estatus** | ⚠️ Con hallazgos críticos — requiere correcciones antes de iniciar desarrollo |
+| **Estatus** | ⚠️ H-01 resuelto (06/07/2026, migración a `fccFactura`/`vfccFactura`) — H-02 a H-0x restantes aún requieren corrección antes de iniciar desarrollo |
 
 ---
 
@@ -22,19 +22,19 @@ Dicho esto, se encontraron dos categorías de hallazgos críticos: (1) **incumpl
 
 ## Hallazgos críticos (bloqueantes)
 
-### H-01 — La cadena de datos de 018 no alcanza los pendientes que genera RE-FU-015 (Prepago con FAA)
+### H-01 — La cadena de datos de 018 no alcanza los pendientes que genera RE-FU-015 (Prepago con FAA) — ✅ RESUELTO (06/07/2026)
 
 **Sección del PDF:** Diseño funcional detallado → Flujo 1, paso 5 / Diagrama 2 y 3.
 
-**Lo que dice el diseño:** El listado se construye leyendo `tpPedido → tpPedidoProformaPedido → tpProformaPedido → tpProformaAdelantoProformaPedido → fccPagoFacturaAdelanto → tpProformaAdelanto`, y termina filtrando `tpProformaAdelanto.IdCFDIGenerada IS NULL`.
+**Lo que decía el diseño original:** El listado se construía leyendo `tpPedido → tpPedidoProformaPedido → tpProformaPedido → tpProformaAdelantoProformaPedido → fccPagoFacturaAdelanto → tpProformaAdelanto`, y terminaba filtrando `tpProformaAdelanto.IdCFDIGenerada IS NULL`.
 
-**Lo que ya está definido en RE-FU-015:** El DIS-SOL de RE-FU-015 (revisado el 02 jul 2026, mismo día) decide explícitamente **no reutilizar `tpProformaAdelanto`** para el flujo Prepago con FAA, y en su lugar modela tres tablas nuevas (`fccFactura`, `fccFacturaPartida`, `fccFacturaReferenciaBancaria`) que no se alcanzan desde `tpProformaPedido` ni desde ninguna tabla de la cadena que 018 recorre. Además, RE-FU-015 ya no genera `tpProformaPedido` en absoluto para este flujo (no genera proforma).
+**Lo que ya estaba definido en RE-FU-015:** El DIS-SOL de RE-FU-015 (revisado el 02 jul 2026, mismo día) decidió explícitamente **no reutilizar `tpProformaAdelanto`** para el flujo Prepago con FAA, y en su lugar modeló tres tablas nuevas (`fccFactura`, `fccFacturaPartida`, `fccFacturaReferenciaBancaria`) que no se alcanzaban desde `tpProformaPedido` ni desde ninguna tabla de la cadena que 018 recorría. Además, RE-FU-015 no genera `tpProformaPedido` en absoluto para ese flujo (no genera proforma).
 
-**Impacto:** El Criterio B1 del propio requisito 018 exige que el conteo "considere pedidos con pendiente de Factura por Adelantado originados desde Tramitar Pedido en **ambos flujos**: Crédito con Factura por Adelantado y Prepago con Factura por Adelantado". Tal como está diseñada la query de 018, los pedidos Prepago con FAA (RE-FU-015) **nunca aparecerán en el listado**, porque no existe fila en `tpProformaAdelanto` para ellos bajo el diseño actual de 015 — incumpliendo B1 en silencio (sin error, simplemente ausencia de datos).
+**Impacto (previo a la resolución):** El Criterio B1 del propio requisito 018 exige que el conteo "considere pedidos con pendiente de Factura por Adelantado originados desde Tramitar Pedido en **ambos flujos**: Crédito con Factura por Adelantado y Prepago con Factura por Adelantado". Tal como estaba diseñada la query de 018, los pedidos Prepago con FAA (RE-FU-015) nunca habrían aparecido en el listado.
 
-**Nota de alcance:** No se revisó en este ejercicio el DIS-SOL de RE-FU-012 (la fuente "Crédito con FAA" según la tabla de Dependencias de `018_BD.md`/`018-Back.md`), por lo que no se puede confirmar si su estructura sí coincide con la cadena asumida aquí. Se recomienda verificarlo también antes de dar por buena la cadena completa.
+**Resolución (06/07/2026):** Se confirmó también el DIS-SOL de RE-FU-012 (Crédito con FAA) — usaba la misma cadena legacy vía `tpProformaAdelanto`. Se resolvió unificando ambos orígenes: `fccFactura` (RE-FU-015) se extendió con una columna `IdTPProformaPedido` (nullable, poblada solo en el origen Crédito) e `IdCFDIGenerada` (FK a `CFDIGenerada`), de modo que **una sola tabla y una sola vista (`vfccFactura`) cubren ambos flujos** — ya no se necesitan "dos rutas de lectura distintas" como sugería la acción original. `R16A-RE-FU-012`, `R16A-RE-FU-018`, `R16A-RE-FU-019`, `R16A-RE-FU-020`, `R16A-RE-FU-026`, `R16A-RE-FU-027`, `R16A-RE-FU-028`, `R16A-RE-FU-029` y `R16A-RE-FU-030` fueron actualizados para leer/escribir sobre `fccFactura`/`vfccFactura` en vez de `tpProformaAdelanto`/`vtpProformaAdelanto`. Ver el detalle completo en `R16A-RE-FU-015_BD.md`, sección "Migración de tpProformaAdelanto".
 
-**Acción:** Antes de asignar GAP-14 (`FacturaAdelantadoRepository`), reconciliar explícitamente la fuente de datos contra el diseño vigente de RE-FU-015 y confirmar contra RE-FU-012. Es probable que 018 necesite dos rutas de lectura distintas (una hacia `tpProformaAdelanto` para Crédito, otra hacia `fccFactura` para Prepago) o una vista unificada que combine ambas, en vez de una única cadena de JOINs.
+**Acción (cerrada):** GAP-14/GAP-15/GAP-18 de este requisito ya reflejan la nueva fuente (`vfccFactura`) — ver `R16A-RE-FU-018-Back.md`/`R16A-RE-FU-018-Tareas.md` actualizados.
 
 ### H-02 — La nueva base de datos `ProquifaDotNetTimbrado` no sigue la Regla 2 ("Bases de datos nuevas estructura en inglés")
 
@@ -112,3 +112,4 @@ Todas las páginas (excepto la portada) muestran el encabezado literal "Diseño 
 - `R16A-RE-FU-018-Back.md`, `R16A-RE-FU-018_BD.md`
 - `Diseño y Desarrollo\Reglas al diseñar.md`
 - `R16A-RE-FU-015_DIS-SOL_Revision.md` (fuente del hallazgo H-01: decisión de no reutilizar `tpProformaAdelanto`)
+- `R16A-RE-FU-015_BD.md`, sección "Migración de tpProformaAdelanto" (resolución de H-01, 06/07/2026)

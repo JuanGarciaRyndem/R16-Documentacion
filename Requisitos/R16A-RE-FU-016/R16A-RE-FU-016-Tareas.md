@@ -116,7 +116,7 @@ Implementar la capa Application con DTOs, interfaces de servicio, mappers y vali
 - Crear DTOs/QueryResultDto.cs (wrapper generico paginado)
 - Crear DTOs/ProformaDto.cs (DTO para API)
 - Crear DTOs/ProformaPdfModel.cs (modelo para DocumentBuilder)
-- Crear Interfaces/IProformaService.cs (CRUD + Listar + GenerarPdf)
+- Crear Interfaces/IProformaService.cs (CRUD + List + GeneratePdf)
 - Crear Interfaces/IDocumentBuilderClient.cs
 - Crear Mappers/ApplicationMappingProfile.cs (AutoMapper)
 - Crear Validators/ProformaDtoFluentValidator.cs
@@ -160,7 +160,7 @@ Implementar la capa Infrastructure con repositorios, configuracion de settings y
 **Objetivos especificos:**
 - Crear Persistence/Repository/GenericRepository.cs (CRUD generico con EF Core)
 - Crear Persistence/Repository/ProformaRepository.cs (consulta vtpProformaPedido con QueryInfo, filtros dinamicos y paginacion)
-- Crear Configuration/BrevoSettings.cs, MinioSettings.cs, DocumentBuilderSettings.cs
+- Crear Configuration/EnvioCorreoSettings.cs, MinioSettings.cs, DocumentBuilderSettings.cs
 - Crear Extensions/InfrastructureServiceExtensions.cs (DI de todos los servicios)
 
 **Resultado esperado:**
@@ -187,14 +187,14 @@ Ver codigo de referencia en Back-Finanzas.md seccion 6.
 
 ### Tarea 5
 
-**Titulo:** [ R16A-RE-FU-016 ] [IMP-EXIST-SERVICE] Implementar servicios de infraestructura - Minio, Brevo, RabbitMQ, DocumentBuilder
+**Titulo:** [ R16A-RE-FU-016 ] [IMP-EXIST-SERVICE] Implementar servicios de infraestructura - Minio, ApiCallerEnvioCorreo, RabbitMQ, DocumentBuilder
 **Aplicativos:** ProquifaDotNet.Finanzas
 **Modulos:** Infrastructure/Services, Infrastructure/RabbitMQ
 
 **Consideraciones previas:**
 - Depende de Tarea 4 (Infrastructure base)
 - Minio: SDK Minio 6.x para almacenamiento de PDFs
-- Brevo: sib_api_v3_sdk para envio de correos transaccionales
+- Envío de correo (Reglas al diseñar — regla 7): Finanzas NO integra con Brevo directamente; llama al API del Aplicativo Nuevo **ProquifaDotNet.EnvioCorreo** (solución independiente, distinta de ProquifaDotNet.SendInBlue) vía HttpClient con Polly (timeout, sin retry interno)
 - RabbitMQ: RabbitMQ.Client 7.x con ACK/NACK y DLQ
 - DocumentBuilder: HttpClient con Polly para reintentos
 - Patron basado en proquifa-punchout-backend
@@ -204,7 +204,7 @@ Implementar los servicios de infraestructura necesarios para las integraciones e
 
 **Objetivos especificos:**
 - Crear Services/MinioStorageService.cs (UploadAsync y DownloadAsync con bucket/fileName)
-- Crear Services/BrevoEmailService.cs (envio transaccional via REST API v3)
+- Crear Services/ApiCallerEnvioCorreo.cs + IApiCallerEnvioCorreo.cs (HttpClient hacia ProquifaDotNet.EnvioCorreo, con `SendEmailDto` / `SendEmailTemplateDto`)
 - Crear RabbitMQ/RabbitMQClient.cs + IRabbitMQClient.cs + RabbitMQSettings.cs (Publish/Subscribe con ACK/NACK, DLQ)
 - Crear Services/DocumentBuilderHttpClient.cs (PostAsJsonAsync a api/Report/proforma, retorna byte[])
 - Configurar Polly para reintentos en DocumentBuilderHttpClient
@@ -214,12 +214,13 @@ Servicios de infraestructura funcionales listos para integracion con modulo Prof
 
 **Entregables:**
 - MinioStorageService con Upload/Download de PDFs
-- BrevoEmailService con envio via Brevo API
+- ApiCallerEnvioCorreo con envío vía API de ProquifaDotNet.EnvioCorreo
 - RabbitMQClient con Publish/Subscribe
 - DocumentBuilderHttpClient con llamada a endpoint proforma
 
 **Criterios de aceptacion:**
 - MinioStorageService sube y descarga archivos correctamente del bucket configurado
+- ApiCallerEnvioCorreo incluye autenticación IdentityServer y no reintenta internamente (1 petición = 1 intento)
 - DocumentBuilderHttpClient maneja errores HTTP y reintentos con Polly
 - RabbitMQClient soporta DLQ para mensajes fallidos
 - Todos los servicios se registran en DI via InfrastructureServiceExtensions
@@ -250,7 +251,7 @@ Configurar la capa API con Program.cs y toda la configuracion necesaria para eje
 
 **Objetivos especificos:**
 - Crear Program.cs con configuracion de servicios (DI, EF Core, Swagger, Serilog, IdentityServer)
-- Crear appsettings.json con connection strings (BD ProquifaDotNet, Minio, RabbitMQ, DocumentBuilder, Brevo, IdentityServer)
+- Crear appsettings.json con connection strings (BD ProquifaDotNet, Minio, RabbitMQ, DocumentBuilder, ProquifaDotNet.EnvioCorreo, IdentityServer)
 - Configurar CORS para comunicacion con ProquifaDotNet (Venta Interna)
 - Configurar paquetes NuGet requeridos (ver tabla en Back-Finanzas.md seccion 10)
 
@@ -339,11 +340,11 @@ Implementar el servicio ProformaService con operaciones CRUD y el ProformaContro
 
 **Objetivos especificos:**
 - Crear Services/ProformaService.cs con implementacion de: GetById, Create, Update, Delete
-- Crear Controllers/ProformaController.cs con endpoints:
-  - GET /api/proforma/{id} - Obtener proforma por Id
-  - POST /api/proforma - Crear nueva proforma
-  - PUT /api/proforma/{id} - Actualizar proforma existente
-  - DELETE /api/proforma/{id} - Eliminar proforma (soft delete)
+- Crear Controllers/ProformaController.cs con endpoints (Reglas al diseñar — regla 9: api/v1/{resource}/{id}):
+  - GET /api/v1/proforma/{id} - Obtener proforma por Id
+  - POST /api/v1/proforma - Crear nueva proforma
+  - PUT /api/v1/proforma/{id} - Actualizar proforma existente
+  - DELETE /api/v1/proforma/{id} - Eliminar proforma (soft delete)
 - Registrar ProformaService en DI
 - Aplicar validacion con FluentValidator en endpoints de escritura
 
@@ -362,6 +363,7 @@ Servicio y controller CRUD funcionales para la entidad TpProformaPedido.
 - DELETE retorna 204 al eliminar correctamente
 - FluentValidator rechaza requests invalidos con 400
 - Los endpoints aparecen documentados en Swagger
+- Create/Update/Delete registran el resultado en **ProquifaDotNet.BitacoraCambios** (Reglas al diseñar — regla 8; ver nota en Back-Finanzas.md sección 7)
 
 **Mas informacion de la tarea:**
 Ver codigo de referencia en Back-Finanzas.md secciones 7 y 8.
@@ -388,7 +390,7 @@ Implementar el servicio de consulta y el controller para la vista VtpProformaPed
 
 **Objetivos especificos:**
 - Crear Services/VtpProformaService.cs con consulta paginada usando QueryInfo
-- Crear endpoint POST /api/proforma/listar en ProformaController (o controller dedicado)
+- Crear endpoint POST /api/v1/proforma/search en ProformaController (o controller dedicado) — Reglas al diseñar, regla 9: subrecurso `search` en inglés
 - Soportar filtros dinamicos por: clientenombre, folioproforma, foliopedidointerno, empresaprefijo, regionclave, controlados, cancelada, tramitado
 - Soportar ordenamiento ascendente/descendente por cualquier campo
 - Retornar QueryResultDto VtpProformaPedido con TotalResults y Results paginados
@@ -398,7 +400,7 @@ Endpoint funcional de listado paginado con filtros multiples sobre la vista VtpP
 
 **Entregables:**
 - Servicio de consulta con QueryInfo implementado
-- Endpoint POST /api/proforma/listar
+- Endpoint POST /api/v1/proforma/search
 - QueryResultDto con resultados paginados
 
 **Criterios de aceptacion:**
@@ -438,8 +440,8 @@ Implementar la logica de Command para generar PDF y Query para consultar histori
 **Objetivos especificos:**
 - Implementar Command GenerarProformaPdf que orqueste: consulta datos, armado DTO, llamada DocumentBuilder, retorno byte[]
 - Implementar Query ConsultarProformaPdf que descargue PDF de Minio sin regenerar
-- Crear endpoint POST /api/proforma/generar-pdf (previsualizacion, sin persistir)
-- Crear endpoint GET /api/proforma/{id}/pdf (consulta historica desde Minio)
+- Crear endpoint POST /api/v1/proforma/{id}/pdf (previsualizacion, sin persistir)
+- Crear endpoint GET /api/v1/proforma/{id}/pdf (consulta historica desde Minio)
 - Orquestar flujo completo: consulta BD -> armado modelo -> DocumentBuilder -> respuesta
 
 **Resultado esperado:**
@@ -451,8 +453,8 @@ Endpoints funcionales para generacion y consulta de PDFs de Proforma.
 - Endpoints en ProformaController para generacion y consulta
 
 **Criterios de aceptacion:**
-- POST /api/proforma/generar-pdf retorna byte[] del PDF sin persistir en Minio
-- GET /api/proforma/{id}/pdf retorna PDF almacenado en Minio
+- POST /api/v1/proforma/{id}/pdf retorna byte[] del PDF sin persistir en Minio
+- GET /api/v1/proforma/{id}/pdf retorna PDF almacenado en Minio
 - El comando consulta correctamente las 15+ tablas necesarias
 - Manejo de errores cuando el pedido no existe o DocumentBuilder falla
 
@@ -663,7 +665,7 @@ Corresponde a GAP-03 y GAP-04 del documento de impacto Back.
 Implementar la llamada desde ProquifaDotNet (Venta Interna) hacia la API de Finanzas para solicitar generacion de PDF de Proforma al tramitar un pedido.
 
 **Objetivos especificos:**
-- Crear ApiCallerFinanzas con metodo para llamar POST /api/proforma/generar-pdf
+- Crear ApiCallerFinanzas con metodo para llamar POST /api/v1/proforma/{id}/pdf
 - Integrar la llamada en el flujo de tramitacion de pedido Prepago sin FAA Mexico
 - Recibir byte[] del PDF y retornarlo al controlador para el Front
 - Manejar errores de comunicacion con Finanzas (timeout, 500, etc.)
@@ -886,7 +888,7 @@ Corresponde al flujo de persistencia documentado en Back.md. Integra GAP-07 con 
 | 2 | ARQ-PROJ-NET | Crear capa Domain | Finanzas | 1 |
 | 3 | ARQ-PROJ-NET | Crear capa Application (DTOs, Interfaces, Validators) | Finanzas | 2 |
 | 4 | ARQ-PROJ-NET | Crear capa Infrastructure (Repositories, Settings, Extensions) | Finanzas | 2, 3 |
-| 5 | IMP-EXIST-SERVICE | Servicios infraestructura (Minio, Brevo, RabbitMQ, DocumentBuilder) | Finanzas | 4 |
+| 5 | IMP-EXIST-SERVICE | Servicios infraestructura (Minio, ApiCallerEnvioCorreo, RabbitMQ, DocumentBuilder) | Finanzas | 4 |
 | 6 | CONFIG-INIT | Crear capa API (Program.cs, configuracion) | Finanzas | 3, 4, 5 |
 | 7 | SIMPLE-CRUD | FinanzasContext con DbSet y mapping | Finanzas | 2 |
 | 8 | SIMPLE-CRUD | ProformaService + ProformaController CRUD | Finanzas | 4, 6, 7 |

@@ -462,7 +462,7 @@ Ver sección 6.1 de `R16A-NO-FU-001.md` para la estructura completa de la soluci
 - `EnviarCorreoCommand` es el flujo principal: recibe `IdCorreoEnviado`, crea `SolicitudCorreo` en BD y encola en RabbitMQ. No envía directamente.
 - `EnviarCorreoSimpleCommand` y `EnviarCorreoHtmlCommand` son flujos alternativos: envío directo con failover a RabbitMQ si Brevo no responde en timeout configurado.
 - `SincronizarEstadoCorreoCommand` consulta Brevo por `IdentificadorCorreo` y actualiza `CorreoEnviado` en ProquifaDotNet via Scaffold.
-- Los DTOs de entrada (`EnviarCorreoDto`, `EnviarCorreoSimpleDto`, `EnviarCorreoHtmlDto`) mapean directamente con los request del API.
+- Los DTOs de entrada (`SendEmailDto`, `EnviarCorreoSimpleDto`, `EnviarCorreoHtmlDto`) mapean directamente con los request del API.
 - Validators con FluentValidation: receptores no vacíos, asunto no vacío, `IdCorreoEnviado` not-empty para el flujo principal.
 
 **Objetivo general:**
@@ -562,9 +562,9 @@ Infrastructure compilada y funcional. Los repositorios persisten/leen de `Proqui
 
 **Consideraciones previas:**
 - 3 endpoints en `CorreoController`, todos protegidos con IdentityServer.
-- `POST /api/correo/enviar` es el reemplazo directo de `PATCH /EnviarCorreo` de ProquifaDotNet; recibe `idCorreoEnviado` y delega en `EnviarCorreoCommand`.
-- `POST /api/correo/simple` reemplaza `CorreoGenericoBO.GenerarCorreo<T>` para correos con plantilla HTML sin objeto de negocio asociado.
-- `POST /api/correo/html` reemplaza los casos de `CorreoGenericoBO` con HTML generado por el caller.
+- `POST /api/v1/mail/send` es el reemplazo directo de `PATCH /EnviarCorreo` de ProquifaDotNet; recibe `idCorreoEnviado` y delega en `EnviarCorreoCommand`.
+- `POST /api/v1/mail/simple` reemplaza `CorreoGenericoBO.GenerarCorreo<T>` para correos con plantilla HTML sin objeto de negocio asociado.
+- `POST /api/v1/mail/html` reemplaza los casos de `CorreoGenericoBO` con HTML generado por el caller.
 - Respuestas estandarizadas: `{ "idSolicitudCorreo": "guid", "estado": "ENCOLADO" }` para los que usan cola; `{ "brevoMessageId": "string", "enviado": true }` para envío directo.
 - Mensajes de error con catálogo de códigos: `{ "errorCode": "SENDINBLUE-001", "message": "...", "details": "..." }`.
 - Swagger/OpenAPI documentado para facilitar la integración desde ProquifaDotNet.
@@ -573,15 +573,15 @@ Infrastructure compilada y funcional. Los repositorios persisten/leen de `Proqui
 Implementar los 3 endpoints REST del API de ProquifaDotNet.SendInBlue con autenticación IdentityServer, documentación Swagger y respuestas estandarizadas.
 
 **Objetivos específicos:**
-- Implementar `POST /api/correo/enviar` → `EnviarCorreoCommand` → respuesta con `IdSolicitudCorreo`.
-- Implementar `POST /api/correo/simple` → `EnviarCorreoSimpleCommand` → respuesta directa o encolada.
-- Implementar `POST /api/correo/html` → `EnviarCorreoHtmlCommand` → respuesta directa o encolada.
+- Implementar `POST /api/v1/mail/send` → `EnviarCorreoCommand` → respuesta con `IdSolicitudCorreo`.
+- Implementar `POST /api/v1/mail/simple` → `EnviarCorreoSimpleCommand` → respuesta directa o encolada.
+- Implementar `POST /api/v1/mail/html` → `EnviarCorreoHtmlCommand` → respuesta directa o encolada.
 - Configurar middleware de autenticación IdentityServer (Bearer token).
 - Definir catálogo de códigos de error (`SENDINBLUE-001` a `SENDINBLUE-010`).
 - Documentar con Swagger (XML comments + `[ProducesResponseType]`).
 
 **Resultado esperado:**
-API desplegable con los 3 endpoints funcionales. ProquifaDotNet puede llamar `POST /api/correo/enviar` con un `idCorreoEnviado` y el correo queda encolado para procesamiento.
+API desplegable con los 3 endpoints funcionales. ProquifaDotNet puede llamar `POST /api/v1/mail/send` con un `idCorreoEnviado` y el correo queda encolado para procesamiento.
 
 **Entregables:**
 - `CorreoController` con 3 endpoints
@@ -592,7 +592,7 @@ API desplegable con los 3 endpoints funcionales. ProquifaDotNet puede llamar `PO
 **Criterios de aceptación:**
 - [ ] Los 3 endpoints responden HTTP 200 con estructura correcta
 - [ ] Llamada sin token retorna HTTP 401
-- [ ] `POST /api/correo/enviar` crea registro en `SolicitudCorreo` con estado `PENDIENTE`
+- [ ] `POST /api/v1/mail/send` crea registro en `SolicitudCorreo` con estado `PENDIENTE`
 - [ ] Swagger UI accesible y documentado
 - [ ] Catálogo de errores definido con al menos 5 códigos
 
@@ -719,7 +719,7 @@ Refactorizar `CorreoEnviadoEnviarController.EnviarCorreo` para que delegue el en
 
 **Objetivos específicos:**
 - Inyectar `HttpClient` (o `IHttpClientFactory`) configurado para `SendInBlueApi` en `CorreoEnviadoEnviarController`.
-- Reemplazar `RabbitMQClientFactory.FabricarMailClientSendInBlue().SendMessage(...)` por `POST /api/correo/enviar` con payload `{ "idCorreoEnviado": guid }`.
+- Reemplazar `RabbitMQClientFactory.FabricarMailClientSendInBlue().SendMessage(...)` por `POST /api/v1/mail/send` con payload `{ "idCorreoEnviado": guid }`.
 - Implementar obtención de Bearer token desde IdentityServer para la llamada.
 - Agregar `appSettings["SendInBlue:ApiUrl"]` y `appSettings["SendInBlue:ClientId/Secret"]`.
 - Mantener manejo de errores: si el nuevo API no responde, retornar `false` con log de error (no romper el flujo de negocio).
@@ -753,18 +753,18 @@ Refactorizar `CorreoEnviadoEnviarController.EnviarCorreo` para que delegue el en
 **Módulos:** Logic.Pqf.Catalogos — CorreosEnviados — Múltiples módulos
 
 **Consideraciones previas:**
-- `CorreoGenericoBO.GenerarCorreo<T>` actualmente llama `SendInBlueMailService.SendMail` de forma sincrónica directa. Debe refactorizarse para llamar `POST /api/correo/simple` o `POST /api/correo/html` del nuevo API.
+- `CorreoGenericoBO.GenerarCorreo<T>` actualmente llama `SendInBlueMailService.SendMail` de forma sincrónica directa. Debe refactorizarse para llamar `POST /api/v1/mail/simple` o `POST /api/v1/mail/html` del nuevo API.
 - 9 módulos usan `CorreoGenericoBO` (ver Sección 4.2-B del análisis): `ClienteBO.Extensions`, `GMUsuarioClienteCarteraDetalleBO`, `AutorizacionBO`, `cotCotizacionCorreoEnviadoTransaccionBO`, `CorreoCotPartidaInevtigacionBO`, `cotPartidaInvetigacionCorreoFinalizadoBO`, `PretramitarPromesaDeCompraTransaccionBO`, `ppPedidoIncidenciaCorreoTransaccionBO`, `ppPedidosSolicitarFEATransaccionBO`.
 - El cambio en `CorreoGenericoBO` es el único cambio necesario: los 9 módulos no se modifican si se mantiene la misma firma del método.
 - La serialización del objeto `Data` (XSLT) y la sustitución de parámetros HTML se delegan al nuevo API. `CorreoGenericoBO` solo construye el request y hace la llamada HTTP.
-- Si `Data != null` → usar `POST /api/correo/html` con el HTML pre-generado localmente (XSLT se puede mantener en ProquifaDotNet temporalmente) o migrar completamente al endpoint `simple` con el nombre de plantilla.
+- Si `Data != null` → usar `POST /api/v1/mail/html` con el HTML pre-generado localmente (XSLT se puede mantener en ProquifaDotNet temporalmente) o migrar completamente al endpoint `simple` con el nombre de plantilla.
 - Agregar logs de auditoría en cada llamada al nuevo API (moduleId, operación).
 
 **Objetivo general:**
 Refactorizar `CorreoGenericoBO.GenerarCorreo<T>` para delegar el envío al API de ProquifaDotNet.SendInBlue, manteniendo compatibilidad total con los 9 módulos que lo consumen.
 
 **Objetivos específicos:**
-- Refactorizar `CorreoGenericoBO.GenerarCorreo<T>` para llamar `POST /api/correo/simple` (con `clavePlantilla` y `parametros`) o `POST /api/correo/html` (con `htmlContent` pre-generado).
+- Refactorizar `CorreoGenericoBO.GenerarCorreo<T>` para llamar `POST /api/v1/mail/simple` (con `clavePlantilla` y `parametros`) o `POST /api/v1/mail/html` (con `htmlContent` pre-generado).
 - Inyectar `HttpClient` con autenticación IdentityServer (mismo patrón que Tarea 9).
 - Mantener la firma pública `bool GenerarCorreo<T>(ParametrosCorreoGenerico<T>)` sin cambios para no afectar los 9 módulos dependientes.
 - Verificar que los 9 módulos dependientes compilan y funcionan sin cambios.
@@ -920,10 +920,10 @@ Complementa T1 (que crea las tablas base de `ProquifaDotNetSendInBlue`). Debe ej
 **Consideraciones previas:**
 - Brevo soporta envío por plantilla nativa mediante `POST https://api.brevo.com/v3/smtp/email` con `templateId` (int) y `params` (objeto JSON). Brevo renderiza el HTML en su lado; el servidor solo envía el ID + parámetros.
 - Diferencia clave respecto a los otros 3 endpoints:
-  - `POST /api/correo/enviar` → usa XSLT local + `CorreoEnviado` de ProquifaDotNet.
-  - `POST /api/correo/simple` → HTML de plantilla local + `{{variable}}` sustitución.
-  - `POST /api/correo/html` → HTML explícito en el request.
-  - **`POST /api/correo/plantilla-brevo`** → ID de plantilla en Brevo + `params` JSON.
+  - `POST /api/v1/mail/send` → usa XSLT local + `CorreoEnviado` de ProquifaDotNet.
+  - `POST /api/v1/mail/simple` → HTML de plantilla local + `{{variable}}` sustitución.
+  - `POST /api/v1/mail/html` → HTML explícito en el request.
+  - **`POST /api/v1/mail/template`** → ID de plantilla en Brevo + `params` JSON.
 - El nuevo `TipoEnvioCorreo` enum debe incluir `BREVO_TEMPLATE`.
 - El request puede resolver el `IdTemplateBrevo` de dos formas: por `clave` lógica (lookup en `CatalogoPlantillaBrevo`) o por `idTemplateBrevo` directo (int).
 - El envío puede ser directo (responde inmediato) o encolado en RabbitMQ si hay timeout.
@@ -945,7 +945,7 @@ Implementar el flujo completo de envío por plantilla nativa de Brevo: nuevo Com
 - `BrevoMailService`: implementar el método con `POST /v3/smtp/email` usando `templateId` y `params` según API de Brevo.
 
 **API:**
-- Nuevo endpoint `POST /api/correo/plantilla-brevo` en `CorreoController`.
+- Nuevo endpoint `POST /api/v1/mail/template` en `CorreoController`.
 - Request body: `{ clave, idTemplateBrevo, receptores, params }`.
 - Respuesta: `{ idSolicitudCorreo, estado }` o `{ brevoMessageId, enviado }` según si fue directo o encolado.
 - Documentación Swagger con ejemplo de `params`.
@@ -955,18 +955,18 @@ Implementar el flujo completo de envío por plantilla nativa de Brevo: nuevo Com
 - Backoff exponencial igual que los otros tipos de envío.
 
 **Resultado esperado:**
-Un consumidor puede llamar `POST /api/correo/plantilla-brevo` con `{ "clave": "BIENVENIDA_CLIENTE", "receptores": ["x@y.com"], "params": { "nombre": "Juan" } }` y Brevo envía el correo usando la plantilla configurada en su plataforma.
+Un consumidor puede llamar `POST /api/v1/mail/template` con `{ "clave": "BIENVENIDA_CLIENTE", "receptores": ["x@y.com"], "params": { "nombre": "Juan" } }` y Brevo envía el correo usando la plantilla configurada en su plataforma.
 
 **Entregables:**
 - `EnviarCorreoPlantillaBrevoCommand.cs` + Handler + Validator
 - `IBrevoMailService.cs` actualizado con `EnviarConPlantillaBrevo`
 - `BrevoMailService.cs` con implementación HTTP del método
-- `CorreoController.cs` con endpoint `POST /api/correo/plantilla-brevo`
+- `CorreoController.cs` con endpoint `POST /api/v1/mail/template`
 - `SendMailWorker.cs` con case para `BREVO_TEMPLATE`
 
 **Criterios de aceptación:**
-- `POST /api/correo/plantilla-brevo` con `clave` válida resuelve el `IdTemplateBrevo` desde `CatalogoPlantillaBrevo` y envía exitosamente
-- `POST /api/correo/plantilla-brevo` con `idTemplateBrevo` directo (sin clave) funciona igualmente
+- `POST /api/v1/mail/template` con `clave` válida resuelve el `IdTemplateBrevo` desde `CatalogoPlantillaBrevo` y envía exitosamente
+- `POST /api/v1/mail/template` con `idTemplateBrevo` directo (sin clave) funciona igualmente
 - Si `clave` y `idTemplateBrevo` son ambos nulos → HTTP 400 (validator)
 - Si ningún receptor → HTTP 400 (validator)
 - Si Brevo responde con error HTTP → encola en RabbitMQ para reintento

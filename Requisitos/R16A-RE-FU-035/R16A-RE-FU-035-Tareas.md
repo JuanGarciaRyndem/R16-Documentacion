@@ -138,7 +138,7 @@ Ver sección **Parte A** de `R16A-RE-FU-035-Back.md` — mapa completo de campos
 **Módulos:** Application — Services — NC — Peru — NCPeruPdfMappingService + PersistirNCPeruPdfService
 
 **Consideraciones previas:**
-- Patrón base: `FacturaPeruPdfMappingService` (R16A-RE-FU-022). Misma separación Preview / PostTimbrado.
+- Patrón base: `PeruInvoicePdfMappingService` (R16A-RE-FU-022). Misma separación Preview / PostTimbrado.
 - Prerrequisito: T1 (template `GOL_PER_NC`) debe estar registrado en DocumentBuilder para validar renderizado end-to-end.
 - Prerrequisito: RE-033 T5 (DML DocumentTemplate) ejecutado.
 - Modo Preview: sin QR SUNAT, sin hash/resumen, con leyenda "PREVISUALIZACIÓN".
@@ -185,6 +185,6 @@ Ver secciones **Parte B** y **Parte D** de `R16A-RE-FU-035-Back.md`.
 
 **Recursos:**
 - `R16A-RE-FU-035-Back.md` — Partes B y D
-- `FacturaPeruPdfMappingService` (RE-022) — patrón base
-- `PersistirFacturaPeruPdfService` (RE-022) — patrón base MinIO
+- `PeruInvoicePdfMappingService` (RE-022) — patrón base
+- `PersistPeruInvoicePdfService` (RE-022) — patrón base MinIO
 - Template `GOL_PER_NC` (entregable de T1)

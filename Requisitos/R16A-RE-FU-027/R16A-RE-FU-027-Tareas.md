@@ -125,7 +125,7 @@ Ver sección *"Parte A / A2"* en `R16A-RE-FU-027-Back.md` y sección *"fccSaldoF
 **Módulos:** Validar Cobro — Paso 2 Perú
 
 **Consideraciones previas:**
-- El endpoint `GET /api/validar-cobro/clientes/{idCliente}/documentos-pendientes` fue implementado en RE-FU-026 (Tarea 4) para México.
+- El endpoint `GET /api/v1/validate-collection/client/{idCliente}/pendingDocument` fue implementado en RE-FU-026 (Tarea 4) para México.
 - Extender para soportar Región Perú: agregar filtro `Region='PER'` y reflejar que el emisor es siempre Golocaer S.A.C. (GOLPERU) — sin mezcla de emisores.
 - El campo análogo a `CFDIGenerada` en México es `CPEGenerada` en Perú (`tpProformaPedido.IdCPEGenerada`).
 - No requiere paginación (todos los documentos pendientes del cliente en el panel del Paso 2).
@@ -135,18 +135,18 @@ Ver sección *"Parte A / A2"* en `R16A-RE-FU-027-Back.md` y sección *"fccSaldoF
 Extender en Finanzas el endpoint de documentos pendientes del Paso 2 para que soporte clientes de Región Perú, retornando proformas y FAA de GOLPERU con el campo `CPEGenerada` correspondiente.
 
 **Objetivos específicos:**
-- Extender `GetValidarCobroPaso2DocumentosQuery` + Handler para manejar `Region='PER'`.
+- Extender `GetPaymentValidationStep2DocumentsQuery` + Handler para manejar `Region='PER'`.
 - Agregar filtro `Region='PER'` al llamar a ProquifaDotNet.
 - Incluir campo `CPEGenerada` (`tpProformaPedido.IdCPEGenerada`) en el DTO de respuesta para clientes Perú.
 - Reflejar que `EmpresaEmisora = 'GOLPERU'` siempre (sin mezcla) en los documentos de Perú.
-- Actualizar DTO si es necesario: `ValidarCobroPaso2DocumentoDto` con campo `CPEGenerada`.
+- Actualizar DTO si es necesario: `PendingDocumentDto` con campo `CPEGenerada`.
 
 **Resultado esperado:**
-El endpoint `GET /api/validar-cobro/clientes/{idCliente}/documentos-pendientes` retorna correctamente el listado de documentos pendientes para clientes de Región Perú con `EmpresaEmisora='GOLPERU'` y `CPEGenerada` disponible.
+El endpoint `GET /api/v1/validate-collection/client/{idCliente}/pendingDocument` retorna correctamente el listado de documentos pendientes para clientes de Región Perú con `EmpresaEmisora='GOLPERU'` y `CPEGenerada` disponible.
 
 **Entregables:**
-- Extensión de `GetValidarCobroPaso2DocumentosQuery` + Handler
-- Actualización de DTO: `ValidarCobroPaso2DocumentoDto` (campo `CPEGenerada`)
+- Extensión de `GetPaymentValidationStep2DocumentsQuery` + Handler
+- Actualización de DTO: `PendingDocumentDto` (campo `CPEGenerada`)
 - Pruebas unitarias para Región Perú (emisor único GOLPERU, campo CPEGenerada)
 
 **Criterios de aceptación:**
@@ -173,7 +173,7 @@ Ver sección *"Parte B / B1"* en `R16A-RE-FU-027-Back.md`. Ver regla 5 en `R16A-
 **Módulos:** Validar Cobro — Paso 2 Perú
 
 **Consideraciones previas:**
-- El endpoint `GET /api/validar-cobro/clientes/{idCliente}/notas-credito-vigentes` fue implementado en RE-FU-026 (Tarea 5) para México.
+- El endpoint `GET /api/v1/validate-collection/client/{idCliente}/activeCreditNote` fue implementado en RE-FU-026 (Tarea 5) para México.
 - La Tarea 1 debe estar ejecutada: `fccNotaCredito` ya tiene campos `PEN` y `MontoPEN`.
 - Para Perú el identificador fiscal es el UUID del CPE peruano, no `IdCFDI` del SAT.
 - ⚠️ La mecánica fiscal de referencia de la NC peruana (catálogo 09 SUNAT) se desarrolla en RE-FU-033/035 y NO se implementa aquí; en este Paso solo se aplica operativamente al adeudo.
@@ -182,7 +182,7 @@ Ver sección *"Parte B / B1"* en `R16A-RE-FU-027-Back.md`. Ver regla 5 en `R16A-
 Extender en Finanzas el endpoint de NCs vigentes para que soporte clientes de Región Perú, retornando los campos `PEN` y `MontoPEN` y el identificador fiscal del CPE peruano en lugar del `IdCFDI` SAT.
 
 **Objetivos específicos:**
-- Extender `GetNotasCreditoVigentesQuery` + Handler para manejar `Region='PER'`.
+- Extender `GetActiveCreditNotesQuery` + Handler para manejar `Region='PER'`.
 - Incluir campos `PEN` y `MontoPEN` en el DTO de respuesta.
 - Para clientes Perú, retornar el identificador del CPE peruano en lugar del `IdCFDI` SAT (pendiente confirmar nombre del campo en `fccNotaCredito`).
 - Filtro: `Aplicada=0 AND Activo=1 AND IdCliente=@Id AND Region='PER'`.
@@ -191,8 +191,8 @@ Extender en Finanzas el endpoint de NCs vigentes para que soporte clientes de Re
 El endpoint de NCs vigentes retorna correctamente las NCs de clientes Perú con los campos `PEN` y `MontoPEN` disponibles para el cálculo del saldo en el Paso 2.
 
 **Entregables:**
-- Extensión de `GetNotasCreditoVigentesQuery` + Handler
-- Actualización de DTO: `NotaCreditoVigenteDto` (campos `PEN`, `MontoPEN`, identificador CPE)
+- Extensión de `GetActiveCreditNotesQuery` + Handler
+- Actualización de DTO: `ActiveCreditNoteDto` (campos `PEN`, `MontoPEN`, identificador CPE)
 - Pruebas unitarias para Región Perú
 
 **Criterios de aceptación:**
@@ -220,38 +220,38 @@ Ver sección *"Parte B / B2"* en `R16A-RE-FU-027-Back.md`. Ver regla 7 en `R16A-
 **Módulos:** Validar Cobro — Paso 2 Perú
 
 **Consideraciones previas:**
-- `SaldoAsociacionCalculatorService` fue implementado en RE-FU-026 (Tarea 6) con moneda base MXN y umbral de tolerancia 100 MXN.
+- `AssociationBalanceCalculatorService` fue implementado en RE-FU-026 (Tarea 6) con moneda base MXN y umbral de tolerancia 100 MXN.
 - Para Perú: moneda base PEN, umbral de tolerancia **pendiente de definir** con PROQUIFA Tesorería (⚠️ Brecha B1).
-- La fórmula base es idéntica: `SaldoAsociacion = (SumaCobrosAplicados + SumaNCAplicadas) - SumaAdeudoDocumentos`.
+- La fórmula base es idéntica: `AssociationBalance = (SumAppliedPayments + SumAppliedCreditNotes) - SumDocumentsDebt`.
 - El TC para conversión multi-divisa proviene de `fccPagoCliente.TipoDeCambio` del Paso 1 Perú — fuente pendiente (⚠️ Brecha B2).
 - El servicio debe detectar la región del cliente y aplicar la lógica correspondiente (MXN base para México, PEN base para Perú).
-- Mientras la tolerancia Perú no esté definida, la validación del escenario TOLERANCIA puede quedar parametrizable o retornar INSUFICIENTE por defecto.
+- Mientras la tolerancia Perú no esté definida, la validación del escenario TOLERANCE puede quedar parametrizable o retornar INSUFFICIENT por defecto.
 
 **Objetivo general:**
-Extender `SaldoAsociacionCalculatorService` en Finanzas para soportar Región Perú, usando moneda base PEN y el umbral de tolerancia de Perú cuando esté definido.
+Extender `AssociationBalanceCalculatorService` en Finanzas para soportar Región Perú, usando moneda base PEN y el umbral de tolerancia de Perú cuando esté definido.
 
 **Objetivos específicos:**
-- Extender `ISaldoAsociacionCalculatorService` para aceptar parámetro de `Region` ('MEX' / 'PER').
+- Extender `IAssociationBalanceCalculatorService` para aceptar parámetro de `Region` ('MEX' / 'PER').
 - Implementar lógica de moneda base PEN para Perú en la conversión multi-divisa.
 - Parametrizar el umbral de tolerancia por región: `toleranciaMXN = 100` para México; `toleranciaPEN = [PENDIENTE]` para Perú (configurar como parámetro, no hardcodeado).
-- Actualizar escenarios para Perú: EXACTO / SOBREPAGO / TOLERANCIA_PEN / INSUFICIENTE.
-- Actualizar el endpoint `POST /api/validar-cobro/clientes/{idCliente}/calcular-saldo` para retornar la moneda base del escenario (MXN o PEN).
+- Actualizar escenarios para Perú: EXACT / OVERPAYMENT / TOLERANCE_PEN / INSUFFICIENT.
+- Actualizar el endpoint `POST /api/v1/validate-collection/client/{idCliente}/balance/calculate` para retornar la moneda base del escenario (MXN o PEN).
 
 **Resultado esperado:**
-`SaldoAsociacionCalculatorService` en Finanzas calcula correctamente el saldo para clientes Perú con moneda base PEN y determina el escenario usando el umbral de tolerancia de Perú (parametrizable hasta confirmar el valor).
+`AssociationBalanceCalculatorService` en Finanzas calcula correctamente el saldo para clientes Perú con moneda base PEN y determina el escenario usando el umbral de tolerancia de Perú (parametrizable hasta confirmar el valor).
 
 **Entregables:**
-- Extensión de `ISaldoAsociacionCalculatorService` + `SaldoAsociacionCalculatorService`
+- Extensión de `IAssociationBalanceCalculatorService` + `AssociationBalanceCalculatorService`
 - Umbral tolerancia Perú configurado como parámetro (no hardcodeado)
 - Pruebas unitarias para los 4 escenarios Perú con moneda base PEN
 - Prueba de no regresión para México (moneda base MXN, tolerancia 100 MXN)
 
 **Criterios de aceptación:**
 - Para Región Perú: todos los totales del panel se expresan en moneda del cobro con base PEN.
-- `Escenario = EXACTO` cuando SaldoAsociacion = 0.
-- `Escenario = SOBREPAGO` cuando SaldoAsociacion > 0.
-- `Escenario = TOLERANCIA_PEN` cuando 0 > SaldoAsociacion AND ABS ≤ umbral Perú (parametrizable).
-- `Escenario = INSUFICIENTE` cuando SaldoAsociacion < 0 AND ABS > umbral Perú.
+- `Scenario = EXACT` cuando AssociationBalance = 0.
+- `Scenario = OVERPAYMENT` cuando AssociationBalance > 0.
+- `Scenario = TOLERANCE_PEN` cuando 0 > AssociationBalance AND ABS ≤ umbral Perú (parametrizable).
+- `Scenario = INSUFFICIENT` cuando AssociationBalance < 0 AND ABS > umbral Perú.
 - El cálculo México (tolerancia 100 MXN) no se ve afectado.
 - ⚠️ El valor del umbral de tolerancia Perú quedará como parámetro hasta confirmar con Tesorería.
 
@@ -274,7 +274,7 @@ Ver sección *"Parte B / B3"* en `R16A-RE-FU-027-Back.md`. Ver reglas 8-11 y 19-
 **Módulos:** Validar Cobro — Paso 2 Perú
 
 **Consideraciones previas:**
-- `ConfirmarAsociacionPaso2Command` + Handler fueron implementados en RE-FU-026 (Tarea 7) para México.
+- `ConfirmAssociationStep2Command` + Handler fueron implementados en RE-FU-026 (Tarea 7) para México.
 - Para Perú: misma lógica transaccional pero **sin disparar generación de Complemento de Pago**. La asociación es solo operativa.
 - La Tarea 2 debe estar ejecutada: `fccSaldoFavorCliente` tiene campo `PEN`.
 - Al insertar en `fccSaldoFavorCliente` para Perú: `PEN=1`, no `MXN=1`.
@@ -284,25 +284,25 @@ Ver sección *"Parte B / B3"* en `R16A-RE-FU-027-Back.md`. Ver reglas 8-11 y 19-
 Extender en Finanzas la persistencia transaccional del Paso 2 para Región Perú: mismas operaciones que México (INSERT asociaciones, UPDATE NCs, INSERT saldo a favor/tolerancia) pero sin disparar Complemento de Pago al avanzar al Paso 3.
 
 **Objetivos específicos:**
-- Extender `ConfirmarAsociacionPaso2Command` + Handler para manejar `Region='PER'`.
+- Extender `ConfirmAssociationStep2Command` + Handler para manejar `Region='PER'`.
 - Asegurar que para Región Perú NO se dispara generación de Complemento de Pago ni evento a Timbrado.
 - Al insertar `fccSaldoFavorCliente` para Perú: usar `PEN=1` (no `MXN=1`).
 - Transacción completa con rollback si cualquier operación falla, igual que México.
-- Registrar en Serilog con contexto (usuario, módulo='ValidarCobroPaso2PER', operación).
+- Registrar en Serilog con contexto (usuario, módulo='PaymentValidationStep2PER', operación).
 
 **Resultado esperado:**
 El endpoint `POST .../confirmar-asociacion` persiste correctamente la asociación del Paso 2 para clientes Perú en una sola transacción, sin disparar Complemento de Pago.
 
 **Entregables:**
-- Extensión de `ConfirmarAsociacionPaso2Command` + Handler para Región Perú
-- Pruebas unitarias (incluyendo: rollback en error, bloqueo si escenario=INSUFICIENTE, ausencia de evento Complemento de Pago para Perú)
+- Extensión de `ConfirmAssociationStep2Command` + Handler para Región Perú
+- Pruebas unitarias (incluyendo: rollback en error, bloqueo si scenario=INSUFFICIENT, ausencia de evento Complemento de Pago para Perú)
 
 **Criterios de aceptación:**
 - Las asociaciones se insertan correctamente en `fccPagoFacturaPedido` y/o `fccPagoFacturaAdelanto` para Perú.
 - Las NCs aplicadas quedan con `Aplicada=1` e `IdFCCPagoCliente` poblado.
 - Si hay sobrepago Perú: `INSERT fccSaldoFavorCliente` con `TipoSaldo='SaldoFavor'` y `PEN=1`.
 - Si hay tolerancia Perú: `INSERT fccSaldoFavorCliente` con `TipoSaldo='ToleranciaAplicada'` y `PEN=1`.
-- Si escenario=INSUFICIENTE: el endpoint retorna error y NO persiste nada.
+- Si scenario=INSUFFICIENT: el endpoint retorna error y NO persiste nada.
 - Si cualquier operación falla: rollback completo.
 - **Para Región Perú: NO se dispara ningún evento de Complemento de Pago.**
 - El flujo México (con trigger Complemento de Pago) no se ve afectado.
@@ -336,7 +336,7 @@ Ver sección *"Parte B / B4"* en `R16A-RE-FU-027-Back.md`. Ver reglas 9-13 en `R
 Verificar y extender en Finanzas el modal de inconsistencias del Paso 2 para que opere correctamente para cobros de clientes Perú, sin diferencias funcionales respecto a México excepto el contexto de región.
 
 **Objetivos específicos:**
-- Verificar que `RegistrarInconsistenciaCobroCommand` detecta correctamente cobros de Región Perú.
+- Verificar que `RegisterPaymentInconsistencyCommand` detecta correctamente cobros de Región Perú.
 - Confirmar que el catálogo `catTipoInconsistenciaCobro` con `AplicaPaso='2'` aplica igual para Perú.
 - Para `PAGO_INCOMPLETO_VENCIDO` Perú: misma lógica de marcado de pedido; registrar en Serilog que la cancelación fiscal efectiva se gestiona externamente vía NC SUNAT.
 - Actualizar registro en `fccInconsistenciaCobro` con contexto de región Perú.
@@ -345,7 +345,7 @@ Verificar y extender en Finanzas el modal de inconsistencias del Paso 2 para que
 El modal de inconsistencias del Paso 2 opera correctamente para cobros de clientes Perú, con el mismo comportamiento que México y el contexto de región Perú registrado.
 
 **Entregables:**
-- Verificación y extensión mínima de `RegistrarInconsistenciaCobroCommand` para Región Perú
+- Verificación y extensión mínima de `RegisterPaymentInconsistencyCommand` para Región Perú
 - Pruebas unitarias para Región Perú (incluyendo PAGO_INCOMPLETO_VENCIDO y PAGO_INSUFICIENTE)
 - Prueba de no regresión para México
 
@@ -384,7 +384,7 @@ Ver sección *"Parte B / B5"* en `R16A-RE-FU-027-Back.md`. Ver reglas 12-14 en `
 Verificar y extender en Finanzas el mecanismo de auto-guardado del Paso 2 para que soporte el contexto de Región Perú, asegurando que el borrador de la asociación se preserva y recupera correctamente para cobros de clientes Perú.
 
 **Objetivos específicos:**
-- Verificar que `AutoGuardarAsociacionCommand` soporta el contexto `Region='PER'`.
+- Verificar que `AutoSaveAssociationCommand` soporta el contexto `Region='PER'`.
 - Si la tabla/estructura de borrador no tiene campo `Region`: agregar o ajustar para distinguir borradores México/Perú.
 - Verificar que al retomar el Paso 2 Perú, el estado previo se carga correctamente.
 - Prueba de no regresión: borradores México no se ven afectados.
@@ -393,7 +393,7 @@ Verificar y extender en Finanzas el mecanismo de auto-guardado del Paso 2 para q
 El auto-guardado del Paso 2 opera correctamente para clientes Perú, preservando y recuperando el borrador de la asociación de forma transparente.
 
 **Entregables:**
-- Verificación y extensión mínima de `AutoGuardarAsociacionCommand` para Región Perú
+- Verificación y extensión mínima de `AutoSaveAssociationCommand` para Región Perú
 - Pruebas unitarias para Región Perú (guardado, recuperación, sobrescritura de borrador)
 - Prueba de no regresión para México
 

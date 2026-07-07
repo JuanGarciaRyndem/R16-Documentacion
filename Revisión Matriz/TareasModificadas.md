@@ -237,10 +237,10 @@
 ### Tareas afectadas
 
 - [x] **R16A-RE-FU-024.md** — Sección Cambios agregada; Regla 11 y Criterio F1 actualizados
-- [x] **R16A-RE-FU-024-Back.md** — OBS-048: nota en Resumen sobre reanudación del wizard. Nueva sección B8 con endpoint `GET /api/validar-cobro/clientes/{idCliente}/estado-wizard` y lógica de determinación del paso activo.
+- [x] **R16A-RE-FU-024-Back.md** — OBS-048: nota en Resumen sobre reanudación del wizard. Nueva sección B8 con endpoint `GET /api/v1/validate-collection/client/{idCliente}/wizardStatus` y lógica de determinación del paso activo.
 - [ ] **R16A-RE-FU-024-Tareas.md**  
 	- [x] Tarea 8 Consideraciones previas: bullet OBS-048 vinculando auto-guardado con la reanudación del wizard. 
-	- [x] Tarea 12 nueva: Endpoint y servicio de estado del wizard (`GetEstadoWizardQuery`, `EstadoWizardDto`).
+	- [x] Tarea 12 nueva: Endpoint y servicio de estado del wizard (`GetWizardStatusQuery`, `WizardStatusDto`).
 
 ---
 

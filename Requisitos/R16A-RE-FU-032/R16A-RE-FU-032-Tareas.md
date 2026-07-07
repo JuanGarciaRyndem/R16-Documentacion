@@ -19,7 +19,7 @@
 | 8             | IMP-EXIST-SERVICE | Implementar Wizard Paso 1 y Paso 2: búsqueda de facturas, captura por partidas y manual       | Back | ProquifaDotNet.Finanzas |
 | 9             | SERV-TRANSACT     | Implementar timbrado NC, persistencia MinIO, cancelación condicional y correo automático      | Back | ProquifaDotNet.Finanzas |
 | 10            | CREATE-TABL-CH    | Crear catMotivoCancelacionSAT con DDL + DML 4 claves SAT c_MotivoCancelacion                  | BD   | ProquifaDotNet          |
-| 11            | LIST-NO-FILTER    | Endpoint GET /api/catalogos/motivos-cancelacion para que Front obtenga claves SAT             | Back | ProquifaDotNet.Finanzas |
+| 11            | LIST-NO-FILTER    | Endpoint GET /api/v1/cancellationReason para que Front obtenga claves SAT                     | Back | ProquifaDotNet.Finanzas |
 | 12            | QUERY-G           | ETL PCconnect — Análisis de datos a transferir de NCs a Legacy                                | ETL  | SSIS / PCconnect        |
 | 13            | BD-OBJ-G          | ETL PCconnect — Desarrollo paquete SSIS: transferencia de datos NC y PDF a Legacy             | ETL  | SSIS / PCconnect        |
 | 14            | QUERY-M           | ETL PCconnect — Pruebas de validación de datos transferidos a Legacy                          | ETL  | SSIS / PCconnect        |
@@ -448,7 +448,7 @@ Ver sección *"DML EmpresaFolio"* en `R16A-RE-FU-032_BD.md` y sección *"Parte A
 - Los archivos HTML se crean en la Tarea 11. Esta tarea solo registra metadatos en BD.
 
 **Objetivo general:**
-Registrar los 4 templates del Módulo NC México en `DocumentBuilder.DocumentTemplate` para que `PersistirNCMexicoPdfService` pueda resolver el `TemplateKey` correcto por empresa emisora.
+Registrar los 4 templates del Módulo NC México en `DocumentBuilder.DocumentTemplate` para que `PersistMexicoCreditNotePdfService` pueda resolver el `TemplateKey` correcto por empresa emisora.
 
 **Objetivos específicos:**
 - Verificar ausencia de los 4 TemplateKey.
@@ -519,16 +519,16 @@ Ver sección *"DML DocumentTemplate"* en `R16A-RE-FU-032_BD.md` y sección *"Par
 - Prerrequisitos: Tareas 4 y 5.
 
 **Objetivo general:**
-Ampliar el `CfdiController` (endpoint único `POST /api/v1/cfdi` creado en RE-FU-018) para que, al recibir `NotaCreditoMexicoRequest` de Finanzas (discriminado por FiscalDocumentTypeId), construya el XML CFDI E, lo timbre vía PAC TurboPac, inserte en `CFDIGenerada` + `CFDI`, actualice `EmpresaFolio` y retorne el CFDI timbrado.
+Ampliar el `CfdiController` (endpoint único `POST /api/v1/cfdi` creado en RE-FU-018) para que, al recibir `CreditNoteMexicoRequest` de Finanzas (discriminado por FiscalDocumentTypeId), construya el XML CFDI E, lo timbre vía PAC TurboPac, inserte en `CFDIGenerada` + `CFDI`, actualice `EmpresaFolio` y retorne el CFDI timbrado.
 
 **Objetivos específicos:**
-- Recibir y validar `NotaCreditoMexicoRequest` (datos del emisor, receptor, conceptos, CFDI relacionado).
+- Recibir y validar `CreditNoteMexicoRequest` (datos del emisor, receptor, conceptos, CFDI relacionado).
 - Construir XML CFDI 4.0 TipoDocumento='E' con todos los nodos requeridos.
 - Obtener folio con UPDLOCK atómico Serie "P2".
 - Enviar XML al PAC TurboPac y recibir XML timbrado con `TimbreFiscalDigital`.
 - INSERT `CFDIGenerada` + `CFDI` con UUID SAT.
 - UPDATE `EmpresaFolio.UltimoFolio`.
-- Retornar `NotaCreditoMexicoResponse` a Finanzas.
+- Retornar `CreditNoteMexicoResponse` a Finanzas.
 - Manejo de errores PAC: retornar error con detalle sin persistir.
 
 **Resultado esperado:**
@@ -536,7 +536,7 @@ Endpoint único (`POST /api/v1/cfdi`) funcional que timbra NCs México vía Turb
 
 **Entregables:**
 - Ampliación de `CfdiController` (`POST /api/v1/cfdi`) para el flujo de Nota de Crédito México
-- `NotaCreditoMexicoRequest` / `NotaCreditoMexicoResponse` DTOs
+- `CreditNoteMexicoRequest` / `CreditNoteMexicoResponse` DTOs
 - Unit tests del servicio de construcción XML
 
 **Criterios de aceptación:**
@@ -573,10 +573,10 @@ Ver sección *"Parte C / C1"* en `R16A-RE-FU-032-Back.md`.
 Implementar los endpoints de Finanzas para el Wizard Paso 1 (búsqueda de facturas elegibles) y Paso 2 (captura de datos en ambas modalidades), incluyendo la evaluación de la cancelación condicional.
 
 **Objetivos específicos:**
-- Endpoint GET `/api/nc-mexico/facturas-elegibles?idCliente={id}`: retorna facturas vigentes prepago del cliente (máx. 5 años).
-- Endpoint GET `/api/nc-mexico/partidas-factura?idCFDIGenerada={id}`: retorna partidas de la factura origen para modalidad por partidas.
+- Endpoint GET `/api/v1/client/{id}/eligibleInvoice`: retorna facturas vigentes prepago del cliente (máx. 5 años).
+- Endpoint GET `/api/v1/cfdi/{id}/lineItem`: retorna partidas de la factura origen para modalidad por partidas.
 - Lógica de evaluación de cancelación condicional: `NC por totalidad && MONTH(FechaFactura) == MONTH(GETDATE())`.
-- Endpoint POST `/api/nc-mexico/borrador`: persiste `fccNotaCredito` + `fccNotaCreditoPartida` (si aplica) en estado `PENDIENTE` antes de timbrar.
+- Endpoint POST `/api/v1/creditNote`: persiste `fccNotaCredito` + `fccNotaCreditoPartida` (si aplica) en estado `PENDIENTE` antes de timbrar.
 - Validaciones: monto manual ≤ Total factura origen, concepto obligatorio en manual.
 
 **Resultado esperado:**
@@ -611,7 +611,7 @@ Ver secciones *"Parte B / B1, B2, B3"* en `R16A-RE-FU-032-Back.md`.
 
 **Consideraciones previas:**
 - Orquesta la secuencia completa post-timbrado: Finanzas → Timbrado → (condicional) Cancelación factura → DocumentBuilder → MinIO → BD → Correo.
-- `PersistirNCMexicoPdfService` es implementado en **R16A-RE-FU-034 T6**. Esta tarea lo consume; asegurarse de que RE-034 T6 esté completada antes de integrarse end-to-end.
+- `PersistMexicoCreditNotePdfService` es implementado en **R16A-RE-FU-034 T6**. Esta tarea lo consume; asegurarse de que RE-034 T6 esté completada antes de integrarse end-to-end.
 - El bucket MinIO se resuelve de `RegionConfiguracionMinioBucket` donde `BucketClave='notas_credito'` y `Region.Clave='MEX'` (⚠️ verificar existencia — Pendiente P2).
 - Correo automático al timbrar: Para=contacto cliente (editable), CC=ESAC+CxC (editable). ⚠️ Plantilla pendiente PMO #31.
 - Prerrequisitos: T1, T2, T7, T8, **RE-034 T1–T6** completos.
@@ -620,10 +620,10 @@ Ver secciones *"Parte B / B1, B2, B3"* en `R16A-RE-FU-032-Back.md`.
 Implementar el flujo completo de Finanzas post-timbrado: llamada a Timbrado, (condicional) cancelación de factura origen, generación PDF final, subida a MinIO, actualización de BD y envío automático del correo al cliente con PDF y XML adjuntos.
 
 **Objetivos específicos:**
-- Endpoint POST `/api/nc-mexico/timbrar?idFCCNotaCredito={id}`: orquesta toda la secuencia.
+- Endpoint POST `/api/v1/creditNote/{id}/stamp`: orquesta toda la secuencia.
 - Llamada al API de Timbrado y manejo de error/éxito (Criterios J1, J5).
 - Si `CancelarFacturaOrigen=1`: llamada al endpoint de cancelación CFDI.
-- `PersistirNCMexicoPdfService.PersistirAsync()`: DocumentBuilder → MinIO → INSERT Archivo × 2 → INSERT CFDIGeneradaRelacionado → UPDATE fccNotaCredito → INSERT fccNotaCreditoPartida (si por partidas).
+- `PersistMexicoCreditNotePdfService.PersistirAsync()`: DocumentBuilder → MinIO → INSERT Archivo × 2 → INSERT CFDIGeneradaRelacionado → UPDATE fccNotaCredito → INSERT fccNotaCreditoPartida (si por partidas).
 - Envío de correo con INSERT `CorreoEnviado` + `ArchivoCorreoEnviado` (PDF + XML).
 - Navegación al Paso 4 NC Emitida con datos completos.
 
@@ -632,7 +632,7 @@ Al presionar "Timbrar" en el Paso 3, la NC queda en estado VIGENTE en BD, el PDF
 
 **Entregables:**
 - Endpoint POST timbrar
-- `PersistirNCMexicoPdfService`
+- `PersistMexicoCreditNotePdfService`
 - Flujo de correo automático
 - Unit tests + integration tests del flujo completo
 
@@ -648,8 +648,8 @@ Ver sección *"Parte B / B6, B7, B8"* y *"Parte E"* en `R16A-RE-FU-032-Back.md`.
 
 **Recursos:**
 - `R16A-RE-FU-032-Back.md` — Parte B sección B6, Parte E
-- `PersistirFacturaMexicoPdfService` (RE-021) — patrón base
-- `PersistirComplementoPagoPdfService` (RE-030) — patrón base
+- `PersistMexicoInvoicePdfService` (RE-021) — patrón base
+- `PersistPaymentComplementPdfService` (RE-030) — patrón base
 
 ---
 
@@ -737,7 +737,7 @@ Ver sección *"catMotivoCancelacionSAT"* en `R16A-RE-FU-032_BD.md`.
 
 ## TAREA 11
 
-**[ RE-FU-032 ] [LIST-NO-FILTER] Endpoint GET /api/catalogos/motivos-cancelacion**
+**[ RE-FU-032 ] [LIST-NO-FILTER] Endpoint GET /api/v1/cancellationReason**
 
 **Aplicativos:** ProquifaDotNet.Finanzas
 
@@ -754,16 +754,16 @@ Ver sección *"catMotivoCancelacionSAT"* en `R16A-RE-FU-032_BD.md`.
 Exponer el catálogo `catMotivoCancelacionSAT` vía API REST para que el frontend construya el selector de motivo de cancelación y envíe la clave elegida al confirmar la cancelación de una NC.
 
 **Objetivos específicos:**
-- Endpoint `GET /api/catalogos/motivos-cancelacion`: retorna lista de `{ clave, descripcion }`.
+- Endpoint `GET /api/v1/cancellationReason`: retorna lista de `{ clave, descripcion }`.
 - Query sobre `catMotivoCancelacionSAT WHERE Activo=1 ORDER BY Clave`.
-- DTO de respuesta: `MotivoCancelacionDto { Clave: string, Descripcion: string }`.
+- DTO de respuesta: `CancellationReasonDto { Clave: string, Descripcion: string }`.
 
 **Resultado esperado:**
 El frontend puede obtener las 4 claves SAT y mostrarlas en el selector. Al confirmar cancelación, envía la `Clave` elegida en el body del request.
 
 **Entregables:**
-- Endpoint `GET /api/catalogos/motivos-cancelacion`
-- `MotivoCancelacionDto`
+- Endpoint `GET /api/v1/cancellationReason`
+- `CancellationReasonDto`
 - Query / Repository method
 
 **Ejemplo de respuesta:**
@@ -777,7 +777,7 @@ El frontend puede obtener las 4 claves SAT y mostrarlas en el selector. Al confi
 ```
 
 **Criterios de aceptación:**
-- `GET /api/catalogos/motivos-cancelacion` retorna HTTP 200 con las 4 claves activas ordenadas por `Clave`.
+- `GET /api/v1/cancellationReason` retorna HTTP 200 con las 4 claves activas ordenadas por `Clave`.
 - La respuesta no expone el GUID interno (`IdCatMotivoCancelacionSAT`).
 - El campo `clave` en la respuesta es `varchar(4)` compatible con lo que `fccNotaCredito.ClaveMotivosCancelacion` espera.
 

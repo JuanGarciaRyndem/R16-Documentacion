@@ -31,18 +31,18 @@ Se crean 2 tablas nuevas (inconsistencias) y 1 SEQUENCE (foliador COB).
 
 ## Impacto en BD
 
-| #   | Cambio                                                                                                | Tipo | Estado                   |
-| --- | ----------------------------------------------------------------------------------------------------- | ---- | ------------------------ |
-| 1   | ALTER TABLE fccPagoCliente ADD Confirmado bit NOT NULL DEFAULT(0) *(semántica: cobro capturado)*      | DDL  | ✅ Ejecutado en RE-FU-023 |
-| 2   | ALTER TABLE fccPagoCliente ADD FechaConfirmacion datetime2 NULL                                       | DDL  | ✅ Ejecutado en RE-FU-023 |
-| 3   | ALTER TABLE fccPagoCliente ADD IdUsuarioConfirmacion uniqueidentifier NULL                            | DDL  | ✅ Ejecutado en RE-FU-023 |
-| 4   | ALTER TABLE fccPagoCliente ADD Notas varchar(500) NULL                                                | DDL  | ✅ Ejecutado en RE-FU-023 |
-| 5   | ALTER TABLE fccPagoCliente ADD IdCatMoneda uniqueidentifier NULL FK catMoneda                         | DDL  | ✅ Ejecutado en RE-FU-023 |
-| 6   | **ALTER TABLE fccPagoCliente ADD BloqueadoPorTimbrado bit NOT NULL DEFAULT(0)** *(inmutabilidad)*     | DDL  | ❌ Pendiente RE-FU-024    |
-| 7   | **ALTER TABLE fccPagoCliente ADD FechaBloqueoTimbrado datetime2 NULL** *(trazabilidad del bloqueo)*   | DDL  | ❌ Pendiente RE-FU-024    |
-| 8   | CREATE TABLE catTipoInconsistenciaCobro                                                               | DDL  | ❌ Pendiente              |
-| 9   | CREATE TABLE fccInconsistenciaCobro                                                                   | DDL  | ❌ Pendiente              |
-| 10  | CREATE SEQUENCE dbo.SeqFolioCobro                                                                     | DDL  | ❌ Pendiente              |
+| #   | Cambio                                                                                              | Tipo | Estado                   |
+| --- | --------------------------------------------------------------------------------------------------- | ---- | ------------------------ |
+| 1   | ALTER TABLE fccPagoCliente ADD Confirmado bit NOT NULL DEFAULT(0) *(semántica: cobro capturado)*    | DDL  | ✅ Ejecutado en RE-FU-023 |
+| 2   | ALTER TABLE fccPagoCliente ADD FechaConfirmacion datetime2 NULL                                     | DDL  | ✅ Ejecutado en RE-FU-023 |
+| 3   | ALTER TABLE fccPagoCliente ADD IdUsuarioConfirmacion uniqueidentifier NULL                          | DDL  | ✅ Ejecutado en RE-FU-023 |
+| 4   | ALTER TABLE fccPagoCliente ADD Notas varchar(500) NULL                                              | DDL  | ✅ Ejecutado en RE-FU-023 |
+| 5   | ALTER TABLE fccPagoCliente ADD IdCatMoneda uniqueidentifier NULL FK catMoneda                       | DDL  | ✅ Ejecutado en RE-FU-023 |
+| 6   | **ALTER TABLE fccPagoCliente ADD BloqueadoPorTimbrado bit NOT NULL DEFAULT(0)** *(inmutabilidad)*   | DDL  | ❌ Pendiente RE-FU-024    |
+| 7   | **ALTER TABLE fccPagoCliente ADD FechaBloqueoTimbrado datetime2 NULL** *(trazabilidad del bloqueo)* | DDL  | ❌ Pendiente RE-FU-024    |
+| 8   | CREATE TABLE catTipoInconsistenciaCobro                                                             | DDL  | ❌ Pendiente              |
+| 9   | CREATE TABLE fccInconsistenciaCobro                                                                 | DDL  | ❌ Pendiente              |
+| 10  | CREATE SEQUENCE dbo.SeqFolioCobro                                                                   | DDL  | ❌ Pendiente              |
 
 > **Nota #5 — IdCatMoneda:** La pantalla del Paso 1 (Captura del Cobro) muestra un combo
 > desplegable de Moneda (ej. "USD"). Esto requiere un FK a `catMoneda` para cargar las opciones.
@@ -64,34 +64,34 @@ Se crean 2 tablas nuevas (inconsistencias) y 1 SEQUENCE (foliador COB).
 
 ## Tabla: fccPagoCliente — Estructura completa post-R16
 
-| Columna                 | Tipo                    | Nulo | Descripción                                              | Estado              |
-| ----------------------- | ----------------------- | ---- | -------------------------------------------------------- | ------------------- |
-| `IdFCCPagoCliente`      | uniqueidentifier        | NO   | PK                                                       | Existente           |
-| `IdCliente`             | uniqueidentifier        | NO   | FK Cliente                                               | Existente           |
-| `IdEmpresa`             | uniqueidentifier        | NO   | FK Empresa que recibe el cobro                           | Existente           |
-| `IdFCCFolioPagoCliente` | uniqueidentifier        | SÍ   | FK fccFolioPagoCliente — vínculo correo Buzón            | Existente           |
-| `Folio`                 | varchar(80)             | SÍ   | Formato COB-mmddaa-NNNN al confirmar; NULL en borrador   | Existente           |
-| `Monto`                  | decimal(18,4)           | NO   | Monto recibido del cliente                               | Existente           |
-| `FechaPago`             | datetime                | SÍ   | Fecha efectiva del pago                                  | Existente           |
-| `TipoDeCambio`          | decimal                 | SÍ   | TC del día vs MXN (calculado automático, solo lectura)   | Existente           |
-| `MXN`                   | bit                     | NO   | Bandera moneda pesos (legacy)                            | Existente           |
-| `USD`                   | bit                     | NO   | Bandera moneda dólares (legacy)                          | Existente           |
-| `IdCatMedioDePago`      | uniqueidentifier        | SÍ   | FK catMedioDePago — forma de pago c_FormaPago SAT        | Existente           |
-| `IdDatosBancarios`      | uniqueidentifier        | SÍ   | FK DatosBancarios — cuenta destino PROQUIFA              | Existente           |
-| `IdCatBanco`            | uniqueidentifier        | SÍ   | FK catBanco — banco emisor del cliente                   | Existente           |
-| `CuentaOrdenante`       | varchar(80)             | SÍ   | Cuenta origen del cliente (texto libre)                  | Existente           |
-| `ReferenciaBancaria`    | varchar(80)             | SÍ   | Referencia bancaria del pago                             | Existente           |
-| `IdArchivo`             | uniqueidentifier        | SÍ   | FK Archivo — comprobante de pago seleccionado del correo | Existente           |
-| `Activo`                | bit                     | NO   | 1=activo; 0=inconsistencia (elimina pendiente del Buzón) | Existente           |
-| `FechaRegistro`         | datetime2(7)            | NO   | Auditoría: cuándo se creó el registro                    | Existente           |
-| `FechaUltimaActualizacion` | datetime2(7)         | NO   | Auditoría: cuándo se modificó por última vez             | Existente           |
-| `Confirmado`            | bit NOT NULL DEFAULT(0) | NO   | 0=borrador / 1=capturado (editable hasta timbrar)        | **RE-FU-023** (semántica redefinida en RE-FU-024) |
-| `FechaConfirmacion`     | datetime2               | SÍ   | Timestamp de captura inicial del cobro                   | **RE-FU-023** |
-| `IdUsuarioConfirmacion` | uniqueidentifier        | SÍ   | Quién capturó el cobro inicialmente (trazabilidad)       | **RE-FU-023** |
-| `Notas`                 | varchar(500)            | SÍ   | Notas opcionales del formulario del cobro                | **RE-FU-023** |
-| `IdCatMoneda`           | uniqueidentifier        | SÍ   | FK catMoneda — moneda del cobro (combo UI Paso 1)        | **RE-FU-023** |
-| `BloqueadoPorTimbrado`  | bit NOT NULL DEFAULT(0) | NO   | 0=editable vía botón Editar / 1=inmutable post-timbrado  | **NUEVO RE-FU-024** |
-| `FechaBloqueoTimbrado`  | datetime2               | SÍ   | Timestamp del bloqueo (Paso 3 timbró el doc. asociado)   | **NUEVO RE-FU-024** |
+| Columna                    | Tipo                    | Nulo | Descripción                                              | Estado                                            |
+| -------------------------- | ----------------------- | ---- | -------------------------------------------------------- | ------------------------------------------------- |
+| `IdFCCPagoCliente`         | uniqueidentifier        | NO   | PK                                                       | Existente                                         |
+| `IdCliente`                | uniqueidentifier        | NO   | FK Cliente                                               | Existente                                         |
+| `IdEmpresa`                | uniqueidentifier        | NO   | FK Empresa que recibe el cobro                           | Existente                                         |
+| `IdFCCFolioPagoCliente`    | uniqueidentifier        | SÍ   | FK fccFolioPagoCliente — vínculo correo Buzón            | Existente                                         |
+| `Folio`                    | varchar(80)             | SÍ   | Formato COB-mmddaa-NNNN al confirmar; NULL en borrador   | Existente                                         |
+| `Monto`                    | decimal(18,4)           | NO   | Monto recibido del cliente                               | Existente                                         |
+| `FechaPago`                | datetime                | SÍ   | Fecha efectiva del pago                                  | Existente                                         |
+| `TipoDeCambio`             | decimal                 | SÍ   | TC del día vs MXN (calculado automático, solo lectura)   | Existente                                         |
+| `MXN`                      | bit                     | NO   | Bandera moneda pesos (legacy)                            | Existente                                         |
+| `USD`                      | bit                     | NO   | Bandera moneda dólares (legacy)                          | Existente                                         |
+| `IdCatMedioDePago`         | uniqueidentifier        | SÍ   | FK catMedioDePago — forma de pago c_FormaPago SAT        | Existente                                         |
+| `IdDatosBancarios`         | uniqueidentifier        | SÍ   | FK DatosBancarios — cuenta destino PROQUIFA              | Existente                                         |
+| `IdCatBanco`               | uniqueidentifier        | SÍ   | FK catBanco — banco emisor del cliente                   | Existente                                         |
+| `CuentaOrdenante`          | varchar(80)             | SÍ   | Cuenta origen del cliente (texto libre)                  | Existente                                         |
+| `ReferenciaBancaria`       | varchar(80)             | SÍ   | Referencia bancaria del pago                             | Existente                                         |
+| `IdArchivo`                | uniqueidentifier        | SÍ   | FK Archivo — comprobante de pago seleccionado del correo | Existente                                         |
+| `Activo`                   | bit                     | NO   | 1=activo; 0=inconsistencia (elimina pendiente del Buzón) | Existente                                         |
+| `FechaRegistro`            | datetime2(7)            | NO   | Auditoría: cuándo se creó el registro                    | Existente                                         |
+| `FechaUltimaActualizacion` | datetime2(7)            | NO   | Auditoría: cuándo se modificó por última vez             | Existente                                         |
+| `Confirmado`               | bit NOT NULL DEFAULT(0) | NO   | 0=borrador / 1=capturado (editable hasta timbrar)        | **RE-FU-023** (semántica redefinida en RE-FU-024) |
+| `FechaConfirmacion`        | datetime2               | SÍ   | Timestamp de captura inicial del cobro                   | **RE-FU-023**                                     |
+| `IdUsuarioConfirmacion`    | uniqueidentifier        | SÍ   | Quién capturó el cobro inicialmente (trazabilidad)       | **RE-FU-023**                                     |
+| `Notas`                    | varchar(500)            | SÍ   | Notas opcionales del formulario del cobro                | **RE-FU-023**                                     |
+| `IdCatMoneda`              | uniqueidentifier        | SÍ   | FK catMoneda — moneda del cobro (combo UI Paso 1)        | **RE-FU-023**                                     |
+| `BloqueadoPorTimbrado`     | bit NOT NULL DEFAULT(0) | NO   | 0=editable vía botón Editar / 1=inmutable post-timbrado  | **NUEVO RE-FU-024**                               |
+| `FechaBloqueoTimbrado`     | datetime2               | SÍ   | Timestamp del bloqueo (Paso 3 timbró el doc. asociado)   | **NUEVO RE-FU-024**                               |
 
 ---
 

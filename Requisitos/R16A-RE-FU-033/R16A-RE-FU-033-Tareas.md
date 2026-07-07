@@ -13,7 +13,7 @@
 | 3             | UPDATE-TABL-CH    | DML catTipoCFDI: INSERT clave NOTA_CREDITO_PERU (TipoDocumento='07')                               | BD   | ProquifaDotNet          |
 | 4             | UPDATE-TABL-CH    | DML EmpresaFolio: INSERT Serie NC Perú para Golocaer S.A.C.                                        | BD   | ProquifaDotNetTimbrado  |
 | 5             | UPDATE-TABL-CH    | DML DocumentTemplate: INSERT template GOL\_PER\_NC                                                 | BD   | DocumentBuilder         |
-| 6             | LIST-NO-FILTER    | Endpoint GET /api/catalogos/motivos-nota-credito-sunat para catálogo 09                            | Back | ProquifaDotNet.Finanzas |
+| 6             | LIST-NO-FILTER    | Endpoint GET /api/v1/creditNoteReasonSunat para catálogo 09                            | Back | ProquifaDotNet.Finanzas |
 | 7             | IMP-EXIST-SERVICE | Implementar Wizard Paso 1 y Paso 2: búsqueda CPE origen, captura por partidas y manual             | Back | ProquifaDotNet.Finanzas |
 | 8             | ALG-COMPLX-LOGIC  | Implementar endpoint timbrado NC Perú (CPE tipo 07) en Timbrado ⚠️ bloqueado Brecha B1             | Back | ProquifaDotNet.Timbrado |
 | 9             | SERV-TRANSACT     | Implementar timbrado NC Perú, persistencia MinIO y correo automático ⚠️ bloqueado Brecha B1        | Back | ProquifaDotNet.Finanzas |
@@ -302,10 +302,10 @@ Ver sección *"DML EmpresaFolio"* en `R16A-RE-FU-033_BD.md`.
 - Solo 1 template (Golocaer S.A.C.) a diferencia de los 4 de México (RE-032 T6).
 - Misma convención de nombres: `{TemplateKey}_{H/B/F}.html` → `GOL_PER_NC_H.html`, `GOL_PER_NC_B.html`, `GOL_PER_NC_F.html`.
 - Los archivos HTML se crean en la Tarea 11. Esta tarea solo registra metadatos.
-- Prerrequisito de RE-035 T3 (NCPeruPdfMappingService necesita el TemplateKey).
+- Prerrequisito de RE-035 T3 (CreditNotePeruPdfMappingService necesita el TemplateKey).
 
 **Objetivo general:**
-Registrar el template `GOL_PER_NC` en `DocumentBuilder.DocumentTemplate` para que `PersistirNCPeruPdfService` resuelva el template correcto.
+Registrar el template `GOL_PER_NC` en `DocumentBuilder.DocumentTemplate` para que `PersistPeruCreditNotePdfService` resuelva el template correcto.
 
 **Entregables:**
 - Script DML: INSERT + validación
@@ -345,7 +345,7 @@ Ver sección *"DML DocumentTemplate"* en `R16A-RE-FU-033_BD.md`.
 
 ## TAREA 6
 
-**[ RE-FU-033 ] [LIST-NO-FILTER] Endpoint GET /api/catalogos/motivos-nota-credito-sunat**
+**[ RE-FU-033 ] [LIST-NO-FILTER] Endpoint GET /api/v1/creditNoteReasonSunat**
 
 **Aplicativos:** ProquifaDotNet.Finanzas
 
@@ -361,16 +361,16 @@ Ver sección *"DML DocumentTemplate"* en `R16A-RE-FU-033_BD.md`.
 Exponer el catálogo 09 SUNAT vía API para que el frontend construya el selector de motivo y determine automáticamente la modalidad de captura.
 
 **Objetivos específicos:**
-- `GET /api/catalogos/motivos-nota-credito-sunat`: lista activos por Clave ASC.
-- DTO: `MotivoCreditoSUNATDto { Clave: string, Descripcion: string, Modalidad: string }`.
+- `GET /api/v1/creditNoteReasonSunat`: lista activos por Clave ASC.
+- DTO: `SunatCreditReasonDto { Clave: string, Descripcion: string, Modalidad: string }`.
 - Query: `catMotivoCreditoSUNAT09 WHERE Activo=1 ORDER BY Clave`.
 
 **Resultado esperado:**
 Frontend obtiene los motivos con su `Modalidad` y activa el formulario por partidas o manual según corresponda.
 
 **Entregables:**
-- Endpoint `GET /api/catalogos/motivos-nota-credito-sunat`
-- `MotivoCreditoSUNATDto`
+- Endpoint `GET /api/v1/creditNoteReasonSunat`
+- `SunatCreditReasonDto`
 
 **Ejemplo de respuesta:**
 ```json
@@ -391,7 +391,7 @@ Ver sección *"Parte B / B1"* en `R16A-RE-FU-033-Back.md`.
 
 **Recursos:**
 - `R16A-RE-FU-033-Back.md` — Parte B, sección B1
-- Endpoint análogo: `GET /api/catalogos/motivos-cancelacion` (RE-032 T13)
+- Endpoint análogo: `GET /api/v1/cancellationReason` (RE-032 T13)
 
 ---
 
@@ -419,9 +419,9 @@ Ver sección *"Parte B / B1"* en `R16A-RE-FU-033-Back.md`.
 Implementar los endpoints del Wizard Paso 1 y Paso 2 de la NC Perú, incluyendo la carga dinámica de la tabla de partidas del CPE origen y los cálculos de IGV.
 
 **Objetivos específicos:**
-- `GET /api/nc-peru/facturas-elegibles?idCliente={id}` — CPEs tipo 01 vigentes prepago Golocaer S.A.C. Perú.
-- `GET /api/nc-peru/partidas-factura?idCFDIGenerada={id}` — partidas del CPE origen para modalidad por partidas.
-- `POST /api/nc-peru/borrador` — persiste `fccNotaCredito` + `fccNotaCreditoPartida` (si aplica) en estado PENDIENTE.
+- `GET /api/v1/client/{id}/eligibleInvoice` — CPEs tipo 01 vigentes prepago Golocaer S.A.C. Perú.
+- `GET /api/v1/cfdi/{id}/lineItem` — partidas del CPE origen para modalidad por partidas.
+- `POST /api/v1/creditNote/draft` — persiste `fccNotaCredito` + `fccNotaCreditoPartida` (si aplica) en estado PENDIENTE.
 - Lógica motivo 01: pre-carga todas las partidas, campo no editable.
 - Validaciones: monto manual ≤ Total CPE origen; concepto obligatorio en modalidad manual.
 
@@ -453,7 +453,7 @@ Ver secciones *"Parte B / B2, B3, B4"* en `R16A-RE-FU-033-Back.md`.
 
 **[ RE-FU-033 ] [ALG-COMPLX-LOGIC] Implementar endpoint timbrado NC Perú en Timbrado ⚠️ BLOQUEADO B1**
 
-> *(Tarea original T9 — renumerada a T8 tras mover NCPeruXmlBuilder y template a RE-035)*
+> *(Tarea original T9 — renumerada a T8 tras mover CreditNotePeruXmlBuilder y template a RE-035)*
 
 **Aplicativos:** ProquifaDotNet.Timbrado
 
@@ -466,15 +466,15 @@ Ver secciones *"Parte B / B2, B3, B4"* en `R16A-RE-FU-033-Back.md`.
 - INSERT `CFDIGenerada` con `TipoDocumento='07'`, `IdCatTipoCFDI`=NOTA_CREDITO_PERU (prereq: Tarea 3).
 
 **Objetivo general:**
-Ampliar el `CfdiController` (endpoint único `POST /api/v1/cfdi` creado en RE-FU-018) para que, al recibir `NCPeruTimbradorRequest` de Finanzas (discriminado por FiscalDocumentTypeId), envíe el XML UBL 2.1 al proveedor SUNAT, persista el resultado en `CFDIGenerada` y retorne la constancia.
+Ampliar el `CfdiController` (endpoint único `POST /api/v1/cfdi` creado en RE-FU-018) para que, al recibir `CreditNotePeruStampingRequest` de Finanzas (discriminado por FiscalDocumentTypeId), envíe el XML UBL 2.1 al proveedor SUNAT, persista el resultado en `CFDIGenerada` y retorne la constancia.
 
 **Objetivos específicos:**
-- Recibir y validar `NCPeruTimbradorRequest`.
+- Recibir y validar `CreditNotePeruStampingRequest`.
 - Obtener folio UPDLOCK atómico Serie NC Perú.
 - Enviar XML al proveedor SUNAT (pendiente modalidad B1).
 - INSERT `CFDIGenerada` con TipoDocumento='07', folio, serie, constancia SUNAT.
 - UPDATE `EmpresaFolio.UltimoFolio`.
-- Retornar `NCPeruTimbradorResponse` con constancia a Finanzas.
+- Retornar `CreditNotePeruStampingResponse` con constancia a Finanzas.
 - Manejo de errores SUNAT.
 
 **Resultado esperado:**
@@ -482,7 +482,7 @@ Endpoint único (`POST /api/v1/cfdi`) funcional que timbra NCs Perú con folios 
 
 **Entregables:**
 - Ampliación de `CfdiController` (`POST /api/v1/cfdi`) para el flujo de Nota de Crédito Perú
-- `NCPeruTimbradorRequest` / `NCPeruTimbradorResponse` DTOs
+- `CreditNotePeruStampingRequest` / `CreditNotePeruStampingResponse` DTOs
 - Unit tests del servicio de construcción del XML a enviar al proveedor
 
 **Criterios de aceptación:**
@@ -503,7 +503,7 @@ Ver sección *"Parte C / C1"* en `R16A-RE-FU-033-Back.md`.
 
 **[ RE-FU-033 ] [SERV-TRANSACT] Timbrado NC Perú, persistencia MinIO y correo automático ⚠️ BLOQUEADO B1**
 
-> *(Tarea original T10 — renumerada a T9 tras mover NCPeruXmlBuilder y template a RE-035)*
+> *(Tarea original T10 — renumerada a T9 tras mover CreditNotePeruXmlBuilder y template a RE-035)*
 
 **Aplicativos:** ProquifaDotNet.Finanzas
 
@@ -511,21 +511,22 @@ Ver sección *"Parte C / C1"* en `R16A-RE-FU-033-Back.md`.
 
 **Consideraciones previas:**
 - ⚠️ **Brecha B1 bloqueante:** Depende de T8 (endpoint Timbrado definido).
-- `PersistirNCPeruPdfService` sigue el patrón de `PersistirNCMexicoPdfService` (RE-032 T10) con rutas MinIO Perú.
+- `PersistPeruCreditNotePdfService` sigue el patrón de `PersistMexicoCreditNotePdfService` (RE-032 T10) con rutas MinIO Perú.
 - Bucket MinIO Perú: `RegionConfiguracionMinioBucket` con `Region='PER'`, `BucketClave='notas_credito'` (⚠️ verificar — Pendiente P4).
 - Rutas MinIO: `notas-credito-per/notas_credito/{anio}/{mes}/{serie}-{correlativo}.pdf/.xml`.
 - **Sin cancelación SAT** — la anulación en Perú es vía NC motivo 01 (no hay llamada a cancelación separada).
-- Correo automático: plantilla Brevo NC Perú pendiente de PMO (Pendiente P9).
+- Correo automático vía ProquifaDotNet.EnvioCorreo (Aplicativo Nuevo — regla 7): plantilla NC Perú pendiente de PMO (Pendiente P9).
 - Prerrequisitos: Tareas 1, 7, RE-035 T1–T3, 8.
 
 **Objetivo general:**
 Implementar el flujo completo de Finanzas post-timbrado NC Perú: llamada a Timbrado, generación PDF final, subida a MinIO, actualización de BD y envío automático del correo al cliente.
 
 **Objetivos específicos:**
-- `POST /api/nc-peru/timbrar?idFCCNotaCredito={id}` — orquesta la secuencia completa.
+- `POST /api/v1/creditNote/{id}/stamp` — orquesta la secuencia completa.
 - Llamada al endpoint único de Timbrado (`POST /api/v1/cfdi`, discriminado por FiscalDocumentTypeId).
-- `PersistirNCPeruPdfService.PersistirAsync()`: DocumentBuilder → MinIO → INSERT Archivo × 2 → UPDATE `fccNotaCredito` (Estado='VIGENTE', IdArchivoPdf, IdArchivoXml, IdCFDIGenerada) → INSERT CFDIGeneradaConcepto (si por partidas) → INSERT fccNotaCreditoPartida.
-- Envío de correo con INSERT `CorreoEnviado` + `ArchivoCorreoEnviado`.
+- `PersistPeruCreditNotePdfService.PersistirAsync()`: DocumentBuilder → MinIO → INSERT Archivo × 2 → UPDATE `fccNotaCredito` (Estado='VIGENTE', IdArchivoPdf, IdArchivoXml, IdCFDIGenerada) → INSERT CFDIGeneradaConcepto (si por partidas) → INSERT fccNotaCreditoPartida.
+- Envío de correo vía ProquifaDotNet.EnvioCorreo (Aplicativo Nuevo, regla 7) con INSERT `CorreoEnviado` + `ArchivoCorreoEnviado`.
+- Registro del guardado de la NC en ProquifaDotNet.BitacoraCambios (Aplicativo Nuevo, regla 8).
 - Navegación al Paso 4 (NC Emitida).
 
 **Resultado esperado:**
@@ -533,7 +534,7 @@ Al presionar "Timbrar" en el Paso 3, la NC queda en estado VIGENTE, el PDF y XML
 
 **Entregables:**
 - Endpoint POST timbrar
-- `PersistirNCPeruPdfService`
+- `PersistPeruCreditNotePdfService`
 - Flujo de correo automático
 - Integration tests del flujo completo
 
@@ -548,7 +549,7 @@ Ver secciones *"Parte B / B7, B8, B9"* y *"Parte E"* en `R16A-RE-FU-033-Back.md`
 
 **Recursos:**
 - `R16A-RE-FU-033-Back.md` — Parte B B7–B9, Parte E
-- `PersistirNCMexicoPdfService` (RE-032 T10) — patrón base
+- `PersistMexicoCreditNotePdfService` (RE-032 T10) — patrón base
 
 ---
 

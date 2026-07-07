@@ -26,7 +26,7 @@ Involucra los mismos **3 repositorios/soluciones**:
 ### Flujo de integracion (identico a RE-FU-016, adaptado a Region PER)
 
 1. ESAC presiona Tramitar (Prepago sin FAA, Peru)
-2. ProquifaDotNet llama API Finanzas: POST /api/proforma/generar-pdf (IdRegion=PER)
+2. ProquifaDotNet llama API Finanzas: POST /api/v1/proforma/{id}/pdf (IdRegion=PER)
 3. Finanzas consulta datos BD (mismas tablas, filtro Region=PER)
 4. Determina TemplateKey: GOLPERU_PER_PRO
 5. Arma ProformaModel con adaptaciones Peru (IGV 18%, RUC, CCI, PEN, disclaimer SUNAT)
@@ -43,8 +43,8 @@ Involucra los mismos **3 repositorios/soluciones**:
 | Componente | Reutiliza de RE-FU-016 | Adaptacion Peru |
 |-----------|----------------------|-----------------|
 | Foliador SeqFolioProforma | SI - mismo SEQUENCE global | Ninguna (folio compartido MEX+PER) |
-| Endpoint POST /api/proforma/generar-pdf | SI - mismo endpoint | Parametro IdRegion=PER determina flujo |
-| Endpoint GET /api/proforma/{id}/pdf | SI - mismo endpoint | Ninguna |
+| Endpoint POST /api/v1/proforma/{id}/pdf | SI - mismo endpoint | Parametro IdRegion=PER determina flujo |
+| Endpoint GET /api/v1/proforma/{id}/pdf | SI - mismo endpoint | Ninguna |
 | ProformaModel DTO | SI - misma estructura base | Campos adaptados: IGV vs IVA, RUC vs RFC, CCI vs CLABE, PEN vs MXN |
 | ProformaModelBuilder (BO armado) | SI - mismo servicio | Logica condicional por Region |
 | DocumentBuilderHttpClient | SI - mismo cliente | Ninguna |

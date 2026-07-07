@@ -6,9 +6,9 @@
 
 > **Orden de ejecución sugerido:** BD catFormaPagoSAT (T1) → BD DML CP01 (T2) → BD ALTER fccDocumentoFiscalCobro (T3) → BD EmpresaFolio Serie P (T4) → BD DocumentTemplate (T5) → BD ALTER vista v3.0 (T6) → Timbrado endpoint CP (T7) → Finanzas: MappingService + PersistirService (T8) → Finanzas: Preview PDF CP (T9) → Finanzas: Cascada PPD + Escenario D (T10) → DocumentBuilder: templates HTML *_MEX_CP (T11).
 >
-> **Dependencias externas:** R16A-RE-FU-028 completo (`catTipoCFDI.COMPLEMENTO_PAGO`, `fccDocumentoFiscalCobro` con `IdCFDIGeneradaComplemento`, `CFDIGenerada` con `IdCFDIRelacionado`, `catMetodoDePagoCFDI`). R16A-RE-FU-029 completo (`catTipoCFDI.IdRegion`, `vfccDocumentoFiscalCobro` v2.0). R16A-RE-FU-021 completo (`FacturaMexicoPdfMappingService`, `PersistirFacturaMexicoPdfService` — patrón base de los nuevos servicios PDF del CP).
+> **Dependencias externas:** R16A-RE-FU-028 completo (`catTipoCFDI.COMPLEMENTO_PAGO`, `fccDocumentoFiscalCobro` con `IdCFDIGeneradaComplemento`, `CFDIGenerada` con `IdCFDIRelacionado`, `catMetodoDePagoCFDI`). R16A-RE-FU-029 completo (`catTipoCFDI.IdRegion`, `vfccDocumentoFiscalCobro` v2.0). R16A-RE-FU-021 completo (`MexicoInvoicePdfMappingService`, `PersistMexicoInvoicePdfService` — patrón base de los nuevos servicios PDF del CP).
 >
-> **Brechas activas sin bloqueante:** B1 (hora FechaPago) y B5 (formato folio Serie P) son pendientes de bajo impacto que se documentan en código con TODO sin bloquear la implementación. B2 (plantilla correo) bloquea solo la configuración de la plantilla Brevo; el despacho de adjuntos sí puede implementarse. B3 (política reintento CP) se implementa como "línea queda en PENDIENTE" hasta que PMO defina el flujo formal. **No hay brecha bloqueante en este requisito.**
+> **Brechas activas sin bloqueante:** B1 (hora FechaPago) y B5 (formato folio Serie P) son pendientes de bajo impacto que se documentan en código con TODO sin bloquear la implementación. B2 (plantilla correo) bloquea solo la configuración de la plantilla en ProquifaDotNet.EnvioCorreo (Aplicativo Nuevo, regla 7); el despacho de adjuntos sí puede implementarse. B3 (política reintento CP) se implementa como "línea queda en PENDIENTE" hasta que PMO defina el flujo formal. **No hay brecha bloqueante en este requisito.**
 
 ---
 
@@ -23,7 +23,7 @@
 | 5   | UPDATE-TABL-CH       | DML DocumentTemplate: INSERT 4 templates PDF Complemento de Pago México                           | BD   | DocumentBuilder         |
 | 6   | CREATE-SCRIPT-CONTROL| Actualizar vista vfccDocumentoFiscalCobro v3.0: columnas DR + JOIN catFormaPagoSAT                | BD   | ProquifaDotNet          |
 | 7   | ALG-COMPLX-LOGIC     | Implementar endpoint timbrado CP (CFDI tipo P Pagos20 v2.0) en Timbrado — folio Serie P + TurboPac| Back | ProquifaDotNet.Timbrado |
-| 8   | SERV-TRANSACT        | Implementar ComplementoPagoPdfMappingService y PersistirComplementoPagoPdfService (MinIO cobranza) | Back | ProquifaDotNet.Finanzas |
+| 8   | SERV-TRANSACT        | Implementar PaymentComplementPdfMappingService y PersistPaymentComplementPdfService (MinIO cobranza) | Back | ProquifaDotNet.Finanzas |
 | 9   | IMP-EXIST-SERVICE    | Implementar previsualización PDF CP por línea en el Paso 3 (stub pendiente de RE-028 B3)          | Back | ProquifaDotNet.Finanzas |
 | 10  | ALG-COMPLX-LOGIC     | Implementar generación automática del CP: cálculo DR, cascada PPD (Esc. B) y CP desde FAA (Esc. D)| Back | ProquifaDotNet.Finanzas |
 | 11  | CREATE-PDF           | Diseñar e implementar templates HTML Complemento de Pago México: GOL/MUN/PRO/PQF_MEX_CP (H/B/F)  | Back | DocumentBuilder         |
@@ -54,7 +54,7 @@ Crear el catálogo `catFormaPagoSAT` en ProquifaDotNet con las 22 claves del c_F
 - Verificar PK, UNIQUE y que todos los registros tienen `Activo=1`.
 
 **Resultado esperado:**
-`catFormaPagoSAT` existe en ProquifaDotNet con las 22 claves del c_FormaPago SAT, listo para ser referenciado como FK en `fccDocumentoFiscalCobro` y consultado por Finanzas al armar el `ComplementoPagoRequest`.
+`catFormaPagoSAT` existe en ProquifaDotNet con las 22 claves del c_FormaPago SAT, listo para ser referenciado como FK en `fccDocumentoFiscalCobro` y consultado por Finanzas al armar el `PaymentComplementRequest`.
 
 **Entregables:**
 - Script DDL + DML: `CREATE TABLE catFormaPagoSAT` + `INSERT` 22 claves iniciales
@@ -448,7 +448,7 @@ Ver sección *"DML EmpresaFolio"* en `R16A-RE-FU-030_BD.md` y sección *"Parte A
 - Verificar que no existan los TemplateKey antes de insertar.
 
 **Objetivo general:**
-Registrar los 4 templates del Complemento de Pago México en `DocumentBuilder.DocumentTemplate` para que `PersistirComplementoPagoPdfService` pueda resolver el `TemplateKey` correcto por empresa emisora al generar el PDF.
+Registrar los 4 templates del Complemento de Pago México en `DocumentBuilder.DocumentTemplate` para que `PersistPaymentComplementPdfService` pueda resolver el `TemplateKey` correcto por empresa emisora al generar el PDF.
 
 **Objetivos específicos:**
 - Verificar ausencia de los 4 `TemplateKey` en `DocumentTemplate`.
@@ -456,7 +456,7 @@ Registrar los 4 templates del Complemento de Pago México en `DocumentBuilder.Do
 - Validar que los 4 registros existen y están activos.
 
 **Resultado esperado:**
-`DocumentBuilder.DocumentTemplate` contiene los 4 templates CP México. `PersistirComplementoPagoPdfService` puede invocar DocumentBuilder con `TemplateKey={Prefijo}_MEX_CP`.
+`DocumentBuilder.DocumentTemplate` contiene los 4 templates CP México. `PersistPaymentComplementPdfService` puede invocar DocumentBuilder con `TemplateKey={Prefijo}_MEX_CP`.
 
 **Entregables:**
 - Script DML (en DocumentBuilder): 4 `INSERT INTO DocumentTemplate` + script de validación
@@ -651,7 +651,7 @@ Ver sección *"ALTER VIEW vfccDocumentoFiscalCobro v3.0"* en `R16A-RE-FU-030_BD.
 - **Prerrequisitos:** Tarea 4 (EmpresaFolio Serie P) debe estar ejecutada para que el foliador tenga filas disponibles.
 - La estructura del XML es radicalmente diferente a la Factura: `TipoDeComprobante=P`, `SubTotal=0`, `Total=0`, `Moneda=XXX`, concepto único fijo, sin `Impuestos` en la raíz; los impuestos van dentro del nodo `DoctoRelacionado.ImpuestosDR` (solo si `ObjetoImpDR=02`).
 - El consumo del folio es atómico con UPDLOCK sobre `EmpresaFolio WHERE Serie='P'`.
-- Datos del `ComplementoPagoRequest` que llegan desde Finanzas: todos los valores ya calculados (NumParcialidad, ImpSaldoAnt, ImpPagado, ImpSaldoInsoluto, EquivalenciaDR, FechaPago, IdCatFormaPagoSAT, ImpuestosDR si aplica).
+- Datos del `PaymentComplementRequest` que llegan desde Finanzas: todos los valores ya calculados (NumParcialidad, ImpSaldoAnt, ImpPagado, ImpSaldoInsoluto, EquivalenciaDR, FechaPago, IdCatFormaPagoSAT, ImpuestosDR si aplica).
 - El manejo de errores PAC sigue el mismo patrón que Facturas (RE-019): si el PAC rechaza, retornar error sin INSERT en CFDIGenerada.
 
 **Objetivo general:**
@@ -698,16 +698,16 @@ Ver sección *"Parte C / C1"* en `R16A-RE-FU-030-Back.md` y criterios B1–G3 en
 
 ## TAREA 8
 
-**[ RE-FU-030 ] [SERV-TRANSACT] Implementar ComplementoPagoPdfMappingService y PersistirComplementoPagoPdfService (MinIO cobranza)**
+**[ RE-FU-030 ] [SERV-TRANSACT] Implementar PaymentComplementPdfMappingService y PersistPaymentComplementPdfService (MinIO cobranza)**
 
 **Aplicativos:** ProquifaDotNet.Finanzas (.NET Core 10)
 
 **Módulos:** Finanzas — PDF Complemento de Pago México
 
 **Consideraciones previas:**
-- Patrón de referencia: `FacturaMexicoPdfMappingService` y `PersistirFacturaMexicoPdfService` de RE-021. Seguir la misma estructura.
-- `ComplementoPagoPdfMappingService` tiene dos modos: `MapearPreviewAsync()` (sin sello digital, NumParcialidad estimado) y `MapearAsync()` (con `TimbreFiscalDigital`, QR de verificación SAT).
-- `PersistirComplementoPagoPdfService` sube el PDF **y** el XML a MinIO bucket `cobranza` (MEX), resolviendo el bucket a través de `RegionConfiguracionMinioBucket` (BucketClave=`cobranza`, Región=MEX).
+- Patrón de referencia: `MexicoInvoicePdfMappingService` y `PersistMexicoInvoicePdfService` de RE-021. Seguir la misma estructura.
+- `PaymentComplementPdfMappingService` tiene dos modos: `MapearPreviewAsync()` (sin sello digital, NumParcialidad estimado) y `MapearAsync()` (con `TimbreFiscalDigital`, QR de verificación SAT).
+- `PersistPaymentComplementPdfService` sube el PDF **y** el XML a MinIO bucket `cobranza` (MEX), resolviendo el bucket a través de `RegionConfiguracionMinioBucket` (BucketClave=`cobranza`, Región=MEX).
 - Rutas MinIO: `cobranza/complementos/{anio}/{mes}/{UUID_CP}.pdf` y `.xml`.
 - Tras subir, inserta en `Archivo` y actualiza `CFDIGenerada.IdArchivoPdf`.
 - La resolución del `TemplateKey` es dinámica: `{Empresa.Prefijo}_MEX_CP` → `GOL_MEX_CP`, `MUN_MEX_CP`, etc. **Prerrequisito:** Tarea 5 (templates en DocumentTemplate).
@@ -716,10 +716,10 @@ Ver sección *"Parte C / C1"* en `R16A-RE-FU-030-Back.md` y criterios B1–G3 en
 Implementar los dos servicios de generación y persistencia del PDF del Complemento de Pago, siguiendo el patrón establecido en RE-021 para Facturas, con soporte para preview (sin sello) y definitivo (con sello + QR), y persistencia en MinIO bucket `cobranza`.
 
 **Objetivos específicos:**
-- Implementar `ComplementoPagoPdfModel` con todas las secciones del PDF (Emisor, Receptor, Comprobante, Concepto fijo, Totales CP, Pago, DoctoRelacionado, ImpuestosDR, Sellos, QR).
-- Implementar `ComplementoPagoPdfMappingService.MapearPreviewAsync()` sin `TimbreFiscalDigital`.
-- Implementar `ComplementoPagoPdfMappingService.MapearAsync()` con `TimbreFiscalDigital` y QR SAT.
-- Implementar `PersistirComplementoPagoPdfService.PersistirAsync()`:
+- Implementar `PaymentComplementPdfModel` con todas las secciones del PDF (Emisor, Receptor, Comprobante, Concepto fijo, Totales CP, Pago, DoctoRelacionado, ImpuestosDR, Sellos, QR).
+- Implementar `PaymentComplementPdfMappingService.MapearPreviewAsync()` sin `TimbreFiscalDigital`.
+- Implementar `PaymentComplementPdfMappingService.MapearAsync()` con `TimbreFiscalDigital` y QR SAT.
+- Implementar `PersistPaymentComplementPdfService.PersistirAsync()`:
   - Resolver bucket `cobranza` MEX desde `RegionConfiguracionMinioBucket`.
   - Invocar DocumentBuilder con `TemplateKey={Prefijo}_MEX_CP`.
   - Subir PDF y XML a MinIO.
@@ -729,9 +729,9 @@ Implementar los dos servicios de generación y persistencia del PDF del Compleme
 Finanzas puede generar el PDF del CP en preview (antes de timbrar) y en versión definitiva (post-timbrado) con sellos SAT y QR, y persistirlo en MinIO bucket `cobranza` con el PDF y XML vinculados a `CFDIGenerada`.
 
 **Entregables:**
-- Clase `ComplementoPagoPdfModel` con todas las secciones requeridas
-- Clase `ComplementoPagoPdfMappingService` (Preview + Async)
-- Clase `PersistirComplementoPagoPdfService` (DocumentBuilder + MinIO + Archivo)
+- Clase `PaymentComplementPdfModel` con todas las secciones requeridas
+- Clase `PaymentComplementPdfMappingService` (Preview + Async)
+- Clase `PersistPaymentComplementPdfService` (DocumentBuilder + MinIO + Archivo)
 - Tests unitarios: resolución de TemplateKey por empresa; mapping de ImpuestosDR presente/ausente; QR encoding correcto
 
 **Criterios de aceptación:**
@@ -760,7 +760,7 @@ Ver sección *"Parte B / B6"* y *"Parte E"* en `R16A-RE-FU-030-Back.md` y criter
 
 **Consideraciones previas:**
 - RE-028 B3 (paso 3) documentó explícitamente: *"Para líneas COMPLEMENTO_PAGO: la previsualización del PDF del Complemento se implementa en R16A-RE-FU-030"*. Esta tarea cierra ese stub.
-- **Prerrequisito:** Tarea 8 (`ComplementoPagoPdfMappingService.MapearPreviewAsync()`) debe estar implementada.
+- **Prerrequisito:** Tarea 8 (`PaymentComplementPdfMappingService.MapearPreviewAsync()`) debe estar implementada.
 - El preview usa `NumParcialidad` estimado (SELECT COUNT + 1 **sin** UPDLOCK — solo informativo).
 - `ImpSaldoAnt` estimado: si primer CP → Total de la factura relacionada; si CPs subsecuentes → `ImpSaldoInsoluto` del CP anterior consultado desde `fccDocumentoFiscalCobro`.
 - El preview **no persiste** ningún dato en BD. Solo genera el PDF en memoria y lo retorna.
@@ -773,7 +773,7 @@ Implementar el endpoint/handler de previsualización del PDF del Complemento de 
 - Leer datos de la línea desde `vfccDocumentoFiscalCobro`.
 - Calcular `NumParcialidad` estimado (sin UPDLOCK).
 - Calcular `ImpSaldoAnt` estimado según si es primer CP o no.
-- Invocar `ComplementoPagoPdfMappingService.MapearPreviewAsync()`.
+- Invocar `PaymentComplementPdfMappingService.MapearPreviewAsync()`.
 - Generar PDF en memoria vía DocumentBuilder (TemplateKey `{Prefijo}_MEX_CP`).
 - Retornar el PDF al frontend sin escrituras en BD.
 
@@ -809,39 +809,39 @@ Ver sección *"Parte B / B1"* en `R16A-RE-FU-030-Back.md`.
 
 **Consideraciones previas:**
 - Esta tarea implementa los pasos que RE-028 B4 dejó pendientes: **Escenario B pasos 4–6** (cascada PPD post-Factura) y **Escenario D pasos 2–3** (CP desde FAA existente).
-- **Prerrequisitos:** Tareas 1, 3 y 6 (BD) + Tarea 7 (endpoint timbrado CP en Timbrado) + Tarea 8 (PersistirComplementoPagoPdfService).
+- **Prerrequisitos:** Tareas 1, 3 y 6 (BD) + Tarea 7 (endpoint timbrado CP en Timbrado) + Tarea 8 (PersistPaymentComplementPdfService).
 - El cálculo de `NumParcialidad` **debe** usar UPDLOCK en la misma transacción que el timbrado para evitar duplicados concurrentes.
 - `ImpSaldoAnt`: primer CP = Total de la Factura PPD (de `CFDIGenerada`); CPs subsecuentes = `MAX(fccDocumentoFiscalCobro.ImpSaldoInsoluto)` para la misma factura relacionada.
 - ⚠️ **Pendiente P1 (Brecha B1):** Hora de `FechaPago` (12:00:00 fija vs hora real). Implementar con `CAST(@FechaCobro AS date) + '12:00:00'` como convención provisional; documentar el TODO en código para ajustar al validar con asesor fiscal.
-- **Escenario D diferencias:** `IdCFDIRelacionado` = UUID de la FAA (`tpProformaAdelanto.IdCFDIGenerada`); `NumParcialidad = 1` fijo; `ImpSaldoAnt` = Total de la FAA.
+- **Escenario D diferencias:** `IdCFDIRelacionado` = UUID de la FAA (`fccFactura.IdCFDIGenerada`, RE-FU-015 — antes `tpProformaAdelanto.IdCFDIGenerada`); `NumParcialidad = 1` fijo; `ImpSaldoAnt` = Total de la FAA.
 - **Política de fallo:** Si el CP falla tras la Factura PPD timbrada, la Factura PPD permanece vigente; la línea queda en estado `PENDIENTE` para reintento posterior. Hasta que PMO defina la política formal (Brecha B3), no se implementa lógica adicional de reintento automático.
 
 **Objetivo general:**
 Implementar la lógica de generación automática del Complemento de Pago en ProquifaDotNet.Finanzas: cálculo de los valores fiscales del DoctoRelacionado, solicitud de timbrado al Timbrado API, persistencia del PDF+XML en MinIO y actualización del snapshot en `fccDocumentoFiscalCobro`, tanto para la cascada PPD (Escenario B) como para el CP desde FAA (Escenario D).
 
 **Objetivos específicos:**
-- Implementar `ComplementoPagoCalculoService`:
+- Implementar `PaymentComplementCalculationService`:
   - `CalcularNumParcialidad()` con UPDLOCK sobre `CFDIGenerada`.
   - `CalcularImpSaldoAnt()`: primer CP vs CPs subsecuentes.
   - `CalcularImpSaldoInsoluto()` = ImpSaldoAnt − ImpPagado.
   - `CalcularEquivalenciaDR()`: 1 si MonedaDR=MonedaP; factor de conversión si difieren.
   - `ConstruirFechaPago()`: fecha del cobro con hora 12:00:00 provisional (TODO documentado).
-- Implementar `GenerarComplementoPagoService.GenerarEnCascadaPPDAsync()` (Escenario B):
+- Implementar `GeneratePaymentComplementService.GenerarEnCascadaPPDAsync()` (Escenario B):
   - Calcula valores DR.
-  - Arma `ComplementoPagoRequest` y llama a Timbrado API.
-  - Invoca `PersistirComplementoPagoPdfService`.
+  - Arma `PaymentComplementRequest` y llama a Timbrado API.
+  - Invoca `PersistPaymentComplementPdfService`.
   - `UPDATE fccDocumentoFiscalCobro` con snapshot DR + `IdCFDIGeneradaComplemento` + `EstadoLinea='GENERADO'`.
   - Manejo de fallo: línea queda en PENDIENTE si CP falla.
-- Implementar `GenerarComplementoPagoService.GenerarDesdeFacturaAdelantoAsync()` (Escenario D):
+- Implementar `GeneratePaymentComplementService.GenerarDesdeFacturaAdelantoAsync()` (Escenario D):
   - `NumParcialidad=1`, `ImpSaldoAnt` = Total FAA, misma lógica de persistencia.
 
 **Resultado esperado:**
 Al timbrar una Factura PPD en el Paso 3, Finanzas genera automáticamente el CP correspondiente, calcula los valores fiscales correctos, timbra a través de Timbrado API, persiste el PDF y XML en MinIO y actualiza el snapshot en `fccDocumentoFiscalCobro`. Ídem para CPs desde FAA existentes.
 
 **Entregables:**
-- Clase `ComplementoPagoCalculoService` (cálculo NumParcialidad, saldos, EquivalenciaDR, FechaPago)
-- Clase `GenerarComplementoPagoService` (Escenario B: cascada PPD + Escenario D: FAA)
-- Integración con `ApiCallerStamping` y `PersistirComplementoPagoPdfService`
+- Clase `PaymentComplementCalculationService` (cálculo NumParcialidad, saldos, EquivalenciaDR, FechaPago)
+- Clase `GeneratePaymentComplementService` (Escenario B: cascada PPD + Escenario D: FAA)
+- Integración con `ApiCallerStamping` y `PersistPaymentComplementPdfService`
 - Tests unitarios: primer CP vs CP subsecuente; escenario multi-divisa; fallo del CP post-Factura PPD; Escenario D desde FAA
 
 **Criterios de aceptación:**

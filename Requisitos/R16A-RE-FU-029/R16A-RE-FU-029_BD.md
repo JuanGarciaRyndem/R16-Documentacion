@@ -293,8 +293,8 @@ SELECT
     -- Origen FAA
     p3l.IdFCCPagoFacturaAdelanto,
     pfa.IdFCCPagoCliente         AS IdFCCPagoCliente_PFA,
-    pfa.IdTPProformaAdelanto,
-    pa.Monto                     AS MontoFAA,
+    pfa.IdFccFactura,            -- RE-FU-015 (antes: pfa.IdTPProformaAdelanto)
+    fc.MontoTotal                 AS MontoFAA,
     cg_faa.UUID                  AS UUID_FAA,
     -- Cobro
     COALESCE(pfp.IdFCCPagoCliente, pfa.IdFCCPagoCliente) AS IdFCCPagoCliente,
@@ -332,10 +332,10 @@ LEFT JOIN dbo.Empresa e_pp
 -- Asociación Paso 2 — FAA
 LEFT JOIN dbo.fccPagoFacturaAdelanto pfa
     ON p3l.IdFCCPagoFacturaAdelanto = pfa.IdFCCPagoFacturaAdelanto
-LEFT JOIN dbo.tpProformaAdelanto pa
-    ON pfa.IdTPProformaAdelanto = pa.IdTPProformaAdelanto
+LEFT JOIN dbo.fccFactura fc
+    ON pfa.IdFccFactura = fc.IdFccFactura   -- RE-FU-015 (antes: LEFT JOIN dbo.tpProformaAdelanto pa ON pfa.IdTPProformaAdelanto = pa.IdTPProformaAdelanto)
 LEFT JOIN dbo.CFDIGenerada cg_faa
-    ON pa.IdCFDIGenerada = cg_faa.IdCFDIGenerada
+    ON fc.IdCFDIGenerada = cg_faa.IdCFDIGenerada
 -- Cobro
 LEFT JOIN dbo.fccPagoCliente fpc
     ON fpc.IdFCCPagoCliente = COALESCE(pfp.IdFCCPagoCliente, pfa.IdFCCPagoCliente)
@@ -410,10 +410,10 @@ toma de la tabla `Empresa` donde ya existe la fila para RE-020.
 |-------|-------------|----------------------|
 | fccDocumentoFiscalCobro | Todas las columnas | Mismo ciclo de vida; columnas Perú nuevas |
 | fccPagoFacturaPedido | IdFCCPagoCliente, IdTPProformaPedido, Monto | Sin diferencia |
-| fccPagoFacturaAdelanto | IdFCCPagoCliente, IdTPProformaAdelanto, Monto | Perú: sin generación de CPE (conciliación interna — Regla 4) |
+| fccPagoFacturaAdelanto | IdFCCPagoCliente, IdFccFactura (RE-FU-015, antes IdTPProformaAdelanto), Monto | Perú: sin generación de CPE (conciliación interna — Regla 4) |
 | fccPagoCliente | Folio, Monto, MXN, USD, TipoDeCambio, IdCliente | Sin diferencia |
 | tpProformaPedido | Folio, MontoTotal, MontoPendiente, IdEmpresa | Sin `HayControlados` (no aplica en Perú) |
-| tpProformaAdelanto | Monto, IdEmpresa | Sin generación de CPE en RE-029 |
+| fccFactura (RE-FU-015, reemplaza tpProformaAdelanto) | MontoTotal, IdEmpresa | Sin generación de CPE en RE-029 |
 | DatosFacturacionCliente | RazonSocial, RFC (RUC en Perú), RegimenFiscal | RFC = RUC 11 dígitos |
 | Empresa (GOLPERU) | Prefijo, RazonSocial, RUC emisor | Solo GOLPERU; datos pendientes de B3 RE-020 |
 | CFDIGenerada | UUID (NULL), Folio (Correlativo), Serie (F001), FechaEmision | Misma tabla; `IdCatTipoCFDI = 'FACTURA_CPE'` |

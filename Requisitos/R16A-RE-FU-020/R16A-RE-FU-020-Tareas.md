@@ -208,7 +208,7 @@ Ver sección *"Datos Legales Golocaer SAC"* en `R16A-RE-FU-020_BD.md`. Tarea blo
 **Módulos:** Factura por Adelantado — Detalle por Cliente (Perú)
 
 **Consideraciones previas:**
-- La vista `vtpProformaAdelanto` fue creada en RE-FU-019 y ya filtra por `Region`; esta consulta la reutiliza con el filtro `Region='PER'`.
+- La vista `vfccFactura` (creada en **R16A-RE-FU-015**, no en RE-FU-019 — ver migración del 06/07/2026) ya filtra por `Region`; esta consulta la reutiliza con el filtro `Region='PER'`.
 - Los datos del cliente para la cabecera del Detalle incluyen: Razón Social, RUC (no RFC), moneda de facturación, clasificación crediticia.
 - Cada fila del listado expone: Pedido Interno, Fecha, Condición de Pago, Empresa Emisora (GOLPERU), Subtotal, IGV, Monto Total y estado FAA (PendienteGenerar / PendienteEnviar).
 - La visibilidad debe filtrarse por la cartera del usuario (campo `Cobrador` del catálogo de clientes).
@@ -219,7 +219,7 @@ Implementar el endpoint y la consulta que proveen los datos de la cabecera del c
 **Objetivos específicos:**
 - Endpoint GET que reciba `IdCliente` y devuelva datos de cabecera (RUC, Razón Social, moneda, clasificación) y listado de pedidos con su estado FAA.
 - Aplicar filtro de cartera del usuario (solo pedidos del cobrador autenticado).
-- Consumir `vtpProformaAdelanto` con `Region='PER'` para determinar el estado de cada pedido (PendienteGenerar / PendienteEnviar).
+- Consumir `vfccFactura` con `Region='PER'` para determinar el estado de cada pedido (PendienteGenerar / PendienteEnviar).
 - No exponer campos SAT en la respuesta (sin Método de Pago, sin Uso CFDI).
 
 **Resultado esperado:**
@@ -228,7 +228,7 @@ Endpoint funcional que devuelve cabecera del cliente y listado de pedidos pendie
 **Entregables:**
 - Endpoint GET `Detalle cliente FAA Perú`
 - DTO de respuesta (cabecera + listado de pedidos)
-- Query/SP contra `vtpProformaAdelanto` con filtro `Region='PER'`
+- Query/SP contra `vfccFactura` con filtro `Region='PER'`
 
 **Criterios de aceptación:**
 - El endpoint devuelve únicamente pedidos del cliente con `Region='PER'` en estado PendienteGenerar o PendienteEnviar.
@@ -275,7 +275,7 @@ Implementar el algoritmo que, a partir de los datos del pedido, el cliente y el 
 XML UBL 2.1 firmado digitalmente, válido para su envío al OSE/PSE SUNAT, generado a partir de los datos del pedido de ProquifaDotNet.
 
 **Entregables:**
-- Clase/servicio `GeneradorXmlSunatService` (o equivalente)
+- Clase/servicio `SunatXmlGeneratorService` (o equivalente)
 - Mapeo de campos del pedido a UBL 2.1
 - Prueba unitaria con XML de muestra válido (basado en la factura real E001-362 de Golocaer)
 
@@ -353,38 +353,36 @@ Ver Riesgo 2 y sección *"AppSetting ProquifaDotNetTimbrado (Peru)"* en `R16A-RE
 **Módulos:** Factura por Adelantado — Timbrado Perú
 
 **Consideraciones previas:**
-- Orquesta las Tareas 6 y 7: genera el XML, llama al OSE/PSE y persiste el resultado.
-- Depende de las Tareas 1–4 (BD), 6 (XML) y 7 (OSE/PSE).
+- Orquesta las Tareas 6 y 7 (lado Timbrado: genera el XML y llama al OSE/PSE) y delega la persistencia
+  de negocio a `ICfdiService.GenerateAsync` (Finanzas, creado en R16A-RE-FU-018 Parte B) — **este
+  servicio no hace `INSERT`/`UPDATE` directo sobre una tabla `Cfdi` en Timbrado**, esa tabla no existe.
+- Depende de las Tareas 1–4 (BD), 6 (XML) y 7 (OSE/PSE), y de `ICfdiService`/`IApiCallerStamping`
+  (ya creados en R16A-RE-FU-018).
 - En caso de error, **no debe persistir nada** y debe retornar el error al frontend para mostrar el modal de Alerta SUNAT.
 - En caso de éxito, la factura queda persistida como artefacto inmutable; no se puede modificar después.
 - No hay transferencia a Legacy (Perú no usa Legacy).
 
 **Objetivo general:**
-Implementar el servicio transaccional que, al confirmar la generación desde el modal de Previsualización, ejecuta el flujo completo de timbrado: genera el XML UBL 2.1 → lo envía al OSE/PSE → persiste el CFDI (XML+PDF) → actualiza el folio de GOLPERU → actualiza el estado del pedido en ProquifaDotNet.
+Implementar el servicio (`AdvanceInvoiceGenerateService`, branch Perú) que, al confirmar la generación desde el modal de Previsualización, invoca `ICfdiService.GenerateAsync` — el cual internamente genera el XML UBL 2.1, lo envía al OSE/PSE (via Timbrado, Tareas 6/7), y persiste `CFDIGenerada`+`Archivo` en ProquifaDotNet — y luego actualiza el estado del pedido.
 
 **Objetivos específicos:**
-- Generar el XML UBL 2.1 firmado (invoca servicio Tarea 6).
-- Enviar al OSE/PSE y obtener CDR (invoca cliente Tarea 7).
-- Si error: retornar el error descriptivo sin persistir nada.
-- Si éxito:
-  - `INSERT CFDI` en ProquifaDotNetTimbrado con el XML y CDR recibido.
-  - `UPDATE EmpresaFolio GOLPERU SET UltimoFolio = UltimoFolio + 1`.
-  - `INSERT StampingLog`.
-  - `UPDATE tpProformaAdelanto SET IdCFDIGenerada = @IdCFDI` en ProquifaDotNet.
-  - `INSERT Archivo x2` (PDF + XML, `FileBucket='facturas'`, `IdRegion='PER'`) en ProquifaDotNet.
-- Garantizar atomicidad: si cualquier paso falla después del timbrado exitoso, reintentar la persistencia sin re-timbrar.
+- Armar `StampSunatInvoiceRequestDto` con los datos fiscales y conceptos del pedido.
+- Llamar `ICfdiService.GenerateAsync(request)` — que internamente: genera el XML UBL 2.1 firmado (Tarea 6), lo envía al OSE/PSE y obtiene el CDR (Tarea 7, via `ApiCallerStamping.StampSunatInvoiceAsync` -> Timbrado `POST /api/v1/stamp`), consume el folio GOLPERU, registra `StampingLog`, y si el CDR es aceptado: `INSERT CFDIGenerada` + `INSERT Archivo x2` (PDF + XML/CDR, `FileBucket='facturas-peru'`, `IdRegion='PER'`) + `UPDATE CFDIGenerada SET IdArchivoXml`.
+- Si error: retornar el error descriptivo sin persistir nada (ni en CFDIGenerada ni en fccFactura).
+- Si éxito: `UPDATE fccFactura SET IdCFDIGenerada = @IdCFDIGenerada, EsFacturaPorAdelantado = 0` en ProquifaDotNet (antes: `UPDATE tpProformaAdelanto SET IdCFDIGenerada`), usando el Id real devuelto por `ICfdiService.GenerateAsync` (el Id del registro insertado en `CFDIGenerada`, no un Id propio de Timbrado).
+- Registrar el guardado de la factura en ProquifaDotNet.BitacoraCambios (Aplicativo Nuevo — regla 8).
 
 **Resultado esperado:**
-Pedido con su factura timbrada persistida en BD (XML + PDF), folio GOLPERU incrementado, estado del pedido actualizado a PendienteEnviar.
+Pedido con su factura timbrada persistida en `CFDIGenerada` + `Archivo` (Finanzas/ProquifaDotNet), folio GOLPERU incrementado, estado del pedido actualizado a PendienteEnviar.
 
 **Entregables:**
-- Servicio `TimbrarFacturaAdelantoPeruService` (o equivalente)
-- Manejo de errores y atomicidad de la persistencia post-timbrado
+- Branch Perú en `AdvanceInvoiceGenerateService` que consume `ICfdiService.GenerateAsync`
+- Manejo de errores y atomicidad de la persistencia post-timbrado (a cargo de `CfdiService`)
 - Pruebas de integración (éxito y error OSE)
 
 **Criterios de aceptación:**
-- En caso de error OSE/PSE: no se persiste nada y el error descriptivo llega al frontend.
-- En caso de éxito: CFDI, StampingLog, Archivo (x2) y tpProformaAdelanto quedan actualizados.
+- En caso de error OSE/PSE: no se persiste nada (ni CFDIGenerada ni fccFactura) y el error descriptivo llega al frontend.
+- En caso de éxito: CFDIGenerada, StampingLog, Archivo (x2) y fccFactura quedan actualizados, con `fccFactura.IdCFDIGenerada` apuntando al Id real de CFDIGenerada.
 - El folio de GOLPERU se incrementa correctamente sin saltos ni duplicados.
 - El pedido cambia de estado a PendienteEnviar tras el timbrado exitoso.
 - La factura persistida es inmutable (no puede modificarse posteriormente).
@@ -463,11 +461,11 @@ Ver criterio C1 y Regla 9 en `R16A-RE-FU-020-Pendiente.md`. Diseño visual en R1
 Implementar el envío del correo electrónico de la Factura por Adelantado Perú al cliente, con los adjuntos PDF y XML del CPE tipo 01 timbrado, y actualizar el estado del pedido a `Enviada=1` tras el envío exitoso.
 
 **Objetivos específicos:**
-- Endpoint POST que reciba: destinatario (editable), CC (editable), notas extras (opcional) y el `IdProformaAdelanto`.
+- Endpoint POST que reciba: destinatario (editable), CC (editable), notas extras (opcional) y el `IdFccFactura`.
 - Construir el correo con: asunto generado (serie/correlativo + pedido interno), adjuntos PDF y XML del CPE (recuperados de `Archivo`), notas extras.
 - Enviar el correo al cliente.
 - `INSERT CorreoEnviado` y `INSERT ArchivoCorreoEnviado` (PDF y XML) en ProquifaDotNet.
-- `UPDATE tpProformaAdelanto SET Enviada = 1`.
+- `UPDATE fccFactura SET Enviada = 1` (antes: `UPDATE tpProformaAdelanto SET Enviada = 1`).
 
 **Resultado esperado:**
 Correo enviado al cliente con PDF y XML del CPE adjuntos; estado del pedido actualizado a `Enviada=1`; registros de `CorreoEnviado` y `ArchivoCorreoEnviado` persistidos.
@@ -480,7 +478,7 @@ Correo enviado al cliente con PDF y XML del CPE adjuntos; estado del pedido actu
 **Criterios de aceptación:**
 - El correo se envía al destinatario con PDF y XML adjuntos del CPE timbrado.
 - El asunto incluye la serie/correlativo de la factura y el folio del pedido interno.
-- Tras el envío exitoso, `tpProformaAdelanto.Enviada = 1` y el pedido desaparece del listado.
+- Tras el envío exitoso, `fccFactura.Enviada = 1` y el pedido desaparece del listado.
 - Los adjuntos no pueden ser removidos por el usuario.
 - Si el envío falla, `Enviada` permanece en 0 y se retorna el error al frontend.
 
@@ -511,7 +509,7 @@ Ver criterios F1–F7, G1–G2, Reglas 13 y 14, y sección *"Flujo de Datos — 
 Implementar el servicio que, tras el envío exitoso de la Factura por Adelantado Perú, genera el pendiente correspondiente en el módulo Validar Cobro, cerrando el ciclo operativo del pedido en ProquifaDotNet sin ninguna acción hacia Legacy.
 
 **Objetivos específicos:**
-- Generar el pendiente en Validar Cobro asociado a la `tpProformaAdelanto` enviada.
+- Generar el pendiente en Validar Cobro asociado a la `fccFactura` enviada.
 - Garantizar que el pendiente se crea **solo si el envío del correo fue exitoso** (no debe crearse si el correo falla).
 - Aplicar exclusivamente el flujo Prepago; no existe lógica de Crédito ni de Legacy en esta implementación.
 - Registrar en log la creación del pendiente (módulo, IdPedido, fecha).
@@ -520,14 +518,14 @@ Implementar el servicio que, tras el envío exitoso de la Factura por Adelantado
 Pendiente creado en Validar Cobro referenciando la Factura por Adelantado Perú enviada, listo para que el equipo de Cobranza concilie el pago del cliente.
 
 **Entregables:**
-- Servicio `GenerarPendienteValidarCobroPeruService` (o equivalente)
+- Servicio `GeneratePendingCollectionValidationPeruService` (o equivalente)
 - Registro en log de la operación
 
 **Criterios de aceptación:**
 - El pendiente en Validar Cobro se genera correctamente tras el envío exitoso del correo.
 - Si el envío del correo falla, el pendiente **no** se genera.
 - No se ejecuta ninguna acción de transferencia hacia Legacy.
-- El pendiente está asociado al `IdPedido` y a la factura (`IdCFDI`) correspondientes.
+- El pendiente está asociado al `IdPedido` y a la factura (`IdCFDIGenerada`) correspondientes.
 
 **Más información de la tarea:**
 Ver criterio G3, Regla 15, y sección *"Flujo de Datos — Paso 3 ENVIAR"* en `R16A-RE-FU-020_BD.md`.

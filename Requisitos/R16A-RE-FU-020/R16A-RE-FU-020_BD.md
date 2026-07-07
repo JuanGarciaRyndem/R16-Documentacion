@@ -1,7 +1,20 @@
 # Impacto en BD - Factura por Adelantado: Detalle Peru
 **Requisito:** R16A-RE-FU-020
 **Bases de Datos:** ProquifaDotNet (lectura/escritura) + ProquifaDotNetTimbrado (escritura)
-**Version:** 1.0
+**Version:** 1.2 - correccion arquitectura CFDI (Finanzas, no Timbrado) + migracion a fccFactura/vfccFactura (RE-FU-015)
+
+> **Nota de arquitectura (correccion — el CFDI no va en Timbrado, va en Finanzas):** al igual que en
+> RE-FU-019 (MEX), el registro de negocio del CFDI (`CFDIGenerada`, en `ProquifaDotNet`) es propiedad
+> de `ProquifaDotNet.Finanzas`. `ProquifaDotNet.Timbrado` (via el OSE/PSE SUNAT) es un servicio
+> tecnico que no persiste el CPE como entidad de negocio propia — ver `R16A-RE-FU-018_BD.md`
+> (Parte 2 y 3) y `R16A-RE-FU-019_BD.md` para el detalle de esta correccion, ya aplicada aqui.
+
+> **Migracion (06/07/2026):** Peru es 100% Prepago (no existe variante Credito). Este requisito reutilizaba
+> `tpProformaAdelanto.Enviada` y `vtpProformaAdelanto` (creados originalmente en RE-FU-019). Ambos objetos
+> se retiraron de RE-FU-019 y ahora viven en **R16A-RE-FU-015_BD.md** como `fccFactura.Enviada` y
+> `vfccFactura` — la vista `vfccFactura` ya filtra por `RegionClave` (ver R16A-RE-FU-019_BD.md, Flujo de
+> Datos), por lo que Peru sigue reutilizando el mismo objeto, solo que ahora es `vfccFactura` en vez de
+> `vtpProformaAdelanto`.
 
 ---
 
@@ -19,11 +32,11 @@ IGV 18%, RUC, serie alfanumerica SUNAT. Sin transferencia a Legacy. Post-envio: 
 | 1   | INSERT EmpresaFolio GOLPERU (serie SUNAT)           | ProquifaDotNetTimbrado | DML       | Alta           |
 | 2   | ALTER TABLE Producto ADD campos SUNAT               | ProquifaDotNet         | DDL       | **BLOQUEANTE** |
 | 3   | UPDATE Empresa GOLPERU datos legales (RUC, ubigeo)  | ProquifaDotNet         | DML       | Alta (BRECHA)  |
-| 4   | Reutiliza: tpProformaAdelanto.Enviada (RE-FU-019)   | ProquifaDotNet         | Existente | -              |
-| 5   | Reutiliza: vtpProformaAdelanto (RE-FU-019)          | ProquifaDotNet         | Existente | -              |
+| 4   | Reutiliza: fccFactura.Enviada (RE-FU-015)           | ProquifaDotNet         | Existente | -              |
+| 5   | Reutiliza: vfccFactura (RE-FU-015)                  | ProquifaDotNet         | Existente | -              |
 | 6   | Reutiliza: EmpresaFolio GOL/MUN/PRO/PQF (RE-FU-019) | ProquifaDotNetTimbrado | Existente | -              |
 
-> La infraestructura BD creada en RE-FU-018/019 se reutiliza completa.
+> La infraestructura BD creada en RE-FU-015/018/019 se reutiliza completa.
 > Los cambios nuevos son: fila GOLPERU en EmpresaFolio + datos SUNAT del producto.
 
 ---
@@ -124,15 +137,15 @@ IGV 18%, RUC, serie alfanumerica SUNAT. Sin transferencia a Legacy. Post-envio: 
 
 ---
 
-## Reutilizacion de RE-FU-018/019
+## Reutilizacion de RE-FU-015/018/019
 
 | Objeto | BD | Creado en | Reutilizacion |
 |--------|-----|-----------|---------------|
-| tpProformaAdelanto.Enviada | ProquifaDotNet | RE-FU-019 | Mismo campo para PER |
-| vtpProformaAdelanto | ProquifaDotNet | RE-FU-019 | Ya filtra por Region |
-| EmpresaFolio (tabla) | ProquifaDotNetTimbrado | RE-FU-018 | Solo agregar fila GOLPERU |
-| CFDI (tabla) | ProquifaDotNetTimbrado | RE-FU-018 | Misma tabla, diferente XML |
-| StampingLog (tabla) | ProquifaDotNetTimbrado | RE-FU-018 | Misma tabla |
+| fccFactura.Enviada | ProquifaDotNet | RE-FU-015 (movido desde RE-FU-019) | Mismo campo para PER |
+| vfccFactura | ProquifaDotNet | RE-FU-015 (movido desde RE-FU-019) | Ya filtra por Region |
+| EmpresaFolio (tabla) | ProquifaDotNetTimbrado | RE-FU-019 | Solo agregar fila GOLPERU |
+| CFDIGenerada (tabla) | ProquifaDotNet | RE-FU-019 (base) + RE-FU-018 (extension) | Misma tabla que MEX, distinto XML/CDR SUNAT — propiedad de Finanzas |
+| StampingLog (tabla) | ProquifaDotNetTimbrado | RE-FU-018 | Misma tabla (auditoria tecnica, sin FK real) |
 | AppSetting | ProquifaDotNetTimbrado | RE-FU-018 | Agregar config OSE/PSE Peru |
 
 ---
@@ -142,7 +155,7 @@ IGV 18%, RUC, serie alfanumerica SUNAT. Sin transferencia a Legacy. Post-envio: 
 | Tabla | Datos leidos | Diferencia vs MEX |
 |-------|-------------|-------------------|
 | tpPedido | FolioPedidoInterno, IdEmpresa (GOLPERU), IdCliente | Igual |
-| tpProformaAdelanto | Monto, IdCFDIGenerada, Enviada | Igual |
+| fccFactura (via vfccFactura — RE-FU-015, antes tpProformaAdelanto) | MontoTotal, IdCFDIGenerada, Enviada | Igual |
 | Cliente + DatosFacturacionCliente | RFC (RUC Peru), RazonSocial | RUC vs RFC |
 | Empresa (GOLPERU) | Prefijo, RazonSocial, RUC emisor | Solo GOLPERU |
 | catCondicionesDePago | CondicionesDePago (Contado/Credito) | Sin PPD/99 |
@@ -157,22 +170,25 @@ IGV 18%, RUC, serie alfanumerica SUNAT. Sin transferencia a Legacy. Post-envio: 
 ## Flujo de Datos
 
     1. GENERAR (modal revision)
-       Lee: tpPedido, tpProformaAdelanto, DatosFacturacionCliente (RUC),
+       Lee: vfccFactura (RE-FU-015 — antes: tpPedido, tpProformaAdelanto), DatosFacturacionCliente (RUC),
              Empresa (GOLPERU), Producto.CodigoSUNAT (BRECHA)
 
-    2. TIMBRAR (al confirmar previsualizacion)
-       ProquifaDotNetTimbrado:
-         INSERT CFDI -> llama OSE/PSE SUNAT -> UPDATE CFDI (CDR de aceptacion)
-         UPDATE EmpresaFolio GOLPERU SET UltimoFolio+1
-         INSERT StampingLog
-       ProquifaDotNet:
-         UPDATE tpProformaAdelanto SET IdCFDIGenerada
-         INSERT Archivo x2 (PDF+XML, FileBucket='facturas', IdRegion=PER)
+    2. TIMBRAR (al confirmar previsualizacion) -- CfdiController (ProquifaDotNet.Finanzas)
+       ProquifaDotNet.Timbrado (servicio tecnico, POST /api/v1/stamp):
+         UPDATE EmpresaFolio GOLPERU SET UltimoFolio+1 (consume folio/serie SUNAT)
+         Arma el CPE con esa serie/correlativo -> llama OSE/PSE SUNAT -> recibe CDR de aceptacion
+         INSERT StampingLog (ProquifaDotNetTimbrado, auditoria tecnica)
+         Regresa a Finanzas: UUID/CDR, Serie, Folio, XML, FechaEmision (sin persistir el CPE)
+       ProquifaDotNet.Finanzas (CfdiService, tras respuesta exitosa de Timbrado):
+         INSERT CFDIGenerada (ProquifaDotNet): UUID/CDR, Serie, Folio, FechaEmision, IdCatTipoCFDI,
+           Total, IdCatMoneda, Estado='Timbrado' (sin IdCatMetodoDePagoCFDI/IdCatUsoCFDI: no aplican en SUNAT)
+         INSERT Archivo x2 (PDF+XML, FileBucket='facturas', IdRegion=PER) + UPDATE CFDIGenerada SET IdArchivoXml
+         UPDATE fccFactura SET IdCFDIGenerada = @IdCFDIGenerada, EsFacturaPorAdelantado = 0 (Id real de CFDIGenerada, no un Id de Timbrado; antes: UPDATE tpProformaAdelanto SET IdCFDIGenerada)
 
     3. ENVIAR (modal envio)
        ProquifaDotNet:
          INSERT CorreoEnviado + ArchivoCorreoEnviado
-         UPDATE tpProformaAdelanto SET Enviada=1
+         UPDATE fccFactura SET Enviada=1 (antes: UPDATE tpProformaAdelanto SET Enviada=1)
          Genera pendiente Validar Cobro (SOLO Prepago, sin rama Credito)
          ** SIN transferencia a Legacy **
 
@@ -188,7 +204,7 @@ IGV 18%, RUC, serie alfanumerica SUNAT. Sin transferencia a Legacy. Post-envio: 
 
 ---
 
-## Estados del Pedido (via vtpProformaAdelanto - igual que MEX)
+## Estados del Pedido (via vfccFactura — RE-FU-015, igual que MEX)
 
 | EstadoFAA | Condicion | Accion UI |
 |-----------|-----------|-----------|
@@ -230,8 +246,9 @@ IGV 18%, RUC, serie alfanumerica SUNAT. Sin transferencia a Legacy. Post-envio: 
 
 | Requisito | Relacion |
 |-----------|----------|
-| R16A-RE-FU-018 | Pantalla inicial + ProquifaDotNetTimbrado |
-| R16A-RE-FU-019 | Detalle Mexico (infraestructura compartida) |
+| R16A-RE-FU-018 | Pantalla inicial + ProquifaDotNet.Timbrado (servicio tecnico) + CfdiController/extension CFDIGenerada en Finanzas |
+| R16A-RE-FU-019 | Detalle Mexico (infraestructura compartida: EmpresaFolio, DTOs de timbrado) + CREATE TABLE CFDIGenerada (base) |
+| R16A-RE-FU-015 | Origen y dueño de `fccFactura`/`vfccFactura` (columna `Enviada` y vista reutilizadas por este requisito) |
 | R16A-RE-FU-017 | PDF Proforma Peru (patron persistencia Minio PER) |
 | R16A-RE-FU-005 | Brechas Perú (B1 bloqueante, B5 timbrado) |
 

@@ -1,8 +1,17 @@
-﻿# Impacto en Back — R16A-RE-FU-022
+# Impacto en Back — R16A-RE-FU-022
 **Requisito:** Diseño y generación de Documentos: Factura Perú
 **Aplicativos:** ProquifaDotNet (.NET Framework 4.8) + ProquifaDotNet.Finanzas (.NET Core 10) + DocumentBuilder
 **Módulo:** Factura — PDF CPE UBL 2.1 Perú
-**Impacto:** Scripts BD ProquifaDotNet (CREATE CPEGenerada + ALTER tpProformaAdelanto) + Plantilla DocumentBuilder x1 (GOLPERU\_PER\_FAC) + FacturaPeruPdfMappingService + PersistirFacturaPeruPdfService
+**Impacto:** Scripts BD ProquifaDotNet (ALTER CFDIGenerada — columnas SUNAT) + Plantilla DocumentBuilder x1 (GOLPERU\_PER\_FAC) + PeruInvoicePdfMappingService + PersistPeruInvoicePdfService
+
+> **Nota de arquitectura:** este documento usaba antes una tabla `CPEGenerada` separada de
+> `CFDIGenerada`, duplicando el registro de negocio del CPE. Se corrige: **existe una unica
+> tabla, `CFDIGenerada`** (propiedad de ProquifaDotNet.Finanzas, ya usada por Mexico
+> RE-FU-021 y por Peru RE-FU-020), extendida aqui con las columnas SUNAT que faltan
+> (`UbigeoEmisor`, `DireccionEmisor`, `DireccionReceptor`, `TipoOperacion`, `ISC`, `ICBPER`,
+> `OtrosTributos`). Ver `R16A-RE-FU-022_BD.md` para el detalle completo de la correccion.
+> `fccFactura` (RE-FU-015, antes `tpProformaAdelanto` — migración del 06/07/2026) reutiliza
+> `IdCFDIGenerada`; no se agrega un FK nuevo.
 
 ---
 
@@ -19,7 +28,7 @@ Este requisito implementa el **diseño y generación del PDF de la Factura elect
 | Templates DocumentBuilder | 4 (una por empresa) | **1 (GOLPERU_PER_FAC)** |
 | ID fiscal | RFC 13 chars | **RUC 11 dígitos** |
 | Impuesto | IVA 16% | **IGV 18%** |
-| Tabla de datos fiscales | CFDIGenerada | **CPEGenerada (nueva)** |
+| Tabla de datos fiscales | CFDIGenerada | **CFDIGenerada (misma tabla, columnas SUNAT adicionales)** |
 | Método/Forma de Pago | PPD + 99 (forzados SAT) | **No aplican en Perú** |
 | Complemento de Pago | Sí (módulo Validar Cobro) | **No existe en SUNAT** |
 | Totales extra | No | **ISC, ICBPER, Anticipos, Descuentos, OtrosTributos, Redondeo** |
@@ -33,12 +42,12 @@ Este requisito implementa el **diseño y generación del PDF de la Factura elect
 | Componente | Origen | Reutilización |
 |------------|--------|---------------|
 | `StampingService.TimbrarFacturaSunatAsync` | RE-FU-020 | Sin cambios — ya genera el XML timbrado y retorna CDR SUNAT |
-| `ApiCallerStamping.TimbrarSunatAsync` | RE-FU-020 | Sin cambios — ya llama a `POST /api/v1/cfdi` |
+| `ApiCallerStamping.TimbrarSunatAsync` | RE-FU-020 | Sin cambios — ya llama a `POST /api/v1/stamp` (servicio técnico de Timbrado) |
 | Tabla `Archivo` | RE-FU-017/018 | Sin cambios — patrón `INSERT Archivo` con `FileBucket='facturas'`, `IdRegion='PER'` |
 | Minio bucket `facturas` | RE-FU-017/018 | Sin cambios — mismo bucket, `IdRegion='PER'` |
 | Tabla `EmpresaFolio` GOLPERU | RE-FU-020 | Sin cambios — serie SUNAT F001/E001 + correlativo 8 dígitos |
 | DocumentBuilder | RE-FU-019/021 | Agregar 1 template nuevo `GOLPERU_PER_FAC` |
-| `FacturaAdelantadoGenerarService` (branch PER) | RE-FU-020 | Extender con llamada a `PersistirFacturaPeruPdfService` |
+| `AdvanceInvoiceGenerateService` (branch PER) | RE-FU-020 | Extender con llamada a `PersistPeruInvoicePdfService` |
 
 ### Brechas bloqueantes
 
@@ -118,12 +127,12 @@ Implementar los dos nuevos servicios en Finanzas para el PDF de la Factura Perú
 
 ### Nuevos Componentes
 
-#### Domain — FacturaPeruPdfModel
+#### Domain — PeruInvoicePdfModel
 
 Modelo unificado que representa todas las secciones del PDF del CPE UBL 2.1:
 
 ```csharp
-public class FacturaPeruPdfModel
+public class PeruInvoicePdfModel
 {
     // Sección A — Branding
     public string LogoBase64 { get; set; }   // Golocaer S.A.C. Perú
@@ -152,7 +161,7 @@ public class FacturaPeruPdfModel
     public string   FolioPedidoInterno  { get; set; }   // PI del sistema PQF2 (criterio G3)
 
     // Sección E — Partidas
-    public List<FacturaPeruPdfPartidaModel> Partidas { get; set; }
+    public List<PeruInvoicePdfLineItemModel> Partidas { get; set; }
 
     // Sección F — Totales SUNAT
     public decimal SubTotalVentas            { get; set; }
@@ -170,7 +179,7 @@ public class FacturaPeruPdfModel
     public string  TotalEnLetras             { get; set; }   // ej: "SON: DIECIOCHO MIL... DOLAR AMERICANO"
 
     // Sección F.1 — Crédito (null si CondiciónPago = Contado)
-    public FacturaPeruPdfCreditoModel Credito { get; set; }
+    public PeruInvoicePdfCreditModel Credito { get; set; }
 
     // Sección G — Elementos Técnicos SUNAT (null en preview; completo en PDF definitivo)
     public string QRBase64      { get; set; }   // QR de validación SUNAT
@@ -178,7 +187,7 @@ public class FacturaPeruPdfModel
     public string FirmaDigital  { get; set; }   // Firma digital del OSE/PSE
 }
 
-public class FacturaPeruPdfPartidaModel
+public class PeruInvoicePdfLineItemModel
 {
     public decimal Cantidad           { get; set; }
     public string  UnidadMedidaSUNAT  { get; set; }   // catálogo 6 SUNAT (ej: "C62")
@@ -192,14 +201,14 @@ public class FacturaPeruPdfPartidaModel
     public string  TipoPrecio         { get; set; }   // catálogo 16 SUNAT (ej: "01" precio unitario incluye IGV) — observado en E001-362; pendiente confirmar
 }
 
-public class FacturaPeruPdfCreditoModel
+public class PeruInvoicePdfCreditModel
 {
     public decimal             MontoNetoPendiente { get; set; }
     public int                 TotalCuotas        { get; set; }
-    public List<FacturaPeruPdfCuotaModel> Cuotas  { get; set; }
+    public List<PeruInvoicePdfInstallmentModel> Cuotas  { get; set; }
 }
 
-public class FacturaPeruPdfCuotaModel
+public class PeruInvoicePdfInstallmentModel
 {
     public int      NumeroCuota      { get; set; }
     public DateTime FechaVencimiento { get; set; }
@@ -207,48 +216,48 @@ public class FacturaPeruPdfCuotaModel
 }
 ```
 
-#### Application — FacturaPeruPdfMappingService
+#### Application — PeruInvoicePdfMappingService
 
-Servicio que consolida los datos del CPE en un `FacturaPeruPdfModel`, listo para ser consumido por DocumentBuilder.
+Servicio que consolida los datos del CPE en un `PeruInvoicePdfModel`, listo para ser consumido por DocumentBuilder.
 
 **Fuentes de datos por sección:**
 
 | Sección | Tabla / Fuente |
 |---------|---------------|
 | Branding / Logo | `Empresa` por prefijo `GOLPERU` |
-| Emisor | `CPEGenerada` (RUCEmisor, RazonSocialEmisor, DireccionEmisor, UbigeoEmisor) |
-| Receptor | `CPEGenerada` (RUCReceptor, RazonSocialReceptor, DireccionReceptor) |
-| Comprobante — metadata | `CPEGenerada` (Serie, Correlativo, TipoComprobante, TipoOperacion, FechaEmision, CondicionPago, Moneda, TipoCambio) |
+| Emisor | `CFDIGenerada` (RUCEmisor, RazonSocialEmisor, DireccionEmisor, UbigeoEmisor) |
+| Receptor | `CFDIGenerada` (RUCReceptor, RazonSocialReceptor, DireccionReceptor) |
+| Comprobante — metadata | `CFDIGenerada` (Serie, Correlativo, TipoComprobante, TipoOperacion, FechaEmision, CondicionPago, Moneda, TipoCambio) |
 | Folio Pedido Interno PI | `tpPedido` o equivalente en ProquifaDotNet (criterio G3) |
 | Partidas — CodigoSUNAT | `Producto.CodigoSUNAT` (**BRECHA — campo nuevo RE-FU-020**) |
 | Partidas — ClaveSUNAT UdM | `catUnidad.ClaveSUNAT` (**BRECHA — campo nuevo RE-FU-020**) |
 | Partidas — AfectaciónIGV | `catAfectacionIGV.Clave` (**BRECHA — tabla nueva RE-FU-020**) |
 | Partidas — cantidad / PU | `tpPartidaPedido` (NumeroDePiezas, PrecioUnitario) |
-| Totales SUNAT | `CPEGenerada` (ValorVenta, IGV, ISC, ICBPER, OtrosTributos, Total) |
-| Crédito / Cuotas | `CPEGenerada` (CondicionPago) + tabla de cuotas pendiente definir |
+| Totales SUNAT | `CFDIGenerada` (Subtotal=ValorVenta, ISC, ICBPER, OtrosTributos, Total) — IGV calculado de partidas (18%), igual patrón que IVA en México |
+| Crédito / Cuotas | `CFDIGenerada` (CondicionesPago) + tabla de cuotas pendiente definir |
 | Elementos técnicos SUNAT | XML del OSE/PSE — parseo directo (no BD) |
 | QR SUNAT | Generado / extraído del XML del OSE/PSE |
 
 **Interfaz propuesta:**
 
 ```csharp
-public interface IFacturaPeruPdfMappingService
+public interface IPeruInvoicePdfMappingService
 {
     // PDF definitivo — incluye QR, firma digital y valor resumen del OSE/PSE
-    Task<FacturaPeruPdfModel> MapearAsync(Guid idCPEGenerada, string xmlFirmadoSunat);
+    Task<PeruInvoicePdfModel> MapearAsync(Guid idCFDIGenerada, string xmlFirmadoSunat);
 
     // Preview — sin elementos técnicos SUNAT (Sección G en null)
-    Task<FacturaPeruPdfModel> MapearPreviewAsync(Guid idCPEGenerada);
+    Task<PeruInvoicePdfModel> MapearPreviewAsync(Guid idCFDIGenerada);
 }
 ```
 
 **Flujo interno — `MapearAsync`:**
 
 ```
-1. Consultar CPEGenerada → RUCEmisor, RazonSocialEmisor, DireccionEmisor, UbigeoEmisor,
-   RUCReceptor, RazonSocialReceptor, Serie, Correlativo, TipoComprobante, TipoOperacion,
-   FechaEmision, CondicionPago, Moneda, TipoCambio, ValorVenta, IGV, ISC, ICBPER,
-   OtrosTributos, Total
+1. Consultar CFDIGenerada → RFCEmisor (RUC), RazonSocialEmisor, DireccionEmisor, UbigeoEmisor,
+   RFCReceptor (RUC), RazonSocialReceptor, DireccionReceptor, Serie, Folio (Correlativo),
+   TipoOperacion, FechaEmision, CondicionesPago, IdCatMoneda, TipoCambio, Subtotal (ValorVenta),
+   ISC, ICBPER, OtrosTributos, Total; IGV se calcula desde las partidas (18%)
 2. Consultar tpPartidaPedido JOIN Producto JOIN catUnidad JOIN catAfectacionIGV
    → CodigoSUNAT, ClaveSUNAT, AfectaciónIGV, NumeroDePiezas, PrecioUnitario, Descripcion
 3. Consultar Empresa por prefijo GOLPERU → LogoBase64
@@ -256,7 +265,7 @@ public interface IFacturaPeruPdfMappingService
 5. Parsear xmlFirmadoSunat → extraer QR, FirmaDigital, ValorResumen del CDR
 6. Calcular totales derivados (SubTotalVentas, TotalEnLetras, etc.)
 7. Resolver Crédito/Cuotas si CondicionPago = 'Crédito'
-8. Ensamblar y retornar FacturaPeruPdfModel
+8. Ensamblar y retornar PeruInvoicePdfModel
 ```
 
 **Consulta BD — Partidas con datos SUNAT** (llamada API a ProquifaDotNet):
@@ -279,7 +288,7 @@ WHERE pp.IdPedido = @IdPedido
 ORDER BY pp.NumeroPartida
 ```
 
-#### Application — PersistirFacturaPeruPdfService
+#### Application — PersistPeruInvoicePdfService
 
 Servicio transaccional que, tras el timbrado exitoso ante SUNAT/OSE, genera el PDF definitivo del CPE y lo persiste en Minio.
 
@@ -288,32 +297,40 @@ Servicio transaccional que, tras el timbrado exitoso ante SUNAT/OSE, genera el P
 **Flujo interno:**
 
 ```
-1. Invocar FacturaPeruPdfMappingService.MapearAsync(IdCPEGenerada, xmlFirmadoSunat)
-   → FacturaPeruPdfModel con QR, FirmaDigital, ValorResumen completos
+1. Invocar PeruInvoicePdfMappingService.MapearAsync(IdCFDIGenerada, xmlFirmadoSunat)
+   → PeruInvoicePdfModel con QR, FirmaDigital, ValorResumen completos
 2. TemplateKey = 'GOLPERU_PER_FAC' (fijo — única empresa Perú)
 3. Invocar DocumentBuilder → generar PDF en bytes
 4. Subir PDF a Minio (bucket 'facturas', IdRegion='PER')
 5. INSERT Archivo (NombreArchivo, FileBucket='facturas', IdRegion='PER',
    ContentType='application/pdf') → obtener IdArchivo
-6. Llamar API ProquifaDotNet → UPDATE tpProformaAdelanto SET IdCPEGenerada + referencia PDF
-7. Si pasos 4-6 fallan: reintentar sin re-timbrar ante SUNAT/OSE
-8. Registrar en Serilog: módulo, IdCPEGenerada, fecha, resultado (éxito/error + mensaje)
+6. UPDATE CFDIGenerada SET IdArchivoPdf = @IdArchivo (directo en BD, vía EF Core — CFDIGenerada
+   es propiedad de Finanzas, sin llamada API, mismo patrón que RE-FU-021)
+6.1. UPDATE fccFactura SET IdCFDIGenerada = @IdCFDIGenerada, EsFacturaPorAdelantado = 0
+   (directo en BD, vía EF Core — corrección arquitectónica 06/07/2026: `fccFactura` es
+   propiedad de ProquifaDotNet.Finanzas [Scaffold EF Core en Finanzas.Infrastructure],
+   NO del sistema legado; ya NO requiere llamada API. Antes: `Llamar API ProquifaDotNet →
+   UPDATE tpProformaAdelanto SET IdCFDIGenerada`, que sí era necesaria porque
+   `tpProformaAdelanto` era propiedad de ProquifaDotNet .NET Fx 4.8)
+7. Si pasos 4-6.1 fallan: reintentar sin re-timbrar ante SUNAT/OSE
+8. Registrar en Serilog: módulo, IdCFDIGenerada, fecha, resultado (éxito/error + mensaje)
+9. Registrar el guardado de la factura en ProquifaDotNet.BitacoraCambios (Aplicativo Nuevo — Reglas al diseñar, regla 8)
 ```
 
-**Integración con RE-FU-020 — `FacturaAdelantadoGenerarService` (branch PER):**
+**Integración con RE-FU-020 — `AdvanceInvoiceGenerateService` (branch PER):**
 
 ```csharp
 // Branch PER del flujo generar FAA — tras el timbrado exitoso SUNAT:
 // Paso 10 (reemplaza placeholder): persistir PDF definitivo CPE
-await _persistirFacturaPeruPdfService.PersistirAsync(idCPEGenerada, response.XmlFirmado);
+await _persistirFacturaPeruPdfService.PersistirAsync(idCFDIGenerada, response.XmlFirmado);
 // Paso 11 (sin cambios): INSERT Archivo XML CDR — patrón existente
 ```
 
-**Integración con RE-FU-020 — `FacturaAdelantadoPreviewService` (branch PER):**
+**Integración con RE-FU-020 — `AdvanceInvoicePreviewService` (branch PER):**
 
 ```csharp
 // Branch PER del preview — template real CPE UBL 2.1:
-var model = await _mappingService.MapearPreviewAsync(idCPEGenerada);
+var model = await _mappingService.MapearPreviewAsync(idCFDIGenerada);
 // TemplateKey fijo para Perú (una sola empresa emisora)
 var pdfBytes = await _documentBuilder.GenerarAsync("GOLPERU_PER_FAC", model);
 ```
@@ -324,69 +341,42 @@ var pdfBytes = await _documentBuilder.GenerarAsync("GOLPERU_PER_FAC", model);
 
 ### Orden de ejecución de scripts
 
-| Paso | Script | Tipo | BD | Dependencia | Estado |
-|------|--------|------|----|-------------|--------|
-| 1 | `CREATE TABLE CPEGenerada` | DDL | ProquifaDotNet | Ninguna | **BLOQUEANTE para paso 2** |
-| 2 | `ALTER TABLE tpProformaAdelanto ADD IdCPEGenerada FK` | DDL | ProquifaDotNet | Paso 1 | Requiere tabla CPEGenerada |
-| 3 | `ALTER TABLE Producto ADD CodigoSUNAT` | DDL | ProquifaDotNet | **RE-FU-020** | **BLOQUEANTE partidas PDF** |
-| 4 | `ALTER TABLE catUnidad ADD ClaveSUNAT` | DDL | ProquifaDotNet | **RE-FU-020** | **BLOQUEANTE partidas PDF** |
-| 5 | `CREATE TABLE catAfectacionIGV` + INSERT catálogo 7 SUNAT | DDL + DML | ProquifaDotNet | **RE-FU-020** | **BLOQUEANTE partidas PDF** |
-| 6 | `ALTER TABLE Producto ADD IdCatAfectacionIGV FK` | DDL | ProquifaDotNet | Paso 5 | **BLOQUEANTE partidas PDF** |
-| 7 | `UPDATE Empresa GOLPERU` (RUC, DireccionFiscal, Ubigeo) | DML | ProquifaDotNet | **⚠️ BRECHA datos legales** | Pendiente datos |
+| Paso | Script                                                                                                                                      | Tipo      | BD             | Dependencia                           | Estado                      |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------- | --------- | -------------- | ------------------------------------- | --------------------------- |
+| 1    | `ALTER TABLE CFDIGenerada ADD` columnas SUNAT (UbigeoEmisor, DireccionEmisor, DireccionReceptor, TipoOperacion, ISC, ICBPER, OtrosTributos) | DDL       | ProquifaDotNet | CFDIGenerada debe existir (RE-FU-019) | **BLOQUEANTE**              |
+| 2    | `ALTER TABLE Producto ADD CodigoSUNAT`                                                                                                      | DDL       | ProquifaDotNet | **RE-FU-020**                         | **BLOQUEANTE partidas PDF** |
+| 3    | `ALTER TABLE catUnidad ADD ClaveSUNAT`                                                                                                      | DDL       | ProquifaDotNet | **RE-FU-020**                         | **BLOQUEANTE partidas PDF** |
+| 4    | `CREATE TABLE catAfectacionIGV` + INSERT catálogo 7 SUNAT                                                                                   | DDL + DML | ProquifaDotNet | **RE-FU-020**                         | **BLOQUEANTE partidas PDF** |
+| 5    | `ALTER TABLE Producto ADD IdCatAfectacionIGV FK`                                                                                            | DDL       | ProquifaDotNet | Paso 4                                | **BLOQUEANTE partidas PDF** |
+| 6    | `UPDATE Empresa GOLPERU` (RUC, DireccionFiscal, Ubigeo)                                                                                     | DML       | ProquifaDotNet | **⚠️ BRECHA datos legales**           | Pendiente datos             |
 
-> **Nota:** Los pasos 3-6 son compartidos con RE-FU-020 — se ejecutan una sola vez. Si ya fueron aplicados en RE-FU-020, no repetir.
+> **Nota:** No se requiere `ALTER TABLE fccFactura` — `IdCFDIGenerada` ya existe (RE-FU-015, movida desde `tpProformaAdelanto`/RE-FU-019) y se reutiliza igual que en México. Los pasos 2-5 son compartidos con RE-FU-020 — se ejecutan una sola vez. Si ya fueron aplicados en RE-FU-020, no repetir.
 
 ### Scripts DDL y DML
 
-#### 1. CREATE TABLE CPEGenerada — BLOQUEANTE
+#### 1. ALTER TABLE CFDIGenerada — columnas SUNAT — BLOQUEANTE
 
 ```sql
--- Ejecutar en ProquifaDotNet
-CREATE TABLE [dbo].[CPEGenerada](
-    [IdCPEGenerada]            uniqueidentifier NOT NULL CONSTRAINT [DF_CPEGenerada_Id]          DEFAULT (NEWID()),
-    [RUCEmisor]                varchar(11)      NOT NULL,
-    [RazonSocialEmisor]        varchar(200)     NOT NULL,
-    [DireccionEmisor]          varchar(300)     NULL,
-    [UbigeoEmisor]             varchar(6)       NULL,
-    [RUCReceptor]              varchar(11)      NOT NULL,
-    [RazonSocialReceptor]      varchar(200)     NOT NULL,
-    [DireccionReceptor]        varchar(300)     NULL,
-    [TipoComprobante]          varchar(2)       NOT NULL CONSTRAINT [DF_CPEGenerada_TipoCPE]  DEFAULT ('01'),
-    [TipoOperacion]            varchar(4)       NULL,     -- catálogo 51 SUNAT (ej: '0101')
-    [Serie]                    varchar(4)       NOT NULL, -- ej: 'F001', 'E001'
-    [Correlativo]              varchar(8)       NOT NULL, -- hasta 8 dígitos
-    [CondicionPago]            varchar(50)      NULL,     -- 'Contado' / 'Crédito'
-    [Moneda]                   varchar(3)       NOT NULL, -- PEN, USD
-    [TipoCambio]               decimal(18,6)    NULL,
-    [ValorVenta]               decimal(18,2)    NOT NULL,
-    [IGV]                      decimal(18,2)    NOT NULL,
-    [ISC]                      decimal(18,2)    NOT NULL CONSTRAINT [DF_CPEGenerada_ISC]     DEFAULT (0),
-    [ICBPER]                   decimal(18,2)    NOT NULL CONSTRAINT [DF_CPEGenerada_ICBPER]  DEFAULT (0),
-    [OtrosTributos]            decimal(18,2)    NOT NULL CONSTRAINT [DF_CPEGenerada_Otros]   DEFAULT (0),
-    [Total]                    decimal(18,2)    NOT NULL,
-    [Observaciones]            varchar(500)     NULL,
-    [FechaEmision]             datetime2(7)     NOT NULL,
-    [Activo]                   bit              NOT NULL CONSTRAINT [DF_CPEGenerada_Activo]   DEFAULT (1),
-    [FechaRegistro]            datetime2(7)     NOT NULL CONSTRAINT [DF_CPEGenerada_FechaReg] DEFAULT (SYSUTCDATETIME()),
-    [FechaUltimaActualizacion] datetime2(7)     NOT NULL CONSTRAINT [DF_CPEGenerada_FechaUpd] DEFAULT (SYSUTCDATETIME()),
-    CONSTRAINT [PK_CPEGenerada] PRIMARY KEY CLUSTERED ([IdCPEGenerada])
-);
+-- Ejecutar en ProquifaDotNet. Prerequisito: CFDIGenerada debe existir (RE-FU-019)
+ALTER TABLE dbo.CFDIGenerada
+    ADD UbigeoEmisor      varchar(6)     NULL, -- Ubigeo SUNAT del emisor
+        DireccionEmisor   varchar(300)   NULL, -- Dirección fiscal completa del emisor
+        DireccionReceptor varchar(300)   NULL, -- Dirección fiscal completa del receptor
+        TipoOperacion     varchar(4)     NULL, -- Catálogo 51 SUNAT (ej: '0101')
+        ISC               decimal(18,2)  NOT NULL
+            CONSTRAINT [DF_CFDIGenerada_ISC]     DEFAULT (0),
+        ICBPER            decimal(18,2)  NOT NULL
+            CONSTRAINT [DF_CFDIGenerada_ICBPER]  DEFAULT (0),
+        OtrosTributos     decimal(18,2)  NOT NULL
+            CONSTRAINT [DF_CFDIGenerada_Otros]   DEFAULT (0);
 GO
 ```
 
-#### 2. ALTER TABLE tpProformaAdelanto (IdCPEGenerada FK)
+> Ver `R16A-RE-FU-022_BD.md` para el detalle completo (mapeo de columnas reutilizadas de
+> México — RazonSocialEmisor/Receptor, Serie, Folio=Correlativo, Subtotal=ValorVenta,
+> CondicionesPago, IdArchivoPdf, FechaCertificacionSat, etc.).
 
-```sql
--- Ejecutar en ProquifaDotNet
--- Vinculación Perú: equivalente a IdCFDIGenerada pero para CPE SUNAT
-ALTER TABLE dbo.tpProformaAdelanto
-    ADD IdCPEGenerada uniqueidentifier NULL
-        CONSTRAINT [FK_tpProformaAdelanto_CPEGenerada]
-            FOREIGN KEY REFERENCES dbo.CPEGenerada([IdCPEGenerada]);
-GO
-```
-
-#### 3–6. Scripts RE-FU-020 (ejecutar si aún no aplicados)
+#### 2–5. Scripts RE-FU-020 (ejecutar si aún no aplicados)
 
 ```sql
 -- BLOQUEANTE para partidas del PDF Perú — ver scripts en R16A-RE-FU-020-Back.md Parte C
@@ -423,46 +413,48 @@ GO
 
 | # | Gap | Acción | Esfuerzo | Estado |
 |---|-----|--------|----------|--------|
-| GAP-02 | `FacturaPeruPdfModel` + modelos auxiliares (Domain) | Nuevos modelos con secciones A-G del CPE UBL 2.1 | Bajo | Abierto |
-| GAP-03 | `IFacturaPeruPdfMappingService` + `FacturaPeruPdfMappingService` (Application) | Consolidar datos CPEGenerada + parsear XML OSE/PSE + QR/Firma | Alto | **⛔ BRECHA datos SUNAT producto + OSE** |
-| GAP-04 | `PersistirFacturaPeruPdfService` (Application) | Generar PDF → persistir Minio `IdRegion='PER'` → INSERT Archivo → UPDATE tpProformaAdelanto → reintentos sin re-timbrado | Medio | **⛔ BRECHA OSE/PSE** |
-| GAP-05 | Extender `FacturaAdelantadoGenerarService` branch PER (RE-FU-020) | Reemplazar placeholder con llamada real a `PersistirFacturaPeruPdfService` | Bajo | **⛔ BRECHA OSE/PSE** |
-| GAP-06 | Extender `FacturaAdelantadoPreviewService` branch PER (RE-FU-020) | Reemplazar template placeholder con template real `GOLPERU_PER_FAC` | Bajo | Abierto |
-| GAP-07 | Integrar `PersistirFacturaPeruPdfService` en flujo Validar Cobro Perú | Invocar `PersistirAsync` tras timbrado exitoso SUNAT en Validar Cobro | Bajo | **⛔ BRECHA OSE/PSE** |
+| GAP-02 | `PeruInvoicePdfModel` + modelos auxiliares (Domain) | Nuevos modelos con secciones A-G del CPE UBL 2.1 | Bajo | Abierto |
+| GAP-03 | `IPeruInvoicePdfMappingService` + `PeruInvoicePdfMappingService` (Application) | Consolidar datos CFDIGenerada + parsear XML OSE/PSE + QR/Firma | Alto | **⛔ BRECHA datos SUNAT producto + OSE** |
+| GAP-04 | `PersistPeruInvoicePdfService` (Application) | Generar PDF → persistir Minio `IdRegion='PER'` → INSERT Archivo → UPDATE fccFactura (RE-FU-015, antes tpProformaAdelanto) → reintentos sin re-timbrado | Medio | **⛔ BRECHA OSE/PSE** |
+| GAP-05 | Extender `AdvanceInvoiceGenerateService` branch PER (RE-FU-020) | Reemplazar placeholder con llamada real a `PersistPeruInvoicePdfService` | Bajo | **⛔ BRECHA OSE/PSE** |
+| GAP-06 | Extender `AdvanceInvoicePreviewService` branch PER (RE-FU-020) | Reemplazar template placeholder con template real `GOLPERU_PER_FAC` | Bajo | Abierto |
+| GAP-07 | Integrar `PersistPeruInvoicePdfService` en flujo Validar Cobro Perú | Invocar `PersistirAsync` tras timbrado exitoso SUNAT en Validar Cobro | Bajo | **⛔ BRECHA OSE/PSE** |
 
 ### En Base de Datos (ProquifaDotNet)
 
 | # | Gap | Acción | BD | Esfuerzo | Estado |
 |---|-----|--------|----|----------|--------|
-| GAP-08 | `CREATE TABLE CPEGenerada` | DDL | ProquifaDotNet | Medio | **BLOQUEANTE** |
-| GAP-09 | `ALTER TABLE tpProformaAdelanto ADD IdCPEGenerada FK` | DDL | ProquifaDotNet | Bajo | Requiere GAP-08 |
-| GAP-10 | Scripts RE-FU-020: `CodigoSUNAT`, `ClaveSUNAT`, `catAfectacionIGV` | DDL + DML | ProquifaDotNet | Medio | **BLOQUEANTE** (compartidos con RE-FU-020) |
-| GAP-11 | `UPDATE Empresa GOLPERU` (RUC, DireccionFiscal, Ubigeo) | DML | ProquifaDotNet | Bajo | **⚠️ BRECHA datos legales pendientes** |
+| GAP-08 | `ALTER TABLE CFDIGenerada ADD` columnas SUNAT (UbigeoEmisor, DireccionEmisor, DireccionReceptor, TipoOperacion, ISC, ICBPER, OtrosTributos) | DDL | ProquifaDotNet | Medio | **BLOQUEANTE** |
+| GAP-09 | Scripts RE-FU-020: `CodigoSUNAT`, `ClaveSUNAT`, `catAfectacionIGV` | DDL + DML | ProquifaDotNet | Medio | **BLOQUEANTE** (compartidos con RE-FU-020) |
+| GAP-10 | `UPDATE Empresa GOLPERU` (RUC, DireccionFiscal, Ubigeo) | DML | ProquifaDotNet | Bajo | **⚠️ BRECHA datos legales pendientes** |
 
 ---
 
 ## Diagrama de Flujo — Generación PDF Factura Perú
 
 ```
-[FacturaAdelantadoGenerarService]     [ProquifaDotNet .NET Fx 4.8]     [DocumentBuilder]     [Minio]
+[AdvanceInvoiceGenerateService]     [ProquifaDotNet .NET Fx 4.8]     [DocumentBuilder]     [Minio]
 (branch PER — tras timbrado SUNAT/OSE exitoso)
              |                                     |                          |                  |
-1. PersistirFacturaPeruPdfService.PersistirAsync(IdCPEGenerada, xmlFirmadoSunat)
+1. PersistPeruInvoicePdfService.PersistirAsync(IdCFDIGenerada, xmlFirmadoSunat)
              |                                     |                          |                  |
-2. FacturaPeruPdfMappingService.MapearAsync        |                          |                  |
-             |---GET CPEGenerada / Partidas SUNAT / LogoGOLPERU ------------->|                  |
+2. PeruInvoicePdfMappingService.MapearAsync        |                          |                  |
+             |---GET CFDIGenerada / Partidas SUNAT / LogoGOLPERU ------------->|                  |
              |<---datos fiscales CPE ------------------------------------------                  |
              | 3. Parsear XML OSE/PSE → QR, FirmaDigital, ValorResumen        |                  |
              | 4. Calcular totales SUNAT (TotalEnLetras, SubTotalVentas, etc.) |                  |
              | 5. TemplateKey = 'GOLPERU_PER_FAC' (fijo)                      |                  |
-             |---POST /generar-pdf (GOLPERU_PER_FAC + FacturaPeruPdfModel) --> |                  |
+             |---POST /generar-pdf (GOLPERU_PER_FAC + PeruInvoicePdfModel) --> |                  |
              |<---PDF bytes --------------------------------------------------                   |
-             |---PUT bucket 'facturas' / IdRegion='PER' / {IdCPEGenerada}.pdf ----------------->|
+             |---PUT bucket 'facturas' / IdRegion='PER' / {IdCFDIGenerada}.pdf ----------------->|
              |<---referencia Minio ------------------------------------------------------------|
              | 6. INSERT Archivo (FileBucket='facturas', IdRegion='PER')      |                  |
-             |---PUT /api/tpProformaAdelanto/{Id}/cpe-generada ------------->  |                  |
-             |<---200 OK -------------------------------------------------------                 |
-             | 7. Serilog: módulo, IdCPEGenerada, fecha, resultado            |                  |
+             | 6.1 UPDATE CFDIGenerada SET IdArchivoPdf (directo en BD, vía EF Core — CFDIGenerada es propiedad de Finanzas, sin llamada API, mismo patrón que RE-FU-021)
+             | 6.2 UPDATE fccFactura SET IdCFDIGenerada, EsFacturaPorAdelantado=0 (directo en BD,
+             |     vía EF Core — corrección 06/07/2026: fccFactura es propiedad de Finanzas, NO
+             |     requiere llamada API a ProquifaDotNet .NET Fx 4.8, a diferencia de la extinta
+             |     tpProformaAdelanto)                                          |                  |
+             | 7. Serilog: módulo, IdCFDIGenerada, fecha, resultado            |                  |
 ```
 
-> **Preview (branch PER):** `FacturaAdelantadoPreviewService` llama a `MapearPreviewAsync` (sin QR/Firma/Resumen) → TemplateKey fijo `GOLPERU_PER_FAC` → DocumentBuilder genera PDF en memoria → retorna bytes sin persistir en Minio.
+> **Preview (branch PER):** `AdvanceInvoicePreviewService` llama a `MapearPreviewAsync` (sin QR/Firma/Resumen) → TemplateKey fijo `GOLPERU_PER_FAC` → DocumentBuilder genera PDF en memoria → retorna bytes sin persistir en Minio.

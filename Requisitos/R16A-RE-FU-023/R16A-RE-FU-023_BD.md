@@ -1,4 +1,4 @@
-﻿# Impacto en BD — R16A-RE-FU-023
+# Impacto en BD — R16A-RE-FU-023
 **Requisito:** Validar Cobro — Pantalla Principal
 **Base de Datos:** ProquifaDotNet
 **Versión:** 3.0 (tablas ya existentes — CREATE TABLE removidos; todos los ALTER pendientes)
@@ -23,20 +23,20 @@ Ambas tablas son referenciadas por todos los requisitos del módulo (023–029).
 
 ## Impacto en BD
 
-| #  | Cambio                                                                        | Tipo      | Estado       |
-|----|-------------------------------------------------------------------------------|-----------|--------------|
-| 1  | ALTER TABLE tpPedido ADD FechaCancelacionPorFaltaPago datetime2 NULL          | DDL       | ❌ Pendiente  |
-| 2  | ALTER TABLE tpPedido ADD IdUsuarioCancelacion uniqueidentifier NULL           | DDL       | ❌ Pendiente  |
-| 3  | ALTER TABLE fccPagoCliente ADD Confirmado bit NOT NULL DEFAULT(0)             | DDL       | ❌ Pendiente  |
-| 4  | ALTER TABLE fccPagoCliente ADD FechaConfirmacion datetime2 NULL               | DDL       | ❌ Pendiente  |
-| 5  | ALTER TABLE fccPagoCliente ADD IdUsuarioConfirmacion uniqueidentifier NULL    | DDL       | ❌ Pendiente  |
-| 6  | ALTER TABLE fccPagoCliente ADD Notas varchar(500) NULL                        | DDL       | ❌ Pendiente  |
-| 7  | ALTER TABLE fccPagoCliente ADD IdCatMoneda uniqueidentifier NULL FK catMoneda | DDL       | ❌ Pendiente  |
-| 8  | FechaEstimadaPago (tpProformaPedido.FechaPromesaPagoMonitoreoCobros)          | Existente | —            |
-| 9  | Filtro cartera (ClienteCartera.IdUsuarioCobrador)                             | Existente | —            |
-| 10 | ALTER TABLE tpPedido ADD FechaSolicitudCancelacion datetime2 NULL (OBS-042)   | DDL       | ❌ Pendiente  |
-| 11 | ALTER TABLE tpPedido ADD EstadoCancelacionCFDI varchar(50) NULL (OBS-042)     | DDL       | ❌ Pendiente  |
-| 12 | CREATE TABLE fccFechaEstimadaPagoHistorial (OBS-044)                          | DDL       | ❌ Pendiente  |
+| #   | Cambio                                                                        | Tipo      | Estado      |
+| --- | ----------------------------------------------------------------------------- | --------- | ----------- |
+| 1   | ALTER TABLE tpPedido ADD FechaCancelacionPorFaltaPago datetime2 NULL          | DDL       | ❌ Pendiente |
+| 2   | ALTER TABLE tpPedido ADD IdUsuarioCancelacion uniqueidentifier NULL           | DDL       | ❌ Pendiente |
+| 3   | ALTER TABLE fccPagoCliente ADD Confirmado bit NOT NULL DEFAULT(0)             | DDL       | ❌ Pendiente |
+| 4   | ALTER TABLE fccPagoCliente ADD FechaConfirmacion datetime2 NULL               | DDL       | ❌ Pendiente |
+| 5   | ALTER TABLE fccPagoCliente ADD IdUsuarioConfirmacion uniqueidentifier NULL    | DDL       | ❌ Pendiente |
+| 6   | ALTER TABLE fccPagoCliente ADD Notas varchar(500) NULL                        | DDL       | ❌ Pendiente |
+| 7   | ALTER TABLE fccPagoCliente ADD IdCatMoneda uniqueidentifier NULL FK catMoneda | DDL       | ❌ Pendiente |
+| 8   | FechaEstimadaPago (tpProformaPedido.FechaPromesaPagoMonitoreoCobros)          | Existente | —           |
+| 9   | Filtro cartera (ClienteCartera.IdUsuarioCobrador)                             | Existente | —           |
+| 10  | ALTER TABLE tpPedido ADD FechaSolicitudCancelacion datetime2 NULL (OBS-042)   | DDL       | ❌ Pendiente |
+| 11  | ALTER TABLE tpPedido ADD EstadoCancelacionCFDI varchar(50) NULL (OBS-042)     | DDL       | ❌ Pendiente |
+| 12  | CREATE TABLE fccFechaEstimadaPagoHistorial (OBS-044)                          | DDL       | ❌ Pendiente |
 
 ---
 

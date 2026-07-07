@@ -1,7 +1,7 @@
 # Impacto en Back — R16A-RE-FU-015
 **Requisito:** Tramitación de pedidos Prepago (variante con Factura por Adelantado)
-**Aplicativo:** ProquifaDotNet
-**Módulo:** L05.TramitarPedido
+**Aplicativo:** ProquifaDotNet, ProquifaDotNet.Finanzas
+**Módulo:** L05.TramitarPedido (orquestador) → ProquifaDotNet.Finanzas (nuevo servicio)
 **Impacto:** Flujo preexistente — variante Prepago con FAA activada, genera pendiente directamente en el módulo Factura por Adelantado (NO en Validar Cobro, y sin generar proforma)
 
 ---
@@ -10,39 +10,59 @@
 
 > **BLOQUEANTE — En espera de propuesta del cliente.**
 >
-> Se requiere el catálogo `catEstatusPedido` y el campo `IdEstatusPedido` en `tpPedido` para implementar la lógica de transición de estados durante el flujo de tramitación. Sin esta definición no es posible implementar la lógica de transición en Back (T7 de este requisito).
+> Se requiere el catálogo `CatEstadoTpPedido` y el campo `IdCatEstadoTpPedido` en `tpPedido` para implementar la lógica de transición de estados durante el flujo de tramitación (cierre del pendiente Tramitar Pedido, RT-05 del DIS-SOL). Sin esta definición no es posible implementar la lógica de transición en Back (T8 de este requisito).
 >
-> **Las tareas T6 (BD) y T7 (Back) están BLOQUEADAS hasta recibir la propuesta del cliente sobre `catEstatusPedido`.**
+> **Las tareas T7 (BD) y T8 (Back) están BLOQUEADAS hasta recibir la propuesta del cliente sobre `CatEstadoTpPedido`.**
 
 ---
 
 ## Resumen
 
-> **Actualización de requisito (matriz cliente):** el requisito ya no contempla generación de proforma, PDF ni envío de correo en este flujo. Este documento se actualiza para reflejar esa reducción de alcance. La definición técnica final (tablas, endpoints) se documenta en el DIS-SOL — este documento describe el impacto conforme al requisito, sin adoptar aún decisiones de diseño.
+> **Actualización de diseño (adopción del DIS-SOL v1.0):** este documento adopta la arquitectura definida en `[R16A-RE-FU-015][DIS-SOL] Diseño de la solución.pdf` (v1.0, 29/06/2026, revisado por Juan David García Cruz el 02/07/2026). La decisión de diseño **no reutiliza `tpProformaAdelanto`**; en su lugar, el pendiente FAA se modela con tres tablas nuevas propiedad de `ProquifaDotNet.Finanzas`: `fccFactura` (cabecera), `fccFacturaPartida` (detalle) y `fccFacturaReferenciaBancaria` (referencias bancarias). Queda pendiente el hallazgo H-01 de `R16A-RE-FU-015_DIS-SOL_Revision.md` (ver Riesgos abajo).
 
-Este requisito es la variante Prepago sin controlados donde el ESAC **activa Factura por Adelantado**. A diferencia de RE-FU-013/014, este flujo **no genera proforma, PDF ni correo**: al tramitar, el sistema genera directamente el pendiente en el módulo Factura por Adelantado y cierra el pendiente operativo de Tramitar Pedido.
+Este requisito es la variante Prepago sin controlados donde el ESAC **activa Factura por Adelantado**. A diferencia de RE-FU-013/014, este flujo **no genera proforma, PDF ni correo**: al tramitar, `ProquifaDotNet` actúa como orquestador (genera y commitea `FolioPedidoInterno`) y delega a `ProquifaDotNet.Finanzas`, que inserta el pendiente FAA y cierra el pendiente operativo de Tramitar Pedido.
 
 - **Al tramitar NO genera pendiente en Validar Cobro** (no hay proforma que lo dispare)
-- **Genera pendiente en módulo Factura por Adelantado** directamente al tramitar (INSERT en `tpProformaAdelanto`)
-- El pendiente Validar Cobro se generará después, cuando FAA emita la factura PPD (RE-FU-018/019/020)
+- **Genera pendiente en módulo Factura por Adelantado** directamente al tramitar (INSERT en `fccFactura` + `fccFacturaPartida` + `fccFacturaReferenciaBancaria`, en `ProquifaDotNet.Finanzas`)
+- El pendiente Validar Cobro se generará después, cuando FAA emita la factura PPD (RE-FU-018/019/020), reutilizando `fccFactura` con `EsFacturaPorAdelantado = 0`
 
 **Otras diferencias:**
 - `tpPedido.FacturaPorAdelantado = 1`
-- Activación directa sin código de autorización (Regla 3 — eliminar validación anterior si existe)
-- Datos de facturación bloqueados y fijados al activar FAA
-- El cierre del pendiente operativo en Tramitar Pedido no implica que el pedido quede "tramitado en su totalidad" (Regla 13 / Criterio D3) — el estatus real del pedido a lo largo del flujo queda pendiente de definir (Criterio D5, ligado a OBS-027)
+- Activación directa sin código de autorización (Regla 3 / RT-07)
+- Datos de facturación bloqueados y fijados al activar FAA (snapshot en `fccFactura`)
+- El cierre del pendiente operativo en Tramitar Pedido no implica que el pedido quede "tramitado en su totalidad" (Regla 13 / Criterio D3) — se realiza asignando `IdCatEstadoTpPedido` en `tpPedido` (RT-05, ⛔ OBS-027)
+
+---
+
+## Arquitectura (adoptada del DIS-SOL)
+
+| Componente | Responsabilidad | Ubicación |
+|---|---|---|
+| `ProquifaDotNet` — `L05.TramitarPedido` | Endpoint orquestador FAA: valida (`SinCredito=1`, `TieneControlados()=false`, `FAA=1`, `Remisión=0`, datos de facturación sin cambios), fija datos de facturación del catálogo del cliente, genera `FolioPedidoInterno` y lo asigna a `tpPedido` (commit), llama al endpoint interno de Finanzas | `WebApi.Logistica` / `Logic.Pqf.Logistica` |
+| `ProquifaDotNet.Finanzas` | Lee `FolioPedidoInterno` desde `tpPedido`, INSERT atómico del pendiente FAA (`fccFactura` + `fccFacturaPartida` + `fccFacturaReferenciaBancaria`), cierre del pendiente Tramitar Pedido | Nueva solución |
+| BD (SQL Server) | Persistencia del pendiente FAA y estado del pedido | Base de datos existente (`ProquifaDotNet`) |
+
+> `tpPedidoTramitarTransaccionBO.cs` **no se utiliza** en este flujo — el orquestador es un endpoint nuevo dedicado a la variante FAA.
+
+### Endpoints nuevos/modificados
+
+| Solución | Endpoint | Tipo | Parámetros | Salida |
+|---|---|---|---|---|
+| `ProquifaDotNet` | `POST /v1/api/invoices/advance-invoice/{orderId}` | Nuevo | `orderId` (Guid, ruta); body vacío | Confirmación: `orderId`, `internalOrderFolio`, `invoiceId`, `advanceInvoiceStatus`, `processOrderTaskClosed` |
+| `ProquifaDotNet.Finanzas` (interno) | `POST /v1/api/invoices/advance-invoice/create/{orderId}` | Nuevo | `orderId` (Guid, ruta) | Confirmación de creación del pendiente |
+| `ProquifaDotNet` | `GET /Logistica/vTramitarPedidoDetalle` | Reutilizado (RE-013 T8) | `idTPPedido` (Guid, query) | Modelo `vTramitarPedidoDetalle` (incluye `TieneProductosControlados` y `CorreoElectronicoEsac`) |
 
 ---
 
 ## Código Existente Relacionado
 
 ### Tramitación principal
-`Logic.Pqf.Logistica\L05.TramitarPedido\Liberar\tpPedidoTramitarTransaccionBO.cs`
+`Logic.Pqf.Logistica\L05.TramitarPedido\Liberar\tpPedidoTramitarTransaccionBO.cs` — **no se utiliza en este flujo** (el orquestador FAA es un endpoint nuevo, ver Arquitectura).
 
-### Pendiente FAA (sin proforma previa)
-`Logic.Pqf.Logistica\L05.TramitarPedido\Facturas\Anticipos\tpProformaAdelantoBO.cs`
+### Pendiente FAA — reemplazo de `tpProformaAdelanto`
+`Logic.Pqf.Logistica\L05.TramitarPedido\Facturas\Anticipos\tpProformaAdelantoBO.cs` — **ya no aplica a este requisito.**
 
-> Entidad `tpProformaAdelanto` — representa el pendiente en módulo FAA. Ya existe como CrudBO. En este flujo se puebla directamente con datos del pedido/partidas/cliente, sin pasar por la generación de una proforma.
+> Por decisión de diseño (DIS-SOL v1.0), el pendiente FAA de RE-015 **no se modela con `tpProformaAdelanto`**. Se reemplaza por tres tablas nuevas en `ProquifaDotNet.Finanzas`: `fccFactura` (cabecera, tabla única compartida con la factura final vía `EsFacturaPorAdelantado`), `fccFacturaPartida` (detalle de partidas) y `fccFacturaReferenciaBancaria` (referencias bancarias). `tpProformaAdelantoBO.cs` deja de ser código de referencia para este requisito; se conserva la mención únicamente para trazabilidad histórica.
 
 ---
 
@@ -58,59 +78,152 @@ Este requisito es la variante Prepago sin controlados donde el ESAC **activa Fac
 
 ---
 
+## Riesgos
+
+**Riesgo 1 — H-01 (`R16A-RE-FU-015_DIS-SOL_Revision.md`): `fccFactura` no modela campos fiscales de Perú**
+El bloque de datos del receptor de `fccFactura` (snapshot de `DatosFacturacionCliente`) solo contempla catálogos SAT de México (`RegimenFiscalClaveSAT`, `UsoCFDIClaveSAT`, `MetodoDePagoClaveSAT`, `FormaDePagoClaveSAT`). La Regla 14 / Criterio A5 del requisito exige que para clientes Perú se persistan Tipo de Operación (catálogo 51 SUNAT) y Condición de Pago SUNAT en su lugar, y el propio Alcance del DIS-SOL declara operación en México **y Perú**. Mientras no se resuelva este hallazgo (agregar columnas equivalentes a `fccFactura` o documentar explícitamente por qué no aplican), un pedido peruano con FAA activada no tendría dónde fijar sus datos fiscales correctos. **No bloquea la adopción de la tabla `fccFactura` en este documento, pero debe resolverse antes de cerrar el desarrollo de T2 (INSERT del pendiente FAA) para Perú.**
+
+**Riesgo 2 — Campos de información fiscal originalmente configurados para México**
+Los campos de información fiscal del módulo Tramitar Pedido están actualmente configurados conforme a las normas fiscales de México. Al operar pedidos peruanos, el ESAC podría experimentar confusión sobre qué campos aplican o cómo interpretarlos en el contexto fiscal peruano. Se espera capacitación al equipo operativo para clarificar el manejo de los campos fiscales en pedidos de la región Perú.
+
+---
+
+## Criterios de Aceptación
+
+### Sección A — Tramitación, activación y opciones en pantalla
+
+**Criterio A1 — Tramitación habilitada para Prepago sin controlados con Factura por Adelantado activada**
+- **Dado** que un pedido pertenece a un cliente Prepago en México o Perú, sin productos controlados, y el ESAC activa la opción Factura por Adelantado,
+- **Cuando** el ESAC opera el módulo Tramitar Pedido,
+- **Entonces** el sistema deberá permitir la tramitación y, al ejecutarse, generar el pendiente FAA (`fccFactura` + detalle) — no se genera proforma (ver Notas: cláusula heredada de proforma pendiente de limpieza editorial en el requisito, ver `R16A-RE-FU-015_DIS-SOL_Revision.md` H-03).
+
+**Criterio A2 — Activación de Factura por Adelantado desde Tramitar Pedido**
+- **Dado** que un pedido pertenece a un cliente Prepago sin productos controlados,
+- **Cuando** el ESAC visualiza el módulo Tramitar Pedido,
+- **Entonces** el sistema deberá ofrecer la opción de activar Factura por Adelantado. La activación es directa y no requiere código de autorización (RT-07).
+
+**Criterio A3 — Bloqueo de edición de datos de facturación al activar Factura por Adelantado**
+- **Dado** que el ESAC activó la opción Factura por Adelantado en Tramitar Pedido,
+- **Cuando** se muestra la pantalla del pedido,
+- **Entonces** el botón "Editar Datos" para datos de facturación no debe aparecer disponible para este pedido. El sistema deberá mostrar los datos de facturación en modo solo lectura tomados del catálogo del cliente vigente al momento de la activación (fijados como snapshot en `fccFactura`).
+
+**Criterio A4 — No visualización de Entrega con Remisión para Prepago**
+- **Dado** que el pedido es de cliente Prepago,
+- **Cuando** el ESAC visualiza la pantalla del pedido,
+- **Entonces** el radio button de Entrega con Remisión no deberá aparecer en la pantalla, dado que esta opción no aplica para clientes prepago en ninguna variante.
+
+**Criterio A5 — Composición regionalizada del panel de Información de Facturación**
+- **Dado** que el ESAC visualiza el panel de Información de Facturación de un pedido en Tramitar Pedido,
+- **Cuando** el sistema muestra el panel según la Región del cliente,
+- **Entonces** para clientes México deberá mostrar Uso CFDI y Método de Pago (catálogos SAT); para clientes Perú deberá mostrar Tipo de Operación (catálogo 51 SUNAT) y Condición de Pago Contado/Crédito SUNAT en su lugar; en ambas regiones deberá mostrar los campos comunes (Razón Social, RFC/RUC, Moneda, Quién Factura, Condiciones de Pago comerciales y Comentarios) y NO deberá mostrar Forma de Pago ni correo de envío.
+- ⚠️ **No cubierto por el modelo de datos actual de `fccFactura`** — ver Riesgo 1 / H-01.
+
+### Sección D — Pendientes generados y cierre
+
+**Criterio D1 — Generación del pendiente Factura por Adelantado al tramitar**
+- **Dado** un pedido prepago sin controlados con Factura por Adelantado activada,
+- **Cuando** el ESAC ejecuta la acción Tramitar,
+- **Entonces** el sistema deberá generar automáticamente un pendiente en el módulo Factura por Adelantado asociado al folio del pedido (INSERT atómico en `fccFactura` + `fccFacturaPartida` + `fccFacturaReferenciaBancaria`), para que Finanzas gestione posteriormente la emisión y timbrado de la factura.
+
+**Criterio D2 — Momento de generación del pendiente Validar Cobro**
+- **Dado** que el ESAC tramitó un pedido prepago con Factura por Adelantado activada,
+- **Cuando** se completa la tramitación,
+- **Entonces** el pendiente en Validar Cobro se generará posteriormente, cuando la factura se emita exitosamente desde el módulo Factura por Adelantado (RT-06).
+
+**Criterio D3 — Desaparición del pendiente operativo en bandeja Tramitar Pedido**
+- **Dado** que la acción de Tramitar Pedido se completó (con la generación del pendiente en Factura por Adelantado),
+- **Cuando** se asigna `IdCatEstadoTpPedido` en `tpPedido` (RT-05, ⛔ OBS-027),
+- **Entonces** el pedido no deberá seguir apareciendo como pendiente en la bandeja del módulo Tramitar Pedido del ESAC.
+
+**Criterio D4 — Cancelación del pedido**
+- **Dado** que un pedido tramitado tiene solicitud del cliente para cancelar,
+- **Cuando** el ESAC ejecuta la acción Cancelar pedido en Tramitar Pedido,
+- **Entonces** el sistema deberá presentar un modal de confirmación y requerir confirmación explícita antes de proceder (endpoint compartido con RE-FU-010).
+
+**Criterio D5 — Estatus del pedido a lo largo del flujo**
+- **Dado** que el sistema opera por pendientes (que aparecen y desaparecen de cada bandeja a medida que se trabajan) y que esos pendientes no reflejan por sí solos el estatus global del pedido,
+- **Cuando** un pedido avanza por las distintas etapas del flujo,
+- **Entonces** el sistema deberá mantener un estatus del pedido que refleje su punto en el flujo (catálogo `CatEstadoTpPedido`, ⛔ OBS-027).
+
+---
+
 ## Gaps de Desarrollo Específicos de RE-FU-015
 
 | # | Gap | Acción | Esfuerzo |
 |---|-----|--------|----------|
-| GAP-01 | Generación pendiente FAA al tramitar con FAA=1 | Al confirmar la acción de tramitar (sin generación previa de proforma), INSERT en `tpProformaAdelanto` con datos del pedido/cliente/empresa/monto. Atómico con la transacción | Medio |
-| GAP-02 | ~~NO generar pendiente Validar Cobro cuando FAA=1~~ | **Ya no aplica.** Como este flujo no genera `tpProformaPedido`, no existe `MontoPendiente` que pudiera disparar un pendiente en Validar Cobro — no hay nada que suprimir | — |
-| GAP-03 | Eliminar código de autorización para FAA | Buscar y eliminar validación de código de autorización para activar Factura por Adelantado (Regla 3: activación directa) | Bajo |
-| GAP-04 | Bloquear datos facturación al activar FAA | Fijar datos de facturación del catálogo del cliente vigente al momento de activar FAA. Confirmar si además se requiere rechazar edición posterior desde un endpoint dedicado, o si la fijación por snapshot es suficiente | Bajo |
-| GAP-05 | Vinculación con módulo FAA (RE-FU-018/019/020) | Tarea para asegurar que el pendiente generado en `tpProformaAdelanto` sea consumido correctamente por el módulo FAA. Como no hay proforma previa, los datos deben poblarse directamente desde pedido/partidas/cliente | Bajo |
+| GAP-01 | Generación pendiente FAA al tramitar con FAA=1 | Al confirmar la acción de tramitar (sin generación previa de proforma), INSERT atómico en `fccFactura` + `fccFacturaPartida` + `fccFacturaReferenciaBancaria` (en `ProquifaDotNet.Finanzas`) con datos del pedido/cliente/empresa/monto/partidas/referencias bancarias | Medio |
+| GAP-02 | ~~NO generar pendiente Validar Cobro cuando FAA=1~~ | **Ya no aplica.** Como este flujo no genera `tpProformaPedido`, no existe `MontoPendiente` que pudiera disparar un pendiente en Validar Cobro (RT-06) — no hay nada que suprimir | — |
+| GAP-03 | Eliminar código de autorización para FAA | Buscar y eliminar validación de código de autorización para activar Factura por Adelantado (Regla 3 / RT-07: activación directa) | Bajo |
+| GAP-04 | Bloquear datos facturación al activar FAA | Fijar datos de facturación del catálogo del cliente vigente al momento de activar FAA como snapshot en `fccFactura` (RFC, Razón Social, CP, Régimen Fiscal, Uso CFDI, Método de Pago, Forma de Pago) | Bajo |
+| GAP-05 | Vinculación con módulo FAA (RE-FU-018/019/020) | Tarea para asegurar que el pendiente generado en `fccFactura`/`fccFacturaPartida`/`fccFacturaReferenciaBancaria` sea consumido correctamente por el módulo FAA (RT-10: `fccFactura` es tabla única para FAA y factura final, diferenciadas por `EsFacturaPorAdelantado`) | Bajo |
 | GAP-06 | Cancelación del pedido | Dependencia de R16A-RE-FU-010 (endpoint de cancelación) | Referencia |
-| GAP-07 | Ausencia de documento/PDF disponible para TaskScheduler de Venta Digital | Confirmar si el job de TaskScheduler que transfiere PDFs a Legacy puede operar cuando no existe ningún PDF generado en Tramitar Pedido para este flujo (ver `R16A-RE-FU-015-Tareas.md` T8) | Medio |
+| GAP-07 | Ausencia de documento/PDF disponible para TaskScheduler de Venta Digital | Confirmar si el job de TaskScheduler que transfiere PDFs a Legacy puede operar cuando no existe ningún PDF generado en Tramitar Pedido para este flujo (ver `R16A-RE-FU-015-Tareas.md`) | Medio |
+| GAP-08 | H-01 — Campos fiscales de Perú en `fccFactura` | Antes de cerrar desarrollo, agregar a `fccFactura` (o tabla de extensión regional) los campos equivalentes a Tipo de Operación (catálogo 51 SUNAT) y Condición de Pago SUNAT, siguiendo el mismo patrón snapshot que los campos SAT de México — o documentar explícitamente por qué no aplican | Medio |
 
 ---
 
 ## Flujo Back Completo
 
 ```
-1. ESAC ejecuta Tramitar (FAA=1, sin controlados)
-2. Back valida:
-   - Condición de pago = Prepago (SinCredito=1)
-   - TieneControlados() = false (FAA + controlados NO permitido)
-   - FacturaPorAdelantado = 1
-   - EntregaConRemision debe ser 0 (rechazar si 1)
-   - No requiere código de autorización
-3. Asigna FolioPedidoInterno (mecánica actual)
-4. tpPedido.FacturaPorAdelantado = 1
-5. Fija datos de facturación del catálogo del cliente vigente
-6. Genera el pendiente FAA directamente (sin proforma previa):
-   - INSERT tpProformaAdelanto con datos del pedido/cliente/empresa/monto
-   - IdCFDIGenerada = NULL (pendiente de emisión por módulo FAA)
-7. NO genera proforma, PDF ni correo — el requisito actualizado excluye
-   explícitamente estos pasos de este flujo
-8. NO genera pendiente Validar Cobro (no hay proforma que lo dispare)
-9. Cierra el pendiente operativo de Tramitar Pedido
-   (⛔ bloqueado hasta resolver OBS-027 — ver catEstatusPedido)
-10. Actualiza el estado/indicador del pedido conforme a lo que finalmente
-    se defina para "pendiente operativo cerrado" (Criterio D3/D5) — el
-    catálogo de estatus del pedido está pendiente de definición del cliente
+0. Front llama GET /Logistica/vTramitarPedidoDetalle?idTPPedido=... (RE-013 T8)
+   → Retorna TieneProductosControlados=false, CorreoElectronicoEsac
+   → Front renderiza radio button FAA (disponible, no seleccionado por defecto)
+   → ESAC activa FAA → datos de facturación pasan a solo lectura en pantalla
+
+1. ESAC hace clic en "SOLICITAR FACTURA POR ADELANTADO"
+   → Front muestra pantalla de resumen (datos entrega | datos facturación | partidas + totales)
+
+2. ESAC hace clic en "ENVIAR SOLICITUD" → Front llama
+   POST /v1/api/invoices/advance-invoice/{orderId} en ProquifaDotNet:
+   a. Valida: SinCredito=1, TieneControlados()=false, FAA=1, Remisión=0,
+      datos de facturación sin cambios
+   b. Valida: FAA + controlados no permitido (validación defensiva — R13)
+   c. Fija datos de facturación del catálogo del cliente vigente
+      (DatosFacturacionCliente)
+   d. Genera el FolioPedidoInterno y lo asigna a tpPedido → COMMIT
+      → si falla el guardado: rollback aquí, NO se llama a Finanzas
+      → si el folio ya existe en tpPedido (reintento): se reutiliza,
+        NO se regenera (idempotente)
+   e. Llama POST /v1/api/invoices/advance-invoice/create/{orderId}
+      en ProquifaDotNet.Finanzas
+      → si esta llamada falla: NO se hace rollback; tpPedido conserva
+        el folio; el reintento es seguro
+
+3. ProquifaDotNet.Finanzas — nuevo servicio:
+   a. NO genera tpProformaPedido ni tpProformaPartidaPedido
+   b. NO llama a DocumentBuilder — no hay PDF
+   c. NO envía correo
+   d. Lee FolioPedidoInterno desde tpPedido (ya persistido por ProquifaDotNet)
+   e. INSERT fccFactura con EsFacturaPorAdelantado = 1 (cabecera, pendiente FAA)
+   f. INSERT fccFacturaPartida — una por cada partida del pedido (snapshot)
+   g. INSERT fccFacturaReferenciaBancaria — referencias bancarias
+      (cuentas M.N./DLS del grupo PROQUIFA + ReferenciaCliente por Código Validador)
+      → e, f, g en una sola transacción (atómico)
+   h. NO genera pendiente Validar Cobro
+   i. Asigna IdCatEstadoTpPedido en tpPedido → cierra pendiente Tramitar Pedido
+      (⛔ bloqueado hasta resolver OBS-027)
 ```
 
 ---
 
-## Datos del pendiente FAA (tpProformaAdelanto)
+## Datos del pendiente FAA (`fccFactura` + `fccFacturaPartida` + `fccFacturaReferenciaBancaria`)
 
-| Dato              | Origen                             |
-| ----------------- | ---------------------------------- |
-| IdCliente         | tpPedido.IdCliente                 |
-| IdEmpresa         | tpPedido -> empresa de la proforma |
-| Monto             | MontoTotal de la proforma          |
-| IdCFDIGenerada    | NULL (pendiente emisión)           |
-| Datos facturación | DatosFacturacionCliente fijados    |
-| Folio pedido      | tpPedido.FolioPedidoInterno        |
-| Estado            | Pendiente de emisión               |
+| Dato | Origen |
+|---|---|
+| IdTPPedido | tpPedido.IdTPPedido |
+| EsFacturaPorAdelantado | = 1 (fijo en este flujo) |
+| IdCliente | tpPedido.IdCliente |
+| IdEmpresa | Empresa emisora (Proquifa) |
+| FolioPedidoInterno | tpPedido.FolioPedidoInterno |
+| IdCatCondicionesDePago | tpPedido |
+| IdCatMoneda / TipoCambio / FactorConversionUSD | Moneda de facturación (RT-09) |
+| SubTotal / IVA / MontoTotal / MontoTotalLetras | Partidas del pedido |
+| Datos del receptor (RFC, Razón Social, CP, Régimen Fiscal, Uso CFDI, Método de Pago, Forma de Pago) | Snapshot de `DatosFacturacionCliente` vigente |
+| IdTPProformaPedido | NULL en este flujo (Prepago no genera proforma) — se puebla solo en el origen Crédito, RE-FU-012 |
+| IdCFDIGenerada | NULL en la FAA — se puebla al timbrar la factura final (RT-10). Serie/Folio/FolioFiscal/Version/TipoDeComprobante/FechaCertificacion se leen de `CFDIGenerada` vía este FK, no se duplican en `fccFactura` |
+| Enviada | 0 al generar el pendiente — se pone en 1 al enviar la factura final por correo (RE-FU-018/019/020) |
+| fccFacturaPartida (1:N) | Snapshot de partidas del pedido (`ClaveProductoServicioSAT`, `ClaveUnidadSAT`, cantidades, importes, impuestos) |
+| fccFacturaReferenciaBancaria (1:N) | Cuentas M.N./DLS del grupo PROQUIFA (`EmpresaDatosBancarios`/`DatosBancarios`/`catBanco`) + `ReferenciaCliente` (Código Validador, RE-006) |
 
 ---
 
@@ -118,7 +231,7 @@ Este requisito es la variante Prepago sin controlados donde el ESAC **activa Fac
 
 - En Tramitar Pedido NO hay transferencia para Prepago
 - La transferencia ocurre después de Validar Cobro (fuera de scope)
-- **Punto abierto:** al no generarse ningún PDF en este flujo (ni proforma ni confirmación), queda pendiente confirmar qué documento, si alguno, puede transferir a Legacy el job de TaskScheduler de Venta Digital para pedidos Prepago con FAA (ver Tareas T8/T9)
+- **Punto abierto:** al no generarse ningún PDF en este flujo (ni proforma ni confirmación), queda pendiente confirmar qué documento, si alguno, puede transferir a Legacy el job de TaskScheduler de Venta Digital para pedidos Prepago con FAA (ver Tareas, tarea de validación VD)
 
 ---
 
@@ -126,11 +239,12 @@ Este requisito es la variante Prepago sin controlados donde el ESAC **activa Fac
 
 | Requisito | Relación |
 |-----------|----------|
-| R16A-RE-FU-006 | Referencia bancaria del documento fiscal (Código Validador) |
+| R16A-RE-FU-006 | Referencia bancaria del documento fiscal (Código Validador) — origen de `fccFacturaReferenciaBancaria.ReferenciaCliente` |
 | R16A-RE-FU-010 | Cancelación de pedido (endpoint compartido) |
-| R16A-RE-FU-013 | Verificación Perú (única parte del flujo base aún compartida) |
+| R16A-RE-FU-013 | Verificación Perú (única parte del flujo base aún compartida); arquitectura orquestador→Finanzas ya validada ahí |
 | R16A-RE-FU-014 | Validaciones compartidas: Remisión Prepago, datos facturación |
-| R16A-RE-FU-018/019/020 | Módulo FAA consume el pendiente generado aquí |
+| R16A-RE-FU-016 | Criterio E1 — las dos cuentas (M.N./DLS) del grupo PROQUIFA México en el CFDI, reutilizado en `fccFacturaReferenciaBancaria` |
+| R16A-RE-FU-018/019/020 | Módulo FAA consume el pendiente generado aquí (`fccFactura` con `EsFacturaPorAdelantado=1` → se actualiza a `0` y se llenan campos fiscales al timbrar) |
 
 > RE-FU-016/017 (generación de PDF de proforma en DocumentBuilder) **ya no aplica** a este requisito — no se genera proforma en este flujo.
 
@@ -138,12 +252,14 @@ Este requisito es la variante Prepago sin controlados donde el ESAC **activa Fac
 
 ## Conclusión
 
-El requisito R16A-RE-FU-015 tiene **impacto medio-bajo** en desarrollo Back tras la actualización del requisito que elimina la proforma de este flujo. Ya no reutiliza el flujo base de proforma de RE-FU-013 (foliador, previsualización, envío) — solo comparte con RE-FU-014 las validaciones de Remisión y datos de facturación. Lógica específica de RE-015:
+El requisito R16A-RE-FU-015 tiene **impacto medio** en desarrollo Back tras adoptar el DIS-SOL v1.0: introduce tres tablas nuevas (`fccFactura`, `fccFacturaPartida`, `fccFacturaReferenciaBancaria`) propiedad de `ProquifaDotNet.Finanzas` y un endpoint orquestador nuevo en `ProquifaDotNet`. Ya no reutiliza el flujo base de proforma de RE-FU-013 (foliador, previsualización, envío) — solo comparte con RE-FU-014 las validaciones de Remisión y datos de facturación. Lógica específica de RE-015:
 
-1. **Pendiente FAA directo** (GAP-01) — INSERT en `tpProformaAdelanto` al tramitar, sin proforma previa
-2. **Sin código de autorización** (GAP-03) — eliminar validación anterior
-3. **Bloqueo datos facturación** (GAP-04) — fijar al activar FAA
-4. **Vinculación con FAA** (GAP-05) — asegurar consumo del pendiente por RE-FU-018/019/020
-5. **Punto abierto de Venta Digital/Legacy** (GAP-07) — confirmar comportamiento de TaskScheduler sin PDF disponible
+1. **Estructura BD del pendiente FAA** — CREATE TABLE `fccFactura` + `fccFacturaPartida` + `fccFacturaReferenciaBancaria` (ver `_BD.md`)
+2. **Pendiente FAA directo** (GAP-01) — INSERT atómico de las tres tablas al tramitar, sin proforma previa
+3. **Sin código de autorización** (GAP-03) — eliminar validación anterior
+4. **Bloqueo datos facturación** (GAP-04) — fijar al activar FAA
+5. **Vinculación con FAA** (GAP-05) — asegurar consumo del pendiente por RE-FU-018/019/020
+6. **Punto abierto de Venta Digital/Legacy** (GAP-07) — confirmar comportamiento de TaskScheduler sin PDF disponible
+7. **H-01 pendiente** (GAP-08) — campos fiscales de Perú en `fccFactura`
 
-El desarrollador debe revisar `tpProformaAdelantoBO.cs` para entender la estructura del pendiente FAA y cómo se integra con el flujo de tramitación. La estructura técnica definitiva (si se mantiene `tpProformaAdelanto` o se introduce un modelo nuevo) se confirma en el DIS-SOL.
+El desarrollador debe implementar el endpoint orquestador en `ProquifaDotNet` y el servicio de creación del pendiente en `ProquifaDotNet.Finanzas` conforme al DIS-SOL v1.0. `tpProformaAdelantoBO.cs` ya no es código de referencia para este requisito.

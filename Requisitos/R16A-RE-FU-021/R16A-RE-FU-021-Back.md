@@ -1,8 +1,8 @@
-﻿# Impacto en Back — R16A-RE-FU-021
+# Impacto en Back — R16A-RE-FU-021
 **Requisito:** Diseño y generación de Documentos: Factura México
 **Aplicativos:** ProquifaDotNet (.NET Framework 4.8) + ProquifaDotNet.Finanzas (.NET Core 10) + DocumentBuilder
 **Módulo:** Factura — PDF CFDI 4.0 México
-**Impacto:** Scripts BD ProquifaDotNet (ALTER x3 + CREATE x1) + Plantillas DocumentBuilder x4 (GOL/MUN/PRO/PQF\_MEX\_FAC) + FacturaMexicoPdfMappingService + PersistirFacturaMexicoPdfService
+**Impacto:** Scripts BD ProquifaDotNet (ALTER x3 + CREATE x1) + Plantillas DocumentBuilder x4 (GOL/MUN/PRO/PQF\_MEX\_FAC) + MexicoInvoicePdfMappingService + PersistMexicoInvoicePdfService
 
 ---
 
@@ -10,25 +10,27 @@
 
 Este requisito implementa el **diseño y generación del PDF de la Factura CFDI 4.0 para México**, integrando todos los datos fiscales del `TimbreFiscalDigital` del PAC (UUID, sellos, cadena original, QR), el branding por empresa emisora (GOL/MUN/PRO/PQF) y la persistencia inmutable del artefacto en Minio.
 
+> **Nota de arquitectura (corrección — el CFDI no va en Timbrado, va en Finanzas):** versiones previas de este documento asumían dos tablas separadas: `CFDI` (en `ProquifaDotNetTimbrado`, propiedad de Timbrado) y `CFDIGenerada` (en `ProquifaDotNet`, propiedad de Finanzas). Esa tabla `CFDI` **ya no existe** — Timbrado se redujo a un servicio técnico sin tabla de negocio propia (ver `R16A-RE-FU-018-Back.md` Parte B). Todo lo que antes vivía en `CFDI` (UUID, FechaEmision, FechaCertificacionSat, IdArchivoPdf/IdArchivoXml, Estado) ahora vive en **`CFDIGenerada`** (extendida en `R16A-RE-FU-018_BD.md` Parte 3). Este documento se corrige para referenciar únicamente `CFDIGenerada`, y agrega dos columnas propias de este requisito (`IdArchivoPdf`, `FechaCertificacionSat`) vía ALTER TABLE (ver Parte C). También se corrigen los nombres de servicio ya traducidos en RE-FU-019 (`FacturaAdelantadoGenerarService` → `AdvanceInvoiceGenerateService`, `FacturaAdelantadoPreviewService` → `AdvanceInvoicePreviewService`, `TimbrarFAAAsync` → `StampAdvanceInvoiceAsync`) y la ruta técnica de Timbrado (`POST /api/v1/cfdi` → `POST /api/v1/stamp`).
+
 Es el complemento definitivo de los placeholders dejados en RE-FU-019:
 
 | Placeholder RE-FU-019 | Implementación definitiva en RE-FU-021 |
 |-----------------------|----------------------------------------|
-| T13 — pasos 10-11: almacenar PDF+XML en Minio, INSERT Archivo x2 — "PDF real en requisito independiente" | T10 — `PersistirFacturaMexicoPdfService` |
-| T15 — preview PDF con "template placeholder — definir en requisito independiente" | T9 — `FacturaMexicoPdfMappingService` + T5-T8 templates DocumentBuilder |
+| T13 — pasos 10-11: almacenar PDF+XML en Minio, INSERT Archivo x2 — "PDF real en requisito independiente" | T10 — `PersistMexicoInvoicePdfService` |
+| T15 — preview PDF con "template placeholder — definir en requisito independiente" | T9 — `MexicoInvoicePdfMappingService` + T5-T8 templates DocumentBuilder |
 
 ### Infraestructura reutilizada de RE-FU-018/019
 
-| Componente | Origen | Reutilización |
-|------------|--------|---------------|
-| `StampingService.TimbrarFAAAsync` | RE-FU-018/019 | Sin cambios — ya genera el XML timbrado y retorna `TimbreFiscalDigital` |
-| `FacturaAdelantadoGenerarService` | RE-FU-019 | Extender con llamada a `PersistirFacturaMexicoPdfService` (pasos 10-11 placeholder) |
-| `FacturaAdelantadoPreviewService` | RE-FU-019 | Extender con template real `GOL/MUN/PRO/PQF_MEX_FAC` (reemplaza placeholder) |
-| `ApiCallerStamping` | RE-FU-019 | Sin cambios — ya llama a `POST /api/v1/cfdi` |
-| Tabla `CFDI` | RE-FU-018 | Sin cambios — campo `IdArchivoXml` ya existe para la referencia del PDF |
-| Tabla `Archivo` | RE-FU-018/019 | Sin cambios — patrón `INSERT Archivo` con `FileBucket='facturas'` |
-| Minio bucket `facturas` | RE-FU-018/019 | Sin cambios — mismo bucket para PDF México |
-| DocumentBuilder | RE-FU-019 | Agregar 4 templates nuevos `GOL/MUN/PRO/PQF_MEX_FAC` |
+| Componente                                 | Origen                                   | Reutilización                                                                                            |
+| ------------------------------------------ | ---------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `StampingService.StampAdvanceInvoiceAsync` | RE-FU-018/019                            | Sin cambios — ya genera el XML timbrado (vía Timbrado) y Finanzas obtiene `TimbreFiscalDigital`          |
+| `AdvanceInvoiceGenerateService`            | RE-FU-019                                | Extender con llamada a `PersistMexicoInvoicePdfService` (pasos 10-11 placeholder)                      |
+| `AdvanceInvoicePreviewService`             | RE-FU-019                                | Extender con template real `GOL/MUN/PRO/PQF_MEX_FAC` (reemplaza placeholder)                             |
+| `ApiCallerStamping`                        | RE-FU-018/019                            | Sin cambios — ya llama a `POST /api/v1/stamp` (servicio técnico de Timbrado)                             |
+| Tabla `CFDIGenerada`                       | RE-FU-019 (base) + RE-FU-018 (extensión) | Se agregan aquí `IdArchivoPdf` y `FechaCertificacionSat` (Parte C); `IdArchivoXml` ya existe para el XML |
+| Tabla `Archivo`                            | RE-FU-018/019                            | Sin cambios — patrón `INSERT Archivo` con `FileBucket='facturas'`                                        |
+| Minio bucket `facturas`                    | RE-FU-018/019                            | Sin cambios — mismo bucket para PDF México                                                               |
+| DocumentBuilder                            | RE-FU-019                                | Agregar 4 templates nuevos `GOL/MUN/PRO/PQF_MEX_FAC`                                                     |
 
 ### Brechas conocidas
 
@@ -106,12 +108,12 @@ Implementar los dos nuevos servicios en Finanzas que completan el flujo de gener
 
 ### Nuevos Componentes
 
-#### Domain — FacturaPdfModel
+#### Domain — InvoicePdfModel
 
 Modelo unificado que representa todas las secciones del PDF de la Factura CFDI 4.0:
 
 ```csharp
-public class FacturaPdfModel
+public class InvoicePdfModel
 {
     // Sección A — Branding
     public string EmpresaClave   { get; set; }   // GOL / MUN / PRO / PQF
@@ -148,7 +150,7 @@ public class FacturaPdfModel
     public string   FolioPedidoInterno  { get; set; }   // PI del sistema PQF2 (criterio G3)
 
     // Sección E — Partidas
-    public List<FacturaPdfPartidaModel> Partidas { get; set; }
+    public List<InvoicePdfLineItemModel> Partidas { get; set; }
 
     // Sección F — Totales
     public decimal Subtotal       { get; set; }
@@ -172,7 +174,7 @@ public class FacturaPdfModel
     public string QRBase64              { get; set; }   // Generado dinámicamente
 }
 
-public class FacturaPdfPartidaModel
+public class InvoicePdfLineItemModel
 {
     public string  ClaveProdServSAT { get; set; }   // c_ClaveProdServ SAT (campo nuevo)
     public string  Descripcion      { get; set; }   // Catálogo + Marca + Lote + Caducidad
@@ -212,9 +214,9 @@ public class FacturaPdfRetencionModel
 }
 ```
 
-#### Application — FacturaMexicoPdfMappingService
+#### Application — MexicoInvoicePdfMappingService
 
-Servicio que consolida todos los datos del CFDI 4.0 en un `FacturaPdfModel`, listo para ser consumido por DocumentBuilder.
+Servicio que consolida todos los datos del CFDI 4.0 en un `InvoicePdfModel`, listo para ser consumido por DocumentBuilder.
 
 **Fuentes de datos por sección:**
 
@@ -223,48 +225,48 @@ Servicio que consolida todos los datos del CFDI 4.0 en un `FacturaPdfModel`, lis
 | Branding / Logo | `Empresa` por `EmpresaClave` |
 | Emisor | `CFDIGenerada` (RFC, RazonSocial, RegimenFiscal, LugarExpedicion) |
 | Receptor | `CFDIGenerada` (RFC, RazonSocial, CP, RegimenFiscalReceptor, UsoCFDI) |
-| CFDI — metadata | `CFDI` (UUID, FechaEmision, FechaCertificacionSat) + `CFDIGenerada` (Serie, Folio, MetodoPago, FormaPago, Moneda, TipoCambio, Exportacion, CondicionesPago) |
+| CFDI — metadata | `CFDIGenerada` (UUID, FechaEmision, FechaCertificacionSat, Serie, Folio, MetodoPago, FormaPago, Moneda, TipoCambio, Exportacion, CondicionesPago) — tabla única, propiedad de Finanzas |
 | Partidas — ClaveProdServSAT | `Producto.ClaveProdServSAT` (campo nuevo Tarea 2) |
 | Partidas — ClaveSAT unidad | `catUnidad.ClaveSAT` (campo nuevo Tarea 3) |
 | Partidas — cantidad / PU | `tpPartidaPedido` (NumeroDePiezas, PrecioUnitario) |
 | Totales | `CFDIGenerada` (Subtotal, Total) + cálculo IVA por partidas |
 | Datos Bancarios (dos cuentas MXN+USD, con Sucursal) | `EmpresaDatosBancarios` por `EmpresaClave` |
 | Folio Pedido Interno PI | `tpPedido` o equivalente en ProquifaDotNet |
-| Retenciones | `CFDI` / XML timbrado — sección si aplica |
+| Retenciones | `CFDIGenerada` / XML timbrado — sección si aplica |
 | Timbre Fiscal Digital | XML del PAC — parseo directo (no BD) |
 | QR | Generado dinámicamente: UUID + RFC emisor + RFC receptor + Total (formato SAT) |
 
 **Interfaz propuesta:**
 
 ```csharp
-public interface IFacturaMexicoPdfMappingService
+public interface IMexicoInvoicePdfMappingService
 {
     // PDF definitivo — incluye TimbreFiscalDigital del PAC
-    Task<FacturaPdfModel> MapearAsync(Guid idCFDI, string xmlTimbradoPac);
+    Task<InvoicePdfModel> MapearAsync(Guid idCFDI, string xmlTimbradoPac);
 
     // Preview — sin TimbreFiscalDigital (propiedades Sección H en null)
-    Task<FacturaPdfModel> MapearPreviewAsync(Guid idCFDIGenerada);
+    Task<InvoicePdfModel> MapearPreviewAsync(Guid idCFDIGenerada);
 }
 ```
 
 **Flujo interno — `MapearAsync`:**
 
 ```
-1. Consultar CFDI → UUID, FechaEmision, FechaCertificacionSat, Serie, Folio
-2. Consultar CFDIGenerada → RFC/RS emisor y receptor, RegimenFiscal, LugarExpedicion,
+1. Consultar CFDIGenerada → UUID, FechaEmision, FechaCertificacionSat, Serie, Folio,
+   RFC/RS emisor y receptor, RegimenFiscal, LugarExpedicion,
    UsoCFDI, FormaPago, MetodoPago, TipoDocumento, Moneda, TipoCambio,
    Subtotal, Total, Exportacion, CondicionesPago
-3. Consultar tpPartidaPedido JOIN Producto JOIN catUnidad
+2. Consultar tpPartidaPedido JOIN Producto JOIN catUnidad
    → ClaveProdServSAT, ClaveSAT, NumeroDePiezas, PrecioUnitario, Descripcion, Pedimento
-4. Consultar EmpresaDatosBancarios por EmpresaClave
-5. Consultar Empresa por EmpresaClave → LogoBase64
-6. Parsear xmlTimbradoPac → extraer TimbreFiscalDigital
+3. Consultar EmpresaDatosBancarios por EmpresaClave
+4. Consultar Empresa por EmpresaClave → LogoBase64
+5. Parsear xmlTimbradoPac → extraer TimbreFiscalDigital
    (UUID, SelloEmisor, SelloSAT, CadenaOriginal, NoCertEmisor, NoCertSAT)
-7. Calcular IVA por partida (16% sobre Importe)
-8. Calcular Total en Letras
-9. Generar QR en base64 con cadena SAT:
+6. Calcular IVA por partida (16% sobre Importe)
+7. Calcular Total en Letras
+8. Generar QR en base64 con cadena SAT:
    https://verificacfdi.facturaelectronica.sat.gob.mx/default.aspx?id={UUID}&re={RFCEmisor}&rr={RFCReceptor}&tt={Total}&fe={UltimosSelloEmisor8}
-10. Ensamblar y retornar FacturaPdfModel
+9. Ensamblar y retornar InvoicePdfModel
 ```
 
 **Consulta BD — Partidas con datos SAT** (llamada API a ProquifaDotNet):
@@ -294,7 +296,7 @@ WHERE pp.IdPedido = @IdPedido
 ORDER BY pp.NumeroPartida
 ```
 
-#### Application — PersistirFacturaMexicoPdfService
+#### Application — PersistMexicoInvoicePdfService
 
 Servicio transaccional que, tras el timbrado exitoso del PAC, genera el PDF definitivo y lo persiste en Minio.
 
@@ -310,28 +312,29 @@ Servicio transaccional que, tras el timbrado exitoso del PAC, genera el PDF defi
 **Flujo interno:**
 
 ```
-1. Invocar FacturaMexicoPdfMappingService.MapearAsync(IdCFDI, xmlTimbrado)
-   → FacturaPdfModel con TimbreFiscalDigital completo
+1. Invocar MexicoInvoicePdfMappingService.MapearAsync(IdCFDI, xmlTimbrado)
+   → InvoicePdfModel con TimbreFiscalDigital completo
 2. Resolver TemplateKey según EmpresaClave del modelo
 3. Invocar DocumentBuilder → generar PDF en bytes
 4. Subir PDF a Minio (bucket 'facturas')
 5. INSERT Archivo (NombreArchivo, FileBucket='facturas', IdRegion='MEX',
    ContentType='application/pdf') → obtener IdArchivo
-6. Llamar API ProquifaDotNet → UPDATE CFDI SET IdArchivoPdf = @IdArchivo
+6. UPDATE CFDIGenerada SET IdArchivoPdf = @IdArchivo (misma tabla que el XML, columna distinta)
 7. Si pasos 4-6 fallan: reintentar sin re-timbrar (sin llamar al PAC nuevamente)
-8. Registrar en Serilog: módulo, IdCFDI, fecha, resultado (éxito/error + mensaje)
+8. Registrar en Serilog: módulo, IdCFDIGenerada, fecha, resultado (éxito/error + mensaje)
+9. Registrar el guardado de la factura en ProquifaDotNet.BitacoraCambios (Aplicativo Nuevo — Reglas al diseñar, regla 8)
 ```
 
-**Integración con RE-FU-019 — T13 (`FacturaAdelantadoGenerarService`) pasos 10-11:**
+**Integración con RE-FU-019 — T13 (`AdvanceInvoiceGenerateService`) pasos 10-11:**
 
 ```csharp
-// Extender el flujo de FacturaAdelantadoGenerarService con la implementación real:
+// Extender el flujo de AdvanceInvoiceGenerateService con la implementación real:
 // Paso 10 (reemplaza placeholder): persistir PDF definitivo
-await _persistirFacturaMexicoPdfService.PersistirAsync(idCFDI, response.XmlTimbrado);
+await _persistirFacturaMexicoPdfService.PersistirAsync(idCFDIGenerada, response.XmlTimbrado);
 // Paso 11 (sin cambios): INSERT Archivo XML — patrón existente
 ```
 
-**Integración con RE-FU-019 — T15 (`FacturaAdelantadoPreviewService`) template:**
+**Integración con RE-FU-019 — T15 (`AdvanceInvoicePreviewService`) template:**
 
 ```csharp
 // Reemplazar template placeholder por template real de DocumentBuilder:
@@ -353,16 +356,17 @@ var pdfBytes = await _documentBuilder.GenerarAsync(templateKey, model);
 
 ### Orden de ejecución de scripts
 
-| Paso | Script | Tipo | BD | Dependencia | Estado |
-|------|--------|------|----|-------------|--------|
-| 1 | `CREATE TABLE catClaveProdServSAT` | DDL | ProquifaDotNet | Ninguna | **BLOQUEANTE para paso 2** |
-| 2 | `INSERT catClaveProdServSAT` catálogo c_ClaveProdServ SAT | DML | ProquifaDotNet | Paso 1 | Requiere catálogo SAT |
-| 3 | `ALTER TABLE Producto ADD ClaveProdServSAT varchar(10)` | DDL | ProquifaDotNet | Paso 1 | **BLOQUEANTE para partidas PDF** |
-| 4 | `ALTER TABLE Producto ADD IdCatClaveProdServSAT FK` | DDL | ProquifaDotNet | Paso 1 | **BLOQUEANTE para partidas PDF** |
-| 5 | `ALTER TABLE catUnidad ADD ClaveSAT varchar(10)` | DDL | ProquifaDotNet | Ninguna | Independiente |
-| 6 | `UPDATE catUnidad SET ClaveSAT` mapeo c_ClaveUnidad SAT | DML | ProquifaDotNet | Paso 5 | Requiere mapeo manual |
-| 7 | `ALTER TABLE CFDIGenerada ADD Exportacion varchar(2)` | DDL | ProquifaDotNet | Ninguna | Independiente |
-| 8 | `UPDATE CFDIGenerada SET Exportacion = '01'` | DML | ProquifaDotNet | Paso 7 | Registros existentes |
+| Paso | Script                                                             | Tipo | BD             | Dependencia | Estado                                                                               |
+| ---- | ------------------------------------------------------------------ | ---- | -------------- | ----------- | ------------------------------------------------------------------------------------ |
+| 1    | `CREATE TABLE catClaveProdServSAT`                                 | DDL  | ProquifaDotNet | Ninguna     | **BLOQUEANTE para paso 2**                                                           |
+| 2    | `INSERT catClaveProdServSAT` catálogo c_ClaveProdServ SAT          | DML  | ProquifaDotNet | Paso 1      | Requiere catálogo SAT                                                                |
+| 3    | `ALTER TABLE Producto ADD ClaveProdServSAT varchar(10)`            | DDL  | ProquifaDotNet | Paso 1      | **BLOQUEANTE para partidas PDF**                                                     |
+| 4    | `ALTER TABLE Producto ADD IdCatClaveProdServSAT FK`                | DDL  | ProquifaDotNet | Paso 1      | **BLOQUEANTE para partidas PDF**                                                     |
+| 5    | `ALTER TABLE catUnidad ADD ClaveSAT varchar(10)`                   | DDL  | ProquifaDotNet | Ninguna     | Independiente                                                                        |
+| 6    | `UPDATE catUnidad SET ClaveSAT` mapeo c_ClaveUnidad SAT            | DML  | ProquifaDotNet | Paso 5      | Requiere mapeo manual                                                                |
+| 7    | `ALTER TABLE CFDIGenerada ADD Exportacion varchar(2)`              | DDL  | ProquifaDotNet | Ninguna     | Independiente                                                                        |
+| 8    | `UPDATE CFDIGenerada SET Exportacion = '01'`                       | DML  | ProquifaDotNet | Paso 7      | Registros existentes                                                                 |
+| 9    | `ALTER TABLE CFDIGenerada ADD IdArchivoPdf, FechaCertificacionSat` | DDL  | ProquifaDotNet | Ninguna     | Complementa la extensión de RE-FU-018 (Parte 3) — columnas propias de este requisito |
 
 ### Scripts DDL y DML
 
@@ -427,6 +431,23 @@ WHERE Exportacion IS NULL;
 GO
 ```
 
+#### 5. ALTER TABLE CFDIGenerada (IdArchivoPdf + FechaCertificacionSat)
+
+```sql
+-- Ejecutar en ProquifaDotNet
+-- IdArchivoPdf: FK -> Archivo, mismo patron que IdArchivoXml (RE-FU-018 Parte 3)
+-- FechaCertificacionSat: fecha en que el PAC certifico el CFDI (puede diferir de FechaEmision)
+ALTER TABLE dbo.CFDIGenerada
+    ADD IdArchivoPdf uniqueidentifier NULL,
+        FechaCertificacionSat datetime2(7) NULL;
+GO
+
+ALTER TABLE dbo.CFDIGenerada
+    ADD CONSTRAINT [FK_CFDIGenerada_ArchivoPdf]
+        FOREIGN KEY (IdArchivoPdf) REFERENCES dbo.Archivo([IdArchivo]);
+GO
+```
+
 ---
 
 ## Gaps de Desarrollo
@@ -444,48 +465,48 @@ GO
 
 | # | Gap | Acción | Esfuerzo | Estado |
 |---|-----|--------|----------|--------|
-| GAP-05 | `FacturaPdfModel` + `FacturaPdfPartidaModel` (Domain) | Nuevos modelos con todas las secciones A-H del PDF | Bajo | Abierto |
-| GAP-06 | `IFacturaMexicoPdfMappingService` + `FacturaMexicoPdfMappingService` (Application) | Consolidar datos de múltiples tablas + parsear TimbreFiscalDigital + generar QR | Alto | Abierto |
-| GAP-07 | `PersistirFacturaMexicoPdfService` (Application) | Generar PDF → persistir Minio → INSERT Archivo → UPDATE CFDI → reintentos sin re-timbrado | Medio | Abierto |
-| GAP-08 | Extender `FacturaAdelantadoGenerarService` (RE-FU-019 T13) pasos 10-11 | Reemplazar placeholder con llamada real a `PersistirFacturaMexicoPdfService` | Bajo | Abierto |
-| GAP-09 | Extender `FacturaAdelantadoPreviewService` (RE-FU-019 T15) | Reemplazar template placeholder con resolución dinámica `GOL/MUN/PRO/PQF_MEX_FAC` | Bajo | Abierto |
-| GAP-10 | Integrar `PersistirFacturaMexicoPdfService` en flujo Validar Cobro — paso "Genera Factura Normal PPD" | Invocar `PersistirAsync` tras timbrado exitoso antes de transicionar a "Pendiente en Validar Pago" | Bajo | Abierto |
+| GAP-05 | `InvoicePdfModel` + `InvoicePdfLineItemModel` (Domain) | Nuevos modelos con todas las secciones A-H del PDF | Bajo | Abierto |
+| GAP-06 | `IMexicoInvoicePdfMappingService` + `MexicoInvoicePdfMappingService` (Application) | Consolidar datos de múltiples tablas + parsear TimbreFiscalDigital + generar QR | Alto | Abierto |
+| GAP-07 | `PersistMexicoInvoicePdfService` (Application) | Generar PDF → persistir Minio → INSERT Archivo → UPDATE CFDIGenerada.IdArchivoPdf → reintentos sin re-timbrado | Medio | Abierto |
+| GAP-08 | Extender `AdvanceInvoiceGenerateService` (RE-FU-019 T13) pasos 10-11 | Reemplazar placeholder con llamada real a `PersistMexicoInvoicePdfService` | Bajo | Abierto |
+| GAP-09 | Extender `AdvanceInvoicePreviewService` (RE-FU-019 T15) | Reemplazar template placeholder con resolución dinámica `GOL/MUN/PRO/PQF_MEX_FAC` | Bajo | Abierto |
+| GAP-10 | Integrar `PersistMexicoInvoicePdfService` en flujo Validar Cobro — paso "Genera Factura Normal PPD" | Invocar `PersistirAsync` tras timbrado exitoso antes de transicionar a "Pendiente en Validar Pago" | Bajo | Abierto |
 
 ### En Base de Datos (ProquifaDotNet)
 
 | # | Gap | Acción | BD | Esfuerzo | Estado |
 |---|-----|--------|----|----------|--------|
-| GAP-10 | `CREATE TABLE catClaveProdServSAT` + INSERT catálogo c_ClaveProdServ SAT | DDL + DML | ProquifaDotNet | Medio | **BLOQUEANTE** |
-| GAP-11 | `ALTER TABLE Producto ADD ClaveProdServSAT` + `ALTER TABLE Producto ADD IdCatClaveProdServSAT FK` | DDL | ProquifaDotNet | Bajo | **BLOQUEANTE** |
-| GAP-12 | `ALTER TABLE catUnidad ADD ClaveSAT` + UPDATE mapeo c_ClaveUnidad SAT | DDL + DML | ProquifaDotNet | Bajo | Abierto |
-| GAP-13 | `ALTER TABLE CFDIGenerada ADD Exportacion` + UPDATE '01' registros existentes | DDL + DML | ProquifaDotNet | Bajo | Abierto |
+| GAP-11 | `CREATE TABLE catClaveProdServSAT` + INSERT catálogo c_ClaveProdServ SAT | DDL + DML | ProquifaDotNet | Medio | **BLOQUEANTE** |
+| GAP-12 | `ALTER TABLE Producto ADD ClaveProdServSAT` + `ALTER TABLE Producto ADD IdCatClaveProdServSAT FK` | DDL | ProquifaDotNet | Bajo | **BLOQUEANTE** |
+| GAP-13 | `ALTER TABLE catUnidad ADD ClaveSAT` + UPDATE mapeo c_ClaveUnidad SAT | DDL + DML | ProquifaDotNet | Bajo | Abierto |
+| GAP-14 | `ALTER TABLE CFDIGenerada ADD Exportacion` + UPDATE '01' registros existentes | DDL + DML | ProquifaDotNet | Bajo | Abierto |
+| GAP-15 | `ALTER TABLE CFDIGenerada ADD IdArchivoPdf, FechaCertificacionSat` | DDL | ProquifaDotNet | Bajo | Abierto |
 
 ---
 
 ## Diagrama de Flujo — Generación PDF Factura México
 
 ```
-[FacturaAdelantadoGenerarService]     [ProquifaDotNet .NET Fx 4.8]     [DocumentBuilder]     [Minio]
+[AdvanceInvoiceGenerateService]       [ProquifaDotNet (BD)]            [DocumentBuilder]     [Minio]
              |                                     |                          |                  |
   (timbrado exitoso PAC — pasos 10-11 RE-FU-019 T13)                        |                  |
              |                                     |                          |                  |
-  1. PersistirFacturaMexicoPdfService.PersistirAsync(IdCFDI, xmlPAC)        |                  |
+  1. PersistMexicoInvoicePdfService.PersistirAsync(IdCFDIGenerada, xmlPAC) |                  |
              |                                     |                          |                  |
-  2. FacturaMexicoPdfMappingService.MapearAsync    |                          |                  |
-             |---GET CFDI / CFDIGenerada / Partidas / Bancarios ------------->|                  |
+  2. MexicoInvoicePdfMappingService.MapearAsync    |                          |                  |
+             |---GET CFDIGenerada / Partidas / Bancarios --------------------->|                  |
              |<---datos fiscales ----------------------------------------------                  |
              | 3. Parsear TimbreFiscalDigital del XML PAC                    |                  |
              | 4. Calcular IVA por partida (16%)                             |                  |
              | 5. Generar QR base64 (cadena SAT)                             |                  |
              | 6. Resolver TemplateKey (GOL/MUN/PRO/PQF_MEX_FAC)            |                  |
-             |---POST /generar-pdf (templateKey + FacturaPdfModel) -------> |                  |
+             |---POST /generar-pdf (templateKey + InvoicePdfModel) -------> |                  |
              |<---PDF bytes -------------------------------------------------                  |
-             |---PUT bucket 'facturas' / {IdCFDI}.pdf ---------------------------------------->|
+             |---PUT bucket 'facturas' / {IdCFDIGenerada}.pdf -------------------------------->|
              |<---referencia Minio -------------------------------------------------------------|
              | 7. INSERT Archivo (FileBucket='facturas', IdRegion='MEX')    |                  |
-             |---PUT /api/cfdi/{IdCFDI}/archivo-pdf ------------------------>|                  |
-             |<---200 OK -------------------------------------------------------                |
-             | 8. Serilog: módulo, IdCFDI, fecha, resultado                  |                  |
+             | 8. UPDATE CFDIGenerada SET IdArchivoPdf = @IdArchivo (directo en BD, vía EF Core — no via PUT /api/v1/cfdi/{id}/pdf, ya que CfdiService/CFDIGenerada son propiedad de este mismo aplicativo, Finanzas) |
+             | 9. Serilog: módulo, IdCFDIGenerada, fecha, resultado          |                  |
 ```
 
-> **Preview (RE-FU-019 T15):** `FacturaAdelantadoPreviewService` llama a `MapearPreviewAsync` (sin TimbreFiscalDigital) → resuelve TemplateKey → DocumentBuilder genera PDF en memoria → retorna bytes sin persistir en Minio.
+> **Preview (RE-FU-019 T15):** `AdvanceInvoicePreviewService` llama a `MapearPreviewAsync` (sin TimbreFiscalDigital) → resuelve TemplateKey → DocumentBuilder genera PDF en memoria → retorna bytes sin persistir en Minio.

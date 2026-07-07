@@ -6,7 +6,7 @@
 
 > **Orden de ejecución sugerido:** BD catálogos (T1) → BD ALTER CFDIGenerada (T2) → BD tablas principales (T3, T4) → BD ALTER tpPedido (T5) → BD vista (T6) → Timbrado endpoint (T7) → Finanzas: inicialización (T8) → autosave (T9) → NCs en CFDI (T10) → previsualización (T11) → timbrado (T12) → DocumentBuilder plantilla CDP (T13) → Finanzas: envío (T14) → FEE + Confirmación (T15) → ETL Legacy (T17) → cierre wizard (T16).
 >
-> **Dependencias externas:** RE-FU-026 completo (asociación Paso 2 cerrada con `fccPagoFacturaPedido` y `fccPagoFacturaAdelanto`). RE-FU-019 completo (`CFDIGenerada`, `EmpresaFolio`, `ApiCallerStamping`). RE-FU-021 completo (`FacturaMexicoPdfMappingService`, `PersistirFacturaMexicoPdfService`, templates `*_MEX_FAC`).
+> **Dependencias externas:** RE-FU-026 completo (asociación Paso 2 cerrada con `fccPagoFacturaPedido` y `fccPagoFacturaAdelanto`). RE-FU-019 completo (`CFDIGenerada`, `EmpresaFolio`, `ApiCallerStamping`). RE-FU-021 completo (`MexicoInvoicePdfMappingService`, `PersistMexicoInvoicePdfService`, templates `*_MEX_FAC`).
 >
 > **Brechas bloqueantes activas:** B1 (relación SAT tipo 07), B3 (mecanismo ETL Legacy), B4 (FEE: granularidad y reglas), B6 (política fallo cascada PPD). Las tareas T5, T12, T15, T17 dependen de resolverlas antes de implementar. Ver `R16A-RE-FU-028_BD.md` y `R16A-RE-FU-028-Back.md` — sección Brechas.
 >
@@ -31,11 +31,11 @@
 | 11  | IMP-EXIST-SERVICE     | Implementar previsualización PDF por línea: FACTURA y FACTURA_ANTICIPO                              | Back            | ProquifaDotNet.Finanzas |
 | 12  | ALG-COMPLX-LOGIC      | Implementar timbrado por línea: 4 escenarios (PUE, PPD+cascada, Anticipo, Complemento FAA)          | Back            | ProquifaDotNet.Finanzas |
 | 13  | CREATE-PDF            | Plantilla PDF Confirmación de Pedido Prepago México — 4 variantes (GOL/MUN/PRO/PQF_MEX_CDP)         | DocumentBuilder | DocumentBuilder         |
-| 14  | IMP-EXIST-SERVICE     | Implementar modal de Envío: generar Confirmación de Pedido + despacho Brevo (adjuntos CFDI + CDP)   | Back            | ProquifaDotNet.Finanzas |
+| 14  | IMP-EXIST-SERVICE     | Implementar modal de Envío: generar Confirmación de Pedido + despacho vía ProquifaDotNet.EnvioCorreo (adjuntos CFDI + CDP) | Back            | ProquifaDotNet.Finanzas |
 | 15  | SERV-TRANSACT         | Implementar acciones post-envío: FEE + registro trazabilidad Confirmación de Pedido                 | Back            | ProquifaDotNet.Finanzas |
 | 16  | SERV-SIMPLE-PUT       | Implementar cierre automático del wizard al completar todas las líneas enviadas                     | Back            | ProquifaDotNet.Finanzas |
 | 17  | QUERY-G               | Análisis ETL Legacy — Mapeo de datos E1/E2/E3/E6 y resolución Brecha B3                             | Análisis        | ProquifaDotNet.Finanzas |
-| 18  | SERV-COMPLEX-TRANSACT | Implementar builders de payloads ETL E1/E2/E3/E6 e interfaz IEtlLegacyTransferenciaService          | Back            | ProquifaDotNet.Finanzas |
+| 18  | SERV-COMPLEX-TRANSACT | Implementar builders de payloads ETL E1/E2/E3/E6 e interfaz IEtlLegacyTransferService          | Back            | ProquifaDotNet.Finanzas |
 | 19  | SERV-TRANSACT         | Canal ETL Legacy definitivo E1/E2/E3/E6 — integración, pruebas y documentación                      | Back            | ProquifaDotNet.Finanzas |
 
 ---
@@ -622,7 +622,7 @@ Crear la vista `vfccDocumentoFiscalCobro` que consolida en una sola consulta el 
 
 **Objetivos específicos:**
 - Crear `CREATE VIEW dbo.vfccDocumentoFiscalCobro` con las columnas necesarias para que Finanzas renderice el estado actual del Paso 3 al reingresar.
-- Unir: `fccDocumentoFiscalCobro` → `fccPagoFacturaPedido`/`fccPagoFacturaAdelanto` → `fccPagoCliente` → `tpProformaPedido`/`tpProformaAdelanto` → `tpPedido` → `catTipoDocumentoFiscal` → `catDocumentoFiscalCobroEstado` → `CFDIGenerada` (Factura y Complemento).
+- Unir: `fccDocumentoFiscalCobro` → `fccPagoFacturaPedido`/`fccPagoFacturaAdelanto` → `fccPagoCliente` → `tpProformaPedido`/`fccFactura` (RE-FU-015, antes `tpProformaAdelanto`) → `tpPedido` → `catTipoDocumentoFiscal` → `catDocumentoFiscalCobroEstado` → `CFDIGenerada` (Factura y Complemento).
 - Incluir en la proyección: `IdFCCDocumentoFiscalCobro`, `IdFCCPagoCliente`, `IdCliente`, `TipoDocumento` (Clave del catálogo), `EstadoLinea` (Clave del catálogo), `IdCFDIGeneradaFactura`, `IdCFDIGeneradaComplemento`, `FechaGeneracion`, `FechaEnvio`, `FolioProforma`, `FolioFactura`, `FolioPedidoInterno`.
 - Verificar que la vista compila sin errores y retorna datos correctos para líneas en los tres estados (`PENDIENTE`, `GENERADO`, `ENVIADO`).
 
@@ -660,8 +660,8 @@ SELECT
     -- Origen FAA (cuando IdFCCPagoFacturaAdelanto IS NOT NULL)
     p3l.IdFCCPagoFacturaAdelanto,
     pfa.IdFCCPagoCliente         AS IdFCCPagoCliente_PFA,
-    pfa.IdTPProformaAdelanto,
-    pa.Monto                     AS MontoFAA,
+    pfa.IdFccFactura,            -- RE-FU-015 (antes: pfa.IdTPProformaAdelanto)
+    fc.MontoTotal                 AS MontoFAA,
     cg_faa.UUID                  AS UUID_FAA,       -- UUID de la FAA para CFDIRelacionados
     -- Cobro (fuente de verdad: tabla de asociación Paso 2)
     COALESCE(pfp.IdFCCPagoCliente, pfa.IdFCCPagoCliente) AS IdFCCPagoCliente,
@@ -712,10 +712,10 @@ LEFT JOIN dbo.Empresa e_pp
 -- Asociación Paso 2 — FAA
 LEFT JOIN dbo.fccPagoFacturaAdelanto pfa
     ON p3l.IdFCCPagoFacturaAdelanto = pfa.IdFCCPagoFacturaAdelanto
-LEFT JOIN dbo.tpProformaAdelanto pa
-    ON pfa.IdTPProformaAdelanto = pa.IdTPProformaAdelanto
+LEFT JOIN dbo.fccFactura fc
+    ON pfa.IdFccFactura = fc.IdFccFactura   -- RE-FU-015 (antes: LEFT JOIN dbo.tpProformaAdelanto pa ON pfa.IdTPProformaAdelanto = pa.IdTPProformaAdelanto)
 LEFT JOIN dbo.CFDIGenerada cg_faa
-    ON pa.IdCFDIGenerada = cg_faa.IdCFDIGenerada   -- UUID de la FAA para CFDIRelacionados
+    ON fc.IdCFDIGenerada = cg_faa.IdCFDIGenerada   -- UUID de la FAA para CFDIRelacionados
 -- Cobro (resuelto desde la asociación Paso 2 activa)
 LEFT JOIN dbo.fccPagoCliente fpc
     ON fpc.IdFCCPagoCliente = COALESCE(pfp.IdFCCPagoCliente, pfa.IdFCCPagoCliente)
@@ -833,22 +833,22 @@ Ver sección *"Parte C / C1"* en `R16A-RE-FU-028-Back.md`.
 Implementar en Finanzas el servicio de inicialización del Paso 3 que, al avanzar desde el Paso 2, crea las líneas de `fccDocumentoFiscalCobro` con el tipo de documento correcto por línea, y al reingresar recupera el estado existente sin duplicar.
 
 **Objetivos específicos:**
-- Implementar `POST /api/validar-cobro/paso3/inicializar` en Finanzas.
-- Crear `InicializarPaso3Command` + Handler con lógica condicional de tipo por línea.
+- Implementar `POST /api/v1/validate-collection/fiscalDocumentStep/initialize` en Finanzas.
+- Crear `InitializeStep3Command` + Handler con lógica condicional de tipo por línea.
 - Leer `fccPagoFacturaPedido` / `fccPagoFacturaAdelanto` + `tpProformaPedido.HayControlados` vía API ProquifaDotNet.
 - `INSERT fccDocumentoFiscalCobro` por cada documento (estado inicial `PENDIENTE`, `IdCatUsoCFDI` = default del cliente desde `DatosFacturacionCliente`).
 - Detectar re-entrada: `GET vfccDocumentoFiscalCobro WHERE IdCliente=@Id AND EstadoLinea != 'ENVIADO'` — si hay registros, retornar el estado existente sin reinicializar.
-- Calcular y retornar en `Paso3InicializadoDto` el flag `PuedeRegresarPasos: bool` = `false` si **alguna** línea existente está en estado `GENERADO` o `ENVIADO`; `true` si todas las líneas están en `PENDIENTE`.
-- Por cada línea en el response, incluir la lista de NCs aplicadas en el Paso 2 (campo `NotasCredito: List<NcAplicadaDto>`) obtenida desde `fccNotaCredito` vía los FKs de la asociación (`fccPagoFacturaPedido` o `fccPagoFacturaAdelanto`). Este dato es necesario para la visualización en pantalla (sección E2 del requisito).
-- DTO de response: `Paso3InicializadoDto` con la lista de líneas (tipo, estado, NCs aplicadas) y el flag `PuedeRegresarPasos`.
+- Calcular y retornar en `Step3InitializedDto` el flag `CanGoBackSteps: bool` = `false` si **alguna** línea existente está en estado `GENERADO` o `ENVIADO`; `true` si todas las líneas están en `PENDIENTE`.
+- Por cada línea en el response, incluir la lista de NCs aplicadas en el Paso 2 (campo `CreditNotes: List<AppliedCreditNoteDto>`) obtenida desde `fccNotaCredito` vía los FKs de la asociación (`fccPagoFacturaPedido` o `fccPagoFacturaAdelanto`). Este dato es necesario para la visualización en pantalla (sección E2 del requisito).
+- DTO de response: `Step3InitializedDto` con la lista de líneas (tipo, estado, NCs aplicadas) y el flag `CanGoBackSteps`.
 
 **Resultado esperado:**
-Endpoint `POST .../paso3/inicializar` en Finanzas que crea las líneas del Paso 3 con el tipo correcto o recupera las existentes al reingresar, retornando el estado actual del Paso 3 para el cliente.
+Endpoint `POST .../fiscalDocumentStep/initialize` en Finanzas que crea las líneas del Paso 3 con el tipo correcto o recupera las existentes al reingresar, retornando el estado actual del Paso 3 para el cliente.
 
 **Entregables:**
-- Endpoint `POST /api/validar-cobro/paso3/inicializar`
-- Command + Handler: `InicializarPaso3Command`
-- DTO: `Paso3InicializadoDto` (lista de líneas con tipo, estado, datos del documento)
+- Endpoint `POST /api/v1/validate-collection/fiscalDocumentStep/initialize`
+- Command + Handler: `InitializeStep3Command`
+- DTO: `Step3InitializedDto` (lista de líneas con tipo, estado, datos del documento)
 - Pruebas unitarias para los tres tipos de línea (FACTURA, FACTURA_ANTICIPO, COMPLEMENTO_PAGO) y para la detección de re-entrada
 
 **Criterios de aceptación:**
@@ -857,8 +857,8 @@ Endpoint `POST .../paso3/inicializar` en Finanzas que crea las líneas del Paso 
 - Las líneas `fccPagoFacturaAdelanto` crean línea de tipo `COMPLEMENTO_PAGO`.
 - Al reingresar con líneas previas no enviadas: no se duplican, se retorna el estado existente desde `vfccDocumentoFiscalCobro`.
 - El estado inicial de toda línea nueva es `PENDIENTE`.
-- `PuedeRegresarPasos = false` si alguna línea está en `GENERADO` o `ENVIADO`; `true` si todas están en `PENDIENTE`.
-- Cada línea en `Paso3InicializadoDto` incluye la lista de NCs aplicadas desde `fccNotaCredito` (puede ser vacía si no hubo NCs en Paso 2).
+- `CanGoBackSteps = false` si alguna línea está en `GENERADO` o `ENVIADO`; `true` si todas están en `PENDIENTE`.
+- Cada línea en `Step3InitializedDto` incluye la lista de NCs aplicadas desde `fccNotaCredito` (puede ser vacía si no hubo NCs en Paso 2).
 
 **Más información de la tarea:**
 Ver sección *"Parte B / B1"* en `R16A-RE-FU-028-Back.md`.
@@ -887,8 +887,8 @@ Ver sección *"Parte B / B1"* en `R16A-RE-FU-028-Back.md`.
 Implementar en Finanzas el endpoint de auto-guardado que persiste inmediatamente los cambios de Uso CFDI y Método de Pago al seleccionarlos en la pantalla del Paso 3.
 
 **Objetivos específicos:**
-- Implementar `PUT /api/validar-cobro/paso3/lineas/{idLinea}/configuracion` en Finanzas.
-- Crear `ActualizarConfiguracionLineaPaso3Command` + Handler.
+- Implementar `PUT /api/v1/validate-collection/fiscalDocumentLine/{idLinea}/cfdiConfig` en Finanzas.
+- Crear `UpdateLineConfigurationStep3Command` + Handler.
 - Validar que la línea existe y pertenece al cliente activo.
 - Para líneas `COMPLEMENTO_PAGO`: ignorar `IdCatMetodoDePagoCFDI` aunque se reciba en el payload.
 - Retornar el estado actualizado de la línea.
@@ -897,9 +897,9 @@ Implementar en Finanzas el endpoint de auto-guardado que persiste inmediatamente
 Endpoint `PUT .../lineas/{idLinea}/configuracion` que persiste Uso CFDI y Método de Pago de forma inmediata y silenciosa al usuario.
 
 **Entregables:**
-- Endpoint `PUT /api/validar-cobro/paso3/lineas/{idLinea}/configuracion`
-- Command + Handler: `ActualizarConfiguracionLineaPaso3Command`
-- DTO de request: `ActualizarConfiguracionLineaDto` (IdCatUsoCFDI, IdCatMetodoDePagoCFDI nullable)
+- Endpoint `PUT /api/v1/validate-collection/fiscalDocumentLine/{idLinea}/cfdiConfig`
+- Command + Handler: `UpdateLineConfigurationStep3Command`
+- DTO de request: `UpdateLineConfigurationDto` (IdCatUsoCFDI, IdCatMetodoDePagoCFDI nullable)
 - Pruebas unitarias (incluyendo: línea COMPLEMENTO_PAGO no guarda IdCatMetodoDePagoCFDI, validación de pertenencia al cliente)
 
 **Criterios de aceptación:**
@@ -935,22 +935,22 @@ Ver sección *"Parte B / B2"* en `R16A-RE-FU-028-Back.md`.
 Implementar el servicio en Finanzas que consulta las NCs aplicadas en el Paso 2 para una línea del Paso 3 y las mapea al nodo `CFDIRelacionados` del XML CFDI 4.0.
 
 **Objetivos específicos:**
-- Crear `IResolucionNCsCFDIRelacionadosService` que, dado un `IdFCCDocumentoFiscalCobro`, retorna la lista de NCs aplicadas en formato `CFDIRelacionadoDto` (UUID, tipo relación SAT, monto).
+- Crear `ICreditNoteCfdiResolutionService` que, dado un `IdFCCDocumentoFiscalCobro`, retorna la lista de NCs aplicadas en formato `RelatedCfdiDto` (UUID, tipo relación SAT, monto).
 - Leer `fccNotaCredito.IdCFDI` (UUID timbrado) + `Monto` de las NCs con `IdFCCPagoCliente` en los cobros de la línea y `Aplicada=1`, vía API ProquifaDotNet.
 - Mapear al tipo de relación SAT según el tipo de línea (pendiente de confirmar para `FACTURA_ANTICIPO` — usar placeholder hasta resolver Brecha B1).
 - Retornar lista vacía si no hay NCs aplicadas en la línea.
 
 **Resultado esperado:**
-Servicio `ResolucionNCsCFDIRelacionadosService` disponible para ser inyectado en el Handler de timbrado (Tarea 12), retornando la lista de NCs en formato `CFDIRelacionadoDto` lista para el request al endpoint de Timbrado.
+Servicio `CreditNoteCfdiResolutionService` disponible para ser inyectado en el Handler de timbrado (Tarea 12), retornando la lista de NCs en formato `RelatedCfdiDto` lista para el request al endpoint de Timbrado.
 
 **Entregables:**
-- `IResolucionNCsCFDIRelacionadosService` + `ResolucionNCsCFDIRelacionadosService`
-- DTO: `CFDIRelacionadoDto` (UUID, TipoRelacionSAT, Monto)
+- `ICreditNoteCfdiResolutionService` + `CreditNoteCfdiResolutionService`
+- DTO: `RelatedCfdiDto` (UUID, TipoRelacionSAT, Monto)
 - Pruebas unitarias (incluyendo: línea con NCs, línea sin NCs, tipo relación SAT por tipo de línea)
 
 **Criterios de aceptación:**
 - El servicio retorna correctamente los UUIDs de las NCs aplicadas en la línea.
-- El `IdCFDI` de cada NC (UUID timbrado SAT) se mapea al campo UUID del `CFDIRelacionadoDto`.
+- El `IdCFDI` de cada NC (UUID timbrado SAT) se mapea al campo UUID del `RelatedCfdiDto`.
 - Para líneas sin NCs: retorna lista vacía (sin errores).
 - ⚠️ El tipo de relación SAT para `FACTURA_ANTICIPO` queda como parámetro configurable hasta resolver Brecha B1.
 
@@ -972,7 +972,7 @@ Ver sección *"Parte B / B5"* en `R16A-RE-FU-028-Back.md`.
 **Módulos:** Validar Cobro — Paso 3 México
 
 **Consideraciones previas:**
-- `FacturaMexicoPdfMappingService.MapearPreviewAsync` (RE-FU-021) ya existe y genera el modelo sin `TimbreFiscalDigital`. Esta tarea lo invoca para las líneas de tipo `FACTURA` y `FACTURA_ANTICIPO`.
+- `MexicoInvoicePdfMappingService.MapearPreviewAsync` (RE-FU-021) ya existe y genera el modelo sin `TimbreFiscalDigital`. Esta tarea lo invoca para las líneas de tipo `FACTURA` y `FACTURA_ANTICIPO`.
 - Para líneas de tipo `COMPLEMENTO_PAGO`: la previsualización del PDF del Complemento se implementa en **R16A-RE-FU-030** — en esta tarea no se incluye.
 - El PDF de previsualización se genera en memoria sin persistir en BD ni MinIO.
 - Los templates `GOL/MUN/PRO/PQF_MEX_FAC` ya existen (RE-FU-021). El `TemplateKey` se resuelve dinámicamente desde `Empresa.Prefijo`.
@@ -982,9 +982,9 @@ Ver sección *"Parte B / B5"* en `R16A-RE-FU-028-Back.md`.
 Implementar en Finanzas el endpoint de previsualización PDF del Paso 3 para líneas de tipo `FACTURA` y `FACTURA_ANTICIPO`, invocando el servicio de mapping existente de RE-FU-021 y retornando el PDF en memoria al frontend.
 
 **Objetivos específicos:**
-- Implementar `GET /api/validar-cobro/paso3/lineas/{idLinea}/preview-pdf` en Finanzas.
-- Crear `GetPaso3LineaPreviewPdfQuery` + Handler.
-- Invocar `FacturaMexicoPdfMappingService.MapearPreviewAsync(idCFDIGenerada)` para obtener el `FacturaPdfModel` sin `TimbreFiscalDigital`.
+- Implementar `POST /api/v1/validate-collection/fiscalDocumentLine/{idLinea}/pdfPreview` en Finanzas.
+- Crear `GetStep3LinePreviewPdfQuery` + Handler.
+- Invocar `MexicoInvoicePdfMappingService.MapearPreviewAsync(idCFDIGenerada)` para obtener el `InvoicePdfModel` sin `TimbreFiscalDigital`.
 - Resolver `TemplateKey` dinámicamente (`GOL/MUN/PRO/PQF_MEX_FAC`) desde `Empresa.Prefijo`.
 - Generar PDF en memoria vía DocumentBuilder y retornarlo como `byte[]` o stream al frontend.
 - Para líneas `COMPLEMENTO_PAGO`: retornar error controlado indicando que la previsualización del Complemento corresponde a RE-FU-030.
@@ -994,8 +994,8 @@ Implementar en Finanzas el endpoint de previsualización PDF del Paso 3 para lí
 Endpoint `GET .../lineas/{idLinea}/preview-pdf` que retorna el PDF de previsualización en memoria para líneas `FACTURA` y `FACTURA_ANTICIPO`, usando los templates existentes de RE-FU-021.
 
 **Entregables:**
-- Endpoint `GET /api/validar-cobro/paso3/lineas/{idLinea}/preview-pdf`
-- Query + Handler: `GetPaso3LineaPreviewPdfQuery`
+- Endpoint `POST /api/v1/validate-collection/fiscalDocumentLine/{idLinea}/pdfPreview`
+- Query + Handler: `GetStep3LinePreviewPdfQuery`
 - Pruebas unitarias para los 4 emisores (GOL/MUN/PRO/PQF) × 2 tipos (FACTURA / FACTURA_ANTICIPO)
 
 **Criterios de aceptación:**
@@ -1005,11 +1005,11 @@ Endpoint `GET .../lineas/{idLinea}/preview-pdf` que retorna el PDF de previsuali
 - No hay persistencia en BD ni MinIO (preview en memoria únicamente).
 
 **Más información de la tarea:**
-Ver sección *"Parte B / B3"* en `R16A-RE-FU-028-Back.md`. Ver `FacturaMexicoPdfMappingService.MapearPreviewAsync` en `R16A-RE-FU-021-Back.md`.
+Ver sección *"Parte B / B3"* en `R16A-RE-FU-028-Back.md`. Ver `MexicoInvoicePdfMappingService.MapearPreviewAsync` en `R16A-RE-FU-021-Back.md`.
 
 **Recursos:**
 - `R16A-RE-FU-028-Back.md` — Parte B, sección B3
-- `R16A-RE-FU-021-Back.md` — FacturaMexicoPdfMappingService (MapearPreviewAsync)
+- `R16A-RE-FU-021-Back.md` — MexicoInvoicePdfMappingService (MapearPreviewAsync)
 
 ---
 
@@ -1024,27 +1024,27 @@ Ver sección *"Parte B / B3"* en `R16A-RE-FU-028-Back.md`. Ver `FacturaMexicoPdf
 **Consideraciones previas:**
 - Las Tareas 7, 8, 9 y 10 deben estar ejecutadas (Timbrado extendido, líneas existentes, NCs resueltas).
 - `ApiCallerStamping` (HttpClient + Polly) ya existe de RE-FU-019 — se reutiliza sin cambios.
-- `PersistirFacturaMexicoPdfService` ya existe de RE-FU-021 — se invoca post-timbrado para FACTURA y FACTURA_ANTICIPO.
+- `PersistMexicoInvoicePdfService` ya existe de RE-FU-021 — se invoca post-timbrado para FACTURA y FACTURA_ANTICIPO.
 - **Escenario B (PPD + cascada):** la Factura PPD se timbra primero; inmediatamente tras el éxito, Finanzas solicita el timbrado del Complemento enviando el UUID de la Factura PPD como `IdCFDIRelacionado`. Si el Complemento falla, la Factura PPD queda vigente (⚠️ Brecha B6 — política pendiente).
-- **Escenario D (COMPLEMENTO_PAGO desde FAA):** Finanzas envía el UUID de la FAA existente (`tpProformaAdelanto.IdCFDIGenerada`) como referencia. La generación del PDF del Complemento corresponde a RE-FU-030.
+- **Escenario D (COMPLEMENTO_PAGO desde FAA):** Finanzas envía el UUID de la FAA existente (`fccFactura.IdCFDIGenerada`, RE-FU-015 — antes `tpProformaAdelanto.IdCFDIGenerada`) como referencia. La generación del PDF del Complemento corresponde a RE-FU-030.
 - ⚠️ Brecha B1: tipo de relación SAT para FACTURA_ANTICIPO pendiente de confirmar.
 - ⚠️ Brecha B6: política ante fallo del Complemento en cascada PPD pendiente de definir.
 
 **Objetivo general:**
-Implementar en Finanzas el servicio central de timbrado del Paso 3 con los cuatro escenarios: FACTURA PUE (1 CFDI), FACTURA PPD + Complemento en cascada (2 CFDIs), FACTURA_ANTICIPO (1 CFDI) y COMPLEMENTO_PAGO desde FAA existente (1 CFDI). Post-timbrado exitoso, invocar `PersistirFacturaMexicoPdfService` para las Facturas y actualizar el estado de la línea a `GENERADO`.
+Implementar en Finanzas el servicio central de timbrado del Paso 3 con los cuatro escenarios: FACTURA PUE (1 CFDI), FACTURA PPD + Complemento en cascada (2 CFDIs), FACTURA_ANTICIPO (1 CFDI) y COMPLEMENTO_PAGO desde FAA existente (1 CFDI). Post-timbrado exitoso, invocar `PersistMexicoInvoicePdfService` para las Facturas y actualizar el estado de la línea a `GENERADO`.
 
 **Objetivos específicos:**
-- Implementar `POST /api/validar-cobro/paso3/lineas/{idLinea}/timbrar` en Finanzas.
-- Crear `TimbrarLineaPaso3Command` + Handler con detección del escenario por tipo de línea y Método de Pago.
+- Implementar `POST /api/v1/validate-collection/fiscalDocumentLine/{idLinea}/stamp` en Finanzas.
+- Crear `StampLineCommand` + Handler con detección del escenario por tipo de línea y Método de Pago.
 - **Escenario A — FACTURA PUE:**
   1. Finanzas → Timbrado: request con `TipoCFDI=FACTURA_PUE`, datos emisor/receptor, NCs en `CFDIRelacionados`.
   2. Recibir UUID + XML timbrado.
-  3. Invocar `PersistirFacturaMexicoPdfService.PersistirAsync(IdCFDI, xmlTimbrado)`.
+  3. Invocar `PersistMexicoInvoicePdfService.PersistirAsync(IdCFDI, xmlTimbrado)`.
   4. `UPDATE fccDocumentoFiscalCobro SET EstadoLinea=GENERADO, IdCFDIGeneradaFactura, FechaGeneracion`.
   5. `UPDATE tpProformaPedido SET IdCFDIGenerada` vía API ProquifaDotNet.
 - **Escenario B — FACTURA PPD + Complemento en cascada:**
   1. Timbrar Factura PPD (igual que A, `TipoCFDI=FACTURA_PPD`).
-  2. Invocar `PersistirFacturaMexicoPdfService.PersistirAsync` para la Factura.
+  2. Invocar `PersistMexicoInvoicePdfService.PersistirAsync` para la Factura.
   3. Timbrar Complemento (`TipoCFDI=COMPLEMENTO_PAGO`, `IdCFDIRelacionado=UUID Factura PPD`). **El PDF del Complemento es responsabilidad de RE-FU-030.**
   4. `UPDATE fccDocumentoFiscalCobro SET EstadoLinea=GENERADO, IdCFDIGeneradaFactura, IdCFDIGeneradaComplemento, FechaGeneracion`.
 - **Escenario C — FACTURA_ANTICIPO:** igual que A con `TipoCFDI=FACTURA_ANTICIPO` y tipo de relación 07 SAT en `CFDIRelacionados`.
@@ -1057,8 +1057,8 @@ Implementar en Finanzas el servicio central de timbrado del Paso 3 con los cuatr
 Endpoint `POST .../lineas/{idLinea}/timbrar` en Finanzas que ejecuta el escenario de timbrado correcto para cada tipo de línea, actualiza el estado a `GENERADO` y persiste el PDF de Factura (cuando aplica) post-timbrado exitoso.
 
 **Entregables:**
-- Endpoint `POST /api/validar-cobro/paso3/lineas/{idLinea}/timbrar`
-- Command + Handler: `TimbrarLineaPaso3Command` con los 4 escenarios
+- Endpoint `POST /api/v1/validate-collection/fiscalDocumentLine/{idLinea}/stamp`
+- Command + Handler: `StampLineCommand` con los 4 escenarios
 - Pruebas unitarias para los 4 escenarios (incluyendo: error PAC → línea queda PENDIENTE, fallo Complemento cascada con Factura PPD vigente)
 - Prueba de integración básica con Timbrado mock
 
@@ -1079,7 +1079,7 @@ Ver sección *"Parte B / B4"* y Brechas B1 y B6 en `R16A-RE-FU-028-Back.md`.
 **Recursos:**
 - `R16A-RE-FU-028-Back.md` — Parte B, sección B4; Brechas B1 y B6
 - `R16A-RE-FU-019-Tareas.md` — Tarea 13 (ApiCallerStamping, patrón base)
-- `R16A-RE-FU-021-Back.md` — PersistirFacturaMexicoPdfService
+- `R16A-RE-FU-021-Back.md` — PersistMexicoInvoicePdfService
 
 ---
 
@@ -1136,7 +1136,7 @@ Ver sección *"Parte D"* en `R16A-RE-FU-028-Back.md` y sección *"Parte B / B7.2
 
 ## TAREA 14
 
-**[ RE-FU-028 ] [IMP-EXIST-SERVICE] Implementar modal de Envío y despacho con Brevo (adjuntos CFDI + Confirmación de Pedido)**
+**[ RE-FU-028 ] [IMP-EXIST-SERVICE] Implementar modal de Envío y despacho vía ProquifaDotNet.EnvioCorreo (adjuntos CFDI + Confirmación de Pedido)**
 
 **Aplicativos:** ProquifaDotNet.Finanzas
 
@@ -1149,16 +1149,16 @@ Ver sección *"Parte D"* en `R16A-RE-FU-028-Back.md` y sección *"Parte B / B7.2
 - **Destinatarios:** Para: contacto del pedido (`tpPedido.IdContacto`) — editable; CC: ESAC asignado al cliente — editable.
 - ⚠️ Brecha B7: si el pedido no tiene contacto asignado, el comportamiento del modal (¿bloquea el envío?, ¿permite captura manual?) está pendiente de confirmar con negocio.
 - ⚠️ Brecha B2: el asunto y cuerpo del correo para líneas `COMPLEMENTO_PAGO` están pendientes de confirmar con PMO (#31).
-- **Orden de ejecución al confirmar envío:** (1) Generar PDF Confirmación de Pedido vía DocumentBuilder → subir a MinIO → obtener `RutaArchivoPDF`; (2) construir adjuntos (incluyendo el PDF Confirmación); (3) llamar a Brevo; (4) al éxito: `UPDATE fccDocumentoFiscalCobro SET EstadoLinea=ENVIADO` + persists DB. **El PDF debe generarse ANTES de llamar a Brevo** para poder adjuntarlo; si la generación falla, el envío no se despacha.
+- **Orden de ejecución al confirmar envío:** (1) Generar PDF Confirmación de Pedido vía DocumentBuilder → subir a MinIO → obtener `RutaArchivoPDF`; (2) construir adjuntos (incluyendo el PDF Confirmación); (3) llamar al API de ProquifaDotNet.EnvioCorreo (Aplicativo Nuevo — regla 7, sin cliente Brevo propio en Finanzas); (4) al éxito: `UPDATE fccDocumentoFiscalCobro SET EstadoLinea=ENVIADO` + persists DB. **El PDF debe generarse ANTES de llamar a ProquifaDotNet.EnvioCorreo** para poder adjuntarlo; si la generación falla, el envío no se despacha.
 - La `RutaArchivoPDF` generada se pasa a la Tarea 15 para el `INSERT fccConfirmacionPedido`.
 - Los adjuntos de Factura se sirven desde MinIO (ya persistidos en Tarea 12).
 
 **Objetivo general:**
-Implementar en Finanzas el endpoint del modal de Envío del Paso 3 que: (1) genera el PDF de Confirmación de Pedido vía DocumentBuilder y lo sube a MinIO, (2) despacha el correo vía Brevo con los adjuntos CFDI (PDF + XML) y el PDF de Confirmación, (3) actualiza el estado a `ENVIADO` y (4) dispara las acciones post-envío de la Tarea 15.
+Implementar en Finanzas el endpoint del modal de Envío del Paso 3 que: (1) genera el PDF de Confirmación de Pedido vía DocumentBuilder y lo sube a MinIO, (2) despacha el correo vía ProquifaDotNet.EnvioCorreo (Aplicativo Nuevo) con los adjuntos CFDI (PDF + XML) y el PDF de Confirmación, (3) actualiza el estado a `ENVIADO` y (4) dispara las acciones post-envío de la Tarea 15.
 
 **Objetivos específicos:**
-- Implementar `POST /api/validar-cobro/paso3/lineas/{idLinea}/enviar` en Finanzas.
-- Crear `EnviarLineaPaso3Command` + Handler.
+- Implementar `POST /api/v1/validate-collection/fiscalDocumentLine/{idLinea}/send` en Finanzas.
+- Crear `SendLineCommand` + Handler.
 - **Paso previo al correo — Generar Confirmación de Pedido:**
   - Resolver `TemplateKey` desde `Empresa.Prefijo` (`GOL/MUN/PRO/PQF_MEX_CDP`).
   - Invocar DocumentBuilder con el modelo del pedido (folio, cliente, contacto, partidas, empresa).
@@ -1169,18 +1169,18 @@ Implementar en Finanzas el endpoint del modal de Envío del Paso 3 que: (1) gene
   - `FACTURA_ANTICIPO`: `"{FolioPedidoInterno} — Factura Anticipo {FolioFacturaAdelanto}"`.
   - `COMPLEMENTO_PAGO`: ⚠️ pendiente de confirmar con PMO (Brecha B2).
 - Construir el listado de adjuntos según el tipo de línea **incluyendo el PDF de Confirmación de Pedido** (ver tabla en `R16A-RE-FU-028-Back.md` Parte B/B6).
-- Llamar a Brevo con los adjuntos, destinatarios y asunto correspondiente.
-- Al envío exitoso: `UPDATE fccDocumentoFiscalCobro SET EstadoLinea=ENVIADO, FechaEnvio` + `INSERT CorreoEnviado` + `INSERT ArchivoCorreoEnviado` (x N adjuntos).
+- Llamar al API de ProquifaDotNet.EnvioCorreo (`ApiCallerEnvioCorreo`, RE-FU-016) con los adjuntos, destinatarios y asunto correspondiente.
+- Al envío exitoso: `UPDATE fccDocumentoFiscalCobro SET EstadoLinea=ENVIADO, FechaEnvio` + `INSERT CorreoEnviado` + `INSERT ArchivoCorreoEnviado` (x N adjuntos) + registrar en ProquifaDotNet.BitacoraCambios (Aplicativo Nuevo — regla 8).
 - Pasar `RutaArchivoPDF` a la Tarea 15 para el `INSERT fccConfirmacionPedido`.
 - Retornar confirmación del envío al frontend (incluyendo `RutaArchivoPDF` para T15).
 
 **Resultado esperado:**
-Endpoint `POST .../lineas/{idLinea}/enviar` que genera el PDF de Confirmación, lo adjunta junto con los CFDIs en el correo Brevo, actualiza el estado a `ENVIADO` y deja `RutaArchivoPDF` disponible para la Tarea 15.
+Endpoint `POST .../lineas/{idLinea}/enviar` que genera el PDF de Confirmación, lo adjunta junto con los CFDIs en el correo despachado vía ProquifaDotNet.EnvioCorreo, actualiza el estado a `ENVIADO` y deja `RutaArchivoPDF` disponible para la Tarea 15.
 
 **Entregables:**
-- Endpoint `POST /api/validar-cobro/paso3/lineas/{idLinea}/enviar`
-- Command + Handler: `EnviarLineaPaso3Command` (con generación de Confirmación de Pedido antes de Brevo)
-- DTO de request: `EnviarLineaPaso3RequestDto` (destinatarios editables)
+- Endpoint `POST /api/v1/validate-collection/fiscalDocumentLine/{idLinea}/send`
+- Command + Handler: `SendLineCommand` (con generación de Confirmación de Pedido antes de llamar a ProquifaDotNet.EnvioCorreo)
+- DTO de request: `SendLineRequestDto` (destinatarios editables)
 - DTO de response: incluye `RutaArchivoPDF` para uso en T15
 - Pruebas unitarias para los tipos de línea (adjuntos correctos por tipo, PDF Confirmación adjunto, UPDATE estado, INSERT CorreoEnviado, fallo generación PDF → no envío)
 
@@ -1189,10 +1189,11 @@ Endpoint `POST .../lineas/{idLinea}/enviar` que genera el PDF de Confirmación, 
 - Para `FACTURA PPD + Complemento`: adjuntos = PDF Factura + XML Factura + XML Complemento + **PDF Confirmación** (PDF Complemento: RE-FU-030).
 - Para `FACTURA_ANTICIPO`: adjuntos = PDF Factura Anticipo + XML Factura Anticipo + **PDF Confirmación**.
 - Para `COMPLEMENTO_PAGO` desde FAA: adjuntos = XML Complemento + **PDF Confirmación** (PDF Complemento: RE-FU-030).
-- El PDF de Confirmación de Pedido se genera con el template `{Prefijo}_MEX_CDP` correcto antes de llamar a Brevo.
+- El PDF de Confirmación de Pedido se genera con el template `{Prefijo}_MEX_CDP` correcto antes de llamar a ProquifaDotNet.EnvioCorreo.
 - Si la generación del PDF de Confirmación falla: el correo **no** se despacha y se retorna error controlado.
 - `fccDocumentoFiscalCobro.EstadoLinea = ENVIADO` tras el envío exitoso.
 - `INSERT CorreoEnviado` + `INSERT ArchivoCorreoEnviado` correctamente registrados (N adjuntos incluye PDF Confirmación).
+- La validación de cobro queda registrada en ProquifaDotNet.BitacoraCambios (regla 8).
 - El asunto del correo es `"{FolioPedidoInterno} — Factura {FolioFactura}"` para FACTURA_PUE/PPD y `"{FolioPedidoInterno} — Factura Anticipo {FolioFacturaAdelanto}"` para FACTURA_ANTICIPO.
 - ⚠️ Brecha B2 (asunto/plantilla correo Complemento) y Brecha B7 (contacto no disponible) documentados como pendientes.
 
@@ -1238,7 +1239,7 @@ Implementar en Finanzas las acciones post-envío del Paso 3 México: (1) estable
 Al confirmar el envío exitoso de cada línea México: FEE actualizada en `tpPedido` y registro de trazabilidad de la Confirmación insertado en `fccConfirmacionPedido` con la ruta del PDF ya almacenado en MinIO por T14.
 
 **Entregables:**
-- Servicio `PostEnvioFeeConfirmacionService` (FEE + INSERT trazabilidad Confirmación)
+- Servicio `PostSendDeliveryConfirmationService` (FEE + INSERT trazabilidad Confirmación)
 - `INSERT fccConfirmacionPedido` (FolioConfirmacion, RutaArchivoPDF recibida de T14, FechaGeneracion)
 - `UPDATE tpPedido SET FechaEstimadaEntrega` (regla parametrizable)
 - Pruebas unitarias para FEE e INSERT (incluyendo: fallo en una acción no revierte el estado ENVIADO)
@@ -1279,25 +1280,25 @@ Ver sección *"Parte B / B7.1 y B7.2"* en `R16A-RE-FU-028-Back.md`. Ver Brecha B
 Implementar en Finanzas la lógica de cierre automático del wizard del Paso 3, que detecta cuando todas las líneas del cliente han sido enviadas y cierra el wizard retornando al listado principal de Validar Cobro.
 
 **Objetivos específicos:**
-- Implementar `GET /api/validar-cobro/paso3/{idCliente}/estado-cierre` en Finanzas (o integrar en la respuesta del endpoint de envío de Tarea 14).
-- Crear `VerificarCierrePaso3Query` + Handler.
+- Implementar `GET /api/v1/validate-collection/fiscalDocumentStep/{idCliente}/closingStatus` en Finanzas (o integrar en la respuesta del endpoint de envío de Tarea 14).
+- Crear `VerifyStep3ClosureQuery` + Handler.
 - Consultar `vfccDocumentoFiscalCobro WHERE IdCliente=@Id AND EstadoLinea != 'ENVIADO'`.
-- Si `COUNT = 0`: retornar `{ cerrado: true }` — el frontend navega al listado principal.
-- Si `COUNT > 0`: retornar `{ cerrado: false, lineasPendientes: N }` — el wizard permanece abierto.
+- Si `COUNT = 0`: retornar `{ closed: true }` — el frontend navega al listado principal.
+- Si `COUNT > 0`: retornar `{ closed: false, pendingLines: N }` — el wizard permanece abierto.
 
 **Resultado esperado:**
 Lógica de cierre automático disponible en Finanzas: tras cada envío exitoso de línea, el frontend consulta si el wizard puede cerrarse, y al detectar que todas las líneas están en `ENVIADO`, navega al listado principal de Validar Cobro retirando al cliente de los pendientes.
 
 **Entregables:**
 - Endpoint o respuesta integrada en Tarea 14 con estado de cierre
-- Query + Handler: `VerificarCierrePaso3Query`
-- DTO de response: `EstadoCierrePaso3Dto` (cerrado: bool, lineasPendientes: int)
-- Pruebas unitarias (incluyendo: todas ENVIADO → cerrado=true; una PENDIENTE → cerrado=false)
+- Query + Handler: `VerifyStep3ClosureQuery`
+- DTO de response: `Step3ClosureStatusDto` (closed: bool, pendingLines: int)
+- Pruebas unitarias (incluyendo: todas ENVIADO → closed=true; una PENDIENTE → closed=false)
 
 **Criterios de aceptación:**
-- Cuando todas las líneas del cliente están en `ENVIADO`: `cerrado = true`.
-- Cuando al menos una línea no está en `ENVIADO`: `cerrado = false`, `lineasPendientes = N`.
-- El cliente sale del listado de pendientes de Validar Cobro al detectar `cerrado = true`.
+- Cuando todas las líneas del cliente están en `ENVIADO`: `closed = true`.
+- Cuando al menos una línea no está en `ENVIADO`: `closed = false`, `pendingLines = N`.
+- El cliente sale del listado de pendientes de Validar Cobro al detectar `closed = true`.
 - La verificación usa `vfccDocumentoFiscalCobro` y no genera consultas adicionales a tablas base.
 
 **Más información de la tarea:**
@@ -1361,7 +1362,7 @@ Ver Brecha B3 y Parte E en `R16A-RE-FU-028-Back.md`. El análisis debe resolver 
 
 ## TAREA 18
 
-**[ R16A-RE-FU-028 ] [SERV-COMPLEX-TRANSACT] Implementar builders de payloads ETL E1/E2/E3/E6 e interfaz IEtlLegacyTransferenciaService**
+**[ R16A-RE-FU-028 ] [SERV-COMPLEX-TRANSACT] Implementar builders de payloads ETL E1/E2/E3/E6 e interfaz IEtlLegacyTransferService**
 
 **Aplicativos:** ProquifaDotNet.AplicativoNuevoLegacy
 
@@ -1377,26 +1378,26 @@ Ver Brecha B3 y Parte E en `R16A-RE-FU-028-Back.md`. El análisis debe resolver 
 - Alcance: E1 (Buzón de Cobros), E2 (Proforma), E3 (Factura), E6 (PDF Factura).
 
 **Objetivo general:**
-Implementar la capa de construcción de los cuatro payloads ETL (builders) y la interfaz `IEtlLegacyTransferenciaService` con implementación stub, de forma que el flujo post-envío quede funcional independientemente del estado de la Brecha B3.
+Implementar la capa de construcción de los cuatro payloads ETL (builders) y la interfaz `IEtlLegacyTransferService` con implementación stub, de forma que el flujo post-envío quede funcional independientemente del estado de la Brecha B3.
 
 **Objetivos específicos:**
-- Crear `IEtlLegacyTransferenciaService` con método `EnviarAsync(EtlLegacyPayload payload)`.
-- Crear `EtlLegacyTransferenciaServiceStub`: implementación que loguea el payload en Serilog como `ETL_PENDIENTE` y retorna éxito simulado.
-- Crear `EtlLegacyPayload` con discriminador de tipo (`TipoEtl`: E1/E2/E3/E6) y datos del payload.
-- Implementar `EtlBuzonCobrosPayloadBuilder` (E1): construye desde `fccPagoCliente` + `fccBuzonCobro` con el campo de referencia cruzada definido en T17.
-- Implementar `EtlProformaPayloadBuilder` (E2): construye desde `tpProformaPedido`; diferencia entre `fccPagoFacturaPedido` y `fccPagoFacturaAdelanto`.
-- Implementar `EtlFacturaPayloadBuilder` (E3): construye desde `CFDIGenerada`, `DatosFacturacionCliente`, `Empresa`.
-- Implementar `EtlPdfFacturaPayloadBuilder` (E6): construye referencia del PDF desde MinIO vía `CFDIGenerada.IdArchivoPdf`; omite para líneas `COMPLEMENTO_PAGO` sin Factura.
+- Crear `IEtlLegacyTransferService` con método `SendAsync(EtlLegacyPayload payload)`.
+- Crear `EtlLegacyTransferServiceStub`: implementación que loguea el payload en Serilog como `ETL_PENDIENTE` y retorna éxito simulado.
+- Crear `EtlLegacyPayload` con discriminador de tipo (`EtlType`: E1/E2/E3/E6) y datos del payload.
+- Implementar `EtlPaymentMailboxPayloadBuilder` (E1): construye desde `fccPagoCliente` + `fccBuzonCobro` con el campo de referencia cruzada definido en T17.
+- Implementar `EtlQuotePayloadBuilder` (E2): construye desde `tpProformaPedido`; diferencia entre `fccPagoFacturaPedido` y `fccPagoFacturaAdelanto`.
+- Implementar `EtlInvoicePayloadBuilder` (E3): construye desde `CFDIGenerada`, `DatosFacturacionCliente`, `Empresa`.
+- Implementar `EtlInvoicePdfPayloadBuilder` (E6): construye referencia del PDF desde MinIO vía `CFDIGenerada.IdArchivoPdf`; omite para líneas `COMPLEMENTO_PAGO` sin Factura.
 - Invocar los builders en el flujo post-envío de T15 en el orden definido en T17: E2 → E1 → E3+E6.
 
 **Resultado esperado:**
 Los cuatro builders construyen correctamente los payloads usando el mapeo de T17. La interfaz permite inyectar stub o implementación real sin cambiar callers. El flujo post-envío no se bloquea aunque B3 esté pendiente.
 
 **Entregables:**
-- `IEtlLegacyTransferenciaService` (interfaz)
-- `EtlLegacyTransferenciaServiceStub` (implementación stub con log `ETL_PENDIENTE`)
-- `EtlLegacyPayload` + enum `TipoEtl` (E1/E2/E3/E6)
-- `EtlBuzonCobrosPayloadBuilder`, `EtlProformaPayloadBuilder`, `EtlFacturaPayloadBuilder`, `EtlPdfFacturaPayloadBuilder`
+- `IEtlLegacyTransferService` (interfaz)
+- `EtlLegacyTransferServiceStub` (implementación stub con log `ETL_PENDIENTE`)
+- `EtlLegacyPayload` + enum `EtlType` (E1/E2/E3/E6)
+- `EtlPaymentMailboxPayloadBuilder`, `EtlQuotePayloadBuilder`, `EtlInvoicePayloadBuilder`, `EtlInvoicePdfPayloadBuilder`
 - Pruebas unitarias:
   - E1: payload con datos correctos de `fccPagoCliente` y referencia cruzada
   - E2: variante `fccPagoFacturaPedido` vs `fccPagoFacturaAdelanto`
@@ -1406,7 +1407,7 @@ Los cuatro builders construyen correctamente los payloads usando el mapeo de T17
 
 **Criterios de aceptación:**
 - Los 4 builders producen payloads correctos según el mapeo definido en T17.
-- Para líneas `COMPLEMENTO_PAGO` sin Factura: `EtlPdfFacturaPayloadBuilder` retorna vacío sin lanzar excepción.
+- Para líneas `COMPLEMENTO_PAGO` sin Factura: `EtlInvoicePdfPayloadBuilder` retorna vacío sin lanzar excepción.
 - La implementación stub loguea `ETL_PENDIENTE` en Serilog y retorna éxito; el flujo post-envío no revierte `ENVIADO`.
 - La inyección de dependencias permite sustituir stub por implementación real sin cambiar callers.
 - Todas las pruebas unitarias pasan con cobertura de los casos críticos.
@@ -1433,7 +1434,7 @@ Ver Parte E / E1–E6 en `R16A-RE-FU-028-Back.md`. El mapeo columna-a-columna pa
 **Consideraciones previas:**
 - Predecesoras: T17 (análisis y resolución B3) y T18 (builders + interfaz + stub). Esta tarea NO inicia sin ambas completadas.
 - Requiere que la Brecha B3 esté resuelta (canal definido por arquitectura).
-- Implementa `EtlLegacyTransferenciaService` real que reemplaza `EtlLegacyTransferenciaServiceStub`, sin modificar `IEtlLegacyTransferenciaService` ni los callers.
+- Implementa `EtlLegacyTransferService` real que reemplaza `EtlLegacyTransferServiceStub`, sin modificar `IEtlLegacyTransferService` ni los callers.
 - Si el canal es RabbitMQ: configurar cola, exchange, binding y política de reintento.
 - Si el canal es tabla ETL: configurar proceso lector en Legacy (SSIS u otro) para consumir los registros.
 - Si el canal es API Legacy directa: documentar endpoint, contrato y autenticación.
@@ -1445,7 +1446,7 @@ Ver Parte E / E1–E6 en `R16A-RE-FU-028-Back.md`. El mapeo columna-a-columna pa
 Implementar el canal ETL definitivo para las transferencias E1/E2/E3/E6 a Legacy, reemplazando la implementación stub de T18 por la real, ejecutar y documentar las pruebas de integración, y garantizar que los payloads lleguen correctamente a Legacy con trazabilidad completa.
 
 **Objetivos específicos:**
-- Implementar `EtlLegacyTransferenciaService` real según el mecanismo definido en T17 (tabla ETL / RabbitMQ / API directa).
+- Implementar `EtlLegacyTransferService` real según el mecanismo definido en T17 (tabla ETL / RabbitMQ / API directa).
 - Registrar la implementación real en el contenedor DI en sustitución del stub.
 - Validar en Legacy que los registros de E1, E2, E3 y E6 se almacenan correctamente en las tablas destino.
 - Ejecutar pruebas de integración end-to-end: flujo completo Validar Cobro → envío Paso 3 → payloads en Legacy.
@@ -1458,7 +1459,7 @@ Implementar el canal ETL definitivo para las transferencias E1/E2/E3/E6 a Legacy
 Los payloads E1/E2/E3/E6 se transfieren exitosamente a Legacy a través del canal definitivo. Las pruebas de integración están ejecutadas y documentadas. La Brecha B3 queda formalmente cerrada.
 
 **Entregables:**
-- `EtlLegacyTransferenciaService` real (implementación definitiva del canal)
+- `EtlLegacyTransferService` real (implementación definitiva del canal)
 - Configuración del canal según tecnología: DDL tabla ETL / configuración RabbitMQ / contrato API Legacy
 - Pruebas de integración documentadas:
   - E1: cobro visible en Legacy vinculado al cliente y pedido
@@ -1486,4 +1487,4 @@ Esta tarea cierra el ciclo ETL de RE-028. Los ETL E4/E7 (Complemento de Pago) y 
 - `R16A-RE-FU-028-Back.md` — Parte E, Brecha B3 (resolución), Consideraciones transversales ETL
 - `R16A-RE-FU-028_BD.md` — tablas fuente ETL
 - Análisis de T17 (documento de mapeo y definición de canal)
-- Entregables de T18 (interfaz `IEtlLegacyTransferenciaService` + builders + stub)
+- Entregables de T18 (interfaz `IEtlLegacyTransferService` + builders + stub)

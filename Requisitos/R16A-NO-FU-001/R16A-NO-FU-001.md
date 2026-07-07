@@ -214,7 +214,7 @@ ProquifaDotNet continuará siendo el sistema de Venta Interna. La nueva solució
 ```
 PATCH /EnviarCorreo?idCorreoEnviado={guid}
     Antes → RabbitMQClientFactory.FabricarMailClientSendInBlue().SendMessage(...)
-    Después → HttpClient.PostAsync("https://sendinblue-api/api/correo/enviar", ...)
+    Después → HttpClient.PostAsync("https://sendinblue-api/api/v1/mail/send", ...)
 ```
 
 #### B. Deprecar `CorreoGenericoBO` (o adaptar)
@@ -435,7 +435,7 @@ ProquifaDotNet.SendInBlue/
 │   │   ├── ObtenerSolicitudCorreoQuery.cs
 │   │   └── ObtenerBitacoraCorreoQuery.cs
 │   ├── DTOs/
-│   │   ├── EnviarCorreoDto.cs
+│   │   ├── SendEmailDto.cs
 │   │   ├── EnviarCorreoSimpleDto.cs
 │   │   ├── EnviarCorreoHtmlDto.cs
 │   │   ├── EnviarCorreoPlantillaBrevoDto.cs
@@ -490,7 +490,7 @@ ProquifaDotNet.SendInBlue/
 
 ### 6.2 API — Endpoints
 
-#### `POST /api/correo/enviar`
+#### `POST /api/v1/mail/send`
 
 Solicita envío de correo basado en `CorreoEnviado` existente en ProquifaDotNet (flujo principal con XSLT).
 
@@ -506,7 +506,7 @@ Solicita envío de correo basado en `CorreoEnviado` existente en ProquifaDotNet 
 
 ---
 
-#### `POST /api/correo/simple`
+#### `POST /api/v1/mail/simple`
 
 Envío simple sin asociación a `CorreoEnviado`. Para notificaciones ad-hoc internas.
 
@@ -526,7 +526,7 @@ Envío simple sin asociación a `CorreoEnviado`. Para notificaciones ad-hoc inte
 
 ---
 
-#### `POST /api/correo/html`
+#### `POST /api/v1/mail/html`
 
 Envío con contenido HTML explícito. Para correos donde el caller ya generó el HTML.
 
@@ -546,7 +546,7 @@ Envío con contenido HTML explícito. Para correos donde el caller ya generó el
 
 ---
 
-#### `POST /api/correo/plantilla-brevo`
+#### `POST /api/v1/mail/template`
 
 Envío usando una plantilla nativa de Brevo. El HTML es renderizado por Brevo en sus servidores; el servidor solo envía el `IdTemplateBrevo` y los parámetros dinámicos. La plantilla se puede referenciar por `clave` lógica (lookup en `CatalogoPlantillaBrevo`) o por `idTemplateBrevo` directo.
 

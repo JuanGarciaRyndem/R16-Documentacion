@@ -173,7 +173,7 @@ Un único nodo `Concepto`:
 Servicio que mapea el `NCMexicoVm` (view model de la NC) al `NCMexicoPdfModel` requerido por el template HTML en DocumentBuilder. Cubre dos modos de operación.
 
 **Namespace:** `ProquifaDotNet.Finanzas.Application.Services.NC.Mexico`  
-**Patrón base:** `FacturaMexicoPdfMappingService` (R16A-RE-FU-021)
+**Patrón base:** `MexicoInvoicePdfMappingService` (R16A-RE-FU-021)
 
 ---
 
@@ -280,7 +280,7 @@ La paleta, tipografía e iconografía de certificaciones deben ser **consistente
 ### Descripción
 Servicio que invoca DocumentBuilder para renderizar el template HTML con los datos del `NCMexicoPdfModel` y guarda el PDF resultante en MinIO.
 
-**Patrón base:** `PersistirFacturaMexicoPdfService` (R16A-RE-FU-021)
+**Patrón base:** `PersistMexicoInvoicePdfService` (R16A-RE-FU-021)
 
 ### Rutas MinIO
 
@@ -293,7 +293,7 @@ Servicio que invoca DocumentBuilder para renderizar el template HTML con los dat
 
 ## Parte E — Envío de correo NC México
 
-**Servicio:** `EnviarNCMexicoMailService` (extiende patrón de `EnviarFacturaMexicoMailService`)
+**Servicio:** `SendMexicoCreditNoteMailService` (extiende patrón de `SendMexicoInvoiceMailService`)
 
 | Campo         | Valor                                                                                        |
 | ------------- | -------------------------------------------------------------------------------------------- |
@@ -329,5 +329,5 @@ Servicio que invoca DocumentBuilder para renderizar el template HTML con los dat
 | P4  | `ObjetoImp` modalidad manual — confirmar valor para ClaveProdServ 84111506                    | Afecta nodo Impuestos del Concepto manual         |
 | P5  | Serie del foliador NC México — validar nombre definitivo de la serie en `EmpresaFolio`         | Afecta atributo `Serie` del comprobante root      |
 | P6  | Vigencia iconografía certificaciones (ISO, NEEC, edQM, FELUM, USP, etc.)                      | Afecta Footer de los 4 templates                  |
-| P7  | Plantilla PMO #31 — asunto y cuerpo del correo                                                | Bloquea `EnviarNCMexicoMailService`               |
+| P7  | Plantilla PMO #31 — asunto y cuerpo del correo                                                | Bloquea `SendMexicoCreditNoteMailService`               |
 | P8  | `FormaPago` cuando la factura origen no está pagada (escenario raro en R16 prepago)           | Afecta atributo FormaPago del comprobante root    |

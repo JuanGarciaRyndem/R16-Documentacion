@@ -110,7 +110,7 @@ WHERE Clave = 'PAGO_INCOMPLETO_VENCIDO';
 
 **Descripción:** Endpoint en Finanzas que retorna todas las proformas y facturas pendientes de cobrar del cliente, mezcladas en un único listado sin filtros adicionales.
 
-**Datos obtenidos (vía API ProquifaDotNet):** `tpProformaPedido`, `tpPedido`, `tpProformaAdelanto` (FAA), `Empresa`, `catMoneda`
+**Datos obtenidos (vía API ProquifaDotNet):** `tpProformaPedido`, `tpPedido`, `vfccFactura` (RE-FU-015 — antes: `tpProformaAdelanto`), `Empresa`, `catMoneda`
 
 **Filtros:** `IdCliente = @IdCliente` AND `MontoPendiente > 0` AND `Cancelada = 0` AND `Activo = 1`
 
@@ -119,7 +119,7 @@ WHERE Clave = 'PAGO_INCOMPLETO_VENCIDO';
 | Campo | Fuente |
 |-------|--------|
 | Tipo | `PROFORMA` o `FACTURA_ADELANTADA` |
-| Folio | `tpProformaPedido.Folio` o `tpProformaAdelanto.Folio` |
+| Folio | `tpProformaPedido.Folio` o `vfccFactura.FolioFactura` (antes: `tpProformaAdelanto.Folio`) |
 | PedidoInterno | `tpPedido` |
 | EmpresaEmisora | `Empresa.Alias` (puede ser GOL, MUN, PRO, PQF) |
 | ImporteTotal, SaldoPendiente | `tpProformaPedido.MontoPendiente` |
