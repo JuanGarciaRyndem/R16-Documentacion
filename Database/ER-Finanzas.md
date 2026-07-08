@@ -518,113 +518,123 @@ erDiagram
 
 Catálogo de tipos de CFDI/CPE (FACTURA, FACTURA_ANTICIPO, COMPLEMENTO_PAGO, NOTA_CREDITO, FACTURA_CPE...). Detalle: RE-028_BD.
 
-| Columna            | Tipo de Dato     | Índice | Descripción                                 |
-| ------------------ | ---------------- | ------ | ------------------------------------------- |
-| `IdCatTipoCFDI`    | uniqueidentifier | PK     | Identificador único (PK)                    |
-| `Clave`            | varchar          | —      | Clave programática                          |
-| `Descripcion`      | varchar          | —      | Descripción legible                         |
-| `TipoDocumentoSAT` | varchar          | —      | Tipo de comprobante SAT (I/P/E) o CPE SUNAT |
-| `IdRegion`         | uniqueidentifier | FK     | FK → `Region`                               |
-| `Activo`           | bit              | —      | Borrado lógico (1 = vigente)                |
-| `FechaRegistro`    | datetime2        | —      | Fecha de alta del registro                  |
+| Columna                    | Tipo de Dato     | Índice | Descripción                                 |
+| -------------------------- | ---------------- | ------ | ------------------------------------------- |
+| `IdCatTipoCFDI`            | uniqueidentifier | PK     | Identificador único (PK)                    |
+| `Clave`                    | varchar          | —      | Clave programática                          |
+| `Descripcion`              | varchar          | —      | Descripción legible                         |
+| `TipoDocumentoSAT`         | varchar          | —      | Tipo de comprobante SAT (I/P/E) o CPE SUNAT |
+| `IdRegion`                 | uniqueidentifier | FK     | FK → `Region`                               |
+| `Activo`                   | bit              | —      | Borrado lógico (1 = vigente)                |
+| `FechaRegistro`            | datetime         | —      | Fecha de alta del registro                  |
+| `FechaUltimaActualizacion` | datetime         | —      | Fecha de última modificación                |
 
 ### Tabla: `catTipoDocumentoFiscal`
 
 Catálogo de tipos de documento fiscal por línea del Paso 3 de Validar Cobro. Detalle: RE-028_BD.
 
-| Columna | Tipo de Dato | Índice | Descripción |
-|---------|--------------|--------|-------------|
-| `IdCatTipoDocumentoFiscal` | uniqueidentifier | PK | Identificador único (PK) |
-| `Clave` | varchar | — | Clave programática |
-| `Descripcion` | varchar | — | Descripción legible |
-| `Activo` | bit | — | Borrado lógico (1 = vigente) |
-| `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
+| Columna                    | Tipo de Dato     | Índice | Descripción                  |
+| -------------------------- | ---------------- | ------ | ---------------------------- |
+| `IdCatTipoDocumentoFiscal` | uniqueidentifier | PK     | Identificador único (PK)     |
+| `Clave`                    | varchar          | —      | Clave programática           |
+| `Descripcion`              | varchar          | —      | Descripción legible          |
+| `Activo`                   | bit              | —      | Borrado lógico (1 = vigente) |
+| `FechaRegistro`            | datetime         | —      | Fecha de alta del registro   |
+| `FechaUltimaActualizacion` | datetime         | —      | Fecha de última modificación |
 
 ### Tabla: `catDocumentoFiscalCobroEstado`
 
 Catálogo de estados de línea del wizard VC Paso 3 (PENDIENTE → GENERADO → ENVIADO). Detalle: RE-028_BD.
 
-| Columna | Tipo de Dato | Índice | Descripción |
-|---------|--------------|--------|-------------|
-| `IdCatDocumentoFiscalCobroEstado` | uniqueidentifier | PK | Identificador único (PK) |
-| `Clave` | varchar | — | Clave programática |
-| `Descripcion` | varchar | — | Descripción legible |
-| `Activo` | bit | — | Borrado lógico (1 = vigente) |
-| `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
+| Columna                           | Tipo de Dato     | Índice | Descripción                  |
+| --------------------------------- | ---------------- | ------ | ---------------------------- |
+| `IdCatDocumentoFiscalCobroEstado` | uniqueidentifier | PK     | Identificador único (PK)     |
+| `Clave`                           | varchar          | —      | Clave programática           |
+| `Descripcion`                     | varchar          | —      | Descripción legible          |
+| `Activo`                          | bit              | —      | Borrado lógico (1 = vigente) |
+| `FechaRegistro`                   | datetime         | —      | Fecha de alta del registro   |
+| `FechaUltimaActualizacion`        | datetime         | —      | Fecha de última modificación |
 
 ### Tabla: `catFacturaEstado`
 
 Catálogo de estados del ciclo de vida de la Factura (7 estados con transiciones). Detalle: RE-015_BD v2.1.
 
-| Columna | Tipo de Dato | Índice | Descripción |
-|---------|--------------|--------|-------------|
-| `IdCatFacturaEstado` | uniqueidentifier | PK | Identificador único (PK) |
-| `Clave` | varchar | UK | Clave programática (única) |
-| `Descripcion` | nvarchar | — | Descripción legible |
-| `Orden` | int | — | Orden natural del ciclo de vida (UI/reportes) |
-| `EsTerminal` | bit | — | 1 = sin transiciones posteriores (PAGADA, CANCELADA) |
-| `Activo` | bit | — | Borrado lógico (1 = vigente) |
-| `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
+| Columna                    | Tipo de Dato     | Índice | Descripción                                          |
+| -------------------------- | ---------------- | ------ | ---------------------------------------------------- |
+| `IdCatFacturaEstado`       | uniqueidentifier | PK     | Identificador único (PK)                             |
+| `Clave`                    | varchar          | UK     | Clave programática (única)                           |
+| `Descripcion`              | nvarchar         | —      | Descripción legible                                  |
+| `Orden`                    | int              | —      | Orden natural del ciclo de vida (UI/reportes)        |
+| `EsTerminal`               | bit              | —      | 1 = sin transiciones posteriores (PAGADA, CANCELADA) |
+| `Activo`                   | bit              | —      | Borrado lógico (1 = vigente)                         |
+| `FechaRegistro`            | datetime         | —      | Fecha de alta del registro                           |
+| `FechaUltimaActualizacion` | datetime         | —      | Fecha de última modificación                         |
 
 ### Tabla: `catFormaPagoSAT`
 
 Catálogo c_FormaPago del SAT para la captura del cobro. Detalle: RE-024_BD.
 
-| Columna | Tipo de Dato | Índice | Descripción |
-|---------|--------------|--------|-------------|
-| `IdCatFormaPagoSAT` | uniqueidentifier | PK | Identificador único (PK) |
-| `Clave` | varchar | — | Clave programática |
-| `Descripcion` | varchar | — | Descripción legible |
-| `Activo` | bit | — | Borrado lógico (1 = vigente) |
-| `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
+| Columna                    | Tipo de Dato     | Índice | Descripción                  |
+| -------------------------- | ---------------- | ------ | ---------------------------- |
+| `IdCatFormaPagoSAT`        | uniqueidentifier | PK     | Identificador único (PK)     |
+| `Clave`                    | varchar          | —      | Clave programática           |
+| `Descripcion`              | varchar          | —      | Descripción legible          |
+| `Activo`                   | bit              | —      | Borrado lógico (1 = vigente) |
+| `FechaRegistro`            | datetime         | —      | Fecha de alta del registro   |
+| `FechaUltimaActualizacion` | datetime         | —      | Fecha de última modificación |
 
 ### Tabla: `catTipoOperacionSUNAT`
 
 Catálogo 51 SUNAT — Tipo de Operación (Perú). Detalle: RE-020/029_BD.
 
-| Columna | Tipo de Dato | Índice | Descripción |
-|---------|--------------|--------|-------------|
-| `IdCatTipoOperacionSUNAT` | uniqueidentifier | PK | Identificador único (PK) |
-| `Clave` | varchar | — | Clave programática |
-| `Descripcion` | varchar | — | Descripción legible |
-| `Activo` | bit | — | Borrado lógico (1 = vigente) |
-| `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
+| Columna                    | Tipo de Dato     | Índice | Descripción                  |
+| -------------------------- | ---------------- | ------ | ---------------------------- |
+| `IdCatTipoOperacionSUNAT`  | uniqueidentifier | PK     | Identificador único (PK)     |
+| `Clave`                    | varchar          | —      | Clave programática           |
+| `Descripcion`              | varchar          | —      | Descripción legible          |
+| `Activo`                   | bit              | —      | Borrado lógico (1 = vigente) |
+| `FechaRegistro`            | datetime         | —      | Fecha de alta del registro   |
+| `FechaUltimaActualizacion` | datetime         | —      | Fecha de última modificación |
 
 ### Tabla: `catMotivoCancelacionSAT`
 
 Catálogo de motivos de cancelación SAT (01-04). Detalle: RE-032_BD.
 
-| Columna | Tipo de Dato | Índice | Descripción |
-|---------|--------------|--------|-------------|
-| `IdCatMotivoCancelacionSAT` | uniqueidentifier | PK | Identificador único (PK) |
-| `Clave` | varchar | — | Clave programática |
-| `Descripcion` | varchar | — | Descripción legible |
-| `Activo` | bit | — | Borrado lógico (1 = vigente) |
-| `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
+| Columna                     | Tipo de Dato     | Índice | Descripción                  |
+| --------------------------- | ---------------- | ------ | ---------------------------- |
+| `IdCatMotivoCancelacionSAT` | uniqueidentifier | PK     | Identificador único (PK)     |
+| `Clave`                     | varchar          | —      | Clave programática           |
+| `Descripcion`               | varchar          | —      | Descripción legible          |
+| `Activo`                    | bit              | —      | Borrado lógico (1 = vigente) |
+| `FechaRegistro`             | datetime         | —      | Fecha de alta del registro   |
+| `FechaUltimaActualizacion`  | datetime         | —      | Fecha de última modificación |
 
 ### Tabla: `catMotivoCreditoSUNAT09`
 
 Catálogo 09 SUNAT — motivos de Nota de Crédito (Perú). Detalle: RE-033_BD.
 
-| Columna | Tipo de Dato | Índice | Descripción |
-|---------|--------------|--------|-------------|
-| `IdCatMotivoCreditoSUNAT09` | uniqueidentifier | PK | Identificador único (PK) |
-| `Clave` | varchar | — | Clave programática |
-| `Descripcion` | varchar | — | Descripción legible |
-| `Modalidad` | varchar | — | Modalidad de la NC según catálogo 09 SUNAT |
-| `Activo` | bit | — | Borrado lógico (1 = vigente) |
-| `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
+| Columna                     | Tipo de Dato     | Índice | Descripción                                |
+| --------------------------- | ---------------- | ------ | ------------------------------------------ |
+| `IdCatMotivoCreditoSUNAT09` | uniqueidentifier | PK     | Identificador único (PK)                   |
+| `Clave`                     | varchar          | —      | Clave programática                         |
+| `Descripcion`               | varchar          | —      | Descripción legible                        |
+| `Modalidad`                 | varchar          | —      | Modalidad de la NC según catálogo 09 SUNAT |
+| `Activo`                    | bit              | —      | Borrado lógico (1 = vigente)               |
+| `FechaRegistro`             | datetime         | —      | Fecha de alta del registro                 |
+| `FechaUltimaActualizacion`  | datetime         | —      | Fecha de última modificación               |
 
 ### Tabla: `catTipoInconsistenciaCobro`
 
 Catálogo de tipos de inconsistencia de cobro (Pasos 1 y 2) — seed pendiente Tesorería. Detalle: RE-024/026_BD.
 
-| Columna | Tipo de Dato | Índice | Descripción |
-|---------|--------------|--------|-------------|
-| `IdCatTipoInconsistenciaCobro` | uniqueidentifier | PK | Identificador único (PK) |
-| `TipoInconsistencia` | varchar | — | Nombre del tipo de inconsistencia |
-| `AplicaMarkPendienteCancelacion` | bit | — | 1 = marca el pedido "Pendiente cancelación por falta de pago" |
-| `Activo` | bit | — | Borrado lógico (1 = vigente) |
+| Columna                          | Tipo de Dato     | Índice | Descripción                                                   |
+| -------------------------------- | ---------------- | ------ | ------------------------------------------------------------- |
+| `IdCatTipoInconsistenciaCobro`   | uniqueidentifier | PK     | Identificador único (PK)                                      |
+| `TipoInconsistencia`             | varchar          | —      | Nombre del tipo de inconsistencia                             |
+| `AplicaMarkPendienteCancelacion` | bit              | —      | 1 = marca el pedido "Pendiente cancelación por falta de pago" |
+| `Activo`                         | bit              | —      | Borrado lógico (1 = vigente)                                  |
+| `FechaRegistro`                  | datetime         | —      | Fecha de alta del registro                                    |
+| `FechaUltimaActualizacion`       | datetime         | —      | Fecha de última modificación                                  |
 
 ### Tabla: `EmpresaFolio`
 
@@ -646,65 +656,69 @@ Foliador por empresa/serie; consumo UPDLOCK atómico al timbrar. Movida de Proqu
 
 Registro central de negocio de todo CFDI/CPE timbrado — single source of truth (Serie, Folio, UUID). Detalle: RE-019/021/028_BD.
 
-| Columna                 | Tipo de Dato     | Índice | Descripción                                                      |
-| ----------------------- | ---------------- | ------ | ---------------------------------------------------------------- |
-| `IdCFDIGenerada`        | uniqueidentifier | PK     | Identificador único (PK)                                         |
-| `RFCEmisor`             | varchar          | —      | RFC de la empresa emisora                                        |
-| `RFCReceptor`           | varchar          | —      | RFC del cliente receptor                                         |
-| `Serie`                 | varchar          | —      | Serie del documento                                              |
-| `Folio`                 | varchar          | —      | Folio consecutivo                                                |
-| `FechaEmision`          | datetime2        | —      | Fecha de emisión del CFDI                                        |
-| `FechaCertificacionSat` | datetime2        | —      | Fecha de certificación (timbrado) por el PAC/SAT (RE-021)        |
-| `IdCatTipoCFDI`         | uniqueidentifier | FK     | FK → `catTipoCFDI`                                               |
-| `IdCFDIRelacionado`     | uniqueidentifier | FK     | FK → `CFDIGenerada`                                              |
-| `UUID`                  | varchar          | —      | Folio fiscal (UUID) asignado por SAT                             |
-| `Total`                 | decimal          | —      | Total del comprobante                                            |
-| `Estado`                | varchar          | —      | Estado técnico del timbrado ('Timbrado', 'Fallido', 'Cancelado') |
-| `IdArchivoXml`          | uniqueidentifier | FK     | FK → `Archivo`                                                   |
-| `IdArchivoPdf`          | uniqueidentifier | FK     | FK → `Archivo`                                                   |
-| `Activo`                | bit              | —      | Borrado lógico (1 = vigente)                                     |
-| `FechaRegistro`         | datetime2        | —      | Fecha de alta del registro                                       |
+| Columna                    | Tipo de Dato     | Índice | Descripción                                                      |
+| -------------------------- | ---------------- | ------ | ---------------------------------------------------------------- |
+| `IdCFDIGenerada`           | uniqueidentifier | PK     | Identificador único (PK)                                         |
+| `RFCEmisor`                | varchar          | —      | RFC de la empresa emisora                                        |
+| `RFCReceptor`              | varchar          | —      | RFC del cliente receptor                                         |
+| `Serie`                    | varchar          | —      | Serie del documento                                              |
+| `Folio`                    | varchar          | —      | Folio consecutivo                                                |
+| `FechaEmision`             | datetime2        | —      | Fecha de emisión del CFDI                                        |
+| `FechaCertificacionSat`    | datetime2        | —      | Fecha de certificación (timbrado) por el PAC/SAT (RE-021)        |
+| `IdCatTipoCFDI`            | uniqueidentifier | FK     | FK → `catTipoCFDI`                                               |
+| `IdCFDIRelacionado`        | uniqueidentifier | FK     | FK → `CFDIGenerada`                                              |
+| `UUID`                     | varchar          | —      | Folio fiscal (UUID) asignado por SAT                             |
+| `Total`                    | decimal          | —      | Total del comprobante                                            |
+| `Estado`                   | varchar          | —      | Estado técnico del timbrado ('Timbrado', 'Fallido', 'Cancelado') |
+| `IdArchivoXml`             | uniqueidentifier | FK     | FK → `Archivo`                                                   |
+| `IdArchivoPdf`             | uniqueidentifier | FK     | FK → `Archivo`                                                   |
+| `Activo`                   | bit              | —      | Borrado lógico (1 = vigente)                                     |
+| `FechaRegistro`            | datetime         | —      | Fecha de alta del registro                                       |
+| `FechaUltimaActualizacion` | datetime         | —      | Fecha de última modificación                                     |
 
 ### Tabla: `CFDIGeneradaConcepto`
 
 Conceptos (partidas fiscales) del CFDI. Detalle: RE-021_BD.
 
-| Columna | Tipo de Dato | Índice | Descripción |
-|---------|--------------|--------|-------------|
-| `IdCFDIGeneradaConcepto` | uniqueidentifier | PK | Identificador único (PK) |
-| `IdCFDIGenerada` | uniqueidentifier | FK | FK → `CFDIGenerada` |
-| `ClaveProdServ` | varchar | — | Catálogo c_ClaveProdServ SAT |
-| `Descripcion` | varchar | — | Descripción legible |
-| `Cantidad` | decimal | — | Cantidad del concepto |
-| `ValorUnitario` | decimal | — | Valor unitario |
-| `Importe` | decimal | — | Importe del concepto |
-| `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
+| Columna                    | Tipo de Dato     | Índice | Descripción                  |
+| -------------------------- | ---------------- | ------ | ---------------------------- |
+| `IdCFDIGeneradaConcepto`   | uniqueidentifier | PK     | Identificador único (PK)     |
+| `IdCFDIGenerada`           | uniqueidentifier | FK     | FK → `CFDIGenerada`          |
+| `ClaveProdServ`            | varchar          | —      | Catálogo c_ClaveProdServ SAT |
+| `Descripcion`              | varchar          | —      | Descripción legible          |
+| `Cantidad`                 | decimal          | —      | Cantidad del concepto        |
+| `ValorUnitario`            | decimal          | —      | Valor unitario               |
+| `Importe`                  | decimal          | —      | Importe del concepto         |
+| `FechaRegistro`            | datetime         | —      | Fecha de alta del registro   |
+| `FechaUltimaActualizacion` | datetime         | —      | Fecha de última modificación |
 
 ### Tabla: `CFDIGeneradaRelacionado`
 
 Nodo CFDIRelacionados del CFDI (NCs aplicadas, factura origen). Detalle: RE-028/032_BD.
 
-| Columna | Tipo de Dato | Índice | Descripción |
-|---------|--------------|--------|-------------|
-| `IdCFDIGeneradaRelacionado` | uniqueidentifier | PK | Identificador único (PK) |
-| `IdCFDIGenerada` | uniqueidentifier | FK | FK → `CFDIGenerada` |
-| `UUID` | varchar | — | Folio fiscal (UUID) asignado por SAT |
-| `ClaveTipoRelacion` | varchar | — | c_TipoRelacion SAT (01, 03, 07...) |
-| `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
+| Columna                     | Tipo de Dato     | Índice | Descripción                          |
+| --------------------------- | ---------------- | ------ | ------------------------------------ |
+| `IdCFDIGeneradaRelacionado` | uniqueidentifier | PK     | Identificador único (PK)             |
+| `IdCFDIGenerada`            | uniqueidentifier | FK     | FK → `CFDIGenerada`                  |
+| `UUID`                      | varchar          | —      | Folio fiscal (UUID) asignado por SAT |
+| `ClaveTipoRelacion`         | varchar          | —      | c_TipoRelacion SAT (01, 03, 07...)   |
+| `FechaRegistro`             | datetime         | —      | Fecha de alta del registro           |
+| `FechaUltimaActualizacion`  | datetime         | —      | Fecha de última modificación         |
 
 ### Tabla: `CFDICancelacion`
 
 Cancelaciones de CFDI ante el SAT (motivo, estado, acuse). Detalle: pre-R16 / RE-032_BD.
 
-| Columna             | Tipo de Dato     | Índice | Descripción                                |
-| ------------------- | ---------------- | ------ | ------------------------------------------ |
-| `IdCFDICancelacion` | uniqueidentifier | PK     | Identificador único (PK)                   |
-| `IdCFDIGenerada`    | uniqueidentifier | FK     | FK → `CFDIGenerada`                        |
-| `ClaveMotivo`       | varchar          | —      | Motivo de cancelación SAT (01-04)          |
-| `UUID`              | varchar          | —      | Folio fiscal (UUID) asignado por SAT       |
-| `FechaSolicitud`    | datetime2        | —      | Fecha de solicitud de cancelación          |
-| `EstadoCancelacion` | varchar          | —      | Estado del proceso de cancelación ante SAT |
-| `FechaRegistro`     | datetime2        | —      | Fecha de alta del registro                 |
+| Columna                    | Tipo de Dato     | Índice | Descripción                                |
+| -------------------------- | ---------------- | ------ | ------------------------------------------ |
+| `IdCFDICancelacion`        | uniqueidentifier | PK     | Identificador único (PK)                   |
+| `IdCFDIGenerada`           | uniqueidentifier | FK     | FK → `CFDIGenerada`                        |
+| `ClaveMotivo`              | varchar          | —      | Motivo de cancelación SAT (01-04)          |
+| `UUID`                     | varchar          | —      | Folio fiscal (UUID) asignado por SAT       |
+| `FechaSolicitud`           | datetime         | —      | Fecha de solicitud de cancelación          |
+| `EstadoCancelacion`        | varchar          | —      | Estado del proceso de cancelación ante SAT |
+| `FechaRegistro`            | datetime         | —      | Fecha de alta del registro                 |
+| `FechaUltimaActualizacion` | datetime         | —      | Fecha de última modificación               |
 
 ### Tabla: `tpProformaPedido`
 
@@ -753,56 +767,57 @@ Proforma/Confirmación de Pedido — tabla existente verificada contra BD; movid
 
 Partidas de la proforma (1:N) — tabla existente verificada contra BD; movida al Scaffold de Finanzas (08/07/2026), sin cambios de estructura en R16. Detalle: RE-013/014_BD.
 
-| Columna | Tipo de Dato | Índice | Descripción |
-|---------|--------------|--------|-------------|
-| `IdTPProformaPartidaPedido` | uniqueidentifier | PK | Identificador único (PK) |
-| `IdTPProformaPedido` | uniqueidentifier | FK | FK → `tpProformaPedido` |
-| `IdTPPartidaPedido` | uniqueidentifier | FK | FK → `tpPartidaPedido` — partida del pedido origen |
-| `IdEmpresaCompra` | uniqueidentifier | FK | FK → `Empresa` — empresa de compra |
-| `IdProducto` | uniqueidentifier | FK | FK → `Producto` |
-| `NumeroDePiezas` | int | — | Cantidad de piezas de la partida |
-| `PrecioUnitario` | decimal | — | Precio unitario |
-| `IdLote` | uniqueidentifier | FK | FK → `Lote` |
-| `Pedimento` | varchar | — | Pedimento aduanal |
-| `PrecioFleteParcialidad` | decimal | — | Precio de flete de la parcialidad |
-| `Activo` | bit | — | Borrado lógico (1 = vigente) |
-| `FechaRegistro` | datetime | — | Fecha de alta del registro |
-| `FechaUltimaActualizacion` | datetime | — | Fecha de última modificación |
+| Columna                     | Tipo de Dato     | Índice | Descripción                                        |
+| --------------------------- | ---------------- | ------ | -------------------------------------------------- |
+| `IdTPProformaPartidaPedido` | uniqueidentifier | PK     | Identificador único (PK)                           |
+| `IdTPProformaPedido`        | uniqueidentifier | FK     | FK → `tpProformaPedido`                            |
+| `IdTPPartidaPedido`         | uniqueidentifier | FK     | FK → `tpPartidaPedido` — partida del pedido origen |
+| `IdEmpresaCompra`           | uniqueidentifier | FK     | FK → `Empresa` — empresa de compra                 |
+| `IdProducto`                | uniqueidentifier | FK     | FK → `Producto`                                    |
+| `NumeroDePiezas`            | int              | —      | Cantidad de piezas de la partida                   |
+| `PrecioUnitario`            | decimal          | —      | Precio unitario                                    |
+| `IdLote`                    | uniqueidentifier | FK     | FK → `Lote`                                        |
+| `Pedimento`                 | varchar          | —      | Pedimento aduanal                                  |
+| `PrecioFleteParcialidad`    | decimal          | —      | Precio de flete de la parcialidad                  |
+| `Activo`                    | bit              | —      | Borrado lógico (1 = vigente)                       |
+| `FechaRegistro`             | datetime         | —      | Fecha de alta del registro                         |
+| `FechaUltimaActualizacion`  | datetime         | —      | Fecha de última modificación                       |
 
 ### Tabla: `catCobroEstatus`
 
 Catálogo de estatus del ciclo de vida del cobro (BORRADOR → CAPTURADO → ASOCIADO / SALDO_A_FAVOR → COMPLETADO; CON_INCONSISTENCIA / CANCELADO). Detalle: RE-002_BD.
 
-| Columna | Tipo de Dato | Índice | Descripción |
-|---------|--------------|--------|-------------|
-| `IdCatCobroEstatus` | uniqueidentifier | PK | Identificador único (PK) |
-| `Clave` | varchar | UK | Clave programática (única) |
-| `Descripcion` | varchar | — | Descripción legible |
-| `Orden` | int | — | Orden natural del ciclo de vida (UI/reportes) |
-| `Activo` | bit | — | Borrado lógico (1 = vigente) |
-| `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
+| Columna                    | Tipo de Dato     | Índice | Descripción                                      |
+| -------------------------- | ---------------- | ------ | ------------------------------------------------ |
+| `IdCatCobroEstatus`        | uniqueidentifier | PK     | Identificador único (PK)                         |
+| `Clave`                    | varchar          | UK     | Clave programática (única)                       |
+| `Descripcion`              | varchar          | —      | Descripción legible                              |
+| `Orden`                    | int              | —      | Orden natural del ciclo de vida (UI/reportes)    |
+| `Activo`                   | bit              | —      | Borrado lógico (1 = vigente)                     |
+| `FechaRegistro`            | datetime         | —      | Fecha de alta del registro — DEFAULT GETDATE()   |
+| `FechaUltimaActualizacion` | datetime         | —      | Fecha de última modificación — DEFAULT GETDATE() |
 
 ### Tabla: `fccFolioPagoCliente`
 
 Pendiente en Validar Cobro generado automáticamente al clasificar un correo como Cobro en el Buzón (Mailbot o manual). Estructura verificada contra BD (✅ existente, sin cambios R16). El estado del pendiente se rastrea con `Activo` (1 = abierto, 0 = cerrado al vincular a proforma/factura o marcar inconsistencia); el estatus del ciclo de vida del cobro vive en `fccPagoCliente.IdCatCobroEstatus`. Detalle: RE-008/023_BD.
 
-| Columna                    | Tipo de Dato     | Índice | Descripción                                                          |
-| -------------------------- | ---------------- | ------ | -------------------------------------------------------------------- |
-| `IdFCCFolioPagoCliente`    | uniqueidentifier | PK     | Identificador único (PK) — DEFAULT NEWID()                           |
+| Columna                    | Tipo de Dato     | Índice | Descripción                                                              |
+| -------------------------- | ---------------- | ------ | ------------------------------------------------------------------------ |
+| `IdFCCFolioPagoCliente`    | uniqueidentifier | PK     | Identificador único (PK) — DEFAULT NEWID()                               |
 | `IdCorreoRecibidoCliente`  | uniqueidentifier | FK     | FK → `CorreoRecibidoCliente` — correo del Buzón que originó el pendiente |
-| `IdArchivo`                | uniqueidentifier | FK     | FK → `Archivo` — adjunto del comprobante (nullable)                  |
-| `Folio`                    | varchar          | —      | Folio de referencia interna                                          |
-| `Consecutivo`              | int              | —      | Consecutivo del folio                                                |
-| `FechaRecepcion`           | datetime         | —      | Fecha de recepción del correo origen                                 |
-| `Stp`                      | bit              | —      | 1 = cobro vía STP — DEFAULT (0)                                      |
-| `SubtotalMailBot`          | decimal          | —      | Subtotal pre-extraído por Mailbot                                    |
-| `IvaMailBot`               | decimal          | —      | IVA pre-extraído por Mailbot                                         |
-| `TotalMailBot`             | decimal          | —      | Total pre-extraído por Mailbot                                       |
-| `MxnMailBot`               | bit              | —      | Moneda MXN detectada por Mailbot                                     |
-| `UsdMailBot`               | bit              | —      | Moneda USD detectada por Mailbot                                     |
-| `Activo`                   | bit              | —      | 1 = pendiente abierto / **0 = cerrado** — DEFAULT (1)                |
-| `FechaRegistro`            | datetime         | —      | Fecha de alta del registro — DEFAULT GETDATE()                       |
-| `FechaUltimaActualizacion` | datetime         | —      | Fecha de última modificación — DEFAULT GETDATE()                     |
+| `IdArchivo`                | uniqueidentifier | FK     | FK → `Archivo` — adjunto del comprobante (nullable)                      |
+| `Folio`                    | varchar          | —      | Folio de referencia interna                                              |
+| `Consecutivo`              | int              | —      | Consecutivo del folio                                                    |
+| `FechaRecepcion`           | datetime         | —      | Fecha de recepción del correo origen                                     |
+| `Stp`                      | bit              | —      | 1 = cobro vía STP — DEFAULT (0)                                          |
+| `SubtotalMailBot`          | decimal          | —      | Subtotal pre-extraído por Mailbot                                        |
+| `IvaMailBot`               | decimal          | —      | IVA pre-extraído por Mailbot                                             |
+| `TotalMailBot`             | decimal          | —      | Total pre-extraído por Mailbot                                           |
+| `MxnMailBot`               | bit              | —      | Moneda MXN detectada por Mailbot                                         |
+| `UsdMailBot`               | bit              | —      | Moneda USD detectada por Mailbot                                         |
+| `Activo`                   | bit              | —      | 1 = pendiente abierto / **0 = cerrado** — DEFAULT (1)                    |
+| `FechaRegistro`            | datetime         | —      | Fecha de alta del registro — DEFAULT GETDATE()                           |
+| `FechaUltimaActualizacion` | datetime         | —      | Fecha de última modificación — DEFAULT GETDATE()                         |
 
 ### Tabla: `fccPagoCliente`
 
@@ -860,23 +875,23 @@ Asociación N:N cobro ↔ proforma (Paso 2). Detalle: RE-026_BD.
 
 Cabecera única FAA + factura final (EsFacturaPorAdelantado); reemplaza tpProformaAdelanto. Detalle: RE-015_BD.
 
-| Columna | Tipo de Dato | Índice | Descripción |
-|---------|--------------|--------|-------------|
-| `IdFccFactura` | uniqueidentifier | PK | Identificador único (PK) |
-| `IdTPPedido` | uniqueidentifier | FK | FK → `tpPedido` |
-| `IdTPProformaPedido` | uniqueidentifier | FK | FK → `tpProformaPedido` |
-| `IdCatFacturaEstado` | uniqueidentifier | FK | FK → `catFacturaEstado` |
-| `EsFacturaPorAdelantado` | bit | — | 1 = FAA, 0 = factura final (RT-10) |
-| `Enviada` | bit | — | 1 = enviada al cliente con PDF+XML |
-| `FechaEnvio` | datetime2 | — | Fecha y hora (UTC) del envío al cliente (v2.1) |
-| `IdCliente` | uniqueidentifier | FK | FK → `Cliente` |
-| `IdEmpresa` | uniqueidentifier | FK | FK → `Empresa` |
-| `FolioPedidoInterno` | varchar | — | Folio interno del pedido |
-| `MontoTotal` | decimal | — | Monto total |
-| `IdCatMoneda` | uniqueidentifier | FK | FK → `catMoneda` |
-| `IdCFDIGenerada` | uniqueidentifier | FK | FK → `CFDIGenerada` |
-| `Activo` | bit | — | Borrado lógico (1 = vigente) |
-| `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
+| Columna                  | Tipo de Dato     | Índice | Descripción                                    |
+| ------------------------ | ---------------- | ------ | ---------------------------------------------- |
+| `IdFccFactura`           | uniqueidentifier | PK     | Identificador único (PK)                       |
+| `IdTPPedido`             | uniqueidentifier | FK     | FK → `tpPedido`                                |
+| `IdTPProformaPedido`     | uniqueidentifier | FK     | FK → `tpProformaPedido`                        |
+| `IdCatFacturaEstado`     | uniqueidentifier | FK     | FK → `catFacturaEstado`                        |
+| `EsFacturaPorAdelantado` | bit              | —      | 1 = FAA, 0 = factura final (RT-10)             |
+| `Enviada`                | bit              | —      | 1 = enviada al cliente con PDF+XML             |
+| `FechaEnvio`             | datetime2        | —      | Fecha y hora (UTC) del envío al cliente (v2.1) |
+| `IdCliente`              | uniqueidentifier | FK     | FK → `Cliente`                                 |
+| `IdEmpresa`              | uniqueidentifier | FK     | FK → `Empresa`                                 |
+| `FolioPedidoInterno`     | varchar          | —      | Folio interno del pedido                       |
+| `MontoTotal`             | decimal          | —      | Monto total                                    |
+| `IdCatMoneda`            | uniqueidentifier | FK     | FK → `catMoneda`                               |
+| `IdCFDIGenerada`         | uniqueidentifier | FK     | FK → `CFDIGenerada`                            |
+| `Activo`                 | bit              | —      | Borrado lógico (1 = vigente)                   |
+| `FechaRegistro`          | datetime2        | —      | Fecha de alta del registro                     |
 
 ### Tabla: `fccFacturaPartida`
 
