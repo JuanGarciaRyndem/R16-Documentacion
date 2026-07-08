@@ -9,6 +9,12 @@ title: Finanzas — Cobros, Facturación y Notas de Crédito (tablas en Proquifa
 %% + fccInconsistenciaCobro (RE-024/026); + columnas archivo/certificación en CFDIGenerada (RE-021).
 %% + tpProformaPedido movida al Scaffold de Finanzas (07/07/2026, antes vía API).
 %% + tpProformaPartidaPedido movida al Scaffold de Finanzas (08/07/2026).
+%% ACTUALIZACIÓN (08/07/2026): fccFolioPagoCliente y fccPagoCliente corregidas a estructura
+%% real verificada contra BD (ProquifaDotNet.sql / RE-023_BD); + catCobroEstatus (RE-002)
+%% y FK fccPagoCliente.IdCatCobroEstatus (ALTER RE-008) — estatus del ciclo de vida del cobro.
+%% + tpProformaPedido/tpProformaPartidaPedido corregidas a estructura real de BD; únicos cambios
+%% R16: ALTER FolioProforma + ConsecutivoProforma (RE-016). Fecha estimada de pago =
+%% FechaPromesaPagoMonitoreoCobros (existente); flag controlados = Controlados (no HayControlados).
 erDiagram
     catTipoCFDI {
         uniqueidentifier IdCatTipoCFDI PK
@@ -134,25 +140,62 @@ erDiagram
     }
     tpProformaPedido {
         uniqueidentifier IdTPProformaPedido PK
+        uniqueidentifier IdCliente FK
+        uniqueidentifier IdEmpresa FK
+        varchar ReferenciaPago
+        varchar NumeroFactura
+        decimal MontoTotal
+        decimal MontoPagado
+        decimal MontoPendiente
+        datetime FechaCompromisoPago
+        datetime FechaPromesaPagoMonitoreoCobros
+        datetime FechaPagoCompleto
+        bit FacturaFlete
+        uniqueidentifier IdCFDIGenerada FK
+        bit Factura
+        bit MXN
+        bit USD
+        varchar Folio
+        varchar Serie
+        varchar Uuid
+        uniqueidentifier IdCFDI FK
+        bit Cancelada
+        uniqueidentifier IdTPProformaPedidoReemplazo FK
+        decimal PrecioFleteKPI
+        bit Revisada
+        bit Contrarecibo
+        bit Controlados
+        varchar Comentarios
+        bit Publicaciones
+        uniqueidentifier IdContactoCliente FK
+        uniqueidentifier IdDireccionCliente FK
+        varchar NumeroOrdenDeCompra
         varchar FolioProforma
         int ConsecutivoProforma
-        decimal MontoTotal
-        decimal MontoPendiente
-        bit HayControlados
-        uniqueidentifier IdCFDIGenerada FK
-        varchar ReferenciaPago
-        datetime2 FechaEstimadaPago
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     tpProformaPartidaPedido {
         uniqueidentifier IdTPProformaPartidaPedido PK
         uniqueidentifier IdTPProformaPedido FK
-        int Numero
+        uniqueidentifier IdTPPartidaPedido FK
+        uniqueidentifier IdEmpresaCompra FK
+        uniqueidentifier IdProducto FK
+        int NumeroDePiezas
+        decimal PrecioUnitario
+        uniqueidentifier IdLote FK
+        varchar Pedimento
+        decimal PrecioFleteParcialidad
+        bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
+    }
+    catCobroEstatus {
+        uniqueidentifier IdCatCobroEstatus PK
+        varchar Clave UK
         varchar Descripcion
-        decimal Cantidad
-        decimal ValorUnitario
-        decimal Importe
+        int Orden
         bit Activo
         datetime2 FechaRegistro
     }
@@ -160,27 +203,51 @@ erDiagram
         uniqueidentifier IdFCCFolioPagoCliente PK
         uniqueidentifier IdCorreoRecibidoCliente FK
         uniqueidentifier IdArchivo FK
-        varchar FolioIdentificado
-        decimal MontoIdentificado
-        uniqueidentifier IdCatMoneda FK
-        bit Procesado
-        datetime2 FechaRegistro
+        varchar Folio
+        int Consecutivo
+        datetime FechaRecepcion
+        bit Stp
+        decimal SubtotalMailBot
+        decimal IvaMailBot
+        decimal TotalMailBot
+        bit MxnMailBot
+        bit UsdMailBot
+        bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     fccPagoCliente {
         uniqueidentifier IdFCCPagoCliente PK
         uniqueidentifier IdCliente FK
         uniqueidentifier IdEmpresa FK
+        uniqueidentifier IdContactoCliente FK
         uniqueidentifier IdFCCFolioPagoCliente FK
+        uniqueidentifier IdCatCobroEstatus FK
         decimal Monto
+        datetime FechaPago
         uniqueidentifier IdCatMoneda FK
-        decimal TipoCambio
+        bit MXN
+        bit USD
+        decimal TipoDeCambio
+        uniqueidentifier IdCatMedioDePago FK
+        uniqueidentifier IdDatosBancarios FK
+        uniqueidentifier IdCatBanco FK
+        varchar CuentaOrdenante
         varchar ReferenciaBancaria
+        bit Broker
+        uniqueidentifier IdCatBrokerCliente FK
+        bit InformacionComplementoPago
+        uniqueidentifier IdCFDI FK
+        varchar Folio
+        varchar Serie
+        uniqueidentifier IdArchivo FK
         bit Confirmado
         datetime2 FechaConfirmacion
         uniqueidentifier IdUsuarioConfirmacion FK
         varchar Notas
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     fccPagoFacturaPedido {
         uniqueidentifier IdFCCPagoFacturaPedido PK
@@ -348,6 +415,7 @@ erDiagram
     catTipoOperacionSUNAT ||--o{ fccDocumentoFiscalCobro : "tipo operacion Peru"
     catFacturaEstado ||--o{ fccFactura : "estado ciclo de vida"
     tpProformaPedido ||--o{ tpProformaPartidaPedido : "tiene"
+    tpProformaPedido }o--o| tpProformaPedido : "reemplazada por"
     tpProformaPedido ||--o{ fccPagoFacturaPedido : "recibe cobro"
     tpProformaPedido ||--o{ fccPagoFacturaAdelanto : "referencia"
     tpProformaPedido ||--o{ fccFactura : "origen Credito"
@@ -356,6 +424,7 @@ erDiagram
     tpProformaPedido ||--o{ fccFechaEstimadaPagoHistorial : "historial fecha pago"
     CFDIGenerada ||--o{ tpProformaPedido : "timbra"
     fccFolioPagoCliente ||--o{ fccPagoCliente : "origina"
+    catCobroEstatus ||--o{ fccPagoCliente : "estatus ciclo de vida"
     fccPagoCliente ||--o{ fccPagoFacturaPedido : "aplica a"
     fccPagoCliente ||--o{ fccPagoFacturaAdelanto : "aplica a"
     fccPagoCliente ||--o{ fccInconsistenciaCobro : "marca"

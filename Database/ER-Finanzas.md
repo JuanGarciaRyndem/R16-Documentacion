@@ -10,6 +10,11 @@ Tablas físicas en ProquifaDotNet gestionadas por la solución ProquifaDotNet.Fi
 > - Se agrega `fccInconsistenciaCobro` (RE-FU-024/026) y las columnas de archivo/certificación de `CFDIGenerada` (RE-FU-021).
 > - **`tpProformaPedido` y `tpProformaPartidaPedido` pasan a Finanzas**: se integran al Scaffold EF Core de `Finanzas.Infrastructure` (lectura/escritura directa — ya no se consumen vía API ProquifaDotNet). `tpProformaPedido` se agrega al diagrama con sus columnas ampliadas en R16 (FolioProforma, MontoPendiente, IdCFDIGenerada, ReferenciaPago, FechaEstimadaPago); `tpProformaPartidaPedido` es su detalle 1:N de partidas.
 
+> **Actualización (08/07/2026):**
+> - `fccFolioPagoCliente` y `fccPagoCliente` se corrigen a su **estructura real verificada contra BD** (`ProquifaDotNet.sql`, RE-023_BD). Se eliminan columnas que no existen (`FolioIdentificado`, `MontoIdentificado`, `Procesado` en el folio) y se agregan las reales (`Folio`, `Consecutivo`, `FechaRecepcion`, `Stp`, campos MailBot, `FechaUltimaActualizacion`).
+> - Se agrega el catálogo `catCobroEstatus` (definido en RE-002) y la FK `fccPagoCliente.IdCatCobroEstatus` (ALTER RE-008) — ciclo de vida del cobro: BORRADOR → CAPTURADO → ASOCIADO / SALDO_A_FAVOR → COMPLETADO; en cualquier punto CON_INCONSISTENCIA o CANCELADO. `IdCatCobroEstatus` es la fuente de verdad del estado; `Confirmado` (bit) coexiste por compatibilidad y puede deprecarse. El pendiente del Buzón (`fccFolioPagoCliente`) no lleva catálogo de estatus: su estado es `Activo` (1 = abierto, 0 = cerrado).
+> - `tpProformaPedido` y `tpProformaPartidaPedido` se corrigen a su **estructura real verificada contra BD**. Únicos cambios R16: ALTER `FolioProforma` + `ConsecutivoProforma` (RE-016). Se corrigen nombres: la fecha estimada de pago es la columna existente `FechaPromesaPagoMonitoreoCobros` (RE-023 la reutiliza, no crea columna) y el flag de controlados es `Controlados` (existente, RE-013/014) — no `HayControlados`.
+
 ```mermaid
 erDiagram
     catTipoCFDI {
@@ -136,25 +141,62 @@ erDiagram
     }
     tpProformaPedido {
         uniqueidentifier IdTPProformaPedido PK
+        uniqueidentifier IdCliente FK
+        uniqueidentifier IdEmpresa FK
+        varchar ReferenciaPago
+        varchar NumeroFactura
+        decimal MontoTotal
+        decimal MontoPagado
+        decimal MontoPendiente
+        datetime FechaCompromisoPago
+        datetime FechaPromesaPagoMonitoreoCobros
+        datetime FechaPagoCompleto
+        bit FacturaFlete
+        uniqueidentifier IdCFDIGenerada FK
+        bit Factura
+        bit MXN
+        bit USD
+        varchar Folio
+        varchar Serie
+        varchar Uuid
+        uniqueidentifier IdCFDI FK
+        bit Cancelada
+        uniqueidentifier IdTPProformaPedidoReemplazo FK
+        decimal PrecioFleteKPI
+        bit Revisada
+        bit Contrarecibo
+        bit Controlados
+        varchar Comentarios
+        bit Publicaciones
+        uniqueidentifier IdContactoCliente FK
+        uniqueidentifier IdDireccionCliente FK
+        varchar NumeroOrdenDeCompra
         varchar FolioProforma
         int ConsecutivoProforma
-        decimal MontoTotal
-        decimal MontoPendiente
-        bit HayControlados
-        uniqueidentifier IdCFDIGenerada FK
-        varchar ReferenciaPago
-        datetime2 FechaEstimadaPago
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     tpProformaPartidaPedido {
         uniqueidentifier IdTPProformaPartidaPedido PK
         uniqueidentifier IdTPProformaPedido FK
-        int Numero
+        uniqueidentifier IdTPPartidaPedido FK
+        uniqueidentifier IdEmpresaCompra FK
+        uniqueidentifier IdProducto FK
+        int NumeroDePiezas
+        decimal PrecioUnitario
+        uniqueidentifier IdLote FK
+        varchar Pedimento
+        decimal PrecioFleteParcialidad
+        bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
+    }
+    catCobroEstatus {
+        uniqueidentifier IdCatCobroEstatus PK
+        varchar Clave UK
         varchar Descripcion
-        decimal Cantidad
-        decimal ValorUnitario
-        decimal Importe
+        int Orden
         bit Activo
         datetime2 FechaRegistro
     }
@@ -162,27 +204,51 @@ erDiagram
         uniqueidentifier IdFCCFolioPagoCliente PK
         uniqueidentifier IdCorreoRecibidoCliente FK
         uniqueidentifier IdArchivo FK
-        varchar FolioIdentificado
-        decimal MontoIdentificado
-        uniqueidentifier IdCatMoneda FK
-        bit Procesado
-        datetime2 FechaRegistro
+        varchar Folio
+        int Consecutivo
+        datetime FechaRecepcion
+        bit Stp
+        decimal SubtotalMailBot
+        decimal IvaMailBot
+        decimal TotalMailBot
+        bit MxnMailBot
+        bit UsdMailBot
+        bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     fccPagoCliente {
         uniqueidentifier IdFCCPagoCliente PK
         uniqueidentifier IdCliente FK
         uniqueidentifier IdEmpresa FK
+        uniqueidentifier IdContactoCliente FK
         uniqueidentifier IdFCCFolioPagoCliente FK
+        uniqueidentifier IdCatCobroEstatus FK
         decimal Monto
+        datetime FechaPago
         uniqueidentifier IdCatMoneda FK
-        decimal TipoCambio
+        bit MXN
+        bit USD
+        decimal TipoDeCambio
+        uniqueidentifier IdCatMedioDePago FK
+        uniqueidentifier IdDatosBancarios FK
+        uniqueidentifier IdCatBanco FK
+        varchar CuentaOrdenante
         varchar ReferenciaBancaria
+        bit Broker
+        uniqueidentifier IdCatBrokerCliente FK
+        bit InformacionComplementoPago
+        uniqueidentifier IdCFDI FK
+        varchar Folio
+        varchar Serie
+        uniqueidentifier IdArchivo FK
         bit Confirmado
         datetime2 FechaConfirmacion
         uniqueidentifier IdUsuarioConfirmacion FK
         varchar Notas
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     fccPagoFacturaPedido {
         uniqueidentifier IdFCCPagoFacturaPedido PK
@@ -350,6 +416,7 @@ erDiagram
     catTipoOperacionSUNAT ||--o{ fccDocumentoFiscalCobro : "tipo operacion Peru"
     catFacturaEstado ||--o{ fccFactura : "estado ciclo de vida"
     tpProformaPedido ||--o{ tpProformaPartidaPedido : "tiene"
+    tpProformaPedido }o--o| tpProformaPedido : "reemplazada por"
     tpProformaPedido ||--o{ fccPagoFacturaPedido : "recibe cobro"
     tpProformaPedido ||--o{ fccPagoFacturaAdelanto : "referencia"
     tpProformaPedido ||--o{ fccFactura : "origen Credito"
@@ -358,6 +425,7 @@ erDiagram
     tpProformaPedido ||--o{ fccFechaEstimadaPagoHistorial : "historial fecha pago"
     CFDIGenerada ||--o{ tpProformaPedido : "timbra"
     fccFolioPagoCliente ||--o{ fccPagoCliente : "origina"
+    catCobroEstatus ||--o{ fccPagoCliente : "estatus ciclo de vida"
     fccPagoCliente ||--o{ fccPagoFacturaPedido : "aplica a"
     fccPagoCliente ||--o{ fccPagoFacturaAdelanto : "aplica a"
     fccPagoCliente ||--o{ fccInconsistenciaCobro : "marca"
@@ -400,8 +468,8 @@ erDiagram
 | 12  | `catDocumentoFiscalCobroEstado` | ✨ Nueva R16                                                  | RE-028                                                                                                                       | Estado de línea del wizard VC Paso 3: PENDIENTE → GENERADO → ENVIADO                                         |
 | 13  | `fccDocumentoFiscalCobro`       | ✨ Nueva R16                                                  | RE-028, RE-029, RE-030                                                                                                       | Línea de documento fiscal a emitir por cobro (snapshot CFDI 4.0 / Pagos20)                                   |
 | 14  | `fccConfirmacionPedido`         | ✨ Nueva R16                                                  | RE-028                                                                                                                       | Confirmación de pedido del Paso 3                                                                            |
-| 15  | `fccFolioPagoCliente`           | ✨ Nueva R16                                                  | RE-008, RE-023                                                                                                               | Cobros identificados desde el Buzón de Cobros (correo + adjuntos)                                            |
-| 16  | `fccPagoCliente`                | ✨ Nueva R16                                                  | RE-023, RE-024, RE-025                                                                                                       | Cobro capturado en Validar Cobro Paso 1 (folio COB-mmddaa-#, inmutable al confirmar)                         |
+| 15  | `fccFolioPagoCliente`           | ✅ Existente — sin cambios                                    | RE-008, RE-023                                                                                                               | Pendiente en Validar Cobro generado al clasificar correo como Cobro en el Buzón (Mailbot); incluye pre-extracción MailBot |
+| 16  | `fccPagoCliente`                | ✨ Existente + ALTER                                          | RE-008 (IdCatCobroEstatus), RE-023 (Confirmado, FechaConfirmacion, IdUsuarioConfirmacion, Notas, IdCatMoneda), RE-024, RE-025 | Cobro capturado en Validar Cobro Paso 1 (folio COB-mmddaa-#, inmutable al confirmar)                         |
 | 17  | `fccPagoFacturaPedido`          | ✨ Nueva R16                                                  | RE-026, RE-027                                                                                                               | Asociación N:N cobro ↔ proforma (Paso 2)                                                                     |
 | 18  | `fccPagoFacturaAdelanto`        | ✨ Nueva R16                                                  | RE-026, RE-027                                                                                                               | Asociación N:N cobro ↔ FAA (`IdFccFactura`)                                                                  |
 | 19  | `fccSaldoFavorCliente`          | ✨ Nueva R16                                                  | RE-026, RE-027                                                                                                               | Saldo a favor / tolerancia ≤100 MXN (Estado de Cuenta)                                                       |
@@ -414,8 +482,9 @@ erDiagram
 | 26  | `catTipoOperacionSUNAT`         | ✨ Nueva R16                                                  | RE-020, RE-029                                                                                                               | Catálogo 51 SUNAT (Tipo de Operación, Perú)                                                                  |
 | 27  | `catMotivoCancelacionSAT`       | ✨ Nueva R16                                                  | RE-032                                                                                                                       | Motivos de cancelación SAT (01-04)                                                                           |
 | 28  | `catMotivoCreditoSUNAT09`       | ✨ Nueva R16                                                  | RE-033                                                                                                                       | Catálogo 09 SUNAT (motivos de NC, Perú)                                                                      |
-| 29  | `tpProformaPedido`              | Existente, ampliada R16 — **movida a Finanzas (07/07/2026)** | RE-016 (FolioProforma), RE-023 (FechaEstimadaPago), RE-026/027 (MontoPendiente), RE-028/029 (HayControlados, IdCFDIGenerada) | Proforma/Confirmación de Pedido — antes vía API ProquifaDotNet, ahora lectura/escritura directa vía Scaffold |
+| 29  | `tpProformaPedido`              | Existente + ALTER R16 — **movida a Finanzas (07/07/2026)**   | RE-016 (ALTER: FolioProforma, ConsecutivoProforma), RE-023 (usa FechaPromesaPagoMonitoreoCobros), RE-026/027 (usa MontoPendiente), RE-028/029 (usa Controlados, IdCFDIGenerada) | Proforma/Confirmación de Pedido — antes vía API ProquifaDotNet, ahora lectura/escritura directa vía Scaffold |
 | 30  | `tpProformaPartidaPedido`       | Existente — **movida a Finanzas (08/07/2026)**               | RE-013/014 (INSERT al tramitar), RE-016 (partidas del PDF proforma), RE-028 (partidas de la factura desde proforma)          | Detalle 1:N de partidas de la proforma — mismo tratamiento que su cabecera: Scaffold directo                 |
+| 31  | `catCobroEstatus`               | ✨ Nueva R16 (definida en RE-002)                             | RE-002 (crea), RE-008 (FK en fccPagoCliente), RE-026                                                                         | Catálogo de estatus del ciclo de vida del cobro: BORRADOR → CAPTURADO → ASOCIADO / SALDO_A_FAVOR → COMPLETADO; CON_INCONSISTENCIA / CANCELADO |
 
 ### 2. Tablas existentes de ProquifaDotNet consumidas vía Scaffold (lectura / escritura puntual)
 
@@ -449,15 +518,15 @@ erDiagram
 
 Catálogo de tipos de CFDI/CPE (FACTURA, FACTURA_ANTICIPO, COMPLEMENTO_PAGO, NOTA_CREDITO, FACTURA_CPE...). Detalle: RE-028_BD.
 
-| Columna | Tipo de Dato | Índice | Descripción |
-|---------|--------------|--------|-------------|
-| `IdCatTipoCFDI` | uniqueidentifier | PK | Identificador único (PK) |
-| `Clave` | varchar | — | Clave programática |
-| `Descripcion` | varchar | — | Descripción legible |
-| `TipoDocumentoSAT` | varchar | — | Tipo de comprobante SAT (I/P/E) o CPE SUNAT |
-| `IdRegion` | uniqueidentifier | FK | FK → `Region` |
-| `Activo` | bit | — | Borrado lógico (1 = vigente) |
-| `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
+| Columna            | Tipo de Dato     | Índice | Descripción                                 |
+| ------------------ | ---------------- | ------ | ------------------------------------------- |
+| `IdCatTipoCFDI`    | uniqueidentifier | PK     | Identificador único (PK)                    |
+| `Clave`            | varchar          | —      | Clave programática                          |
+| `Descripcion`      | varchar          | —      | Descripción legible                         |
+| `TipoDocumentoSAT` | varchar          | —      | Tipo de comprobante SAT (I/P/E) o CPE SUNAT |
+| `IdRegion`         | uniqueidentifier | FK     | FK → `Region`                               |
+| `Activo`           | bit              | —      | Borrado lógico (1 = vigente)                |
+| `FechaRegistro`    | datetime2        | —      | Fecha de alta del registro                  |
 
 ### Tabla: `catTipoDocumentoFiscal`
 
@@ -577,24 +646,24 @@ Foliador por empresa/serie; consumo UPDLOCK atómico al timbrar. Movida de Proqu
 
 Registro central de negocio de todo CFDI/CPE timbrado — single source of truth (Serie, Folio, UUID). Detalle: RE-019/021/028_BD.
 
-| Columna | Tipo de Dato | Índice | Descripción |
-|---------|--------------|--------|-------------|
-| `IdCFDIGenerada` | uniqueidentifier | PK | Identificador único (PK) |
-| `RFCEmisor` | varchar | — | RFC de la empresa emisora |
-| `RFCReceptor` | varchar | — | RFC del cliente receptor |
-| `Serie` | varchar | — | Serie del documento |
-| `Folio` | varchar | — | Folio consecutivo |
-| `FechaEmision` | datetime2 | — | Fecha de emisión del CFDI |
-| `FechaCertificacionSat` | datetime2 | — | Fecha de certificación (timbrado) por el PAC/SAT (RE-021) |
-| `IdCatTipoCFDI` | uniqueidentifier | FK | FK → `catTipoCFDI` |
-| `IdCFDIRelacionado` | uniqueidentifier | FK | FK → `CFDIGenerada` |
-| `UUID` | varchar | — | Folio fiscal (UUID) asignado por SAT |
-| `Total` | decimal | — | Total del comprobante |
-| `Estado` | varchar | — | Estado técnico del timbrado ('Timbrado', 'Fallido', 'Cancelado') |
-| `IdArchivoXml` | uniqueidentifier | FK | FK → `Archivo` |
-| `IdArchivoPdf` | uniqueidentifier | FK | FK → `Archivo` |
-| `Activo` | bit | — | Borrado lógico (1 = vigente) |
-| `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
+| Columna                 | Tipo de Dato     | Índice | Descripción                                                      |
+| ----------------------- | ---------------- | ------ | ---------------------------------------------------------------- |
+| `IdCFDIGenerada`        | uniqueidentifier | PK     | Identificador único (PK)                                         |
+| `RFCEmisor`             | varchar          | —      | RFC de la empresa emisora                                        |
+| `RFCReceptor`           | varchar          | —      | RFC del cliente receptor                                         |
+| `Serie`                 | varchar          | —      | Serie del documento                                              |
+| `Folio`                 | varchar          | —      | Folio consecutivo                                                |
+| `FechaEmision`          | datetime2        | —      | Fecha de emisión del CFDI                                        |
+| `FechaCertificacionSat` | datetime2        | —      | Fecha de certificación (timbrado) por el PAC/SAT (RE-021)        |
+| `IdCatTipoCFDI`         | uniqueidentifier | FK     | FK → `catTipoCFDI`                                               |
+| `IdCFDIRelacionado`     | uniqueidentifier | FK     | FK → `CFDIGenerada`                                              |
+| `UUID`                  | varchar          | —      | Folio fiscal (UUID) asignado por SAT                             |
+| `Total`                 | decimal          | —      | Total del comprobante                                            |
+| `Estado`                | varchar          | —      | Estado técnico del timbrado ('Timbrado', 'Fallido', 'Cancelado') |
+| `IdArchivoXml`          | uniqueidentifier | FK     | FK → `Archivo`                                                   |
+| `IdArchivoPdf`          | uniqueidentifier | FK     | FK → `Archivo`                                                   |
+| `Activo`                | bit              | —      | Borrado lógico (1 = vigente)                                     |
+| `FechaRegistro`         | datetime2        | —      | Fecha de alta del registro                                       |
 
 ### Tabla: `CFDIGeneradaConcepto`
 
@@ -627,85 +696,151 @@ Nodo CFDIRelacionados del CFDI (NCs aplicadas, factura origen). Detalle: RE-028/
 
 Cancelaciones de CFDI ante el SAT (motivo, estado, acuse). Detalle: pre-R16 / RE-032_BD.
 
-| Columna | Tipo de Dato | Índice | Descripción |
-|---------|--------------|--------|-------------|
-| `IdCFDICancelacion` | uniqueidentifier | PK | Identificador único (PK) |
-| `IdCFDIGenerada` | uniqueidentifier | FK | FK → `CFDIGenerada` |
-| `ClaveMotivo` | varchar | — | Motivo de cancelación SAT (01-04) |
-| `UUID` | varchar | — | Folio fiscal (UUID) asignado por SAT |
-| `FechaSolicitud` | datetime2 | — | Fecha de solicitud de cancelación |
-| `EstadoCancelacion` | varchar | — | Estado del proceso de cancelación ante SAT |
-| `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
+| Columna             | Tipo de Dato     | Índice | Descripción                                |
+| ------------------- | ---------------- | ------ | ------------------------------------------ |
+| `IdCFDICancelacion` | uniqueidentifier | PK     | Identificador único (PK)                   |
+| `IdCFDIGenerada`    | uniqueidentifier | FK     | FK → `CFDIGenerada`                        |
+| `ClaveMotivo`       | varchar          | —      | Motivo de cancelación SAT (01-04)          |
+| `UUID`              | varchar          | —      | Folio fiscal (UUID) asignado por SAT       |
+| `FechaSolicitud`    | datetime2        | —      | Fecha de solicitud de cancelación          |
+| `EstadoCancelacion` | varchar          | —      | Estado del proceso de cancelación ante SAT |
+| `FechaRegistro`     | datetime2        | —      | Fecha de alta del registro                 |
 
 ### Tabla: `tpProformaPedido`
 
-Proforma/Confirmación de Pedido — ampliada R16; movida al Scaffold de Finanzas (07/07/2026). Detalle: RE-016/023/026/028_BD.
+Proforma/Confirmación de Pedido — tabla existente verificada contra BD; movida al Scaffold de Finanzas (07/07/2026). ALTER R16: `FolioProforma` + `ConsecutivoProforma` (RE-016). La fecha estimada de pago de Gestionar Cobranza (RE-023) reutiliza la columna existente `FechaPromesaPagoMonitoreoCobros`; el flag de controlados es la columna existente `Controlados`. Detalle: RE-016/023/026/028_BD.
 
 | Columna | Tipo de Dato | Índice | Descripción |
 |---------|--------------|--------|-------------|
 | `IdTPProformaPedido` | uniqueidentifier | PK | Identificador único (PK) |
-| `FolioProforma` | varchar | — | Folio global de proforma PRF-MMDDAA-# (RE-016) |
-| `ConsecutivoProforma` | int | — | Consecutivo del foliador global (RE-016) |
-| `MontoTotal` | decimal | — | Monto total |
-| `MontoPendiente` | decimal | — | Saldo pendiente por cobrar; se reduce al asociar cobros (RE-026) |
-| `HayControlados` | bit | — | 1 = proforma con sustancias controladas → FACTURA_ANTICIPO (RE-028) |
-| `IdCFDIGenerada` | uniqueidentifier | FK | FK → `CFDIGenerada` |
+| `IdCliente` | uniqueidentifier | FK | FK → `Cliente` |
+| `IdEmpresa` | uniqueidentifier | FK | FK → `Empresa` |
 | `ReferenciaPago` | varchar | — | Referencia bancaria casada al PDF (snapshot inmutable, RE-006) |
-| `FechaEstimadaPago` | datetime2 | — | Fecha estimada de pago (Gestionar Cobranza, RE-023) |
+| `NumeroFactura` | varchar | — | Número de factura asociada |
+| `MontoTotal` | decimal | — | Monto total de la proforma |
+| `MontoPagado` | decimal | — | Monto acumulado pagado |
+| `MontoPendiente` | decimal | — | Saldo pendiente por cobrar; se reduce al asociar cobros (RE-026) |
+| `FechaCompromisoPago` | datetime | — | Fecha compromiso de pago |
+| `FechaPromesaPagoMonitoreoCobros` | datetime | — | Fecha estimada de pago — editable en Gestionar Cobranza; cada cambio genera INSERT en `fccFechaEstimadaPagoHistorial` (RE-023) |
+| `FechaPagoCompleto` | datetime | — | Fecha en que se completó el pago |
+| `FacturaFlete` | bit | — | 1 = incluye factura de flete |
+| `IdCFDIGenerada` | uniqueidentifier | FK | FK → `CFDIGenerada` — CFDI timbrado de la proforma (RE-028) |
+| `Factura` | bit | — | 1 = ya facturada |
+| `MXN` | bit | — | Flag legacy: moneda pesos |
+| `USD` | bit | — | Flag legacy: moneda dólares |
+| `Folio` | varchar | — | Folio del documento |
+| `Serie` | varchar | — | Serie del documento |
+| `Uuid` | varchar | — | UUID fiscal asociado (legacy) |
+| `IdCFDI` | uniqueidentifier | FK | FK → `CFDI` (legacy) |
+| `Cancelada` | bit | — | 1 = proforma cancelada (Cancelar Pedido, RE-023) |
+| `IdTPProformaPedidoReemplazo` | uniqueidentifier | FK | FK → `tpProformaPedido` — proforma que la reemplaza |
+| `PrecioFleteKPI` | decimal | — | Precio de flete para KPI |
+| `Revisada` | bit | — | 1 = revisada |
+| `Contrarecibo` | bit | — | 1 = con contrarecibo |
+| `Controlados` | bit | — | 1 = proforma con sustancias controladas → FACTURA_ANTICIPO (RE-013/014, RE-028) |
+| `Comentarios` | varchar | — | Comentarios de la proforma |
+| `Publicaciones` | bit | — | 1 = incluye publicaciones |
+| `IdContactoCliente` | uniqueidentifier | FK | FK → `ContactoCliente` |
+| `IdDireccionCliente` | uniqueidentifier | FK | FK → `DireccionCliente` |
+| `NumeroOrdenDeCompra` | varchar | — | Orden de compra del cliente |
+| `FolioProforma` | varchar | — | ✨ ALTER R16 — Folio global de proforma PRF-MMDDAA-# (RE-016, `SeqFolioProforma`) |
+| `ConsecutivoProforma` | int | — | ✨ ALTER R16 — Consecutivo del foliador global (RE-016) — DEFAULT (0) |
 | `Activo` | bit | — | Borrado lógico (1 = vigente) |
-| `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
+| `FechaRegistro` | datetime | — | Fecha de alta del registro |
+| `FechaUltimaActualizacion` | datetime | — | Fecha de última modificación |
 
 ### Tabla: `tpProformaPartidaPedido`
 
-Partidas de la proforma (1:N) — movida al Scaffold de Finanzas (08/07/2026). Detalle: RE-013/014_BD.
+Partidas de la proforma (1:N) — tabla existente verificada contra BD; movida al Scaffold de Finanzas (08/07/2026), sin cambios de estructura en R16. Detalle: RE-013/014_BD.
 
 | Columna | Tipo de Dato | Índice | Descripción |
 |---------|--------------|--------|-------------|
 | `IdTPProformaPartidaPedido` | uniqueidentifier | PK | Identificador único (PK) |
 | `IdTPProformaPedido` | uniqueidentifier | FK | FK → `tpProformaPedido` |
-| `Numero` | int | — | Número de línea (#) |
+| `IdTPPartidaPedido` | uniqueidentifier | FK | FK → `tpPartidaPedido` — partida del pedido origen |
+| `IdEmpresaCompra` | uniqueidentifier | FK | FK → `Empresa` — empresa de compra |
+| `IdProducto` | uniqueidentifier | FK | FK → `Producto` |
+| `NumeroDePiezas` | int | — | Cantidad de piezas de la partida |
+| `PrecioUnitario` | decimal | — | Precio unitario |
+| `IdLote` | uniqueidentifier | FK | FK → `Lote` |
+| `Pedimento` | varchar | — | Pedimento aduanal |
+| `PrecioFleteParcialidad` | decimal | — | Precio de flete de la parcialidad |
+| `Activo` | bit | — | Borrado lógico (1 = vigente) |
+| `FechaRegistro` | datetime | — | Fecha de alta del registro |
+| `FechaUltimaActualizacion` | datetime | — | Fecha de última modificación |
+
+### Tabla: `catCobroEstatus`
+
+Catálogo de estatus del ciclo de vida del cobro (BORRADOR → CAPTURADO → ASOCIADO / SALDO_A_FAVOR → COMPLETADO; CON_INCONSISTENCIA / CANCELADO). Detalle: RE-002_BD.
+
+| Columna | Tipo de Dato | Índice | Descripción |
+|---------|--------------|--------|-------------|
+| `IdCatCobroEstatus` | uniqueidentifier | PK | Identificador único (PK) |
+| `Clave` | varchar | UK | Clave programática (única) |
 | `Descripcion` | varchar | — | Descripción legible |
-| `Cantidad` | decimal | — | Cantidad de la partida |
-| `ValorUnitario` | decimal | — | Valor unitario |
-| `Importe` | decimal | — | Importe de la partida |
+| `Orden` | int | — | Orden natural del ciclo de vida (UI/reportes) |
 | `Activo` | bit | — | Borrado lógico (1 = vigente) |
 | `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
 
 ### Tabla: `fccFolioPagoCliente`
 
-Cobros identificados desde el Buzón de Cobros (correo + adjuntos). Detalle: RE-008/023_BD.
+Pendiente en Validar Cobro generado automáticamente al clasificar un correo como Cobro en el Buzón (Mailbot o manual). Estructura verificada contra BD (✅ existente, sin cambios R16). El estado del pendiente se rastrea con `Activo` (1 = abierto, 0 = cerrado al vincular a proforma/factura o marcar inconsistencia); el estatus del ciclo de vida del cobro vive en `fccPagoCliente.IdCatCobroEstatus`. Detalle: RE-008/023_BD.
 
-| Columna | Tipo de Dato | Índice | Descripción |
-|---------|--------------|--------|-------------|
-| `IdFCCFolioPagoCliente` | uniqueidentifier | PK | Identificador único (PK) |
-| `IdCorreoRecibidoCliente` | uniqueidentifier | FK | FK → `CorreoRecibidoCliente` |
-| `IdArchivo` | uniqueidentifier | FK | FK → `Archivo` |
-| `FolioIdentificado` | varchar | — | Folio de documento identificado por el Mailbot |
-| `MontoIdentificado` | decimal | — | Monto identificado en el comprobante |
-| `IdCatMoneda` | uniqueidentifier | FK | FK → `catMoneda` |
-| `Procesado` | bit | — | 1 = ya vinculado a un cobro en Validar Cobro |
-| `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
+| Columna                    | Tipo de Dato     | Índice | Descripción                                                          |
+| -------------------------- | ---------------- | ------ | -------------------------------------------------------------------- |
+| `IdFCCFolioPagoCliente`    | uniqueidentifier | PK     | Identificador único (PK) — DEFAULT NEWID()                           |
+| `IdCorreoRecibidoCliente`  | uniqueidentifier | FK     | FK → `CorreoRecibidoCliente` — correo del Buzón que originó el pendiente |
+| `IdArchivo`                | uniqueidentifier | FK     | FK → `Archivo` — adjunto del comprobante (nullable)                  |
+| `Folio`                    | varchar          | —      | Folio de referencia interna                                          |
+| `Consecutivo`              | int              | —      | Consecutivo del folio                                                |
+| `FechaRecepcion`           | datetime         | —      | Fecha de recepción del correo origen                                 |
+| `Stp`                      | bit              | —      | 1 = cobro vía STP — DEFAULT (0)                                      |
+| `SubtotalMailBot`          | decimal          | —      | Subtotal pre-extraído por Mailbot                                    |
+| `IvaMailBot`               | decimal          | —      | IVA pre-extraído por Mailbot                                         |
+| `TotalMailBot`             | decimal          | —      | Total pre-extraído por Mailbot                                       |
+| `MxnMailBot`               | bit              | —      | Moneda MXN detectada por Mailbot                                     |
+| `UsdMailBot`               | bit              | —      | Moneda USD detectada por Mailbot                                     |
+| `Activo`                   | bit              | —      | 1 = pendiente abierto / **0 = cerrado** — DEFAULT (1)                |
+| `FechaRegistro`            | datetime         | —      | Fecha de alta del registro — DEFAULT GETDATE()                       |
+| `FechaUltimaActualizacion` | datetime         | —      | Fecha de última modificación — DEFAULT GETDATE()                     |
 
 ### Tabla: `fccPagoCliente`
 
-Cobro capturado en Validar Cobro Paso 1 (folio COB-mmddaa-#; inmutable al confirmar). Detalle: RE-023/024_BD.
+Cobro capturado en Validar Cobro Paso 1 (folio COB-mmddaa-#; inmutable al confirmar). Tabla existente verificada contra BD + ALTERs R16: `IdCatCobroEstatus` (RE-008) y `Confirmado`, `FechaConfirmacion`, `IdUsuarioConfirmacion`, `Notas`, `IdCatMoneda` (RE-023). Detalle: RE-023/024_BD y RE-008_BD.
 
 | Columna | Tipo de Dato | Índice | Descripción |
 |---------|--------------|--------|-------------|
-| `IdFCCPagoCliente` | uniqueidentifier | PK | Identificador único (PK) |
+| `IdFCCPagoCliente` | uniqueidentifier | PK | Identificador único (PK) — DEFAULT NEWID() |
 | `IdCliente` | uniqueidentifier | FK | FK → `Cliente` |
-| `IdEmpresa` | uniqueidentifier | FK | FK → `Empresa` |
-| `IdFCCFolioPagoCliente` | uniqueidentifier | FK | FK → `fccFolioPagoCliente` |
-| `Monto` | decimal | — | Monto de la operación |
-| `IdCatMoneda` | uniqueidentifier | FK | FK → `catMoneda` |
-| `TipoCambio` | decimal | — | Tipo de cambio aplicado |
-| `ReferenciaBancaria` | varchar | — | Cuenta/referencia origen del pago (texto libre, RE-024) |
-| `Confirmado` | bit | — | 1 = cobro confirmado (inmutable, RE-024) |
-| `FechaConfirmacion` | datetime2 | — | Timestamp de captura/confirmación del cobro |
-| `IdUsuarioConfirmacion` | uniqueidentifier | FK | FK → `Usuario` |
-| `Notas` | varchar | — | Notas capturadas por el usuario |
-| `Activo` | bit | — | Borrado lógico (1 = vigente) |
-| `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
+| `IdEmpresa` | uniqueidentifier | FK | FK → `Empresa` — empresa PROQUIFA que recibe el cobro |
+| `IdContactoCliente` | uniqueidentifier | FK | FK → `ContactoCliente` (nullable) |
+| `IdFCCFolioPagoCliente` | uniqueidentifier | FK | FK → `fccFolioPagoCliente` — pendiente del Buzón que originó el cobro |
+| `IdCatCobroEstatus` | uniqueidentifier | FK | FK → `catCobroEstatus` — estatus del ciclo de vida del cobro (ALTER RE-008) |
+| `Monto` | decimal | — | Monto recibido del cliente |
+| `FechaPago` | datetime | — | Fecha efectiva del pago |
+| `IdCatMoneda` | uniqueidentifier | FK | FK → `catMoneda` — moneda oficial del cobro (ALTER RE-023; soporta PEN) |
+| `MXN` | bit | — | Flag legacy: cobro en pesos — DEFAULT (0) |
+| `USD` | bit | — | Flag legacy: cobro en dólares — DEFAULT (1) |
+| `TipoDeCambio` | decimal | — | TC del día vs MXN — DEFAULT (0) |
+| `IdCatMedioDePago` | uniqueidentifier | FK | FK → `catMedioDePago` — forma de pago (c_FormaPago SAT) |
+| `IdDatosBancarios` | uniqueidentifier | FK | FK → `DatosBancarios` — cuenta PROQUIFA destino |
+| `IdCatBanco` | uniqueidentifier | FK | FK → `catBanco` — banco emisor del cliente |
+| `CuentaOrdenante` | varchar | — | Cuenta del cliente emisor |
+| `ReferenciaBancaria` | varchar | — | Referencia bancaria del cobro |
+| `Broker` | bit | — | 1 = cobro vía Broker — DEFAULT (0) |
+| `IdCatBrokerCliente` | uniqueidentifier | FK | FK → `catBroker` — broker del cliente (cuando aplica) |
+| `InformacionComplementoPago` | bit | — | 1 = requiere complemento de pago — DEFAULT (0) |
+| `IdCFDI` | uniqueidentifier | FK | FK → `CFDI` (legacy) — documento fiscal asociado |
+| `Folio` | varchar | — | Folio COB-mmddaa-NNNNNN — NULL en borrador; se llena al confirmar (RE-024) |
+| `Serie` | varchar | — | Serie del comprobante fiscal |
+| `IdArchivo` | uniqueidentifier | FK | FK → `Archivo` — comprobante de pago seleccionado del correo |
+| `Confirmado` | bit | — | 0 = borrador / 1 = confirmado e inmutable (ALTER RE-023, RE-024) |
+| `FechaConfirmacion` | datetime2 | — | Timestamp de confirmación del cobro (ALTER RE-023) |
+| `IdUsuarioConfirmacion` | uniqueidentifier | FK | FK → `Usuario` — quién confirmó el cobro (ALTER RE-023) |
+| `Notas` | varchar | — | Notas capturadas por el usuario (ALTER RE-023) |
+| `Activo` | bit | — | 1 = vigente / **0 = inconsistencia** (cierra el pendiente del Buzón) |
+| `FechaRegistro` | datetime | — | Fecha de alta del registro — DEFAULT GETDATE() |
+| `FechaUltimaActualizacion` | datetime | — | Fecha de última modificación — DEFAULT GETDATE() |
 
 ### Tabla: `fccPagoFacturaPedido`
 
@@ -952,6 +1087,7 @@ dotnet ef dbcontext scaffold \
   --table fccConfirmacionPedido \
   --table fccFolioPagoCliente \
   --table fccPagoCliente \
+  --table catCobroEstatus \
   --table fccPagoFacturaPedido \
   --table fccPagoFacturaAdelanto \
   --table fccSaldoFavorCliente \
