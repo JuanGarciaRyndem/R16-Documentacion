@@ -2,7 +2,7 @@
 **Requisito:** Diseño y generación de Documentos: CDP México — Complemento de Pago (CFDI tipo P / Pagos20 v2.0)
 **Aplicativos:** ProquifaDotNet (.NET Framework 4.8) + ProquifaDotNet.Finanzas (.NET Core 10) + ProquifaDotNet.Timbrado (.NET Core 10) + DocumentBuilder
 **Módulo:** Validar Cobro — Wizard Paso 3 (México) — Complemento de Pago
-**Impacto:** Scripts BD ProquifaDotNet (1 catálogo nuevo + 1 DML catálogo + 1 ALTER tabla + 1 ALTER vista) + Scripts BD ProquifaDotNetTimbrado (1 DML EmpresaFolio) + Scripts DocumentBuilder (4 DML DocumentTemplate) + Servicios Finanzas: construcción XML Pagos20 v2.0 con cálculo de parcialidades y saldos, previsualización PDF CP, persistencia post-timbrado en MinIO bucket `cobranza` (MEX) + Timbrado: generación CFDI P vía PAC TurboPac + DocumentBuilder: 4 templates PDF Complemento de Pago México. **Complementa la cascada PPD de RE-028 (Escenarios B y D). Sin ETL a Legacy — los mismos pasos post-envío de RE-028 aplican.**
+**Impacto:** Scripts BD ProquifaDotNet (1 catálogo nuevo + 1 DML catálogo + 1 ALTER tabla + 1 ALTER vista) + Scripts BD ProquifaDotNet (1 DML EmpresaFolio — propiedad Finanzas) + Scripts DocumentBuilder (4 DML DocumentTemplate) + Servicios Finanzas: construcción XML Pagos20 v2.0 con cálculo de parcialidades y saldos, previsualización PDF CP, persistencia post-timbrado en MinIO bucket `cobranza` (MEX) + Timbrado: generación CFDI P vía PAC TurboPac + DocumentBuilder: 4 templates PDF Complemento de Pago México. **Complementa la cascada PPD de RE-028 (Escenarios B y D). Sin ETL a Legacy — los mismos pasos post-envío de RE-028 aplican.**
 
 ---
 
@@ -25,7 +25,7 @@ La política operativa de R16 es **1 CP por factura**: si un cobro cubre N factu
 | BD — DML catálogo    | ProquifaDotNet            | `catUsoCFDI`: INSERT clave CP01                                                                                                         |
 | BD — ALTER tabla     | ProquifaDotNet            | `fccDocumentoFiscalCobro`: ADD 8 columnas snapshot DR del CP                                                                            |
 | BD — ALTER vista     | ProquifaDotNet            | `vfccDocumentoFiscalCobro` v3.0: exponer columnas DR + JOIN catFormaPagoSAT                                                             |
-| BD — DML foliador    | ProquifaDotNetTimbrado    | `EmpresaFolio`: INSERT 4 filas Serie "P" (GOL, MUN, PRO, PQF)                                                                           |
+| BD — DML foliador    | ProquifaDotNet (Finanzas) | `EmpresaFolio`: INSERT 4 filas Serie "P" (GOL, MUN, PRO, PQF)                                                                           |
 | BD — DML templates   | DocumentBuilder           | `DocumentTemplate`: INSERT 4 templates PDF CP México                                                                                    |
 | XML Pagos20          | ProquifaDotNet.Finanzas   | Construcción del `PaymentComplementRequest`: cálculo NumParcialidad, ImpSaldoAnt, ImpPagado, ImpSaldoInsoluto, EquivalenciaDR, Totales    |
 | Previsualización PDF | ProquifaDotNet.Finanzas   | `PaymentComplementPdfMappingService.MapearPreviewAsync()` sin sello digital                                                               |
@@ -104,7 +104,7 @@ Son NULL para líneas no-CP (FACTURA, FACTURA_ANTICIPO, líneas Perú).
 
 ### A4 — DML EmpresaFolio — Serie "P" para las 4 empresas México
 
-Se insertan 4 filas en `ProquifaDotNetTimbrado.EmpresaFolio` (estructura creada en RE-019) con Serie "P" para las empresas GOL, MUN, PRO, PQF. Mismo patrón UPDLOCK que el foliador de Facturas.
+Se insertan 4 filas en `ProquifaDotNet.EmpresaFolio` (propiedad Finanzas, estructura creada en RE-019) con Serie "P" para las empresas GOL, MUN, PRO, PQF. Mismo patrón UPDLOCK que el foliador de Facturas.
 
 > ⚠️ **Pendiente P2:** Formato definitivo de la Serie "P" y `FormatoFolio` pendiente de validar con PMO (Regla 12 del requisito). Valores del INSERT son propuesta inicial.
 

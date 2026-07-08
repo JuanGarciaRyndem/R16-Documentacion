@@ -29,12 +29,12 @@ IGV 18%, RUC, serie alfanumerica SUNAT. Sin transferencia a Legacy. Post-envio: 
 
 | #   | Cambio                                              | Base de Datos          | Tipo      | Prioridad      |
 | --- | --------------------------------------------------- | ---------------------- | --------- | -------------- |
-| 1   | INSERT EmpresaFolio GOLPERU (serie SUNAT)           | ProquifaDotNetTimbrado | DML       | Alta           |
+| 1   | INSERT EmpresaFolio GOLPERU (serie SUNAT)           | ProquifaDotNet (Finanzas) | DML       | Alta           |
 | 2   | ALTER TABLE Producto ADD campos SUNAT               | ProquifaDotNet         | DDL       | **BLOQUEANTE** |
 | 3   | UPDATE Empresa GOLPERU datos legales (RUC, ubigeo)  | ProquifaDotNet         | DML       | Alta (BRECHA)  |
 | 4   | Reutiliza: fccFactura.Enviada (RE-FU-015)           | ProquifaDotNet         | Existente | -              |
 | 5   | Reutiliza: vfccFactura (RE-FU-015)                  | ProquifaDotNet         | Existente | -              |
-| 6   | Reutiliza: EmpresaFolio GOL/MUN/PRO/PQF (RE-FU-019) | ProquifaDotNetTimbrado | Existente | -              |
+| 6   | Reutiliza: EmpresaFolio GOL/MUN/PRO/PQF (RE-FU-019) | ProquifaDotNet (Finanzas) | Existente | -              |
 
 > La infraestructura BD creada en RE-FU-015/018/019 se reutiliza completa.
 > Los cambios nuevos son: fila GOLPERU en EmpresaFolio + datos SUNAT del producto.
@@ -99,7 +99,7 @@ IGV 18%, RUC, serie alfanumerica SUNAT. Sin transferencia a Legacy. Post-envio: 
 
 ---
 
-## EmpresaFolio GOLPERU (ProquifaDotNetTimbrado)
+## EmpresaFolio GOLPERU (ProquifaDotNet — propiedad Finanzas, movida de ProquifaDotNetTimbrado el 07/07/2026)
 
 **Diferencia clave vs México:** La serie SUNAT es alfanumérica de 4 chars (F001) + correlativo de hasta 8 dígitos.
 
@@ -143,7 +143,7 @@ IGV 18%, RUC, serie alfanumerica SUNAT. Sin transferencia a Legacy. Post-envio: 
 |--------|-----|-----------|---------------|
 | fccFactura.Enviada | ProquifaDotNet | RE-FU-015 (movido desde RE-FU-019) | Mismo campo para PER |
 | vfccFactura | ProquifaDotNet | RE-FU-015 (movido desde RE-FU-019) | Ya filtra por Region |
-| EmpresaFolio (tabla) | ProquifaDotNetTimbrado | RE-FU-019 | Solo agregar fila GOLPERU |
+| EmpresaFolio (tabla) | ProquifaDotNet (Finanzas) | RE-FU-019 | Solo agregar fila GOLPERU |
 | CFDIGenerada (tabla) | ProquifaDotNet | RE-FU-019 (base) + RE-FU-018 (extension) | Misma tabla que MEX, distinto XML/CDR SUNAT — propiedad de Finanzas |
 | StampingLog (tabla) | ProquifaDotNetTimbrado | RE-FU-018 | Misma tabla (auditoria tecnica, sin FK real) |
 | AppSetting | ProquifaDotNetTimbrado | RE-FU-018 | Agregar config OSE/PSE Peru |
@@ -223,7 +223,7 @@ IGV 18%, RUC, serie alfanumerica SUNAT. Sin transferencia a Legacy. Post-envio: 
 | 3 | CREATE TABLE catAfectacionIGV | ProquifaDotNet | Ninguno |
 | 4 | ALTER TABLE Producto ADD IdCatAfectacionIGV | ProquifaDotNet | Paso 3 |
 | 5 | UPDATE Empresa SET RUC... WHERE Prefijo='GOLPERU' | ProquifaDotNet | Datos Golocaer SAC |
-| 6 | INSERT EmpresaFolio GOLPERU | ProquifaDotNetTimbrado | RE-FU-018 ejecutado |
+| 6 | INSERT EmpresaFolio GOLPERU | ProquifaDotNet (Finanzas) | RE-FU-019 ejecutado |
 | 7 | INSERT AppSetting OSE/PSE Peru | ProquifaDotNetTimbrado | Datos OSE definidos |
 
 ---

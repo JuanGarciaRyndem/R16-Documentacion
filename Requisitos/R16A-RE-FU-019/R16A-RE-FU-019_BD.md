@@ -33,8 +33,8 @@ Solo clientes Mexico. Sin sustancias controladas.
 | #   | Cambio                                                             | Base de Datos          | Tipo | Prioridad |
 | --- | ------------------------------------------------------------------ | ---------------------- | ---- | --------- |
 | 1   | CREATE TABLE dbo.CFDIGenerada (ER-Finanzas.md, base)               | ProquifaDotNet         | DDL  | Alta      |
-| 2   | CREATE TABLE dbo.EmpresaFolio                                      | ProquifaDotNetTimbrado | DDL  | Alta      |
-| 3   | INSERT EmpresaFolio (4 empresas MEX)                               | ProquifaDotNetTimbrado | DML  | Alta      |
+| 2   | CREATE TABLE dbo.EmpresaFolio                                      | ProquifaDotNet (Finanzas) | DDL  | Alta      |
+| 3   | INSERT EmpresaFolio (4 empresas MEX)                               | ProquifaDotNet (Finanzas) | DML  | Alta      |
 | -   | ~~ALTER TABLE tpProformaAdelanto ADD Enviada~~ / ~~CREATE VIEW vtpProformaAdelanto~~ | ProquifaDotNet | **Movido a RE-FU-015** (`fccFactura.Enviada` + `vfccFactura`) | - |
 
 > **Nota (origen de CFDIGenerada):** este requisito ejecuta el `CREATE TABLE CFDIGenerada` (columnas base de `ER-Finanzas.md`, mas `Total` que ya consume `vfccFactura`). Los catalogos `IdCatTipoCFDI`/`IdCFDIRelacionado` se agregan despues via `ALTER TABLE` en R16A-RE-FU-028, y las columnas tecnicas (Estado, MensajeError, IdArchivoXml, IdCatUsoCFDI, IdCatMetodoDePagoCFDI, IdCatMoneda, TipoCambio) se agregan via `ALTER TABLE` en R16A-RE-FU-018 (Parte 3) — ambos posteriores a la creacion base aqui.
@@ -103,7 +103,7 @@ de timbrado en R16A-RE-FU-018 (Parte 3) via `ALTER TABLE` posteriores.
 
 ---
 
-## CREATE TABLE EmpresaFolio (ProquifaDotNetTimbrado)
+## CREATE TABLE EmpresaFolio (ProquifaDotNet — propiedad Finanzas, movida de ProquifaDotNetTimbrado el 07/07/2026)
 
     -- Created by GitHub Copilot in SSMS - review carefully before executing
     -- Ejecutar en ProquifaDotNetTimbrado
@@ -194,8 +194,8 @@ de timbrado en R16A-RE-FU-018 (Parte 3) via `ALTER TABLE` posteriores.
 |------|--------|-----|
 | 1 | CREATE TABLE CFDIGenerada (base) | ProquifaDotNet |
 | 2 | CREATE TABLE fccFactura + fccFacturaPartida + fccFacturaReferenciaBancaria + CREATE VIEW vfccFactura (RE-FU-015, requiere Paso 1) | ProquifaDotNet |
-| 3 | CREATE TABLE EmpresaFolio | ProquifaDotNetTimbrado |
-| 4 | INSERT EmpresaFolio (datos iniciales) | ProquifaDotNetTimbrado |
+| 3 | CREATE TABLE EmpresaFolio | ProquifaDotNet (Finanzas) |
+| 4 | INSERT EmpresaFolio (datos iniciales) | ProquifaDotNet (Finanzas) |
 
 > Los pasos 2 (`fccFactura`/`vfccFactura`) se ejecutan como parte de RE-FU-015, no de este requisito — se listan aquí solo para dejar clara la dependencia de orden.
 

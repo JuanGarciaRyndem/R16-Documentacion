@@ -130,7 +130,7 @@ Ver sección *"Brecha Bloqueante: Datos Fiscales SUNAT del Producto"* en `R16A-R
 - No afecta los folios existentes de GOL, MUN, PRO ni PQF.
 
 **Objetivo general:**
-Registrar la configuración operativa de GOLPERU en ProquifaDotNetTimbrado: folio inicial y serie de facturación SUNAT en `EmpresaFolio`, y los parámetros de conexión con el OSE/PSE en `AppSetting`.
+Registrar la configuración operativa de GOLPERU: folio inicial y serie de facturación SUNAT en `EmpresaFolio` (ProquifaDotNet — Finanzas), y los parámetros de conexión con el OSE/PSE en `AppSetting` (ProquifaDotNetTimbrado).
 
 **Objetivos específicos:**
 - `INSERT EmpresaFolio`: `EmpresaClave='GOLPERU'`, `Serie='F001'`, `UltimoFolio=0`, `FormatoFolio='F001-{folio:00000000}'`, `LongitudMaxima=8`.
@@ -138,7 +138,7 @@ Registrar la configuración operativa de GOLPERU en ProquifaDotNetTimbrado: foli
 - Ajustar `Serie` y `UltimoFolio` al último correlativo usado en producción antes de ejecutar en ambiente productivo.
 
 **Resultado esperado:**
-GOLPERU disponible en `EmpresaFolio` con su serie SUNAT configurada; parámetros de conexión OSE/PSE registrados en `AppSetting` de ProquifaDotNetTimbrado.
+GOLPERU disponible en `EmpresaFolio` (ProquifaDotNet — Finanzas) con su serie SUNAT configurada; parámetros de conexión OSE/PSE registrados en `AppSetting` de ProquifaDotNetTimbrado.
 
 **Entregables:**
 - Script DML: `INSERT EmpresaFolio GOLPERU`

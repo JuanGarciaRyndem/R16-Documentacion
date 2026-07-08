@@ -38,7 +38,7 @@ tipo + referencia al CFDI relacionado) y condicionalmente `tpPedido` (FEE).
 | 7   | ALTER TABLE tpPedido ADD FechaEstimadaEntrega (si no existe)                    | ProquifaDotNet         | DDL       | Alta      |
 | 8   | CREATE VIEW vfccDocumentoFiscalCobro                                            | ProquifaDotNet         | DDL       | Media     |
 | 8   | Reutiliza: CFDIGenerada (timbrado FAA RE-FU-019)                                | ProquifaDotNet         | Existente | —         |
-| 9   | Reutiliza: EmpresaFolio (foliador por empresa RE-FU-019)                        | ProquifaDotNetTimbrado | Existente | —         |
+| 9   | Reutiliza: EmpresaFolio (foliador por empresa RE-FU-019)                        | ProquifaDotNet (Finanzas) | Existente | —         |
 | 10  | Reutiliza: fccPagoFacturaPedido (cobro ↔ proforma, RE-FU-026)                   | ProquifaDotNet         | Existente | —         |
 | 11  | Reutiliza: fccPagoFacturaAdelanto (cobro ↔ FAA, RE-FU-026)                      | ProquifaDotNet         | Existente | —         |
 | 12  | Reutiliza: tpProformaPedido.IdCFDIGenerada (ya declarado en RE-FU-026)          | ProquifaDotNet         | Existente | —         |
@@ -656,7 +656,7 @@ LEFT JOIN dbo.CFDIGenerada cg_c
 | catUsoCFDI | IdCatUsoCFDI, Clave, Descripcion | Combo Uso CFDI editable por línea; FK desde `fccDocumentoFiscalCobro.IdCatUsoCFDI` |
 | catMetodoDePagoCFDI | IdCatMetodoDePagoCFDI, Clave, Descripcion | Método de pago PPD/PUE; FK desde `fccDocumentoFiscalCobro.IdCatMetodoDePagoCFDI` |
 | Empresa | Prefijo, Alias, RFC_Emisor, RegimenFiscalEmisor | Datos del emisor CFDI 4.0 por empresa PROQUIFA |
-| EmpresaFolio (ProquifaDotNetTimbrado) | UltimoFolio, Serie, EmpresaClave | Folio a consumir al timbrar exitosamente |
+| EmpresaFolio (ProquifaDotNet — Finanzas) | UltimoFolio, Serie, EmpresaClave | Folio a consumir al timbrar exitosamente |
 | tpPedido | FolioPedidoInterno, IdContacto | Datos del pedido; contacto para modal Enviar |
 | tpPedidoProformaPedido | IdTPPedido, IdTPProformaPedido | Relación pedido ↔ proforma |
 
@@ -783,4 +783,4 @@ LEFT JOIN dbo.CFDIGenerada cg_c
 
 ---
 
-**Bases de Datos:** ProquifaDotNet + ProquifaDotNetTimbrado (lectura EmpresaFolio)
+**Bases de Datos:** ProquifaDotNet (incluye EmpresaFolio, propiedad Finanzas)

@@ -835,7 +835,7 @@ Implementar en Finanzas el servicio de inicialización del Paso 3 que, al avanza
 **Objetivos específicos:**
 - Implementar `POST /api/v1/validate-collection/fiscalDocumentStep/initialize` en Finanzas.
 - Crear `InitializeStep3Command` + Handler con lógica condicional de tipo por línea.
-- Leer `fccPagoFacturaPedido` / `fccPagoFacturaAdelanto` + `tpProformaPedido.HayControlados` vía API ProquifaDotNet.
+- Leer `fccPagoFacturaPedido` / `fccPagoFacturaAdelanto` + `tpProformaPedido.HayControlados` vía Scaffold Finanzas (`tpProformaPedido` movida a Finanzas 07/07/2026).
 - `INSERT fccDocumentoFiscalCobro` por cada documento (estado inicial `PENDIENTE`, `IdCatUsoCFDI` = default del cliente desde `DatosFacturacionCliente`).
 - Detectar re-entrada: `GET vfccDocumentoFiscalCobro WHERE IdCliente=@Id AND EstadoLinea != 'ENVIADO'` — si hay registros, retornar el estado existente sin reinicializar.
 - Calcular y retornar en `Step3InitializedDto` el flag `CanGoBackSteps: bool` = `false` si **alguna** línea existente está en estado `GENERADO` o `ENVIADO`; `true` si todas las líneas están en `PENDIENTE`.
@@ -1041,7 +1041,7 @@ Implementar en Finanzas el servicio central de timbrado del Paso 3 con los cuatr
   2. Recibir UUID + XML timbrado.
   3. Invocar `PersistMexicoInvoicePdfService.PersistirAsync(IdCFDI, xmlTimbrado)`.
   4. `UPDATE fccDocumentoFiscalCobro SET EstadoLinea=GENERADO, IdCFDIGeneradaFactura, FechaGeneracion`.
-  5. `UPDATE tpProformaPedido SET IdCFDIGenerada` vía API ProquifaDotNet.
+  5. `UPDATE tpProformaPedido SET IdCFDIGenerada` directo vía EF Core (Scaffold Finanzas — movida a Finanzas 07/07/2026).
 - **Escenario B — FACTURA PPD + Complemento en cascada:**
   1. Timbrar Factura PPD (igual que A, `TipoCFDI=FACTURA_PPD`).
   2. Invocar `PersistMexicoInvoicePdfService.PersistirAsync` para la Factura.

@@ -10,14 +10,14 @@
 
 ### Tarea 1
 
-**Título:** [ R16A-RE-FU-019 ] [CREATE-SCRIPT-CONTROL] Crear scripts DDL/DML para tabla EmpresaFolio en ProquifaDotNetTimbrado
+**Título:** [ R16A-RE-FU-019 ] [CREATE-SCRIPT-CONTROL] Crear scripts DDL/DML para tabla EmpresaFolio en ProquifaDotNet (Finanzas)
 
 **Aplicativos:** ProquifaDotNet.Timbrado (BD)
 
 **Módulos:** Base de Datos — ProquifaDotNetTimbrado
 
 **Consideraciones previas:**
-- La tabla EmpresaFolio es NUEVA en ProquifaDotNetTimbrado
+- La tabla EmpresaFolio es NUEVA en ProquifaDotNet, propiedad de Finanzas (movida de ProquifaDotNetTimbrado el 07/07/2026 — Timbrado no gestiona folios)
 - La BD ProquifaDotNetTimbrado fue creada en RE-FU-018; esta tabla se agrega en este requisito
 - Contiene 4 registros iniciales: GOL, MUN, PRO, PQF
 - UltimoFolio debe ajustarse al MAX existente en producción antes del go-live
@@ -62,7 +62,7 @@ VALUES
 - Hacer el script idempotente (verificar existencia antes de CREATE)
 
 **Resultado esperado:**
-Tabla EmpresaFolio creada en ProquifaDotNetTimbrado con los 4 registros iniciales listos para consumo de folios.
+Tabla EmpresaFolio creada en ProquifaDotNet (Finanzas) con los 4 registros iniciales listos para consumo de folios.
 
 **Entregables:**
 - Script DDL: CREATE TABLE EmpresaFolio

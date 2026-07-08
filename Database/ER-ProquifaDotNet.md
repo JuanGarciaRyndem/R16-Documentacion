@@ -4,6 +4,8 @@ Entidades base del sistema operacional: Region, Empresa, Cliente, Archivo, Datos
 
 > **Migración (06/07/2026):** `tpProformaAdelanto` (abajo) se conserva como tabla legada — sigue existiendo físicamente, pero los flujos de Factura por Adelantado (RE-FU-012, 018, 019, 020, 026, 027, 028, 029, 030) ya no leen/escriben en ella. Esos flujos usan `fccFactura`/`fccFacturaPartida`/`fccFacturaReferenciaBancaria` (propiedad de ProquifaDotNet.Finanzas) — ver `ER-Finanzas.md` y `R16A-RE-FU-015_BD.md` ("Migración de `tpProformaAdelanto`").
 
+> **Actualización (08/07/2026):** `tpProformaPedido` y `tpProformaPartidaPedido` **pasan al scope de ProquifaDotNet.Finanzas** (Scaffold EF Core en `Finanzas.Infrastructure`, lectura/escritura directa — dejan de consumirse vía API). Siguen existiendo físicamente en esta BD y se conservan aquí solo como referencia del vínculo con `tpPedido`; su modelo detallado y relaciones con `fcc*` viven en `ER-Finanzas.md`.
+
 ```mermaid
 erDiagram
     Region {
@@ -210,6 +212,9 @@ erDiagram
         bit Activo
         datetime2 FechaRegistro
     }
+    %% tpProformaPedido y tpProformaPartidaPedido: scope movido a ProquifaDotNet.Finanzas
+    %% (08/07/2026, Scaffold directo) — modelo detallado en ER-Finanzas.md; aqui solo se
+    %% conserva la entidad minima por su vinculo con tpPedido.
     tpProformaPedido {
         uniqueidentifier IdTpProformaPedido PK
         uniqueidentifier IdTPPedido FK

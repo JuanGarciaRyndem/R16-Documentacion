@@ -19,7 +19,7 @@
 | 1   | CREATE-TABL-CH       | Crear catFormaPagoSAT (c_FormaPago SAT) con DDL + DML 22 claves                                   | BD   | ProquifaDotNet          |
 | 2   | UPDATE-TABL-CH       | DML catUsoCFDI: INSERT clave CP01 (Pagos) — confirmado inexistente                                | BD   | ProquifaDotNet          |
 | 3   | UPDATE-TABL-M        | Extender fccDocumentoFiscalCobro: ADD 8 columnas snapshot DR del Complemento de Pago              | BD   | ProquifaDotNet          |
-| 4   | UPDATE-TABL-CH       | DML EmpresaFolio: INSERT 4 filas Serie "P" para GOL, MUN, PRO, PQF                                | BD   | ProquifaDotNetTimbrado  |
+| 4   | UPDATE-TABL-CH       | DML EmpresaFolio: INSERT 4 filas Serie "P" para GOL, MUN, PRO, PQF                                | BD   | ProquifaDotNet (Finanzas) |
 | 5   | UPDATE-TABL-CH       | DML DocumentTemplate: INSERT 4 templates PDF Complemento de Pago México                           | BD   | DocumentBuilder         |
 | 6   | CREATE-SCRIPT-CONTROL| Actualizar vista vfccDocumentoFiscalCobro v3.0: columnas DR + JOIN catFormaPagoSAT                | BD   | ProquifaDotNet          |
 | 7   | ALG-COMPLX-LOGIC     | Implementar endpoint timbrado CP (CFDI tipo P Pagos20 v2.0) en Timbrado — folio Serie P + TurboPac| Back | ProquifaDotNet.Timbrado |

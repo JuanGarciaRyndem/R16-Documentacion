@@ -42,14 +42,14 @@ las entradas del foliador con Serie "P" en `EmpresaFolio` y los templates PDF en
 | 1   | CREATE TABLE catFormaPagoSAT — confirmado no existe en ProquifaDotNet                     | ProquifaDotNet         | DDL + DML | Alta      |
 | 2   | DML catUsoCFDI — INSERT clave CP01 (Pagos) — confirmado no existe                         | ProquifaDotNet         | DML       | Alta      |
 | 3   | ALTER TABLE fccDocumentoFiscalCobro — ADD columnas DR del Complemento de Pago (8 cols)    | ProquifaDotNet         | DDL       | Alta      |
-| 4   | DML EmpresaFolio — INSERT filas Serie "P" para GOL, MUN, PRO, PQF                         | ProquifaDotNetTimbrado | DML       | Alta      |
+| 4   | DML EmpresaFolio — INSERT filas Serie "P" para GOL, MUN, PRO, PQF                         | ProquifaDotNet (Finanzas) | DML       | Alta      |
 | 5   | DML DocumentTemplate — INSERT 4 templates PDF Complemento de Pago México                  | DocumentBuilder        | DML       | Media     |
 | 6   | ALTER VIEW vfccDocumentoFiscalCobro v3.0 — exponer columnas DR nuevas                     | ProquifaDotNet         | DDL       | Media     |
 | —   | Reutiliza: CFDIGenerada con `IdCatTipoCFDI='COMPLEMENTO_PAGO'` (RE-028)                   | ProquifaDotNet         | Existente | —         |
 | —   | Reutiliza: `catTipoCFDI.COMPLEMENTO_PAGO` (clave creada en RE-028 T1)                     | ProquifaDotNet         | Existente | —         |
 | —   | Reutiliza: `fccDocumentoFiscalCobro.IdCFDIGeneradaComplemento` (RE-028 T3)                | ProquifaDotNet         | Existente | —         |
 | —   | Reutiliza: `CFDIGenerada.IdCFDIRelacionado` — link CP → Factura PPD (RE-028 T5)           | ProquifaDotNet         | Existente | —         |
-| —   | Reutiliza: `EmpresaFolio` — estructura existente (RE-019); solo se insertan filas Serie P | ProquifaDotNetTimbrado | Existente | —         |
+| —   | Reutiliza: `EmpresaFolio` — estructura existente (RE-019); solo se insertan filas Serie P | ProquifaDotNet (Finanzas) | Existente | —         |
 | —   | Reutiliza: PAC TurboPac — misma integración que Factura México (RE-019)                   | ProquifaDotNet         | Existente | —         |
 | —   | Reutiliza: `catUsoCFDI` — tabla existente; CP01 se inserta en cambio #2                   | ProquifaDotNet         | Existente | —         |
 | —   | Reutiliza: `catMetodoDePagoCFDI.PPD` — solo facturas PPD generan CP (RE-028 T1)           | ProquifaDotNet         | Existente | —         |
@@ -304,7 +304,7 @@ ORDER BY c.column_id;
 
 El Complemento de Pago utiliza Serie "P" por empresa emisora del grupo PROQUIFA México
 (Golocaer, Mungen, Proquifa, Proveedora Quimico Farmaceutica). Las 4 filas se insertan en
-`EmpresaFolio` (estructura creada en RE-019) en `ProquifaDotNetTimbrado`.
+`EmpresaFolio` (estructura creada en RE-019) en `ProquifaDotNet` (propiedad Finanzas).
 
 > ⚠️ **Brecha:** El esquema definitivo del foliador con serie "P" (formato, longitud máxima,
 > prefijo) está pendiente de validar con PMO (Regla 12 del requisito). Los valores del

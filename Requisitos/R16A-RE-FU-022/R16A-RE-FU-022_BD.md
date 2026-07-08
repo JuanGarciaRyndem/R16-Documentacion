@@ -50,7 +50,7 @@ Datos fiscales del CPE en `CFDIGenerada` (misma tabla que Mexico — sin tabla n
 | 3 | ALTER TABLE catUnidad ADD ClaveSUNAT (ya propuesto en RE-FU-020) | DDL | **BLOQUEANTE** |
 | 4 | CREATE TABLE catAfectacionIGV (ya propuesto en RE-FU-020) | DDL | **BLOQUEANTE** |
 | 5 | Reutiliza: Archivo (bucket 'facturas', IdRegion=PER) | Existente | - |
-| 6 | Reutiliza: EmpresaFolio GOLPERU (RE-FU-020) | ProquifaDotNetTimbrado | Existente |
+| 6 | Reutiliza: EmpresaFolio GOLPERU (RE-FU-020) | ProquifaDotNet (Finanzas) | Existente |
 | 7 | Reutiliza: CFDIGenerada (RE-FU-019 base + RE-FU-018 + RE-FU-028 + RE-FU-021) | Existente | - |
 | 8 | Reutiliza: fccFactura.IdCFDIGenerada (RE-FU-015, antes tpProformaAdelanto.IdCFDIGenerada de RE-FU-019) | Existente | - |
 

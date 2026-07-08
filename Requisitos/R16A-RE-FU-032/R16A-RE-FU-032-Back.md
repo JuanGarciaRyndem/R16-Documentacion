@@ -2,7 +2,7 @@
 **Requisito:** Notas de Crédito México (CFDI tipo E — Egreso)
 **Aplicativos:** ProquifaDotNet (.NET Framework 4.8) + ProquifaDotNet.Finanzas (.NET Core 10) + ProquifaDotNet.Timbrado (.NET Core 10) + DocumentBuilder
 **Módulo:** Notas de Crédito México — Módulo independiente (Tesorería)
-**Impacto:** Scripts BD ProquifaDotNet (2 ALTER TABLE + 2 DML catálogos) + Scripts BD ProquifaDotNetTimbrado (1 DML EmpresaFolio) + Scripts DocumentBuilder (4 DML DocumentTemplate) + Módulo NC Finanzas: wizard 4 pasos, construcción XML CFDI E CFDI 4.0, previsualización PDF, persistencia en MinIO, envío correo + Timbrado: generación CFDI E + DocumentBuilder: 4 templates PDF NC México + ETL SSIS: transferencia NC a PCconnect (Legacy).
+**Impacto:** Scripts BD ProquifaDotNet (2 ALTER TABLE + 2 DML catálogos) + Scripts BD ProquifaDotNet (1 DML EmpresaFolio — propiedad Finanzas) + Scripts DocumentBuilder (4 DML DocumentTemplate) + Módulo NC Finanzas: wizard 4 pasos, construcción XML CFDI E CFDI 4.0, previsualización PDF, persistencia en MinIO, envío correo + Timbrado: generación CFDI E + DocumentBuilder: 4 templates PDF NC México + ETL SSIS: transferencia NC a PCconnect (Legacy).
 
 ## Revisiones aplicadas
 
@@ -30,7 +30,7 @@ La NC aplica exclusivamente a **clientes prepago** y a **facturas vigentes con a
 | BD — ALTER tabla         | ProquifaDotNet               | `fccNotaCreditoPartida`: ADD 6 columnas R16                                                         |
 | BD — DML catálogo        | ProquifaDotNet               | `catUsoCFDI`: INSERT G02 si no existe                                                               |
 | BD — DML catálogo        | ProquifaDotNet               | `catTipoCFDI`: INSERT NOTA_CREDITO (prereq RE-028)                                                  |
-| BD — DML foliador        | ProquifaDotNetTimbrado       | `EmpresaFolio`: INSERT 4 filas Serie "P2" (GOL, MUN, PRO, PQF)                                     |
+| BD — DML foliador        | ProquifaDotNet (Finanzas)    | `EmpresaFolio`: INSERT 4 filas Serie "P2" (GOL, MUN, PRO, PQF)                                     |
 | BD — DML templates       | DocumentBuilder              | `DocumentTemplate`: INSERT 4 templates PDF NC México                                                |
 | BD — DML bucket          | ProquifaDotNet               | `RegionConfiguracionMinioBucket`: INSERT bucket NC MEX si no existe                                 |
 | Wizard Paso 1            | ProquifaDotNet.Finanzas      | Búsqueda y listado de facturas vigentes prepago del cliente (máx. 5 años)                           |
@@ -136,7 +136,7 @@ Discriminador de tipo CFDI para las NCs. Prereq: RE-028 crea la tabla `catTipoCF
 
 ### A5 — DML EmpresaFolio — Serie "P2"
 
-4 filas en `ProquifaDotNetTimbrado.EmpresaFolio` para GOL, MUN, PRO, PQF.
+4 filas en `ProquifaDotNet.EmpresaFolio` (propiedad Finanzas) para GOL, MUN, PRO, PQF.
 
 > Ver script en `R16A-RE-FU-032_BD.md` — DML EmpresaFolio.
 

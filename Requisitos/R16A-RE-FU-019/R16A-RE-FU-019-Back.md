@@ -472,8 +472,8 @@ Cuando el tipo de pedido es Prepago y la factura se envió exitosamente:
 
 ```
 1. CREATE TABLE fccFactura + fccFacturaPartida + fccFacturaReferenciaBancaria + CREATE VIEW vfccFactura (R16A-RE-FU-015 — prerequisito, ya no se ejecuta en este requisito)
-2. CREATE TABLE EmpresaFolio (ProquifaDotNetTimbrado)
-3. INSERT EmpresaFolio datos iniciales (ProquifaDotNetTimbrado) — requiere paso 2
+2. CREATE TABLE EmpresaFolio (ProquifaDotNet — propiedad Finanzas, movida de ProquifaDotNetTimbrado el 07/07/2026)
+3. INSERT EmpresaFolio datos iniciales (ProquifaDotNet) — requiere paso 2
 ```
 
 ---
@@ -489,7 +489,7 @@ Cuando el tipo de pedido es Prepago y la factura se envió exitosamente:
 | GAP-03 | Infrastructure: EmpresaFolioRepository con UPDATE atómico (UPDLOCK) | Implementar consumo seguro de folio con raw SQL | Medio |
 | GAP-04 | Application: DTOs StampAdvanceInvoiceRequestDto, AdvanceInvoiceItemDto, StampAdvanceInvoiceResponseDto | Modelos de request/response para FAA | Bajo |
 | GAP-05 | API: StampingController — sin endpoint nuevo (reutiliza POST /api/v1/stamp/invoice creado en RE-FU-018) | Ajuste de orquestación interna para FAA | Bajo |
-| GAP-06 | Scripts DDL: CREATE TABLE EmpresaFolio + DML INSERT 4 empresas | Scripts BD ProquifaDotNetTimbrado | Bajo |
+| GAP-06 | Scripts DDL: CREATE TABLE EmpresaFolio + DML INSERT 4 empresas | Scripts BD ProquifaDotNet (propiedad Finanzas — movida de ProquifaDotNetTimbrado el 07/07/2026) | Bajo |
 
 ### En ProquifaDotNet.Finanzas (Módulo FAA — Detalle)
 

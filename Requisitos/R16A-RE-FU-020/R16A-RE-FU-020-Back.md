@@ -335,7 +335,7 @@ WHERE Prefijo = 'GOLPERU';
 
 | Paso | Script | BD | Dependencia |
 |------|--------|----|-------------|
-| 1 | INSERT EmpresaFolio GOLPERU | ProquifaDotNetTimbrado | Tabla existe (RE-FU-018) |
+| 1 | INSERT EmpresaFolio GOLPERU | ProquifaDotNet (Finanzas) | Tabla existe (RE-FU-019) |
 | 2 | INSERT AppSetting OSE Perú | ProquifaDotNetTimbrado | Tabla existe (RE-FU-018) |
 | 3 | ALTER TABLE Producto ADD CodigoSUNAT | ProquifaDotNet | **BLOQUEANTE** |
 | 4 | ALTER TABLE catUnidad ADD ClaveSUNAT | ProquifaDotNet | **BLOQUEANTE** |
@@ -371,7 +371,7 @@ WHERE Prefijo = 'GOLPERU';
 
 | # | Gap | Acción | BD | Esfuerzo | Estado |
 |---|-----|--------|----|----------|--------|
-| GAP-10 | INSERT EmpresaFolio GOLPERU con serie SUNAT | DML — serie pendiente confirmar | ProquifaDotNetTimbrado | Bajo | Brecha (serie pendiente) |
+| GAP-10 | INSERT EmpresaFolio GOLPERU con serie SUNAT | DML — serie pendiente confirmar | ProquifaDotNet (Finanzas) | Bajo | Brecha (serie pendiente) |
 | GAP-11 | INSERT AppSetting config OSE/PSE Perú | DML — endpoint/credenciales pendientes | ProquifaDotNetTimbrado | Bajo | Brecha (proveedor pendiente) |
 | GAP-12 | ALTER TABLE Producto + catUnidad + CREATE TABLE catAfectacionIGV | DDL bloqueante | ProquifaDotNet | Medio | **BLOQUEANTE** |
 | GAP-13 | INSERT catAfectacionIGV datos iniciales (catálogo 7 SUNAT) | DML | ProquifaDotNet | Bajo | Requiere GAP-12 |

@@ -20,7 +20,7 @@ Los siguientes cambios de BD son **prerrequisito** de las tareas de este requisi
 | T1       | `fccNotaCredito`              | ALTER TABLE — 3 columnas Perú (ResponseCode, ResponseDescription, TipoCambioOrigen) | ProquifaDotNet  |
 | T2       | `catMotivoCreditoSUNAT09`     | CREATE TABLE + DML — 11 motivos catálogo 09 SUNAT               | ProquifaDotNet         |
 | T3       | `catTipoCFDI`                 | DML — INSERT clave NOTA_CREDITO_PERU (TipoDocumento='07')       | ProquifaDotNet         |
-| T4       | `EmpresaFolio`                | DML — INSERT Serie NC Perú para Golocaer S.A.C.                 | ProquifaDotNetTimbrado |
+| T4       | `EmpresaFolio`                | DML — INSERT Serie NC Perú para Golocaer S.A.C.                 | ProquifaDotNet (Finanzas) |
 | T5       | `DocumentTemplate`            | DML — INSERT template GOL\_PER\_NC (H/B/F)                      | DocumentBuilder        |
 
 > **Nota adicional:** R16A-RE-FU-032 T1 también es prerrequisito (columnas genéricas de NC en `fccNotaCredito`, base para las columnas Perú de RE-033 T1).

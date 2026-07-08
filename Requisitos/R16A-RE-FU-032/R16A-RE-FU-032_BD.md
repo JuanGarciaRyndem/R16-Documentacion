@@ -44,7 +44,7 @@ sección reserva el análisis de impacto ETL.
 | 2   | ALTER TABLE fccNotaCreditoPartida — ADD columnas R16 (concepto origen, importes fiscales)      | ProquifaDotNet         | DDL       | Alta      |
 | 3   | DML catUsoCFDI — INSERT clave G02 si no existe                                                  | ProquifaDotNet         | DML       | Alta      |
 | 4   | DML catTipoCFDI — INSERT clave NOTA_CREDITO (prereq: RE-028 crea la tabla)                     | ProquifaDotNet         | DML       | Alta      |
-| 5   | DML EmpresaFolio — INSERT filas Serie "P2" para GOL, MUN, PRO, PQF                             | ProquifaDotNetTimbrado | DML       | Alta      |
+| 5   | DML EmpresaFolio — INSERT filas Serie "P2" para GOL, MUN, PRO, PQF                             | ProquifaDotNet (Finanzas) | DML       | Alta      |
 | 6   | DML DocumentTemplate — INSERT 4 templates PDF NC México                                         | DocumentBuilder        | DML       | Media     |
 | 7   | DML RegionConfiguracionMinioBucket — INSERT bucket NC México si no existe                       | ProquifaDotNet         | DML       | Media     |
 | 8   | CREATE TABLE catMotivoCancelacionSAT + DML 4 claves c_MotivoCancelacion SAT                    | ProquifaDotNet         | DDL + DML | Alta      |
@@ -59,7 +59,7 @@ sección reserva el análisis de impacto ETL.
 | —   | Reutiliza: `Archivo` — INSERT PDF representativo y XML timbrado de la NC                       | ProquifaDotNet         | Existente | —         |
 | —   | Reutiliza: `CorreoEnviado` + `ArchivoCorreoEnviado` — trazabilidad de correo al cliente        | ProquifaDotNet         | Existente | —         |
 | —   | Reutiliza: `catUsoCFDI` — tabla existente; G02 se inserta en cambio #3                         | ProquifaDotNet         | Existente | —         |
-| —   | Reutiliza: `EmpresaFolio` — estructura existente (RE-019); Serie "P2" en cambio #5             | ProquifaDotNetTimbrado | Existente | —         |
+| —   | Reutiliza: `EmpresaFolio` — estructura existente (RE-019); Serie "P2" en cambio #5             | ProquifaDotNet (Finanzas) | Existente | —         |
 | —   | Reutiliza: `DocumentTemplate` — tabla existente (DocumentBuilder)                              | DocumentBuilder        | Existente | —         |
 | —   | ETL SSIS: transferencia de NCs timbradas a PCconnect (Legacy) — mapeo pendiente estructura PCconnect | PCconnect (Legacy) | ETL      | Alta      |
 
@@ -256,7 +256,7 @@ FROM dbo.catTipoCFDI WHERE Clave = 'NOTA_CREDITO';
 ## DML — EmpresaFolio: Serie "P2" para NC México
 
 Las NCs de México usan Serie "P2" por empresa del grupo PROQUIFA México. Se insertan 4 filas
-en `ProquifaDotNetTimbrado.EmpresaFolio`.
+en `ProquifaDotNet.EmpresaFolio` (propiedad Finanzas).
 
 > ⚠️ **Brecha:** El esquema definitivo del foliador Serie "P2" (formato, longitud máxima)
 > está pendiente de validar con PMO (Regla 9 del requisito).

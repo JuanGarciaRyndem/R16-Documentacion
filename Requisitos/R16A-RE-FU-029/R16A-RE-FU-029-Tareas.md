@@ -715,7 +715,7 @@ Implementar en Finanzas el servicio de timbrado del Paso 3 Perú con el escenari
 - Finanzas → Timbrado: request con `TipoCFDI=FACTURA_CPE`, datos emisor GOLPERU, RUC receptor, partidas UBL 2.1, Tipo de Operación, Condición de Pago.
 - Recibir de Timbrado: Serie, Correlativo, FechaEmision, XML CPE, XML CDR.
 - Invocar `FacturaPdfMappingService.MapearAsync()` con CDR/sello → subir PDF a MinIO → INSERT `Archivo` → UPDATE `CFDIGenerada.IdArchivoPdf`.
-- `UPDATE tpProformaPedido SET IdCFDIGenerada = @IdCPE` vía API ProquifaDotNet.
+- `UPDATE tpProformaPedido SET IdCFDIGenerada = @IdCPE` directo vía EF Core (Scaffold Finanzas — movida a Finanzas 07/07/2026).
 - `UPDATE fccDocumentoFiscalCobro SET EstadoLinea=GENERADO, IdCFDIGeneradaFactura=@IdCPE, FechaGeneracion`.
 - Modal de éxito muestra Serie y Correlativo (no UUID — SUNAT no lo genera).
 - Ante error SUNAT/CDR: línea permanece en `PENDIENTE`, retornar código de error con descripción.

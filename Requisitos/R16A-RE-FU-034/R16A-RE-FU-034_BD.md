@@ -21,7 +21,7 @@ Los siguientes cambios de BD son **prerrequisito** de las tareas de este requisi
 | T2       | `fccNotaCreditoPartida`   | ALTER TABLE — 6 columnas R16                                  | ProquifaDotNet         |
 | T3       | `catUsoCFDI`              | DML — INSERT clave G02                                        | ProquifaDotNet         |
 | T4       | `catTipoCFDI`             | DML — INSERT clave NOTA_CREDITO                               | ProquifaDotNet         |
-| T5       | `EmpresaFolio`            | DML — INSERT 4 filas Serie "P2" (GOL, MUN, PRO, PQF)          | ProquifaDotNetTimbrado |
+| T5       | `EmpresaFolio`            | DML — INSERT 4 filas Serie "P2" (GOL, MUN, PRO, PQF)          | ProquifaDotNet (Finanzas) |
 | T6       | `DocumentTemplate`        | DML — INSERT 4 registros GOL/MUN/PRO/PQF\_MEX\_NC             | DocumentBuilder        |
 | T12      | `catMotivoCancelacionSAT` | CREATE TABLE + DML — 4 claves c\_MotivoCancelacion SAT        | ProquifaDotNet         |
 

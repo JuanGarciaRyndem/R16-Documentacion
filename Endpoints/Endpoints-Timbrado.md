@@ -5,7 +5,7 @@ Endpoints de la solución nueva `ProquifaDotNet.Timbrado`. Consumida exclusivame
 > **Base URL:** `https://{servidor-timbrado}/api/`
 > **Autenticación:** IdentityServer (token JWT en header `Authorization: Bearer {token}`)
 > **Integración:** PAC SAP (México — SAT) / OSE/SUNAT (Perú)
-> **Foliador:** `EmpresaFolio` vive físicamente en la BD `ProquifaDotNetTimbrado`, pero es consumido **directamente por Finanzas** (`EmpresaFolioRepository`, EF Core) — no hay endpoint HTTP en Timbrado para folios; el `StampingController` no los toca.
+> **Foliador:** `EmpresaFolio` vive en la BD `ProquifaDotNet`, **propiedad de Finanzas** (`EmpresaFolioRepository`, EF Core — movida desde `ProquifaDotNetTimbrado` el 07/07/2026) — no hay endpoint HTTP en Timbrado para folios; el `StampingController` no los toca.
 
 ---
 

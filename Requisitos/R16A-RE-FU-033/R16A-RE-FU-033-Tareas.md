@@ -11,7 +11,7 @@
 | 1             | UPDATE-TABL-CH    | Extender fccNotaCredito: ADD 3 columnas Perú (ResponseCode, ResponseDescription, TipoCambioOrigen) | BD   | ProquifaDotNet          |
 | 2             | CREATE-TABL-CH    | Crear catMotivoCreditoSUNAT09 con DDL + DML 11 motivos catálogo 09 SUNAT                           | BD   | ProquifaDotNet          |
 | 3             | UPDATE-TABL-CH    | DML catTipoCFDI: INSERT clave NOTA_CREDITO_PERU (TipoDocumento='07')                               | BD   | ProquifaDotNet          |
-| 4             | UPDATE-TABL-CH    | DML EmpresaFolio: INSERT Serie NC Perú para Golocaer S.A.C.                                        | BD   | ProquifaDotNetTimbrado  |
+| 4             | UPDATE-TABL-CH    | DML EmpresaFolio: INSERT Serie NC Perú para Golocaer S.A.C.                                        | BD   | ProquifaDotNet (Finanzas) |
 | 5             | UPDATE-TABL-CH    | DML DocumentTemplate: INSERT template GOL\_PER\_NC                                                 | BD   | DocumentBuilder         |
 | 6             | LIST-NO-FILTER    | Endpoint GET /api/v1/creditNoteReasonSunat para catálogo 09                            | Back | ProquifaDotNet.Finanzas |
 | 7             | IMP-EXIST-SERVICE | Implementar Wizard Paso 1 y Paso 2: búsqueda CPE origen, captura por partidas y manual             | Back | ProquifaDotNet.Finanzas |

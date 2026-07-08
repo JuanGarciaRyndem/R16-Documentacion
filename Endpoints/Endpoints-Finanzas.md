@@ -4,7 +4,7 @@ Endpoints de la solución nueva `ProquifaDotNet.Finanzas`. Arquitectura Clean Ar
 
 > **Base URL:** `https://{servidor-finanzas}/api/`
 > **Autenticación:** IdentityServer (token JWT en header `Authorization: Bearer {token}`)
-> **Nota:** Las tablas de datos (`fcc*`, `CFDIGenerada`, `EmpresaFolio`, etc.) residen físicamente en las BD ProquifaDotNet / ProquifaDotNetTimbrado y son accedidas vía EF Core Scaffold en `Finanzas.Infrastructure`.
+> **Nota:** Las tablas de datos (`fcc*`, `CFDIGenerada`, `EmpresaFolio`, etc.) residen físicamente en la BD ProquifaDotNet (EmpresaFolio movida desde ProquifaDotNetTimbrado el 07/07/2026) y son accedidas vía EF Core Scaffold en `Finanzas.Infrastructure`.
 > **Nota (07/07/2026):** RE-016 a RE-022 y RE-032/033 fueron resincronizados contra las rutas literales de cada `-Back.md`/`-Tareas.md`. El módulo Validar Cobro (RE-023/024/026/027/028/029/030) usa la convención propia `/api/v1/validate-collection/*` — **confirmada por el equipo como la real** — agrupador de módulo `validate-collection` (traducción de "validar-cobro") seguido del recurso en inglés singular, en lugar del patrón `api/v1/{resource}` sin agrupador usado por el resto de la solución. Solo lo relativo a **Cobros** en ProquifaDotNet queda deprecado; los endpoints de **Catálogos** (`catMoneda`, `catMedioDePago`, `vEmpresaDatosBancarios`, `CorreoRecibido*`) **siguen activos** — Venta Interna los sigue usando — y Finanzas simplemente construye sus propios endpoints bajo `/api/v1/*` que leen de esas mismas fuentes (ver `Endpoints-ProquifaDotNet.md`).
 
 ---

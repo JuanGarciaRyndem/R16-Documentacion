@@ -38,7 +38,7 @@ Al confirmar el envío de cada línea, el sistema dispara automáticamente tres 
 | Componente                                          | Origen        | Reutilización                                                                                                                                          |
 | --------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `CFDIGenerada`                                      | RE-FU-019     | Registro central de CFDIs timbrados; se extiende con `IdCatTipoCFDI` e `IdCFDIRelacionado`                                                             |
-| `EmpresaFolio` (ProquifaDotNetTimbrado)             | RE-FU-019     | Foliador por empresa; consumo atómico con UPDLOCK al timbrar                                                                                           |
+| `EmpresaFolio` (ProquifaDotNet — Finanzas)          | RE-FU-019     | Foliador por empresa; consumo atómico con UPDLOCK al timbrar                                                                                           |
 | `fccPagoFacturaPedido`                              | RE-FU-026     | FK desde `fccDocumentoFiscalCobro` (origen proforma)                                                                                                   |
 | `fccPagoFacturaAdelanto`                            | RE-FU-026     | FK desde `fccDocumentoFiscalCobro` (origen FAA)                                                                                                        |
 | `fccNotaCredito.IdCFDI`                             | RE-FU-026     | UUID de la NC para incluir en nodo `CFDIRelacionados` al timbrar                                                                                       |
@@ -164,7 +164,7 @@ Vista operativa que consolida el estado del Paso 3 por cliente. Navega desde `fc
 | `fccPagoFacturaPedido` | `tpProformaPedido.HayControlados = 1` | `FACTURA_ANTICIPO` |
 | `fccPagoFacturaAdelanto` | — | `COMPLEMENTO_PAGO` |
 
-**Datos leídos (vía API ProquifaDotNet):** `fccPagoFacturaPedido`, `fccPagoFacturaAdelanto`, `tpProformaPedido.HayControlados`, `DatosFacturacionCliente`, `Empresa`, `catTipoDocumentoFiscal`, `catDocumentoFiscalCobroEstado`
+**Datos leídos (Scaffold Finanzas):** `fccPagoFacturaPedido`, `fccPagoFacturaAdelanto`, `tpProformaPedido.HayControlados` (movida a Finanzas 07/07/2026), `DatosFacturacionCliente`, `Empresa`, `catTipoDocumentoFiscal`, `catDocumentoFiscalCobroEstado`
 
 **Escritura:** `INSERT fccDocumentoFiscalCobro` (una fila por documento, estado inicial `PENDIENTE`, `IdCatUsoCFDI` = default del cliente)
 

@@ -13,7 +13,7 @@
 | 2   | UPDATE-TABL-M     | Extender fccNotaCreditoPartida: ADD 6 columnas R16 (concepto origen, importes fiscales)       | BD   | ProquifaDotNet          |
 | 3   | UPDATE-TABL-CH    | DML catUsoCFDI: INSERT clave G02 si no existe                                                 | BD   | ProquifaDotNet          |
 | 4   | UPDATE-TABL-CH    | DML catTipoCFDI: INSERT clave NOTA_CREDITO                                                    | BD   | ProquifaDotNet          |
-| 5   | UPDATE-TABL-CH    | DML EmpresaFolio: INSERT 4 filas Serie "P2" para GOL, MUN, PRO, PQF                           | BD   | ProquifaDotNetTimbrado  |
+| 5   | UPDATE-TABL-CH    | DML EmpresaFolio: INSERT 4 filas Serie "P2" para GOL, MUN, PRO, PQF                           | BD   | ProquifaDotNet (Finanzas) |
 | 6   | UPDATE-TABL-CH    | DML DocumentTemplate: INSERT 4 templates PDF NC México                                        | BD   | DocumentBuilder         |
 | 7   | ALG-COMPLX-LOGIC  | Implementar endpoint timbrado NC México (CFDI tipo E) en Timbrado — folio Serie P2 + TurboPac | Back | ProquifaDotNet.Timbrado |
 | 8   | IMP-EXIST-SERVICE | Implementar Wizard Paso 1 y Paso 2: búsqueda de facturas, captura por partidas y manual       | Back | ProquifaDotNet.Finanzas |
@@ -357,7 +357,7 @@ Ver sección *"DML catTipoCFDI"* en `R16A-RE-FU-032_BD.md` y sección *"Parte A 
 **Módulos:** Base de Datos — Foliador Notas de Crédito México
 
 **Consideraciones previas:**
-- `EmpresaFolio` existe en `ProquifaDotNetTimbrado` (creada en RE-019). Solo se insertan filas nuevas con Serie "P2".
+- `EmpresaFolio` existe en `ProquifaDotNet` (propiedad Finanzas, creada en RE-019). Solo se insertan filas nuevas con Serie "P2".
 - Las NCs de México usan Serie "P2" (distinta a Serie "P" del Complemento de Pago de RE-030). ⚠️ Pendiente validar formato y longitud con PMO (Regla 9 del requisito).
 - El foliador usa UPDLOCK atómico en Timbrado para asignar folios consecutivos sin colisión.
 - La tabla `Empresa` no tiene columna `Region` — se filtra por `Prefijo` (GOL, MUN, PRO, PQF).

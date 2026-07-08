@@ -49,7 +49,7 @@ Al confirmar el envío de cada línea, Finanzas dispara dos acciones automática
 | `tpPedido.FechaEstimadaEntrega` | RE-FU-028 | Campo compartido; Perú lo actualiza al enviar igual que México |
 | `vfccDocumentoFiscalCobro` | RE-FU-028 | Se extiende (v2.0) con JOINs Perú y corrección de resolución de catálogos |
 | `CFDIGenerada` | RE-FU-018/019 | Tabla compartida; CPE Perú se almacena con `IdCatTipoCFDI = FACTURA_CPE`, `UUID = NULL`, `Serie = F001`, `Folio = Correlativo` |
-| `EmpresaFolio GOLPERU` (ProquifaDotNetTimbrado) | RE-FU-020 | Foliador SUNAT; fila GOLPERU ya insertada; mismo patrón UPDLOCK que México |
+| `EmpresaFolio GOLPERU` (ProquifaDotNet — Finanzas) | RE-FU-020 | Foliador SUNAT; fila GOLPERU ya insertada; mismo patrón UPDLOCK que México |
 | `catCondicionesDePago` | RE-FU-018/019 | Catálogo existente (CONTADO/CRÉDITO); Perú lo usa como equivalente al `catMetodoDePagoCFDI` de México |
 | `fccPagoFacturaPedido` | RE-FU-026 | FK desde `fccDocumentoFiscalCobro` (origen proforma Perú) |
 | `fccPagoFacturaAdelanto` | RE-FU-026 | FK desde `fccDocumentoFiscalCobro` (origen FAA Perú; sin documento fiscal — Regla 4) |

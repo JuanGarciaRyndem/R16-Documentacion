@@ -4,9 +4,12 @@ title: Finanzas — Cobros, Facturación y Notas de Crédito (tablas en Proquifa
 %% MIGRACIÓN (06/07/2026): fccFactura/fccFacturaPartida/fccFacturaReferenciaBancaria
 %% reemplazan a la tabla legada tpProformaAdelanto (ver ER-ProquifaDotNet.mermaid) como
 %% pendiente único de Factura por Adelantado (Prepago RE-FU-015 + Crédito RE-FU-012).
-%% fccPagoFacturaAdelanto.IdFccFactura reemplaza a .IdTPProformaAdelanto.
+%% ACTUALIZACIÓN (07/07/2026): + catFacturaEstado y fccFactura.IdCatFacturaEstado/FechaEnvio (RE-015 v2.1);
+%% + EmpresaFolio movida de ProquifaDotNetTimbrado a ProquifaDotNet (propiedad Finanzas, UPDLOCK al timbrar);
+%% + fccInconsistenciaCobro (RE-024/026); + columnas archivo/certificación en CFDIGenerada (RE-021).
+%% + tpProformaPedido movida al Scaffold de Finanzas (07/07/2026, antes vía API).
+%% + tpProformaPartidaPedido movida al Scaffold de Finanzas (08/07/2026).
 erDiagram
-
     catTipoCFDI {
         uniqueidentifier IdCatTipoCFDI PK
         varchar Clave
@@ -16,7 +19,6 @@ erDiagram
         bit Activo
         datetime2 FechaRegistro
     }
-
     catTipoDocumentoFiscal {
         uniqueidentifier IdCatTipoDocumentoFiscal PK
         varchar Clave
@@ -24,7 +26,6 @@ erDiagram
         bit Activo
         datetime2 FechaRegistro
     }
-
     catDocumentoFiscalCobroEstado {
         uniqueidentifier IdCatDocumentoFiscalCobroEstado PK
         varchar Clave
@@ -32,7 +33,15 @@ erDiagram
         bit Activo
         datetime2 FechaRegistro
     }
-
+    catFacturaEstado {
+        uniqueidentifier IdCatFacturaEstado PK
+        varchar Clave UK
+        nvarchar Descripcion
+        int Orden
+        bit EsTerminal
+        bit Activo
+        datetime2 FechaRegistro
+    }
     catFormaPagoSAT {
         uniqueidentifier IdCatFormaPagoSAT PK
         varchar Clave
@@ -40,7 +49,6 @@ erDiagram
         bit Activo
         datetime2 FechaRegistro
     }
-
     catTipoOperacionSUNAT {
         uniqueidentifier IdCatTipoOperacionSUNAT PK
         varchar Clave
@@ -48,7 +56,6 @@ erDiagram
         bit Activo
         datetime2 FechaRegistro
     }
-
     catMotivoCancelacionSAT {
         uniqueidentifier IdCatMotivoCancelacionSAT PK
         varchar Clave
@@ -56,7 +63,6 @@ erDiagram
         bit Activo
         datetime2 FechaRegistro
     }
-
     catMotivoCreditoSUNAT09 {
         uniqueidentifier IdCatMotivoCreditoSUNAT09 PK
         varchar Clave
@@ -65,14 +71,23 @@ erDiagram
         bit Activo
         datetime2 FechaRegistro
     }
-
     catTipoInconsistenciaCobro {
         uniqueidentifier IdCatTipoInconsistenciaCobro PK
         varchar TipoInconsistencia
         bit AplicaMarkPendienteCancelacion
         bit Activo
     }
-
+    EmpresaFolio {
+        uniqueidentifier IdEmpresaFolio PK
+        uniqueidentifier IdEmpresa FK
+        varchar Serie
+        int UltimoFolio
+        varchar FormatoFolio
+        int LongitudMaxima
+        bit Activo
+        datetime2 FechaRegistro
+        datetime2 FechaUltimaActualizacion
+    }
     CFDIGenerada {
         uniqueidentifier IdCFDIGenerada PK
         varchar RFCEmisor
@@ -80,13 +95,17 @@ erDiagram
         varchar Serie
         varchar Folio
         datetime2 FechaEmision
+        datetime2 FechaCertificacionSat
         uniqueidentifier IdCatTipoCFDI FK
         uniqueidentifier IdCFDIRelacionado FK
         varchar UUID
+        decimal Total
+        varchar Estado
+        uniqueidentifier IdArchivoXml FK
+        uniqueidentifier IdArchivoPdf FK
         bit Activo
         datetime2 FechaRegistro
     }
-
     CFDIGeneradaConcepto {
         uniqueidentifier IdCFDIGeneradaConcepto PK
         uniqueidentifier IdCFDIGenerada FK
@@ -97,7 +116,6 @@ erDiagram
         decimal Importe
         datetime2 FechaRegistro
     }
-
     CFDIGeneradaRelacionado {
         uniqueidentifier IdCFDIGeneradaRelacionado PK
         uniqueidentifier IdCFDIGenerada FK
@@ -105,7 +123,6 @@ erDiagram
         varchar ClaveTipoRelacion
         datetime2 FechaRegistro
     }
-
     CFDICancelacion {
         uniqueidentifier IdCFDICancelacion PK
         uniqueidentifier IdCFDIGenerada FK
@@ -115,7 +132,30 @@ erDiagram
         varchar EstadoCancelacion
         datetime2 FechaRegistro
     }
-
+    tpProformaPedido {
+        uniqueidentifier IdTPProformaPedido PK
+        varchar FolioProforma
+        int ConsecutivoProforma
+        decimal MontoTotal
+        decimal MontoPendiente
+        bit HayControlados
+        uniqueidentifier IdCFDIGenerada FK
+        varchar ReferenciaPago
+        datetime2 FechaEstimadaPago
+        bit Activo
+        datetime2 FechaRegistro
+    }
+    tpProformaPartidaPedido {
+        uniqueidentifier IdTPProformaPartidaPedido PK
+        uniqueidentifier IdTPProformaPedido FK
+        int Numero
+        varchar Descripcion
+        decimal Cantidad
+        decimal ValorUnitario
+        decimal Importe
+        bit Activo
+        datetime2 FechaRegistro
+    }
     fccFolioPagoCliente {
         uniqueidentifier IdFCCFolioPagoCliente PK
         uniqueidentifier IdCorreoRecibidoCliente FK
@@ -126,7 +166,6 @@ erDiagram
         bit Procesado
         datetime2 FechaRegistro
     }
-
     fccPagoCliente {
         uniqueidentifier IdFCCPagoCliente PK
         uniqueidentifier IdCliente FK
@@ -143,7 +182,6 @@ erDiagram
         bit Activo
         datetime2 FechaRegistro
     }
-
     fccPagoFacturaPedido {
         uniqueidentifier IdFCCPagoFacturaPedido PK
         uniqueidentifier IdFCCPagoCliente FK
@@ -153,13 +191,14 @@ erDiagram
         int NumeroDeParcialidad
         datetime2 FechaAplicacion
     }
-
     fccFactura {
         uniqueidentifier IdFccFactura PK
         uniqueidentifier IdTPPedido FK
         uniqueidentifier IdTPProformaPedido FK
+        uniqueidentifier IdCatFacturaEstado FK
         bit EsFacturaPorAdelantado
         bit Enviada
+        datetime2 FechaEnvio
         uniqueidentifier IdCliente FK
         uniqueidentifier IdEmpresa FK
         varchar FolioPedidoInterno
@@ -169,7 +208,6 @@ erDiagram
         bit Activo
         datetime2 FechaRegistro
     }
-
     fccFacturaPartida {
         uniqueidentifier IdFccFacturaPartida PK
         uniqueidentifier IdFccFactura FK
@@ -179,7 +217,6 @@ erDiagram
         decimal Importe
         datetime2 FechaRegistro
     }
-
     fccFacturaReferenciaBancaria {
         uniqueidentifier IdFccFacturaReferenciaBancaria PK
         uniqueidentifier IdFccFactura FK
@@ -189,7 +226,6 @@ erDiagram
         varchar Clabe
         datetime2 FechaRegistro
     }
-
     fccPagoFacturaAdelanto {
         uniqueidentifier IdFCCPagoFacturaAdelanto PK
         uniqueidentifier IdFCCPagoCliente FK
@@ -199,7 +235,6 @@ erDiagram
         decimal Monto
         int NumeroParcialidad
     }
-
     fccDocumentoFiscalCobro {
         uniqueidentifier IdFCCDocumentoFiscalCobro PK
         uniqueidentifier IdFCCPagoFacturaPedido FK
@@ -225,7 +260,6 @@ erDiagram
         bit Activo
         datetime2 FechaRegistro
     }
-
     fccConfirmacionPedido {
         uniqueidentifier IdFCCConfirmacionPedido PK
         uniqueidentifier IdTPProformaPedido FK
@@ -234,7 +268,6 @@ erDiagram
         bit Activo
         datetime2 FechaRegistro
     }
-
     fccSaldoFavorCliente {
         uniqueidentifier IdFCCSaldoFavorCliente PK
         uniqueidentifier IdCliente FK
@@ -250,7 +283,14 @@ erDiagram
         bit Activo
         datetime2 FechaRegistro
     }
-
+    fccInconsistenciaCobro {
+        uniqueidentifier IdFCCInconsistenciaCobro PK
+        uniqueidentifier IdFCCPagoCliente FK
+        uniqueidentifier IdCatTipoInconsistenciaCobro FK
+        varchar Notas
+        uniqueidentifier IdUsuario FK
+        datetime2 FechaRegistro
+    }
     fccNotaCredito {
         uniqueidentifier IdFCCNotaCredito PK
         uniqueidentifier IdTPProformaPedido FK
@@ -277,7 +317,6 @@ erDiagram
         bit Activo
         datetime2 FechaRegistro
     }
-
     fccNotaCreditoPartida {
         uniqueidentifier IdFCCNotaCreditoPartida PK
         uniqueidentifier IdFCCNotaCredito FK
@@ -289,7 +328,6 @@ erDiagram
         decimal Total
         datetime2 FechaRegistro
     }
-
     fccFechaEstimadaPagoHistorial {
         uniqueidentifier IdFccFechaEstimadaPagoHistorial PK
         uniqueidentifier IdTpProformaPedido FK
@@ -299,7 +337,6 @@ erDiagram
         uniqueidentifier IdUsuarioCambio FK
         varchar Motivo
     }
-
     catTipoCFDI ||--o{ CFDIGenerada : "clasifica"
     CFDIGenerada ||--o{ CFDIGeneradaConcepto : "tiene"
     CFDIGenerada ||--o{ CFDIGeneradaRelacionado : "tiene"
@@ -309,9 +346,20 @@ erDiagram
     catDocumentoFiscalCobroEstado ||--o{ fccDocumentoFiscalCobro : "estado"
     catFormaPagoSAT ||--o{ fccDocumentoFiscalCobro : "forma de pago CP"
     catTipoOperacionSUNAT ||--o{ fccDocumentoFiscalCobro : "tipo operacion Peru"
+    catFacturaEstado ||--o{ fccFactura : "estado ciclo de vida"
+    tpProformaPedido ||--o{ tpProformaPartidaPedido : "tiene"
+    tpProformaPedido ||--o{ fccPagoFacturaPedido : "recibe cobro"
+    tpProformaPedido ||--o{ fccPagoFacturaAdelanto : "referencia"
+    tpProformaPedido ||--o{ fccFactura : "origen Credito"
+    tpProformaPedido ||--o{ fccConfirmacionPedido : "confirma"
+    tpProformaPedido ||--o{ fccNotaCredito : "referencia"
+    tpProformaPedido ||--o{ fccFechaEstimadaPagoHistorial : "historial fecha pago"
+    CFDIGenerada ||--o{ tpProformaPedido : "timbra"
     fccFolioPagoCliente ||--o{ fccPagoCliente : "origina"
     fccPagoCliente ||--o{ fccPagoFacturaPedido : "aplica a"
     fccPagoCliente ||--o{ fccPagoFacturaAdelanto : "aplica a"
+    fccPagoCliente ||--o{ fccInconsistenciaCobro : "marca"
+    catTipoInconsistenciaCobro ||--o{ fccInconsistenciaCobro : "clasifica"
     fccFactura ||--o{ fccFacturaPartida : "tiene"
     fccFactura ||--o{ fccFacturaReferenciaBancaria : "tiene"
     fccFactura ||--o{ fccPagoFacturaAdelanto : "recibe cobro"

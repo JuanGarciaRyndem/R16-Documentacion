@@ -48,7 +48,7 @@ incluir las columnas Perú.
 | 4   | ALTER VIEW vfccDocumentoFiscalCobro — extender con JOINs Perú                              | ProquifaDotNet         | DDL       | Media     |
 | 5   | DML DocumentTemplate — registrar template `{PrefijoPeru}_PER_CDP`                          | ProquifaDotNet         | DML       | Media     |
 | —   | Reutiliza: CFDIGenerada (RE-018/019; Peru CPE se almacena con Clave=`FACTURA_CPE`)         | ProquifaDotNet         | Existente | —         |
-| —   | Reutiliza: EmpresaFolio GOLPERU (fila insertada en RE-020; Serie F001)                     | ProquifaDotNetTimbrado | Existente | —         |
+| —   | Reutiliza: EmpresaFolio GOLPERU (fila insertada en RE-020; Serie F001)                     | ProquifaDotNet (Finanzas) | Existente | —         |
 | —   | Reutiliza: catCondicionesDePago (RE-018/019; Contado/Crédito ya existen)                   | ProquifaDotNet         | Existente | —         |
 | —   | Reutiliza: fccDocumentoFiscalCobro (estructura base RE-028)                                | ProquifaDotNet         | Existente | —         |
 | —   | Reutiliza: fccConfirmacionPedido (RE-028; aplica también a Perú)                           | ProquifaDotNet         | Existente | —         |
@@ -424,7 +424,7 @@ toma de la tabla `Empresa` donde ya existe la fila para RE-020.
 | catTipoCFDI | Clave `FACTURA_CPE` | Nueva clave insertada en RE-029 |
 | fccNotaCredito | Id, Monto | NCs Perú; mecánica de referencia catálogo 09 SUNAT pendiente (RE-033/035) |
 | tpPedido | FolioPedidoInterno, IdContacto | Sin diferencia |
-| EmpresaFolio GOLPERU (ProquifaDotNetTimbrado) | Serie (`F001`), UltimoFolio | Misma tabla con fila GOLPERU de RE-020 |
+| EmpresaFolio GOLPERU (ProquifaDotNet — Finanzas) | Serie (`F001`), UltimoFolio | Misma tabla con fila GOLPERU de RE-020 |
 
 ---
 
