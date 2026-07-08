@@ -58,8 +58,8 @@
 ### GAP-01 — Tabla `ClienteDatosBancarios` no existe
 
 **Archivo:** BD — nueva tabla
-**Impacto:** Reglas R2, R3, R4 (ambos niveles) — sin la tabla no es posible persistir la relación cliente-cuenta, el Código Validador, la referencia vigente ni el historial.
-**Cambio requerido:** Crear la tabla con todos los campos (referencia vigente + historial de un nivel). Ver DDL completo en `R16A-RE-FU-006_BD.md` sección 1.
+**Impacto:** Reglas R2, R3, R4 (ambos niveles) — sin la tabla no es posible persistir la relación cliente-cuenta, el Código Validador ni la referencia vigente.
+**Cambio requerido:** Crear la tabla con todos los campos (referencia vigente). El historial del Código Validador ya no lleva columnas propias — se registra en ProquifaDotNet.BitacoraCambios (ver GAP-06). Ver DDL completo en `R16A-RE-FU-006_BD.md` sección 1.
 
 ```sql
 CREATE TABLE dbo.ClienteDatosBancarios
@@ -77,10 +77,6 @@ CREATE TABLE dbo.ClienteDatosBancarios
     -- OBS-013: referencia vigente del cliente (Regla 4 nivel 1)
     ReferenciaVigente        varchar(80)      NULL,
     FechaReferenciaVigente   datetime         NULL,
-    -- OBS-014: historial de un nivel
-    CodigoValidadorAnterior      varchar(50)      NULL,
-    FechaModificacionAnterior    datetime         NULL,
-    IdUsuarioModificacionAnterior uniqueidentifier NULL,
     FechaRegistro            datetime         NOT NULL
         CONSTRAINT DF_ClienteDatosBancarios_FechaRegistro DEFAULT (GETDATE()),
     FechaUltimaActualizacion datetime         NOT NULL
@@ -103,7 +99,7 @@ CREATE NONCLUSTERED INDEX IX_ClienteDatosBancarios
 
 **Archivo a crear:** `Logic.Pqf.Catalogos\Clientes\DatosBancarios\ClienteDatosBancariosBO.cs`
 **Impacto:** Reglas R4 (nivel 1) y R5 — no es posible insertar/actualizar la relación cliente-cuenta-CódValidador ni armar la `ReferenciaVigente` al guardar.
-**Cambio requerido:** Crear BO usando el patrón `TablaGenericaBO<T>`. Al guardar, invocar `ReferenciaBancariaBO.Construir()` y persistir el resultado en `ReferenciaVigente`. Combinar con la rotación de historial del Código Validador (GAP-06). Depende de GAP-01 y GAP-03.
+**Cambio requerido:** Crear BO usando el patrón `TablaGenericaBO<T>`. Al guardar, invocar `ReferenciaBancariaBO.Construir()` y persistir el resultado en `ReferenciaVigente`. Combinar con el registro del cambio del Código Validador en BitacoraCambios (GAP-06). Depende de GAP-01 y GAP-03.
 
 ```csharp
 // NUEVO — ClienteDatosBancariosBO.cs
@@ -297,42 +293,54 @@ namespace WebApi.Controllers.Configuracion.Clientes
 
 ---
 
-### GAP-06 — Rotación de `CodigoValidador`: preservar historial al actualizar (OBS-014)
+### GAP-06 — Historial de `CodigoValidador`: registro en ProquifaDotNet.BitacoraCambios (actualización 2026-07-07, sustituye a OBS-014)
 
 **Archivo:** `Logic.Pqf.Catalogos\Clientes\DatosBancarios\ClienteDatosBancariosBO.cs`
-**Impacto:** Al actualizar `CodigoValidador`, el código anterior se pierde. Se requiere guardar el historial para trazabilidad.
-**Cambio requerido:** Antes de sobreescribir `CodigoValidador` en `_GuardarOActualizar`, copiar los valores actuales a los campos `CodigoValidadorAnterior`, `FechaModificacionAnterior` e `IdUsuarioModificacionAnterior`.
+**Impacto:** Al actualizar `CodigoValidador`, el código anterior se pierde. Se requiere trazabilidad completa de los cambios.
+**Cambio requerido:** Al guardar o actualizar el `CodigoValidador` en `_GuardarOActualizar`, registrar el cambio en el Aplicativo Nuevo **ProquifaDotNet.BitacoraCambios** (Reglas al diseñar — regla 8) vía `ApiCallerBitacoraCambios`, con: tabla afectada (`ClienteDatosBancarios`), id del registro, campo (`CodigoValidador`), valor anterior, valor nuevo, usuario y fecha. Cada cambio genera un registro nuevo — historial completo, sin límite de niveles. Se **eliminan** las columnas de rotación de un nivel (`CodigoValidadorAnterior`, `FechaModificacionAnterior`, `IdUsuarioModificacionAnterior`) del diseño de `ClienteDatosBancarios`.
 
 ```csharp
-// DESPUÉS — ClienteDatosBancariosBO.cs con lógica de rotación (OBS-014)
+// DESPUÉS — ClienteDatosBancariosBO.cs con registro en BitacoraCambios (sustituye la rotación OBS-014)
 protected override Guid _GuardarOActualizar(ClienteDatosBancarios entity)
 {
     entity.FechaUltimaActualizacion = DateTime.Now;
 
-    // Rotación: si ya existe un registro previo con código validador, preservar el anterior
+    string codigoAnterior = null;
     if (entity.IdClienteDatosBancarios != Guid.Empty)
     {
         using (var db = new ProquifaDotNetEntities())
         {
             var existente = db.ClienteDatosBancarios
                 .FirstOrDefault(x => x.IdClienteDatosBancarios == entity.IdClienteDatosBancarios);
-
-            if (existente != null
-                && !string.IsNullOrEmpty(existente.CodigoValidador)
-                && existente.CodigoValidador != entity.CodigoValidador)
-            {
-                entity.CodigoValidadorAnterior       = existente.CodigoValidador;
-                entity.FechaModificacionAnterior     = existente.FechaUltimaActualizacion;
-                entity.IdUsuarioModificacionAnterior = entity.IdUsuarioModificacionAnterior; // pasa desde la capa de API
-            }
+            if (existente != null && existente.CodigoValidador != entity.CodigoValidador)
+                codigoAnterior = existente.CodigoValidador;
         }
     }
 
-    return base._GuardarOActualizar(entity);
+    var id = base._GuardarOActualizar(entity);
+
+    // Registro del cambio en ProquifaDotNet.BitacoraCambios (regla 8) — alta y cada modificación
+    if (entity.IdClienteDatosBancarios == Guid.Empty || codigoAnterior != null)
+    {
+        _apiCallerBitacoraCambios.RegistrarCambio(
+            tabla: "ClienteDatosBancarios",
+            idRegistro: id,
+            campo: "CodigoValidador",
+            valorAnterior: codigoAnterior,          // null en el alta
+            valorNuevo: entity.CodigoValidador,
+            idUsuario: entity.IdUsuarioModificacion, // pasa desde la capa de API
+            fecha: DateTime.Now);
+    }
+
+    return id;
 }
 ```
 
-> **Nota:** El campo `IdUsuarioModificacionAnterior` debe ser pasado desde el controller (contexto del usuario autenticado) al entity antes de llamar a `GuardarOActualizar`.
+> **Notas:**
+> - El usuario del cambio se pasa desde el controller (contexto del usuario autenticado) antes de llamar a `GuardarOActualizar`.
+> - El registro en BitacoraCambios NO debe bloquear el guardado: si la llamada falla, se loguea el error (Serilog) y el guardado procede — definir con arquitectura si se requiere reintento.
+> - El contrato/endpoint de ProquifaDotNet.BitacoraCambios aún no está documentado en un requisito propio (mismo estado que en RE-016/018) — aquí se referencia el punto de integración, no su detalle técnico.
+> - La consulta del historial se hace desde BitacoraCambios; sin UI en R16.
 
 ---
 
@@ -354,7 +362,7 @@ protected override Guid _GuardarOActualizar(ClienteDatosBancarios entity)
 
 | Tabla BD | Entidad EF | Propiedades clave R16 | Descripción |
 |----------|------------|-----------------------|-------------|
-| `ClienteDatosBancarios` | `ClienteDatosBancarios` | `IdClienteDatosBancarios` (PK), `IdCliente` (FK), `IdDatosBancarios` (FK), `CodigoValidador`, `ReferenciaVigente`, `CodigoValidadorAnterior` + audit | **NUEVA R16** — Relación N:N cliente-cuenta con referencia vigente persistida e historial de un nivel |
+| `ClienteDatosBancarios` | `ClienteDatosBancarios` | `IdClienteDatosBancarios` (PK), `IdCliente` (FK), `IdDatosBancarios` (FK), `CodigoValidador`, `ReferenciaVigente` + audit | **NUEVA R16** — Relación N:N cliente-cuenta con referencia vigente persistida; historial del Código Validador en ProquifaDotNet.BitacoraCambios (GAP-06) |
 | `DatosBancarios` | `DatosBancarios` | `IdDatosBancarios` (PK), `IdCatBanco` (FK), `IdCatMoneda` (FK) | Existente — cuenta bancaria del grupo PROQUIFA |
 | `catBanco` | `catBanco` | `IdCatBanco` (PK), `Clave` (002 = Banamex) | Existente — catálogo de bancos |
 | `catMoneda` | `catMoneda` | `IdCatMoneda` (PK), `ClaveMoneda` (MXN / USD) | Existente — determina P/D en segmento 6 |
@@ -396,8 +404,8 @@ ORDER BY LEN(c.Nombre) DESC;
 
 | # | Archivo | Tipo de cambio |
 |---|---------|----------------|
-| 1 | BD — nueva tabla `ClienteDatosBancarios` | CREATE TABLE con `ReferenciaVigente` + historial + índice filtrado por `Activo = 1` |
-| 2 | `Logic.Pqf.Catalogos\Clientes\DatosBancarios\ClienteDatosBancariosBO.cs` | Clase nueva — CRUD + armado/persistencia de `ReferenciaVigente` + rotación de historial |
+| 1 | BD — nueva tabla `ClienteDatosBancarios` | CREATE TABLE con `ReferenciaVigente` + índice filtrado por `Activo = 1` (sin columnas de historial) |
+| 2 | `Logic.Pqf.Catalogos\Clientes\DatosBancarios\ClienteDatosBancariosBO.cs` | Clase nueva — CRUD + armado/persistencia de `ReferenciaVigente` + registro del cambio de Código Validador en BitacoraCambios |
 | 3 | `Logic.Pqf.Catalogos\Clientes\DatosBancarios\ReferenciaBancariaBO.cs` | Clase nueva — algoritmo de referencia (Banamex / no-Banamex), invocada desde el BO al CREATE/UPDATE |
 | 4 | `Logic.Pqf.Logistica\L05.TramitarPedido\Facturas\Fabrica\tpProformaPedidoFactory.cs` | Modificar — **leer** `ClienteDatosBancarios.ReferenciaVigente` y copiarla a `ReferenciaPago` (snapshot) |
 | 5 | `WebApi.Catalogos\Controllers\Configuracion\Clientes\ClienteDatosBancariosController.cs` | Controller nuevo — CRUD `/ClienteDatosBancarios` |
@@ -434,10 +442,10 @@ ORDER BY LEN(c.Nombre) DESC;
 
 ## 9. Criterios de aceptación técnica
 
-- [ ] La tabla `ClienteDatosBancarios` existe en BD con PK, FK a `Cliente` y FK a `DatosBancarios`, e incluye `ReferenciaVigente`, `FechaReferenciaVigente` y campos de historial.
+- [ ] La tabla `ClienteDatosBancarios` existe en BD con PK, FK a `Cliente` y FK a `DatosBancarios`, e incluye `ReferenciaVigente` y `FechaReferenciaVigente` (sin columnas de historial).
 - [ ] Existen el índice filtrado `UX_ClienteDatosBancarios_ClienteCuentaActiva (IdCliente, IdDatosBancarios) WHERE Activo = 1` y el índice `IX_ClienteDatosBancarios (IdCliente, IdDatosBancarios, Activo)`.
 - [ ] `ClienteDatosBancariosBO` permite insertar, actualizar y consultar la relación cliente-cuenta y **arma + persiste** `ReferenciaVigente` al CREATE/UPDATE.
-- [ ] Al modificar el `CodigoValidador`, el BO rota el valor: actual → anterior, registrando `FechaModificacionAnterior` e `IdUsuarioModificacionAnterior` (OBS-014).
+- [ ] Al guardar o modificar el `CodigoValidador`, el BO registra el cambio en ProquifaDotNet.BitacoraCambios (valor anterior, nuevo, usuario, fecha) sin bloquear el guardado (GAP-06).
 - [ ] El endpoint `PUT /ClienteDatosBancarios` guarda correctamente la combinación con su `CodigoValidador` y devuelve `ReferenciaVigente` calculada.
 - [ ] `ReferenciaBancariaBO.Construir()` retorna `Cliente.Nombre` para cuentas de bancos distintos de Banamex.
 - [ ] `ReferenciaBancariaBO.Construir()` retorna la concatenación de 7 segmentos para cuentas de Banamex (`catBanco.Clave = "002"`).

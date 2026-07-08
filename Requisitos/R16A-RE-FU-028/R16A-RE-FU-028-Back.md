@@ -19,19 +19,19 @@ Al confirmar el envío de cada línea, el sistema dispara automáticamente tres 
 
 ### Distribución de responsabilidades
 
-| Capa              | Aplicativo                | Responsabilidad                                                                         |
-| ----------------- | ------------------------- | --------------------------------------------------------------------------------------- |
-| BD — Catálogos    | ProquifaDotNet            | `catTipoDocumentoFiscal`, `catDocumentoFiscalCobroEstado`, `catTipoCFDI`                |
-| BD — Tablas       | ProquifaDotNet            | `fccDocumentoFiscalCobro` (estado Paso 3), `fccConfirmacionPedido`                      |
-| BD — Alteraciones | ProquifaDotNet            | `CFDIGenerada` (IdCatTipoCFDI + IdCFDIRelacionado), `tpPedido` (FechaEstimadaEntrega)   |
-| BD — Vista        | ProquifaDotNet            | `vfccDocumentoFiscalCobro` (consolidación estado Paso 3 por cliente)                    |
-| Lógica Paso 3     | ProquifaDotNet.Finanzas   | Inicialización líneas, lógica condicional tipo CFDI, auto-guardado, estados             |
-| Timbrado          | ProquifaDotNet.Timbrado   | Timbrado Factura PUE/PPD, Factura Anticipo, Complemento cascada; inserción CFDIGenerada |
-| Generación PDF    | DocumentBuilder           | PDF Factura México (RE-FU-021), PDF Complemento de Pago, PDF Confirmación de Pedido     |
+| Capa              | Aplicativo                | Responsabilidad                                                                                                     |
+| ----------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| BD — Catálogos    | ProquifaDotNet            | `catTipoDocumentoFiscal`, `catDocumentoFiscalCobroEstado`, `catTipoCFDI`                                            |
+| BD — Tablas       | ProquifaDotNet            | `fccDocumentoFiscalCobro` (estado Paso 3), `fccConfirmacionPedido`                                                  |
+| BD — Alteraciones | ProquifaDotNet            | `CFDIGenerada` (IdCatTipoCFDI + IdCFDIRelacionado), `tpPedido` (FechaEstimadaEntrega)                               |
+| BD — Vista        | ProquifaDotNet            | `vfccDocumentoFiscalCobro` (consolidación estado Paso 3 por cliente)                                                |
+| Lógica Paso 3     | ProquifaDotNet.Finanzas   | Inicialización líneas, lógica condicional tipo CFDI, auto-guardado, estados                                         |
+| Timbrado          | ProquifaDotNet.Timbrado   | Timbrado Factura PUE/PPD, Factura Anticipo, Complemento cascada; inserción CFDIGenerada                             |
+| Generación PDF    | DocumentBuilder           | PDF Factura México (RE-FU-021), PDF Complemento de Pago, PDF Confirmación de Pedido                                 |
 | Envío             | ProquifaDotNet.Finanzas   | Modal envío, integración con ProquifaDotNet.EnvioCorreo (Aplicativo Nuevo — correo con PDF + XML adjuntos, regla 7) |
-| Post-envío        | ProquifaDotNet.Finanzas   | FEE en `tpPedido`, transferencia Legacy, generación `fccConfirmacionPedido` en MinIO    |
-| Comunicación      | Finanzas → Timbrado       | Llamadas entre APIs para timbrado de cada CFDI de la línea                              |
-| Comunicación      | Finanzas → ProquifaDotNet | Llamadas entre APIs para leer datos y escribir resultados del Paso 3                    |
+| Post-envío        | ProquifaDotNet.Finanzas   | FEE en `tpPedido`, transferencia Legacy, generación `fccConfirmacionPedido` en MinIO                                |
+| Comunicación      | Finanzas → Timbrado       | Llamadas entre APIs para timbrado de cada CFDI de la línea                                                          |
+| Comunicación      | Finanzas → ProquifaDotNet | Llamadas entre APIs para leer datos y escribir resultados del Paso 3                                                |
 
 ### Infraestructura reutilizada
 

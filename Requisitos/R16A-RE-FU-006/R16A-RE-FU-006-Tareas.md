@@ -43,10 +43,6 @@ CREATE TABLE dbo.ClienteDatosBancarios
         CONSTRAINT FK_ClienteDatosBancarios_DatosBancarios
             FOREIGN KEY REFERENCES dbo.DatosBancarios(IdDatosBancarios),
     CodigoValidador               varchar(50)      NULL,
-    -- OBS-014: historial del código anterior para trazabilidad de rotación
-    CodigoValidadorAnterior       varchar(50)      NULL,
-    FechaModificacionAnterior     datetime         NULL,
-    IdUsuarioModificacionAnterior uniqueidentifier NULL,
     FechaRegistro                 datetime         NOT NULL
         CONSTRAINT DF_ClienteDatosBancarios_FechaRegistro    DEFAULT (GETDATE()),
     FechaUltimaActualizacion      datetime         NOT NULL
@@ -67,7 +63,7 @@ SELECT OBJECT_ID('dbo.ClienteDatosBancarios') AS TablaCreada;
 - [ ] FK `FK_ClienteDatosBancarios_Cliente` referencia `dbo.Cliente(IdCliente)`
 - [ ] FK `FK_ClienteDatosBancarios_DatosBancarios` referencia `dbo.DatosBancarios(IdDatosBancarios)`
 - [ ] Índice `IX_ClienteDatosBancarios` existe sobre `(IdCliente, IdDatosBancarios, Activo)`
-- [ ] Columnas de historial presentes: `CodigoValidadorAnterior varchar(50) NULL`, `FechaModificacionAnterior datetime NULL`, `IdUsuarioModificacionAnterior uniqueidentifier NULL` (OBS-014)
+- [ ] La tabla NO incluye columnas de historial del Código Validador — el historial se registra en ProquifaDotNet.BitacoraCambios (actualización 2026-07-07, sustituye a OBS-014)
 - [ ] Script incluido en el formulario de control de scripts del release
 - [ ] PR aprobado por líder técnico y DBA
 
@@ -117,26 +113,39 @@ namespace Logic.Pqf.Catalogos.Clientes.DatosBancarios
         {
             entity.FechaUltimaActualizacion = DateTime.Now;
 
-            // OBS-014: Rotación — preservar el código validador anterior al actualizar
-            if (entity.IdClienteDatosBancarios != Guid.Empty)
+            // Historial (actualización 2026-07-07, sustituye rotación OBS-014):
+            // detectar cambio del Código Validador para registrarlo en ProquifaDotNet.BitacoraCambios
+            string codigoAnterior = null;
+            bool esAlta = entity.IdClienteDatosBancarios == Guid.Empty;
+            if (!esAlta)
             {
                 using (var db = new ProquifaDotNetEntities())
                 {
                     var existente = db.ClienteDatosBancarios
                         .FirstOrDefault(x => x.IdClienteDatosBancarios == entity.IdClienteDatosBancarios);
 
-                    if (existente != null
-                        && !string.IsNullOrEmpty(existente.CodigoValidador)
-                        && existente.CodigoValidador != entity.CodigoValidador)
-                    {
-                        entity.CodigoValidadorAnterior       = existente.CodigoValidador;
-                        entity.FechaModificacionAnterior     = existente.FechaUltimaActualizacion;
-                        // IdUsuarioModificacionAnterior se pasa desde la capa de API (contexto del usuario)
-                    }
+                    if (existente != null && existente.CodigoValidador != entity.CodigoValidador)
+                        codigoAnterior = existente.CodigoValidador;
                 }
             }
 
-            return base._GuardarOActualizar(entity);
+            var id = base._GuardarOActualizar(entity);
+
+            // Registro en BitacoraCambios (regla 8) — alta y cada modificación del Código Validador.
+            // No bloquea el guardado: si falla, se loguea (Serilog) y el guardado procede.
+            if (esAlta || codigoAnterior != null)
+            {
+                _apiCallerBitacoraCambios.RegistrarCambio(
+                    tabla: "ClienteDatosBancarios",
+                    idRegistro: id,
+                    campo: "CodigoValidador",
+                    valorAnterior: codigoAnterior,           // null en el alta
+                    valorNuevo: entity.CodigoValidador,
+                    idUsuario: entity.IdUsuarioModificacion, // se pasa desde la capa de API
+                    fecha: DateTime.Now);
+            }
+
+            return id;
         }
 
         /// <summary>
@@ -160,8 +169,9 @@ namespace Logic.Pqf.Catalogos.Clientes.DatosBancarios
 **Criterios de aceptación:**
 - [ ] La clase `ClienteDatosBancariosBO` compila sin errores
 - [ ] `GuardarOActualizar` persiste correctamente un registro con `IdCliente`, `IdDatosBancarios` y `CodigoValidador`
-- [ ] Al actualizar `CodigoValidador`, el código anterior se copia a `CodigoValidadorAnterior` con su fecha y usuario correspondientes (OBS-014)
-- [ ] Si `CodigoValidador` no cambia, los campos de historial no se modifican
+- [ ] Al dar de alta o modificar `CodigoValidador`, el cambio se registra en ProquifaDotNet.BitacoraCambios con valor anterior, valor nuevo, usuario y fecha (historial completo — sustituye a OBS-014)
+- [ ] Si `CodigoValidador` no cambia en una actualización, no se genera registro en BitacoraCambios
+- [ ] Un fallo del registro en BitacoraCambios no bloquea el guardado (se loguea vía Serilog)
 - [ ] `ObtenerCuentaActivaDelCliente` retorna el registro más reciente activo del cliente
 - [ ] `Desactivar` marca el registro con `Activo = false`
 - [ ] PR aprobado por líder técnico

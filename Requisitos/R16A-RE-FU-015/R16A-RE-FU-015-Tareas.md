@@ -363,22 +363,22 @@ El job de TaskScheduler de Venta Digital procesa correctamente los pedidos trami
 
 Para cada escenario aplicable, verificar que cada paso del pipeline se ejecutó correctamente:
 
-| Paso | Qué verificar                                                              | E1  | E2  | E3  | E4  | E5  | E6  |
-| ---- | -------------------------------------------------------------------------- | :-: | :-: | :-: | :-: | :-: | :-: |
-| 1    | Folio de pedido asignado                                                   |  ✓  |  ✓  |  ✓  |  —  |  ✓  |  ✓  |
-| 2    | PDF de proforma generado (RE-016/017) — solo aplica al flujo base RE-014, ya no aplica a E2-E6 |  ✓  |  —  |  —  |  —  |  —  |  —  |
-| 3    | Correo de proforma enviado al cliente — solo aplica al flujo base RE-014, ya no aplica a E2-E6 |  ✓  |  —  |  —  |  —  |  —  |  —  |
-| 4    | Pendiente Validar Cobro generado (solo FAA=0)                              |  ✓  |  —  |  —  |  —  |  —  |  —  |
-| 5    | Pendiente VC NO generado (FAA=1)                                           |  —  |  ✓  |  ✓  |  —  |  ✓  |  ✓  |
-| 6    | Extracto Venta Digital: `tpPedidoVD` y `tpPartidaPedidoVD`                 |  ✓  |  ✓  |  ✓  |  —  |  ✓  |  ✓  |
-| 7    | TaskScheduler VD: Orden de Compra procesada                                |  ✓  |  ✓  |  ✓  |  —  |  ✓  |  ✓  |
-| 8    | TaskScheduler VD: documento transferido a Legacy (E2-E6: ⚠️ punto abierto — ya no hay PDF disponible, ver T9) |  ✓  |  ⚠️  |  —  |  —  |  —  |  —  |
-| 9    | Pendiente FAA generado (`fccFactura` + `fccFacturaPartida` + `fccFacturaReferenciaBancaria`, solo FAA=1) |  —  |  ✓  |  ✓  |  —  |  ✓  |  ✓  |
-| 10   | Datos de facturación fijados del catálogo vigente (snapshot en `fccFactura`) |  —  |  ✓  |  ✓  |  —  |  —  |  —  |
-| 11   | Error al intentar editar datos con FAA activa (E4)                         |  —  |  —  |  —  |  ✓  |  —  |  —  |
-| 12   | Activación sin solicitar código de autorización (E5)                       |  —  |  —  |  —  |  —  |  ✓  |  —  |
-| 13   | Pendiente FAA consumible por módulo RE-018 (E6) — UPDATE de `fccFactura`, no INSERT duplicado |  —  |  —  |  —  |  —  |  —  |  ✓  |
-| 14   | BitácoraCRUD registrada                                                    |  ✓  |  ✓  |  ✓  |  ✓  |  ✓  |  ✓  |
+| Paso | Qué verificar                                                                                                 | E1  | E2  | E3  | E4  | E5  | E6  |
+| ---- | ------------------------------------------------------------------------------------------------------------- | :-: | :-: | :-: | :-: | :-: | :-: |
+| 1    | Folio de pedido asignado                                                                                      |  ✓  |  ✓  |  ✓  |  —  |  ✓  |  ✓  |
+| 2    | PDF de proforma generado (RE-016/017) — solo aplica al flujo base RE-014, ya no aplica a E2-E6                |  ✓  |  —  |  —  |  —  |  —  |  —  |
+| 3    | Correo de proforma enviado al cliente — solo aplica al flujo base RE-014, ya no aplica a E2-E6                |  ✓  |  —  |  —  |  —  |  —  |  —  |
+| 4    | Pendiente Validar Cobro generado (solo FAA=0)                                                                 |  ✓  |  —  |  —  |  —  |  —  |  —  |
+| 5    | Pendiente VC NO generado (FAA=1)                                                                              |  —  |  ✓  |  ✓  |  —  |  ✓  |  ✓  |
+| 6    | Extracto Venta Digital: `tpPedidoVD` y `tpPartidaPedidoVD`                                                    |  ✓  |  ✓  |  ✓  |  —  |  ✓  |  ✓  |
+| 7    | TaskScheduler VD: Orden de Compra procesada                                                                   |  ✓  |  ✓  |  ✓  |  —  |  ✓  |  ✓  |
+| 8    | TaskScheduler VD: documento transferido a Legacy (E2-E6: ⚠️ punto abierto — ya no hay PDF disponible, ver T9) |  ✓  | ⚠️  |  —  |  —  |  —  |  —  |
+| 9    | Pendiente FAA generado (`fccFactura` + `fccFacturaPartida` + `fccFacturaReferenciaBancaria`, solo FAA=1)      |  —  |  ✓  |  ✓  |  —  |  ✓  |  ✓  |
+| 10   | Datos de facturación fijados del catálogo vigente (snapshot en `fccFactura`)                                  |  —  |  ✓  |  ✓  |  —  |  —  |  —  |
+| 11   | Error al intentar editar datos con FAA activa (E4)                                                            |  —  |  —  |  —  |  ✓  |  —  |  —  |
+| 12   | Activación sin solicitar código de autorización (E5)                                                          |  —  |  —  |  —  |  —  |  ✓  |  —  |
+| 13   | Pendiente FAA consumible por módulo RE-018 (E6) — UPDATE de `fccFactura`, no INSERT duplicado                 |  —  |  —  |  —  |  —  |  —  |  ✓  |
+| 14   | BitácoraCRUD registrada                                                                                       |  ✓  |  ✓  |  ✓  |  ✓  |  ✓  |  ✓  |
 
 > **Nota (pasos 2, 3, 8):** este flujo ya no genera proforma, PDF ni correo (RT-01). El punto abierto del paso 8 (E2-E6) se traslada a T9: confirmar si TaskScheduler debe operar sin ningún documento para transferir a Legacy en el flujo FAA Prepago.
 
@@ -431,3 +431,5 @@ Todos los escenarios ejecutados con evidencia. Los pasos del pipeline marcados c
 | Venta Digital | T9 | TaskScheduler lee `tpPedidoVD`/`tpPartidaPedidoVD` para procesar OC y transferir documentos a Legacy — pendiente confirmar comportamiento sin PDF disponible |
 
 > R16A-RE-FU-016/017 (generación de PDF/template de proforma) **ya no aplican** a este requisito — el requisito actualizado no genera proforma en este flujo.
+
+

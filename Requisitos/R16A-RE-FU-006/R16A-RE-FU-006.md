@@ -40,8 +40,7 @@ El sistema debe contar en la sección **Cobros** del Catálogo de Clientes con u
 - Clientes de Perú: queda fuera del alcance de este requisito en R16 hasta definir con el cliente el modelo bancario peruano de identificación de pagos. Levantada como duda formal del proyecto.
 - Validación de formato o longitud del Código Validador (pendiente definir con el cliente si se requiere validación; el documento del cliente no especifica longitud máxima ni reglas de formato).
 - Recálculo de la referencia ya casada a una proforma emitida (el PDF cae en firme; las proformas históricas conservan su referencia y no se regeneran al consultarse — OBS-015).
-- Historial extendido del Código Validador más allá de un nivel: el sistema conserva únicamente el valor vigente y el inmediatamente anterior (con autor y fecha); cambios previos a ese se sobrescriben (OBS-014).
-- Vista en pantalla del historial del Código Validador: el registro se conserva solo a nivel de datos para auditoría, sin componente de UI en R16.
+- Vista en pantalla del historial del Código Validador: el historial se conserva en ProquifaDotNet.BitacoraCambios para auditoría, sin componente de UI en R16 (la consulta se hace desde ese aplicativo).
 
 ---
 
@@ -64,7 +63,7 @@ La referencia bancaria se persiste en dos niveles:
 1. **Referencia vigente del cliente:** la combinación cliente-cuenta persiste en el modelo de datos el identificador de la cuenta bancaria, el identificador del cliente, el Código Validador capturado y la **referencia bancaria armada vigente**. Esta referencia se genera una sola vez al configurar la cuenta del cliente (Catálogo de Clientes → Cobros → Referencia de Pago) y **solo se regenera si cambia un dato fuente** (banco, cuenta, Código Validador o datos del cliente que la componen — Nombre y Clave).
 2. **Referencia casada a la proforma:** al generarse el PDF de una proforma, la referencia vigente en ese momento queda casada al documento; las proformas ya emitidas conservan su referencia y no se ven afectadas por regeneraciones posteriores de la referencia vigente del cliente.
 
-Adicionalmente, al modificar el Código Validador se conservan en base de datos dos valores: el actual (vigente) y el inmediatamente anterior, junto con el autor y la fecha de la modificación. Ante una nueva modificación, el valor “actual” pasa a “anterior” y el “anterior” previo se sobrescribe (OBS-014).
+Adicionalmente, cada guardado o modificación del Código Validador se registra en el Aplicativo Nuevo **ProquifaDotNet.BitacoraCambios** (Reglas al diseñar — regla 8), que conserva el **historial completo** de cambios: valor anterior, valor nuevo, autor y fecha. Sustituye al esquema de rotación de un nivel de OBS-014; `ClienteDatosBancarios` ya no lleva columnas de historial propias.
 
 **Regla 5 — Generación de la referencia y casado al PDF en firme**
 La referencia bancaria se arma al configurar/actualizar la cuenta del cliente, aplicando las reglas según el banco de la cuenta (ver Reglas 6 y 7), y se persiste como referencia vigente del cliente. Al generar el PDF de una proforma, el sistema toma la **referencia vigente del cliente y la casa al documento**: el PDF cae en firme y, al consultarse después, no se reconstruye ni recalcula la referencia (refleja los datos casados al momento de la emisión, equivalente al comportamiento del Legacy — OBS-015).
@@ -110,7 +109,7 @@ La asignación de cuentas bancarias del grupo PROQUIFA a clientes y la captura d
 **Riesgo 3 — Modelo Perú no definido**
 La lógica documentada por el cliente corresponde exclusivamente a PROQUIFA México (Banamex, prefijos de empresas mexicanas, moneda en pesos/dólares). No existe documentación equivalente para el modelo bancario peruano de identificación de pagos. Mientras no se resuelva, los clientes Perú no podrán tener referencia bancaria armada por el sistema ProquifaDotNet.
 
-> **Riesgos retirados** — El riesgo de inconsistencia entre proformas re-emitidas por reconstrucción dinámica (antiguo Riesgo 1) queda descartado por OBS-013 (persistencia en dos niveles + snapshot inmutable en PDF). El riesgo de pérdida de trazabilidad por sobrescritura del Código Validador (antiguo Riesgo 5) queda descartado por OBS-014 (historial de un nivel: valor actual + anterior con autor y fecha).
+> **Riesgos retirados** — El riesgo de inconsistencia entre proformas re-emitidas por reconstrucción dinámica (antiguo Riesgo 1) queda descartado por OBS-013 (persistencia en dos niveles + snapshot inmutable en PDF). El riesgo de pérdida de trazabilidad por sobrescritura del Código Validador (antiguo Riesgo 5) queda descartado por el registro de cada cambio en ProquifaDotNet.BitacoraCambios (historial completo — actualización 2026-07-07, sustituye a OBS-014).
 
 ---
 
@@ -152,7 +151,7 @@ La lógica documentada por el cliente corresponde exclusivamente a PROQUIFA Méx
 **Criterio B2 — Persistencia de la combinación cliente-cuenta-Código Validador y referencia vigente**
 - **Dado** que el usuario guarda una asignación nueva o modificada,
 - **Cuando** el sistema procesa la operación,
-- **Entonces** deberá persistir la combinación en la relación cliente-cuenta del modelo de datos, incluida la **referencia bancaria armada vigente del cliente**, que solo se regenera ante un cambio de un dato fuente (banco, cuenta, Código Validador o datos del cliente). Al modificar el Código Validador, el sistema conserva en base de datos dos valores: el actual (vigente) y el inmediatamente anterior, junto con el autor y la fecha de la modificación. Ante una nueva modificación, el valor “actual” pasa a “anterior” y el “anterior” previo se sobrescribe (un solo nivel de historial). Este registro refleja únicamente cambios hechos desde el sistema y se conserva a nivel de datos, sin requerir visualización en pantalla.
+- **Entonces** deberá persistir la combinación en la relación cliente-cuenta del modelo de datos, incluida la **referencia bancaria armada vigente del cliente**, que solo se regenera ante un cambio de un dato fuente (banco, cuenta, Código Validador o datos del cliente). Al modificar el Código Validador, el sistema registra el cambio (valor anterior, valor nuevo, autor y fecha) en ProquifaDotNet.BitacoraCambios, conservando el historial completo. Este registro refleja únicamente cambios hechos desde el sistema y se conserva a nivel de datos, sin requerir visualización en pantalla en R16.
 
 **Criterio B3 — Múltiples cuentas asignables por cliente**
 - **Dado** que un cliente ya tiene una o más cuentas bancarias asignadas,
@@ -164,7 +163,7 @@ La lógica documentada por el cliente corresponde exclusivamente a PROQUIFA Méx
 **Criterio B4 — Edición y eliminación de combinaciones**
 - **Dado** que un cliente tiene una cuenta bancaria asignada con su Código Validador,
 - **Cuando** el usuario edita o elimina la asignación,
-- **Entonces** el sistema deberá permitir la operación. Al editar el Código Validador, el sistema conserva en base de datos el valor actual y el inmediatamente anterior (con autor y fecha), conforme al Criterio B2; no se mantiene un historial más largo. La eliminación retira la combinación cliente-cuenta del sistema.
+- **Entonces** el sistema deberá permitir la operación. Al editar el Código Validador, el sistema registra el cambio en ProquifaDotNet.BitacoraCambios conforme al Criterio B2 (historial completo). La eliminación retira la combinación cliente-cuenta del sistema y también se registra en BitacoraCambios.
 
 **Criterio B5 — Edición sin restricción de rol específica**
 - **Dado** que cualquier usuario con acceso a la cartera del cliente abre la pantalla “Referencia de Pago”,
@@ -224,4 +223,5 @@ La lógica documentada por el cliente corresponde exclusivamente a PROQUIFA Méx
 | 3   | 2026-06-10 | OBS-016     | Entregable: el cliente solicita mockups/pantallas del Catálogo de Clientes (sección Cobros, código validador). No genera cambio en la matriz. Pendiente producir el diseño de pantallas. |
 | 4   | 2026-06-09 | OBS-013     | Persistencia aplicada en dos niveles: (1) referencia vigente del cliente en `ClienteDatosBancarios`, regenerada solo ante cambio de dato fuente; (2) referencia casada al PDF de cada proforma en firme (snapshot inmutable). Tocado: Requisito, Alcance, Reglas 4 y 5, Criterios B2 y C1, título Sección C, Riesgos (retira antiguo Riesgo 1), Notas de Implementación. |
 | 5   | 2026-06-10 | OBS-014     | Historial de un nivel del Código Validador: al modificar, se conservan el valor actual y el inmediatamente anterior con autor y fecha; el “anterior” previo se sobrescribe. Solo a nivel de datos, sin UI. Tocado: Alcance (No aplica a), Regla 4, Criterios B2 y B4, Riesgos (retira antiguo Riesgo 5). |
-| 6   | 2026-06-09 | OBS-015     | Confirmado: el PDF de la proforma se almacena y al consultarlo NO se reconstruye la referencia (equivalente al Legacy/Drobo). Se elimina el término "proformas re-emitidas". Tocado: Alcance (No aplica a), Reglas 4 y 5, Criterio C1, Notas de Implementación. |
+| 6   | 2026-07-07 | BitacoraCambios | El historial del Código Validador se integra al Aplicativo Nuevo ProquifaDotNet.BitacoraCambios (regla 8): cada cambio se registra con valor anterior/nuevo, autor y fecha (historial completo). Sustituye la rotación de un nivel de OBS-014 y elimina las columnas `CodigoValidadorAnterior`/`FechaModificacionAnterior`/`IdUsuarioModificacionAnterior` de `ClienteDatosBancarios`. Tocado: Alcance (No aplica a), Regla 4, Criterios B2 y B4, Riesgos. |
+| 7   | 2026-06-09 | OBS-015     | Confirmado: el PDF de la proforma se almacena y al consultarlo NO se reconstruye la referencia (equivalente al Legacy/Drobo). Se elimina el término "proformas re-emitidas". Tocado: Alcance (No aplica a), Reglas 4 y 5, Criterio C1, Notas de Implementación. |

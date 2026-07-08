@@ -13,7 +13,7 @@
 
 ## Resumen Ejecutivo
 
-Asignación de cuentas bancarias del grupo PROQUIFA a clientes y captura del Código Validador por combinación cliente-cuenta. La referencia bancaria se **arma al configurar/actualizar la cuenta del cliente** y se persiste como **referencia vigente del cliente** en `ClienteDatosBancarios.ReferenciaVigente`; al generar una proforma, esa referencia se **casa al PDF** (snapshot inmutable en `tpProformaPedido.ReferenciaPago`) y las proformas históricas conservan su referencia. Solo se regenera la referencia vigente si cambia un dato fuente (banco, cuenta, Código Validador, `Cliente.Nombre` o `Cliente.Clave`). Adicionalmente se mantiene historial de un nivel del Código Validador (valor actual + anterior con autor y fecha). Funcionalidad **NUEVA en ProquifaDotNet R16**. Solo aplica a clientes México.
+Asignación de cuentas bancarias del grupo PROQUIFA a clientes y captura del Código Validador por combinación cliente-cuenta. La referencia bancaria se **arma al configurar/actualizar la cuenta del cliente** y se persiste como **referencia vigente del cliente** en `ClienteDatosBancarios.ReferenciaVigente`; al generar una proforma, esa referencia se **casa al PDF** (snapshot inmutable en `tpProformaPedido.ReferenciaPago`) y las proformas históricas conservan su referencia. Solo se regenera la referencia vigente si cambia un dato fuente (banco, cuenta, Código Validador, `Cliente.Nombre` o `Cliente.Clave`). Adicionalmente, cada cambio del Código Validador se registra en el Aplicativo Nuevo ProquifaDotNet.BitacoraCambios (historial completo: valor anterior/nuevo, autor y fecha — actualización 2026-07-07, sustituye la rotación de un nivel de OBS-014). Funcionalidad **NUEVA en ProquifaDotNet R16**. Solo aplica a clientes México.
 
 > **⚠️ Hallazgo crítico** — La tabla de relación cliente-cuenta con Código Validador (**`ClienteDatosBancarios`**) **NO existe en la BD actual** y debe crearse como nuevo objeto en R16. Debe incluir el campo **`ReferenciaVigente`** para almacenar la referencia armada del cliente. El campo `tpProformaPedido.ReferenciaPago` (varchar 80) ya existe y recibe el snapshot inmutable de la referencia vigente al generar el PDF de la proforma en firme.
 
@@ -23,7 +23,7 @@ Asignación de cuentas bancarias del grupo PROQUIFA a clientes y captura del Có
 
 ```
 Cliente  (Nombre, Clave)
-└── [NUEVO R16] ClienteDatosBancarios  (IdCliente + IdDatosBancarios + CodigoValidador + ReferenciaVigente + historial)
+└── [NUEVO R16] ClienteDatosBancarios  (IdCliente + IdDatosBancarios + CodigoValidador + ReferenciaVigente; historial en BitacoraCambios)
         └── FK IdDatosBancarios
                 DatosBancarios  (NumeroDeCuenta, Beneficiario, Sucursal, IdCatBanco, IdCatMoneda)
                 ├── FK IdCatBanco  → catBanco   (Banco, Clave = código para referencia Banamex)
@@ -42,7 +42,7 @@ tpProformaPedido.ReferenciaPago  ← snapshot inmutable copiado de ClienteDatosB
 
 | Objeto | Tipo | Estado | Descripción |
 |---|---|---|---|
-| `ClienteDatosBancarios` | Tabla | ✨ NUEVO R16 | Relación N:N Cliente-DatosBancarios con Código Validador, referencia vigente e historial de un nivel |
+| `ClienteDatosBancarios` | Tabla | ✨ NUEVO R16 | Relación N:N Cliente-DatosBancarios con Código Validador y referencia vigente; historial del código en ProquifaDotNet.BitacoraCambios |
 | `DatosBancarios` | Tabla | ✅ Existente — sin cambios | Datos de cuenta bancaria (banco, cuenta, sucursal, moneda) |
 | `catBanco` | Catálogo | ✅ Existente — sin cambios | Bancos con campo `Clave` usado en referencia Banamex |
 | `EmpresaDatosBancarios` | Tabla | ✅ Existente — sin cambios | Catálogo de cuentas del grupo PROQUIFA (fuente del selector) |
@@ -54,7 +54,7 @@ tpProformaPedido.ReferenciaPago  ← snapshot inmutable copiado de ClienteDatosB
 
 ## 1. ClienteDatosBancarios (TABLA NUEVA — R16)
 
-**Propósito:** Relación N:N entre `Cliente` y `DatosBancarios` del grupo PROQUIFA. Persiste el Código Validador por combinación cliente-cuenta y **la referencia bancaria vigente armada** (Regla 4, nivel 1). El historial de un nivel del Código Validador se mantiene en columnas dedicadas (OBS-014).
+**Propósito:** Relación N:N entre `Cliente` y `DatosBancarios` del grupo PROQUIFA. Persiste el Código Validador por combinación cliente-cuenta y **la referencia bancaria vigente armada** (Regla 4, nivel 1). El historial del Código Validador NO lleva columnas propias: cada cambio se registra en ProquifaDotNet.BitacoraCambios (tabla afectada, campo, valor anterior/nuevo, usuario, fecha — actualización 2026-07-07, sustituye a OBS-014).
 
 | Columna Propuesta               | Tipo             | Nulo | Descripción                                                                                              |
 | ------------------------------- | ---------------- | ---- | -------------------------------------------------------------------------------------------------------- |
@@ -64,9 +64,6 @@ tpProformaPedido.ReferenciaPago  ← snapshot inmutable copiado de ClienteDatosB
 | `CodigoValidador`               | varchar(50)      | NO   | Código validador capturado manualmente por el usuario                                                    |
 | `ReferenciaVigente`             | varchar(80)      | SÍ   | **Referencia bancaria armada vigente del cliente** (Regla 4 nivel 1, OBS-013). Se regenera solo ante cambio de dato fuente. |
 | `FechaReferenciaVigente`        | datetime         | SÍ   | Fecha y hora en que se generó/actualizó la referencia vigente. Útil para auditoría y troubleshooting.    |
-| `CodigoValidadorAnterior`       | varchar(50)      | SÍ   | Código validador previo antes de la última actualización (OBS-014, historial de un nivel)                |
-| `FechaModificacionAnterior`     | datetime         | SÍ   | Fecha en que se realizó la modificación anterior del código (OBS-014)                                    |
-| `IdUsuarioModificacionAnterior` | uniqueidentifier | SÍ   | Usuario que realizó la modificación anterior del código (OBS-014)                                        |
 | `FechaRegistro`                 | datetime         | NO   | Default: GETDATE()                                                                                       |
 | `FechaUltimaActualizacion`      | datetime         | NO   | Default: GETDATE()                                                                                       |
 | `Activo`                        | bit              | NO   | 1 = Asignación activa, 0 = Eliminada. Default: 1                                                         |
@@ -93,10 +90,6 @@ CREATE TABLE dbo.ClienteDatosBancarios (
     -- OBS-013: referencia vigente del cliente (Regla 4 nivel 1)
     ReferenciaVigente            varchar(80)      NULL,
     FechaReferenciaVigente       datetime         NULL,
-    -- OBS-014: historial de un nivel del Codigo Validador
-    CodigoValidadorAnterior      varchar(50)      NULL,
-    FechaModificacionAnterior    datetime         NULL,
-    IdUsuarioModificacionAnterior uniqueidentifier NULL,
     FechaRegistro                datetime         NOT NULL
         CONSTRAINT DF_ClienteDatosBancarios_FechaRegistro    DEFAULT (GETDATE()),
     FechaUltimaActualizacion datetime         NOT NULL
@@ -333,7 +326,7 @@ ORDER BY c.Nombre;
 
 | # | Gap | Descripción | Acción | Prioridad |
 |---|---|---|---|---|
-| 1 | `ClienteDatosBancarios` no existe | Tabla de relación cliente-cuenta con `ReferenciaVigente` e historial ausente en BD | Crear tabla con todos los campos (script Sección 1) | Alta |
+| 1 | `ClienteDatosBancarios` no existe | Tabla de relación cliente-cuenta con `ReferenciaVigente` ausente en BD | Crear tabla con todos los campos (script Sección 1); el historial del Código Validador se registra en ProquifaDotNet.BitacoraCambios, no en columnas propias | Alta |
 | 2 | Longitud `CodigoValidador` indefinida | Cliente no especificó longitud máxima ni formato | Confirmar con cliente antes de crear tabla | Alta |
 | 3 | Lógica identificación Banamex truncada | Condición de moneda en documentación del cliente incompleta | Usar `Clave = '002'` en `catBanco` como simplificación | Media |
 | 4 | Campo `Clave` en `Cliente` no verificado | Segmento S4 depende de `Cliente.Clave` que podría no existir en BD | Verificar existencia/tipo en `Cliente`; si no existe, agregar columna permanente o definir fuente alternativa (no apoyarse en tabla ETL de migración a largo plazo) | Alta |
