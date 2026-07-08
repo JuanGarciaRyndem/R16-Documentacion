@@ -64,7 +64,7 @@ La NC aplica exclusivamente a **clientes prepago** y a **facturas vigentes con a
 | `catTipoCFDI` (tabla)                          | RE-028 T1 | RE-032 inserta clave NOTA_CREDITO                                                      |
 | `Archivo`                                      | Pre-R16   | PDF + XML de la NC almacenados en MinIO                                                |
 | `CorreoEnviado` + `ArchivoCorreoEnviado`       | Pre-R16   | Trazabilidad del correo automático al timbrar y reenvíos                               |
-| `ApiCallerStamping` (HttpClient + Polly)       | RE-019    | Cliente HTTP con retry hacia Timbrado — reutilizado sin cambios                        |
+| `ApiCallerStamping` (HttpClient + Polly)       | RE-019    | Cliente HTTP con retry hacia Timbrado — se usa `StampCreditNoteAsync` (`POST /api/v1/stamp/credit-note`), método creado en RE-018                        |
 | `MexicoInvoicePdfMappingService`               | RE-021    | Patrón de referencia para `CreditNoteMexicoPdfMappingService`                                  |
 | `PersistMexicoInvoicePdfService`             | RE-021    | Patrón de referencia para `PersistMexicoCreditNotePdfService`                                |
 | Templates `GOL/MUN/PRO/PQF_MEX_FAC`           | RE-021    | Referencia de branding para diseño de templates NC                                     |
@@ -293,9 +293,9 @@ Un único nodo `Concepto` con:
 **Flujo:**
 
 **Paso 1 — Enviar a Timbrado:**
-Finanzas construye el `CreditNoteMexicoRequest` (sección B4) y llama al API de Timbrado:
+Finanzas construye el `CreditNoteMexicoRequest` (sección B4) y llama al API de Timbrado (vía `ApiCallerStamping.StampCreditNoteAsync`):
 ```
-POST /api/v1/cfdi
+POST /api/v1/stamp/credit-note
 Body: CreditNoteMexicoRequest
 ```
 Muestra feedback visual de progreso al usuario (Criterio J1).
@@ -315,6 +315,7 @@ Si `fccNotaCredito.CancelarFacturaOrigen = 1`:
   ```
 - Timbrado invoca PAC TurboPac con motivo de cancelación.
 - Timbrado actualiza `CFDICancelacion` con `ClaveMotivo`, `Estatus='CANCELADA'`.
+- Finanzas, tras la cancelación exitosa: si la factura origen proviene de `fccFactura` (origen FAA, `fccFactura.IdCFDIGenerada = @IdCFDI`), ejecuta `UPDATE fccFactura SET IdCatFacturaEstado = CANCELADA` (catFacturaEstado, RE-FU-015 v2.1 — estado terminal).
 
 **Paso 4 — Persistencia post-timbrado:**
 Finanzas ejecuta `PersistMexicoCreditNotePdfService.PersistirAsync()`:
@@ -401,12 +402,12 @@ Fecha, Cobrador, Folio NC (acción → PDF), XML (descarga), Emisor, Monto+Moned
 
 ## Parte C — ProquifaDotNet.Timbrado
 
-### C1 — Endpoint: Timbrar NC México
+### C1 — Endpoint: Timbrar NC México (`POST /api/v1/stamp/credit-note`)
 
 **Descripción:** Timbrado recibe el `CreditNoteMexicoRequest` de Finanzas, construye el XML CFDI E, lo envía al PAC TurboPac, guarda el XML y retorna el CFDI timbrado.
 
 **Flujo:**
-1. Timbrado recibe `CreditNoteMexicoRequest`.
+1. Timbrado recibe `CreditNoteMexicoRequest` en `POST /api/v1/stamp/credit-note` (StampingController, RE-018).
 2. Construye XML CFDI 4.0 TipoDocumento='E' con todos los nodos (Emisor, Receptor, CfdiRelacionados TipoRelacion='01', Conceptos, Impuestos, MetodoPago='PUE').
 3. Obtiene folio con UPDLOCK atómico: `SELECT UltimoFolio+1 FROM EmpresaFolio WITH (UPDLOCK) WHERE Serie='P2' AND IdEmpresa=@IdEmpresa`.
 4. Envía XML al PAC TurboPac.
@@ -421,7 +422,7 @@ Fecha, Cobrador, Folio NC (acción → PDF), XML (descarga), Emisor, Monto+Moned
 - Si PAC retorna error: no se persiste la NC, se retorna el error a Finanzas con detalle del PAC.
 - Finanzas muestra mensaje al usuario con posibilidad de reintentar.
 
-### C2 — Endpoint: Cancelar CFDI (cancelación condicional de factura origen)
+### C2 — Endpoint: Cancelar CFDI (`POST /api/v1/stamp/cancel` — cancelación condicional de factura origen)
 
 **Descripción:** Timbrado cancela la factura origen ante el SAT cuando Finanzas lo solicita (Regla 8).
 
@@ -429,9 +430,9 @@ Fecha, Cobrador, Folio NC (acción → PDF), XML (descarga), Emisor, Monto+Moned
 1. Timbrado recibe `{ IdCFDI, ClaveMotivo }`.
 2. Invoca PAC TurboPac con UUID de la factura origen y motivo de cancelación.
 3. INSERT/UPDATE `CFDICancelacion` con `ClaveMotivo`, `Estatus='CANCELADA'`.
-4. Retorna resultado a Finanzas.
+4. Retorna resultado a Finanzas — que, si la factura origen proviene de `fccFactura` (origen FAA), ejecuta `UPDATE fccFactura SET IdCatFacturaEstado = CANCELADA` (catFacturaEstado, RE-FU-015 v2.1).
 
-> Este endpoint ya puede existir de requisitos anteriores (Factura México). Si existe, RE-032 lo reutiliza. Si no, se crea como nuevo endpoint.
+> Este endpoint (`POST /api/v1/stamp/cancel`) existe desde RE-FU-018. RE-032 lo reutiliza sin crear uno nuevo.
 
 ---
 

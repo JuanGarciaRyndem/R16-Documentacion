@@ -18,7 +18,7 @@
 > `PUT /api/v1/validate-collection/fiscalDocumentLine/{id}/cfdiConfig`, `/pdfPreview`, `/stamp`, `/send`) en
 > lugar de rutas separadas con sufijo `-peru`. La región se resuelve internamente a partir de
 > los datos del cliente/línea (igual patrón que `ProquifaDotNet.Timbrado`, que expone un único
-> `POST /api/v1/stamp` para SAT y SUNAT). Esto evita duplicar recursos por región.
+> `POST /api/v1/stamp/invoice` para SAT y SUNAT). Esto evita duplicar recursos por región.
 
 ---
 
@@ -499,7 +499,7 @@ Ver sección *"ALTER VIEW vfccDocumentoFiscalCobro — Extensión Perú (v2.0)"*
 Implementar en ProquifaDotNet.Timbrado el módulo de timbrado Perú que recibe solicitudes de CPE SUNAT desde Finanzas, genera el XML UBL 2.1, invoca el servicio SUNAT (stub hasta resolver B1) e inserta el resultado en `CFDIGenerada` y `EmpresaFolio GOLPERU`.
 
 **Objetivos específicos:**
-- Crear `StampSunatCpeCommand` + Handler en ProquifaDotNet.Timbrado (separado del Handler México).
+- Crear `StampSunatCpeCommand` + Handler en ProquifaDotNet.Timbrado (separado del Handler México; ambos se sirven desde el mismo endpoint `POST /api/v1/stamp/invoice`, la región se resuelve por los datos del request).
 - Recibir request: datos emisor GOLPERU, datos receptor (RUC), partidas UBL 2.1, TipoOperacion catálogo 51, CondicionPago, NCs aplicadas (pendiente mecánica B3 — campo opcional).
 - Implementar `ISunatStampingService` con implementación stub (`SunatStampingServiceSimulator`) hasta resolver B1.
 - INSERT `CFDIGenerada`: `IdCatTipoCFDI=FACTURA_CPE`, `UUID=NULL`, `Serie=F001`, `Folio=Correlativo`.
@@ -700,7 +700,7 @@ Ver sección *"Parte B / B3"* en `R16A-RE-FU-029-Back.md` y `FacturaPdfMappingSe
 - ⚠️ **Brecha B1 BLOQUEANTE:** Modalidad SUNAT indefinida. La Tarea 5 provee el stub; esta tarea lo consume. El timbrado puede desarrollarse con stub hasta resolver B1.
 - ⚠️ **Brecha B4 BLOQUEANTE:** Datos fiscales SUNAT del producto pendientes (RE-020). Sin ellos el XML UBL 2.1 es inválido.
 - Las Tareas 5, 7 y 8 deben estar ejecutadas.
-- `ApiCallerStamping` (HttpClient + Polly) ya existe de RE-FU-019 — reutilizar sin cambios.
+- `ApiCallerStamping` (HttpClient + Polly) ya existe de RE-FU-018/019 — se usa `StampInvoiceAsync` (`POST /api/v1/stamp/invoice`), compartido SAT/SUNAT.
 - En Perú **solo existe 1 escenario:** 1 CPE por línea. No hay cascada PPD ni Complemento de Pago.
 - Post-timbrado exitoso: invocar `FacturaPdfMappingService.MapearAsync()` Perú para PDF definitivo con CDR/sello → subir a MinIO → UPDATE `CFDIGenerada.IdArchivoPdf`.
 - El CPE va en `IdCFDIGeneradaFactura` (mismo campo que la Factura en México — `catTipoCFDI.Clave='FACTURA_CPE'` discrimina).

@@ -121,11 +121,11 @@ Corresponde a GAP-02.
 Implementar la capa Application con DTOs y el servicio de orquestacion tecnica del timbrado.
 
 **Objetivos especificos:**
-- Crear DTOs/StampingRequestDto.cs, StampingResponseDto.cs, StampingLogDto.cs
-- Crear Interfaces/IStampingService.cs (StampAsync, CancelAsync)
-- Crear Services/StampingService.cs (validar -> llamar SAP -> registrar StampingLog -> retornar resultado, sin persistir CFDI)
+- Crear DTOs/StampInvoiceRequestDto.cs, StampPaymentComplementRequestDto.cs, StampCreditNoteRequestDto.cs, StampingResponseDto.cs, StampingLogDto.cs
+- Crear Interfaces/IStampingService.cs (StampInvoiceAsync, StampPaymentComplementAsync, StampCreditNoteAsync, CancelAsync)
+- Crear Services/StampingService.cs (validar -> llamar SAP -> registrar StampingLog -> retornar resultado, sin persistir CFDI; pipeline interno compartido por los 3 tipos de documento)
 - Crear Mappers/ApplicationMappingProfile.cs (AutoMapper)
-- Crear Validators/StampingRequestDtoValidator.cs (FluentValidation)
+- Crear Validators/StampInvoiceRequestDtoValidator.cs, StampPaymentComplementRequestDtoValidator.cs, StampCreditNoteRequestDtoValidator.cs (FluentValidation, reglas especificas por tipo de CFDI)
 
 **Resultado esperado:**
 Capa Application completa con logica de orquestacion tecnica de timbrado.
@@ -259,14 +259,15 @@ Corresponde a GAP-05.
 - Integracion con IdentityServer para autenticacion (llamadas desde Finanzas)
 - Serilog para logging con contexto
 - Swagger para documentacion de endpoints
-- **Rutas (Reglas al diseñar — regla 9):** servicio tecnico de uso interno, sin recurso de negocio propio; se usa una accion (`stamp`) en vez de un sustantivo CRUD, ya que no hay entidad persistida detras
+- **Rutas (Reglas al diseñar — regla 9):** servicio tecnico de uso interno, sin recurso de negocio propio; se usa una accion (`stamp`) mas el tipo de documento en vez de un sustantivo CRUD, ya que no hay entidad persistida detras
+- **Un endpoint por tipo de documento fiscal** (no un endpoint generico con discriminador): cada tipo tiene DTO y validador propios (Factura con conceptos e impuestos; Complemento de Pago con nodo Pagos y SubTotal/Total = 0; Nota de Credito con CFDIRelacionados obligatorio). Los tres comparten el pipeline interno StampingService -> SapStampingClient -> StampingLog
 
 **Objetivo general:**
 Configurar la capa API con Program.cs, el controlador tecnico de timbrado y toda la configuracion necesaria.
 
 **Objetivos especificos:**
 - Crear Program.cs con configuracion (DI, EF Core, Swagger, Serilog, IdentityServer)
-- Crear Controllers/StampingController.cs con endpoints: POST /api/v1/stamp (timbrar), POST /api/v1/stamp/cancel
+- Crear Controllers/StampingController.cs con endpoints: POST /api/v1/stamp/invoice (Factura), POST /api/v1/stamp/payment-complement (Complemento de Pago), POST /api/v1/stamp/credit-note (Nota de Credito), POST /api/v1/stamp/cancel (cancelacion)
 - Crear appsettings.json con connection strings (ProquifaDotNetTimbrado, SAP, IdentityServer)
 - Configurar CORS para comunicacion exclusiva con ProquifaDotNet.Finanzas
 
@@ -275,7 +276,7 @@ API ejecutable con Swagger funcional y endpoints tecnicos de timbrado accesibles
 
 **Entregables:**
 - Program.cs con toda la configuracion de servicios
-- StampingController con 2 endpoints (stamp, cancel)
+- StampingController con 4 endpoints (invoice, payment-complement, credit-note, cancel)
 - appsettings.json con placeholders
 - API ejecutable via Swagger
 
@@ -283,7 +284,8 @@ API ejecutable con Swagger funcional y endpoints tecnicos de timbrado accesibles
 - La API inicia sin errores
 - Swagger muestra todos los endpoints documentados
 - IdentityServer valida tokens de autenticacion desde Finanzas
-- POST /api/v1/stamp recibe StampingRequestDto y retorna StampingResponseDto (Uuid, XML, Series, Folio, estatus)
+- POST /api/v1/stamp/invoice recibe StampInvoiceRequestDto, POST /api/v1/stamp/payment-complement recibe StampPaymentComplementRequestDto y POST /api/v1/stamp/credit-note recibe StampCreditNoteRequestDto; los tres retornan StampingResponseDto (Uuid, XML, Series, Folio, estatus)
+- Cada endpoint valida su request con el validador del tipo de documento y rechaza payloads de otro tipo
 
 **Mas informacion de la tarea:**
 Corresponde a GAP-06 y GAP-07.
@@ -396,7 +398,7 @@ Corresponde a GAP-09.
 Implementar el servicio de aplicacion que orquesta el timbrado (via Timbrado) y persiste el CFDI como entidad de negocio en Finanzas.
 
 **Objetivos especificos:**
-- Crear Services/CfdiService.cs con metodo GenerateAsync (arma StampingRequestDto, llama IApiCallerStamping, persiste CFDIGenerada + Archivo)
+- Crear Services/CfdiService.cs con metodo GenerateAsync (arma el request DTO del tipo de documento, llama el metodo correspondiente de IApiCallerStamping, persiste CFDIGenerada + Archivo)
 - Crear metodo CancelAsync (llama a Timbrado /cancel, actualiza Estado en CFDIGenerada)
 - Crear metodo GetByIdAsync, SearchAsync (QueryInfo)
 - Registrar en Bitacora General cada resultado (regla 8) — ver R16A-RE-FU-018-Back.md Parte B
@@ -431,14 +433,14 @@ Corresponde a GAP-10.
 **Modulos:** Application/Interfaces, Infrastructure/Services
 
 **Consideraciones previas:**
-- Cliente HTTP desde Finanzas hacia ProquifaDotNet.Timbrado (POST /api/v1/stamp, POST /api/v1/stamp/cancel)
+- Cliente HTTP desde Finanzas hacia ProquifaDotNet.Timbrado (POST /api/v1/stamp/invoice, POST /api/v1/stamp/payment-complement, POST /api/v1/stamp/credit-note, POST /api/v1/stamp/cancel)
 - **Nomenclatura (regla 6):** ApiCallerStamping (no ApiCallerTimbrado), consistente con el precedente ya aplicado a ApiCallerMail
 
 **Objetivo general:**
 Implementar el cliente HTTP que Finanzas usa para invocar al servicio tecnico de Timbrado.
 
 **Objetivos especificos:**
-- Crear Application/Interfaces/IApiCallerStamping.cs (StampAsync, CancelAsync)
+- Crear Application/Interfaces/IApiCallerStamping.cs (StampInvoiceAsync, StampPaymentComplementAsync, StampCreditNoteAsync, CancelAsync)
 - Crear Infrastructure/Services/ApiCallerStamping.cs (implementacion HTTP)
 - Configurar base URL y autenticacion (IdentityServer) via appsettings
 
@@ -450,7 +452,7 @@ Cliente HTTP funcional que Finanzas usa para timbrar/cancelar via Timbrado.
 - Registro en DI
 
 **Criterios de aceptacion:**
-- StampAsync envia StampingRequestDto y recibe StampingResponseDto
+- Cada metodo Stamp*Async envia el request DTO de su tipo de documento al endpoint correspondiente y recibe StampingResponseDto
 - CancelAsync envia Uuid y recibe confirmacion
 - Maneja errores/timeouts de Timbrado propagandolos a CfdiService
 

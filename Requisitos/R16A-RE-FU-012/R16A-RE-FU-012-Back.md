@@ -54,25 +54,25 @@ Este requisito reutiliza el flujo de tramitacion Credito existente (R16A-RE-FU-0
 | 4    | Genera pendiente FAA      | INSERT atómico en `fccFactura`+`fccFacturaPartida`+`fccFacturaReferenciaBancaria` (Finanzas), en paralelo a `tpProformaPedido` |
 | 5    | Bloquea datos facturacion | Se fijan del catalogo del cliente                            |
 | 6    | Confirmacion de Pedido    | Se genera inmediatamente (no espera factura)                 |
-| 7    | Transferencia Legacy      | Solo Mexico (independiente de FAA)                           |
+| 7    | Transferencia Legacy      | Solo Mexico (independiente de FAA) — INSERT post-commit en `SyncControl`; la transferencia la ejecuta `PedidoCreditoSyncJob` en ProquifaDotNet.LegacySync (ver sección "Transferencia a Legacy") |
 
 ### Datos del pendiente FAA a generar (en `fccFactura` + detalle)
 
-| Dato | Origen |
-|------|--------|
-| IdTPPedido | tpPedido.IdTPPedido (FK directa) |
-| IdTPProformaPedido | Id de `tpProformaPedido` (Confirmación de Pedido) generada en paralelo |
-| Cliente | tpPedido.IdCliente |
-| Empresa | tpPedido.IdEmpresa |
-| Monto total | Calculado desde partidas del pedido |
-| FolioPedidoInterno | tpPedido.FolioPedidoInterno |
-| Datos facturacion | Snapshot de DatosFacturacionCliente vigente |
-| Region | tpPedido.IdRegion (solo Mexico) |
-| Moneda | MXN o USD segun pedido |
-| IdCFDIGenerada | NULL (pendiente de emisión) |
-| Enviada | 0 (pendiente de envío) |
-| fccFacturaPartida | Snapshot de las partidas del pedido |
-| fccFacturaReferenciaBancaria | Cuentas M.N./DLS del grupo PROQUIFA |
+| Dato                         | Origen                                                                 |
+| ---------------------------- | ---------------------------------------------------------------------- |
+| IdTPPedido                   | tpPedido.IdTPPedido (FK directa)                                       |
+| IdTPProformaPedido           | Id de `tpProformaPedido` (Confirmación de Pedido) generada en paralelo |
+| Cliente                      | tpPedido.IdCliente                                                     |
+| Empresa                      | tpPedido.IdEmpresa                                                     |
+| Monto total                  | Calculado desde partidas del pedido                                    |
+| FolioPedidoInterno           | tpPedido.FolioPedidoInterno                                            |
+| Datos facturacion            | Snapshot de DatosFacturacionCliente vigente                            |
+| Region                       | tpPedido.IdRegion (solo Mexico)                                        |
+| Moneda                       | MXN o USD segun pedido                                                 |
+| IdCFDIGenerada               | NULL (pendiente de emisión)                                            |
+| Enviada                      | 0 (pendiente de envío)                                                 |
+| fccFacturaPartida            | Snapshot de las partidas del pedido                                    |
+| fccFacturaReferenciaBancaria | Cuentas M.N./DLS del grupo PROQUIFA                                    |
 
 ---
 
@@ -158,32 +158,46 @@ Dependencia de R16A-RE-FU-010 T3.
 | GAP-05 | Bloquear edicion datos facturacion con FAA activa | Validacion en endpoint de edicion | Bajo |
 | GAP-06 | Vinculacion con modulo de facturacion | Tarea para vincular pendiente FAA con flujo RE-FU-018/019/020 | Bajo |
 | GAP-07 | Endpoint Cancelacion | Dependencia RE-FU-010 T3 | Referencia |
+| GAP-08 | Disparador SyncControl en tramitacion | INSERT post-commit en `SyncControl` (`Entidad='PedidoCredito'`) en `tpPedidoTramitarController` | Bajo |
+| GAP-09 | Job Pedidos Credito en LegacySync | `PedidoCreditoSyncJob` + `PedidoCreditoSyncService` + `PedidoCreditoPayloadBuilder` (variantes RE-010/011/012, corte Peru) — reemplaza el SSIS de PCconnect | Alto |
+| GAP-10 | Desactivacion del SSIS de Pedidos Credito | Validacion E2E via LegacySync y retiro del paquete SSIS (T7) | Medio |
 
 ---
 
-## Transferencia a Legacy
+## Transferencia a Legacy — Migración de SSIS a ProquifaDotNet.LegacySync (T5/T6/T7)
 
-Sin cambios respecto a RE-FU-010. La FAA es un proceso paralelo independiente.
+El payload y las reglas de negocio no cambian respecto a RE-FU-010 (la FAA es un proceso paralelo que no altera el payload del pedido), pero el **mecanismo de transferencia migra del paquete SSIS de PCconnect a la solución ProquifaDotNet.LegacySync** (ver `Soluciones Nuevas/ProquifaDotNet.LegacySync.md` y `R16A-RE-FU-008-Legacy.md`), bajo el modelo `SyncControl` + recurring job de Hangfire:
+
+| Componente                    | Aplicativo               | Descripción                                                                                                                                                                                                                           |
+| ----------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| INSERT en `SyncControl`       | ProquifaDotNet           | Disparador post-commit en la tramitación (`tpPedidoTramitarController`): `Entidad='PedidoCredito'`, `IdRegistro=IdTPPedido`, `Estado='Pendiente'`. Único cambio en ProquifaDotNet — la tramitación no se bloquea por la transferencia |
+| `PedidoCreditoSyncJob`        | LegacySync (Worker)      | Recurring job Hangfire que procesa los registros `Pendiente` (patrón `SyncJobBase`)                                                                                                                                                   |
+| `PedidoCreditoSyncService`    | LegacySync (Application) | Lee `tpPedido` + partidas vía `ProquifaDotNetDbContext`, evalúa región (Perú: marca `Completado` sin transferir, sin error ni notificación) y escribe en PCconnect vía `PConnectDbContext`/SPs Legacy                                 |
+| `PedidoCreditoPayloadBuilder` | LegacySync               | Construye el payload con las variantes RE-010 (base + pago contra entrega), RE-011 (controlados) y RE-012 (FAA, idéntico al base)                                                                                                     |
+| Reintentos y notificación     | LegacySync               | `ExceptionClassifier`: Transient → reintento Hangfire con backoff; Permanent → `Error` + `SyncJobLog` + notificación Brevo                                                                                                            |
+
+> La infraestructura base de LegacySync (`SyncControl`, `SyncJobLog`, `SyncJobBase`, Hangfire, monitoreo API) se crea en **R16A-RE-FU-008-Legacy** — este requisito solo agrega el job de la entidad Pedidos Crédito (Tareas T5 análisis, T6 implementación, T7 integración E2E + desactivación del SSIS).
 
 > **OBS-024 — PCE (Pago Contra Entrega) traduce como crédito en Legacy:**
-> Cuando `catCondicionesDePago.Clave = 'pagocontraentrega'`, el payload builder (`EtlPedidoCreditoPayloadBuilder`) debe traducirlo como **crédito** en Legacy, **NO como prepago**. Aunque el nombre sugiera pago adelantado, Legacy lo procesa como flujo de crédito.
+> Cuando `catCondicionesDePago.Clave = 'pagocontraentrega'`, el payload builder (`PedidoCreditoPayloadBuilder`) debe traducirlo como **crédito** en Legacy, **NO como prepago**. Aunque el nombre sugiera pago adelantado, Legacy lo procesa como flujo de crédito.
 
-> **OBS-025 — PQF2 solo inserta datos planos; "Relacionar facturas" es responsabilidad de Legacy:**
-> El payload builder de PQF2 únicamente inserta los datos planos del pedido en Legacy. La lógica de "Relacionar facturas" (asociación de facturas a pedido dentro de Legacy) es responsabilidad del proceso interno de Legacy, **no del payload builder** de ProquifaDotNet.
+> **OBS-025 — LegacySync solo inserta datos planos; "Relacionar facturas" es responsabilidad de Legacy:**
+> El payload builder únicamente inserta los datos planos del pedido en Legacy. La lógica de "Relacionar facturas" (asociación de facturas a pedido dentro de Legacy) es responsabilidad del proceso interno de Legacy, **no del payload builder** de LegacySync.
 
 ---
 
 ## Dependencias
 
-| Requisito      | Relacion                                          |
-| -------------- | ------------------------------------------------- |
-| R16A-RE-FU-010 | Flujo base Credito + Endpoint Cancelacion         |
-| R16A-RE-FU-011 | Restriccion: FAA NO compatible con controlados    |
-| R16A-RE-FU-015 | Origen y dueño de `fccFactura`/`fccFacturaPartida`/`fccFacturaReferenciaBancaria`/`vfccFactura` — este requisito solo consume, poblando `IdTPProformaPedido` |
-| R16A-RE-FU-018 | Generacion de factura (consumo del pendiente FAA vía `vfccFactura`) |
-| R16A-RE-FU-019 | Generacion de CFDI                                |
-| R16A-RE-FU-020 | Timbrado fiscal (PAC)                             |
-| R16A-RE-FU-026/027 | Migración de `fccPagoFacturaAdelanto.IdTPProformaAdelanto` → `IdFccFactura` |
+| Requisito             | Relacion                                                                                                                                                     |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| R16A-RE-FU-010        | Flujo base Credito + Endpoint Cancelacion                                                                                                                    |
+| R16A-RE-FU-011        | Restriccion: FAA NO compatible con controlados                                                                                                               |
+| R16A-RE-FU-015        | Origen y dueño de `fccFactura`/`fccFacturaPartida`/`fccFacturaReferenciaBancaria`/`vfccFactura` — este requisito solo consume, poblando `IdTPProformaPedido` |
+| R16A-RE-FU-018        | Generacion de factura (consumo del pendiente FAA vía `vfccFactura`)                                                                                          |
+| R16A-RE-FU-019        | Generacion de CFDI                                                                                                                                           |
+| R16A-RE-FU-020        | Timbrado fiscal (PAC)                                                                                                                                        |
+| R16A-RE-FU-026/027    | Migración de `fccPagoFacturaAdelanto.IdTPProformaAdelanto` → `IdFccFactura`                                                                                  |
+| R16A-RE-FU-008-Legacy | Infraestructura base de ProquifaDotNet.LegacySync (SyncControl, SyncJobLog, SyncJobBase, Hangfire) — prerequisito de T5/T6/T7                                |
 
 ---
 
@@ -194,5 +208,7 @@ El requisito R16A-RE-FU-012 tiene **impacto medio** en desarrollo. Comprende:
 **Bloque 1 (Tramitar Pedido):** Generar pendiente FAA en `fccFactura` (esquema de RE-FU-015) atomicamente con la tramitacion + validaciones (solo Mexico, sin controlados, bloqueo datos, sin codigo autorizacion). La diferencia con Prepago es que aquí `IdTPProformaPedido` se puebla con la Confirmación de Pedido generada en paralelo.
 
 **Bloque 2 (Vinculacion):** Asegurar que el pendiente generado en `fccFactura` sea consumido por el modulo de facturacion desarrollado en RE-FU-018/019/020 (vía `vfccFactura`).
+
+**Bloque 3 (Migración ETL a LegacySync):** Migrar la transferencia de Pedidos Crédito del SSIS de PCconnect a `ProquifaDotNet.LegacySync` — disparador `SyncControl` post-commit en la tramitación + `PedidoCreditoSyncJob`/`PedidoCreditoSyncService`/`PedidoCreditoPayloadBuilder` con las variantes RE-010/011/012 y corte Perú — y desactivar el SSIS tras la validación E2E (Tareas T5/T6/T7).
 
 El desarrollador asignado debe revisar `tpProformaAdelantoToCFDIGeneradaBO.cs` (codigo comentado) como referencia de la logica anterior de generacion de CFDI para anticipos, adaptándola al destino `fccFactura`/`CFDIGenerada` en Finanzas.

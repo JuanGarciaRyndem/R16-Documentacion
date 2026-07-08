@@ -46,7 +46,7 @@ Tres requisitos que desbloquean la mayor cantidad de trabajo en cascada. Deben p
 | RE-008    | Buzón de Cobros (Mailbot)                  | RE-002, RE-005                           | RE-023, RE-024, RE-028 (E1)             | RE-009 al RE-015                                       |
 | NO-FU-001 | EnvioCorreo / SendInBlue                   | — (infraestructura)                      | RE-016, RE-019, RE-028, RE-032 (envíos) | Todos los RE funcionales                               |
 | NO-FU-002 | Bitácora Transaccional                     | —                                        | —                                       | Todos los RE funcionales                               |
-| NO-FU-003 | LegacyBridge                               | RE-002 al RE-006, RE-008, RE-010, RE-028 | —                                       | Todos los RE funcionales (infraestructura en paralelo) |
+| NO-FU-003 | LegacySync                               | RE-002 al RE-006, RE-008, RE-010, RE-028 | —                                       | Todos los RE funcionales (infraestructura en paralelo) |
 
 ---
 
@@ -259,7 +259,7 @@ flowchart TD
     RE007[RE-007 Leyenda Regulatoria]
     NOFU001[NO-FU-001 EnvioCorreo]
     NOFU002[NO-FU-002 Bitácora]
-    NOFU003[NO-FU-003 LegacyBridge]
+    NOFU003[NO-FU-003 LegacySync]
 
     %% Ola 2
     RE008[RE-008 Buzón de Cobros]

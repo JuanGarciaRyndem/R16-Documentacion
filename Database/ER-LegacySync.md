@@ -1,11 +1,11 @@
-# LegacyBridge — Flujos ETL a Legacy
+# LegacySync — Flujos ETL a Legacy
 
 Entidades transferidas al sistema legado vía SSIS: Cotizaciones, Pedidos, Facturas, Notas de Crédito, PSC/PCC, Cobros.
 
 ```mermaid
 erDiagram
     %% ============================================================
-    %% LegacyBridge documenta los flujos ETL (SSIS) que transfieren
+    %% LegacySync documenta los flujos ETL (SSIS) que transfieren
     %% datos desde ProquifaDotNet al sistema legado.
     %% Cada entidad representa los campos que viajan en la transferencia
     %% según los requisitos R16. El sistema legado recibe estos datos

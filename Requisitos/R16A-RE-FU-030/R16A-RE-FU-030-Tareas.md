@@ -647,7 +647,7 @@ Ver sección *"ALTER VIEW vfccDocumentoFiscalCobro v3.0"* en `R16A-RE-FU-030_BD.
 **Módulos:** Timbrado — Complemento de Pago México
 
 **Consideraciones previas:**
-- El endpoint de timbrado genérico (por tipo de CFDI) existe desde RE-019/028. RE-030 agrega el caso `COMPLEMENTO_PAGO` con la construcción del XML CFDI 4.0 Pagos20 v2.0.
+- El endpoint de Complemento de Pago (`POST /api/v1/stamp/payment-complement`) existe desde RE-018 (StampingController, un endpoint por tipo de documento). RE-030 implementa su lógica: construcción del XML CFDI 4.0 Pagos20 v2.0.
 - **Prerrequisitos:** Tarea 4 (EmpresaFolio Serie P) debe estar ejecutada para que el foliador tenga filas disponibles.
 - La estructura del XML es radicalmente diferente a la Factura: `TipoDeComprobante=P`, `SubTotal=0`, `Total=0`, `Moneda=XXX`, concepto único fijo, sin `Impuestos` en la raíz; los impuestos van dentro del nodo `DoctoRelacionado.ImpuestosDR` (solo si `ObjetoImpDR=02`).
 - El consumo del folio es atómico con UPDLOCK sobre `EmpresaFolio WHERE Serie='P'`.
@@ -841,7 +841,7 @@ Al timbrar una Factura PPD en el Paso 3, Finanzas genera automáticamente el CP 
 **Entregables:**
 - Clase `PaymentComplementCalculationService` (cálculo NumParcialidad, saldos, EquivalenciaDR, FechaPago)
 - Clase `GeneratePaymentComplementService` (Escenario B: cascada PPD + Escenario D: FAA)
-- Integración con `ApiCallerStamping` y `PersistPaymentComplementPdfService`
+- Integración con `ApiCallerStamping.StampPaymentComplementAsync` (`POST /api/v1/stamp/payment-complement`) y `PersistPaymentComplementPdfService`
 - Tests unitarios: primer CP vs CP subsecuente; escenario multi-divisa; fallo del CP post-Factura PPD; Escenario D desde FAA
 
 **Criterios de aceptación:**

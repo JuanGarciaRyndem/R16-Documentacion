@@ -167,6 +167,7 @@ tolerancia 100 MXN, para uso en futuras sesiones de Validar Cobro.
 |-------|---------|-----------|
 | fccPagoFacturaPedido | Al confirmar asociacion (Proforma) | INSERT (cobro -> proforma) |
 | fccPagoFacturaAdelanto | Al confirmar asociacion (FAA) | INSERT (cobro -> FAA) |
+| fccFactura | Al confirmar asociacion (FAA) | UPDATE IdCatFacturaEstado = PAGADA (adeudo cubierto total, incluida tolerancia <=100 MXN) o PAGADA_PARCIAL (cobro aplicado con saldo pendiente) — catFacturaEstado, RE-FU-015 v2.1 |
 | fccNotaCredito | Al aplicar NC | UPDATE Aplicada=1, IdFCCPagoCliente=@id |
 | fccSaldoFavorCliente | Sobrepago | INSERT TipoSaldo='SaldoFavor' |
 | fccSaldoFavorCliente | Tolerancia 100 MXN | INSERT TipoSaldo='ToleranciaAplicada' |
@@ -235,7 +236,7 @@ tolerancia 100 MXN, para uso en futuras sesiones de Validar Cobro.
 |-----------|----------|
 | R16A-RE-FU-024 | Paso 1 MEX (fccPagoCliente confirmado, catTipoInconsistenciaCobro) |
 | R16A-RE-FU-023 | fccPagoCliente -> fccPagoFacturaPedido (Validar Cobro) |
-| R16A-RE-FU-015 | Origen y dueño de `fccFactura` — destino de `fccPagoFacturaAdelanto.IdFccFactura` |
+| R16A-RE-FU-015 | Origen y dueño de `fccFactura` y del catálogo `catFacturaEstado` — destino de `fccPagoFacturaAdelanto.IdFccFactura`; el Paso 2 ejecuta las transiciones PAGADA / PAGADA_PARCIAL |
 
 ---
 

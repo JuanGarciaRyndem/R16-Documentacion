@@ -174,7 +174,7 @@ IGV 18%, RUC, serie alfanumerica SUNAT. Sin transferencia a Legacy. Post-envio: 
              Empresa (GOLPERU), Producto.CodigoSUNAT (BRECHA)
 
     2. TIMBRAR (al confirmar previsualizacion) -- CfdiController (ProquifaDotNet.Finanzas)
-       ProquifaDotNet.Timbrado (servicio tecnico, POST /api/v1/stamp):
+       ProquifaDotNet.Timbrado (servicio tecnico, POST /api/v1/stamp/invoice):
          UPDATE EmpresaFolio GOLPERU SET UltimoFolio+1 (consume folio/serie SUNAT)
          Arma el CPE con esa serie/correlativo -> llama OSE/PSE SUNAT -> recibe CDR de aceptacion
          INSERT StampingLog (ProquifaDotNetTimbrado, auditoria tecnica)
@@ -183,12 +183,12 @@ IGV 18%, RUC, serie alfanumerica SUNAT. Sin transferencia a Legacy. Post-envio: 
          INSERT CFDIGenerada (ProquifaDotNet): UUID/CDR, Serie, Folio, FechaEmision, IdCatTipoCFDI,
            Total, IdCatMoneda, Estado='Timbrado' (sin IdCatMetodoDePagoCFDI/IdCatUsoCFDI: no aplican en SUNAT)
          INSERT Archivo x2 (PDF+XML, FileBucket='facturas', IdRegion=PER) + UPDATE CFDIGenerada SET IdArchivoXml
-         UPDATE fccFactura SET IdCFDIGenerada = @IdCFDIGenerada, EsFacturaPorAdelantado = 0 (Id real de CFDIGenerada, no un Id de Timbrado; antes: UPDATE tpProformaAdelanto SET IdCFDIGenerada)
+         UPDATE fccFactura SET IdCFDIGenerada = @IdCFDIGenerada, EsFacturaPorAdelantado = 0, IdCatFacturaEstado = GENERADA (catFacturaEstado RE-FU-015 v2.1; Id real de CFDIGenerada, no un Id de Timbrado; antes: UPDATE tpProformaAdelanto SET IdCFDIGenerada)
 
     3. ENVIAR (modal envio)
        ProquifaDotNet:
          INSERT CorreoEnviado + ArchivoCorreoEnviado
-         UPDATE fccFactura SET Enviada=1 (antes: UPDATE tpProformaAdelanto SET Enviada=1)
+         UPDATE fccFactura SET Enviada=1, FechaEnvio=SYSUTCDATETIME(), IdCatFacturaEstado=ENVIADA (antes: UPDATE tpProformaAdelanto SET Enviada=1)
          Genera pendiente Validar Cobro (SOLO Prepago, sin rama Credito)
          ** SIN transferencia a Legacy **
 

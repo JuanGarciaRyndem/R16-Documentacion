@@ -15,7 +15,7 @@
 
 ## Resumen ejecutivo
 
-El diseño es **muy sólido en la arquitectura** (Gmail Push + Pub/Sub + Worker .NET 10, idempotencia, DLQ, bitácora `MailbotEventoCorreo`/`MailbotClasificacionLog`, ETL a Legacy vía `ProquifaDotNet.LegacyBridge`) y resuelve correctamente puntos como segregación regional, retroactividad de Bandeja del Coordinador, decisiones D1–D5 y P5–P20. **Cobertura ~75% de los 7 puntos del requisito**, con **3 brechas funcionales críticas** que no resuelve y que deben atenderse antes de pasar a construcción.
+El diseño es **muy sólido en la arquitectura** (Gmail Push + Pub/Sub + Worker .NET 10, idempotencia, DLQ, bitácora `MailbotEventoCorreo`/`MailbotClasificacionLog`, ETL a Legacy vía `ProquifaDotNet.LegacySync`) y resuelve correctamente puntos como segregación regional, retroactividad de Bandeja del Coordinador, decisiones D1–D5 y P5–P20. **Cobertura ~75% de los 7 puntos del requisito**, con **3 brechas funcionales críticas** que no resuelve y que deben atenderse antes de pasar a construcción.
 
 | # | Punto del requisito | Estado en el diseño |
 |---|---|---|
@@ -176,7 +176,7 @@ Conviene agregar: ¿qué pasa si el endpoint `/cerrar` se llama dos veces? El di
 3. **Endpoints admin** (`/admin/mailbot/eventos`, retry, descartar) — operación productiva sin manipulación directa de BD.
 4. **Estrategia por ambiente Pull (dev) vs Push (prod)** — soluciona el problema real del endpoint HTTPS público en dev sin comprometer la arquitectura.
 5. **Mecanismo de detección y disparo del ETL (P20)** — capa push inmediato + capa barrido de respaldo es robusto.
-6. **Diseño de LegacyBridge como infraestructura base reutilizable** — bien separado de Canal ETLCobros específico de FU-008.
+6. **Diseño de LegacySync como infraestructura base reutilizable** — bien separado de Canal ETLCobros específico de FU-008.
 7. **Bandeja del Coordinador de Tesorería con retroactividad automática** (OBS-021, Casos 1 y 2) — diseño elegante: la query del Gestor filtra por `IdUsuarioCobrador`, no se requiere lógica de migración.
 8. **Decisiones D1–D5 cerradas y trazadas** con su impacto en RT-XX, CA-XX y tareas — modelo de trazabilidad a seguir.
 9. **Manejo de `CorreoRecibidoEstatus` como tabla insert-only** documentado con conteo real contra BD (8325 filas para 3705 correos).

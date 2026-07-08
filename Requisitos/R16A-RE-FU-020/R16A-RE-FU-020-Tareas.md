@@ -367,9 +367,9 @@ Implementar el servicio (`AdvanceInvoiceGenerateService`, branch Perú) que, al 
 
 **Objetivos específicos:**
 - Armar `StampSunatInvoiceRequestDto` con los datos fiscales y conceptos del pedido.
-- Llamar `ICfdiService.GenerateAsync(request)` — que internamente: genera el XML UBL 2.1 firmado (Tarea 6), lo envía al OSE/PSE y obtiene el CDR (Tarea 7, via `ApiCallerStamping.StampSunatInvoiceAsync` -> Timbrado `POST /api/v1/stamp`), consume el folio GOLPERU, registra `StampingLog`, y si el CDR es aceptado: `INSERT CFDIGenerada` + `INSERT Archivo x2` (PDF + XML/CDR, `FileBucket='facturas-peru'`, `IdRegion='PER'`) + `UPDATE CFDIGenerada SET IdArchivoXml`.
-- Si error: retornar el error descriptivo sin persistir nada (ni en CFDIGenerada ni en fccFactura).
-- Si éxito: `UPDATE fccFactura SET IdCFDIGenerada = @IdCFDIGenerada, EsFacturaPorAdelantado = 0` en ProquifaDotNet (antes: `UPDATE tpProformaAdelanto SET IdCFDIGenerada`), usando el Id real devuelto por `ICfdiService.GenerateAsync` (el Id del registro insertado en `CFDIGenerada`, no un Id propio de Timbrado).
+- Llamar `ICfdiService.GenerateAsync(request)` — que internamente: genera el XML UBL 2.1 firmado (Tarea 6), lo envía al OSE/PSE y obtiene el CDR (Tarea 7, via `ApiCallerStamping.StampSunatInvoiceAsync` -> Timbrado `POST /api/v1/stamp/invoice`), consume el folio GOLPERU, registra `StampingLog`, y si el CDR es aceptado: `INSERT CFDIGenerada` + `INSERT Archivo x2` (PDF + XML/CDR, `FileBucket='facturas-peru'`, `IdRegion='PER'`) + `UPDATE CFDIGenerada SET IdArchivoXml`.
+- Si error: `UPDATE fccFactura SET IdCatFacturaEstado = ERROR_TIMBRADO` (sin tocar `IdCFDIGenerada`) y retornar el error descriptivo sin persistir nada en `CFDIGenerada`.
+- Si éxito: `UPDATE fccFactura SET IdCFDIGenerada = @IdCFDIGenerada, EsFacturaPorAdelantado = 0, IdCatFacturaEstado = GENERADA` (catFacturaEstado, RE-FU-015 v2.1) en ProquifaDotNet (antes: `UPDATE tpProformaAdelanto SET IdCFDIGenerada`), usando el Id real devuelto por `ICfdiService.GenerateAsync` (el Id del registro insertado en `CFDIGenerada`, no un Id propio de Timbrado).
 - Registrar el guardado de la factura en ProquifaDotNet.BitacoraCambios (Aplicativo Nuevo — regla 8).
 
 **Resultado esperado:**
@@ -465,7 +465,7 @@ Implementar el envío del correo electrónico de la Factura por Adelantado Perú
 - Construir el correo con: asunto generado (serie/correlativo + pedido interno), adjuntos PDF y XML del CPE (recuperados de `Archivo`), notas extras.
 - Enviar el correo al cliente.
 - `INSERT CorreoEnviado` y `INSERT ArchivoCorreoEnviado` (PDF y XML) en ProquifaDotNet.
-- `UPDATE fccFactura SET Enviada = 1` (antes: `UPDATE tpProformaAdelanto SET Enviada = 1`).
+- `UPDATE fccFactura SET Enviada = 1, FechaEnvio = SYSUTCDATETIME(), IdCatFacturaEstado = ENVIADA` (catFacturaEstado y FechaEnvio, RE-FU-015 v2.1; antes: `UPDATE tpProformaAdelanto SET Enviada = 1`).
 
 **Resultado esperado:**
 Correo enviado al cliente con PDF y XML del CPE adjuntos; estado del pedido actualizado a `Enviada=1`; registros de `CorreoEnviado` y `ArchivoCorreoEnviado` persistidos.

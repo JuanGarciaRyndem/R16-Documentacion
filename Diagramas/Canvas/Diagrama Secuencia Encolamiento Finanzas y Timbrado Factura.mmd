@@ -11,7 +11,7 @@ sequenceDiagram
     WF->>BDPQF2: Obtiene los detalles de la factura
     BDPQF2-->>WF: Regresa detalles de la factura
 
-    WF->>T: POST TimbrarFactura
+    WF->>T: POST /api/v1/stamp/invoice
     activate T
 
     T->>BDT: Guardar TimbradoLog (IdPeticion, JSONPeticion, Catálogo Tipo de Petición: Factura/Nota de Crédito/Complemento de Pago, Fecha de Registro, Fecha Última Actualización, UserName, ClienteName: ProquifaDotNet/Finanzas/MailBot, IsActive, IdStatus = Pending)

@@ -1023,7 +1023,7 @@ Ver sección *"Parte B / B3"* en `R16A-RE-FU-028-Back.md`. Ver `MexicoInvoicePdf
 
 **Consideraciones previas:**
 - Las Tareas 7, 8, 9 y 10 deben estar ejecutadas (Timbrado extendido, líneas existentes, NCs resueltas).
-- `ApiCallerStamping` (HttpClient + Polly) ya existe de RE-FU-019 — se reutiliza sin cambios.
+- `ApiCallerStamping` (HttpClient + Polly) ya existe de RE-FU-018/019 — el Paso 3 usa `StampInvoiceAsync` (`POST /api/v1/stamp/invoice`) para Factura/Factura Anticipo y `StampPaymentComplementAsync` (`POST /api/v1/stamp/payment-complement`) para el Complemento.
 - `PersistMexicoInvoicePdfService` ya existe de RE-FU-021 — se invoca post-timbrado para FACTURA y FACTURA_ANTICIPO.
 - **Escenario B (PPD + cascada):** la Factura PPD se timbra primero; inmediatamente tras el éxito, Finanzas solicita el timbrado del Complemento enviando el UUID de la Factura PPD como `IdCFDIRelacionado`. Si el Complemento falla, la Factura PPD queda vigente (⚠️ Brecha B6 — política pendiente).
 - **Escenario D (COMPLEMENTO_PAGO desde FAA):** Finanzas envía el UUID de la FAA existente (`fccFactura.IdCFDIGenerada`, RE-FU-015 — antes `tpProformaAdelanto.IdCFDIGenerada`) como referencia. La generación del PDF del Complemento corresponde a RE-FU-030.

@@ -57,22 +57,29 @@ ProquifaDotNet.Timbrado/
 |   |   +-- ISapStampingClient.cs
 |   |   +-- IUnitOfWork.cs
 |   +-- Models/
-|       +-- StampingRequest.cs
+|       +-- StampingRequest.cs (base abstracta comun: emisor, receptor, moneda, TC)
+|       +-- InvoiceStampingRequest.cs
+|       +-- PaymentComplementStampingRequest.cs
+|       +-- CreditNoteStampingRequest.cs
 |       +-- StampingResponse.cs
 +-- Application/
 |   +-- Proquifa.Timbrado.Application.csproj (net10.0)
 |   +-- DTOs/
-|   |   +-- StampingRequestDto.cs
+|   |   +-- StampInvoiceRequestDto.cs
+|   |   +-- StampPaymentComplementRequestDto.cs
+|   |   +-- StampCreditNoteRequestDto.cs
 |   |   +-- StampingResponseDto.cs
 |   |   +-- StampingLogDto.cs
 |   +-- Interfaces/
 |   |   +-- IStampingService.cs
 |   +-- Services/
-|   |   +-- StampingService.cs
+|   |   +-- StampingService.cs (metodos StampInvoiceAsync, StampPaymentComplementAsync, StampCreditNoteAsync, CancelAsync)
 |   +-- Mappers/
 |   |   +-- ApplicationMappingProfile.cs
 |   +-- Validators/
-|       +-- StampingRequestDtoValidator.cs
+|       +-- StampInvoiceRequestDtoValidator.cs
+|       +-- StampPaymentComplementRequestDtoValidator.cs
+|       +-- StampCreditNoteRequestDtoValidator.cs
 +-- Infrastructure/
 |   +-- Proquifa.Timbrado.Infrastructure.csproj (net10.0)
 |   +-- Persistence/
@@ -103,7 +110,10 @@ ProquifaDotNet.Timbrado/
 ### Flujo Funcional de Timbrado (sincrono, un solo intento, sin persistencia de negocio)
 
 ```
-1. Finanzas arma los datos fiscales del CFDI y llama -> POST /api/v1/stamp (servicio tecnico, uso interno)
+1. Finanzas arma los datos fiscales del CFDI y llama al endpoint del tipo de documento correspondiente (servicio tecnico, uso interno):
+   - Factura (CFDI I / CPE 01)            -> POST /api/v1/stamp/invoice
+   - Complemento de Pago (CFDI P)         -> POST /api/v1/stamp/payment-complement
+   - Nota de Credito (CFDI E / CPE 07)    -> POST /api/v1/stamp/credit-note
 2. StampingService valida request y registra StampingLog (NewStatus=Pending, CfdiGeneradaId=null aun)
 3. StampingService invoca SapStampingClient -> PAC SAP genera CFDI (una sola llamada, sin retry automatico)
 4a. Si SAP responde exito: Uuid, XML firmado, Series, Folio
@@ -154,12 +164,16 @@ ProquifaDotNet.Timbrado/
 
 #### API - Endpoints (uso interno, consumidos solo por Finanzas)
 
-> Servicio tecnico, no expone un recurso de negocio: las rutas usan una accion (`stamp`) en vez de un sustantivo CRUD, ya que no hay una entidad persistida detras. Alineado en lo demas a `api/v1/{resource}/{id}/{subresource}` (Reglas al diseñar — regla 9).
+> Servicio tecnico, no expone un recurso de negocio: las rutas usan una accion (`stamp`) mas el tipo de documento en vez de un sustantivo CRUD, ya que no hay una entidad persistida detras. Alineado en lo demas a `api/v1/{resource}/{id}/{subresource}` (Reglas al diseñar — regla 9). Se define **un endpoint por tipo de documento fiscal** (en lugar de uno generico con discriminador) para que cada uno tenga DTO y validador propios: la Factura lleva conceptos e impuestos, el Complemento de Pago lleva el nodo `Pagos` con documentos relacionados (SubTotal/Total = 0), y la Nota de Credito exige `CFDIRelacionados` con el UUID de la factura origen.
 
-| Metodo | Endpoint                | Descripcion                                                |
-| ------ | ------------------------ | ----------------------------------------------------------- |
-| POST   | /api/v1/stamp             | Recibe datos fiscales armados por Finanzas, timbra ante SAP y regresa Uuid/XML/Series/Folio/estatus |
-| POST   | /api/v1/stamp/cancel      | Solicita cancelacion de un CFDI ante SAP (recibe Uuid + datos minimos, sin leer tabla propia) |
+| Metodo | Endpoint                              | Descripcion                                                |
+| ------ | -------------------------------------- | ----------------------------------------------------------- |
+| POST   | /api/v1/stamp/invoice                   | Timbra una Factura (CFDI tipo I / CPE 01 SUNAT, incluye FAA): recibe datos fiscales armados por Finanzas, timbra ante SAP y regresa Uuid/XML/Series/Folio/estatus |
+| POST   | /api/v1/stamp/payment-complement        | Timbra un Complemento de Pago (CFDI tipo P): recibe el nodo Pagos con documentos relacionados (UUID factura PPD, saldos, parcialidad) |
+| POST   | /api/v1/stamp/credit-note               | Timbra una Nota de Credito (CFDI tipo E / CPE 07 SUNAT): recibe conceptos + CFDIRelacionados (UUID factura origen, TipoRelacion 01/03) |
+| POST   | /api/v1/stamp/cancel                    | Solicita cancelacion de un CFDI ante SAP (recibe Uuid + datos minimos, sin leer tabla propia) |
+
+> Los tres endpoints de timbrado comparten el mismo pipeline interno (`StampingService` -> `SapStampingClient` -> `StampingLog`): la diferencia vive en el DTO de entrada y su validador. SAT (Mexico) y SUNAT (Peru) comparten endpoint por tipo de documento; la region se resuelve por los datos del request, sin rutas separadas por region.
 
 ---
 
@@ -192,7 +206,7 @@ ProquifaDotNet.Timbrado/
 
 ### Descripcion
 
-El recurso de negocio **CFDI** (crear, consultar, cancelar, listar) vive en **ProquifaDotNet.Finanzas**, no en Timbrado. `CfdiController` orquesta: arma los datos fiscales, llama al servicio tecnico de Timbrado (`POST /api/v1/stamp`), y persiste el resultado en `CFDIGenerada` (ProquifaDotNet) + `Archivo` (XML en Minio).
+El recurso de negocio **CFDI** (crear, consultar, cancelar, listar) vive en **ProquifaDotNet.Finanzas**, no en Timbrado. `CfdiController` orquesta: arma los datos fiscales, llama al endpoint tecnico de Timbrado segun el tipo de documento (`POST /api/v1/stamp/invoice`, `/payment-complement` o `/credit-note`), y persiste el resultado en `CFDIGenerada` (ProquifaDotNet) + `Archivo` (XML en Minio).
 
 ### Componentes (Finanzas)
 
@@ -200,7 +214,7 @@ El recurso de negocio **CFDI** (crear, consultar, cancelar, listar) vive en **Pr
 |------|-----------|-------------|
 | Domain | Entidad `CfdiGenerada` (EF Core Scaffold de `CFDIGenerada`) | Registro central de negocio del CFDI |
 | Application | `CfdiService` | Orquesta: arma request tecnico, llama `IApiCallerStamping`, persiste `CFDIGenerada` + `Archivo`, dispara Bitacora |
-| Application | `IApiCallerStamping` | Cliente HTTP hacia ProquifaDotNet.Timbrado (`POST /api/v1/stamp`, `POST /api/v1/stamp/cancel`) |
+| Application | `IApiCallerStamping` | Cliente HTTP hacia ProquifaDotNet.Timbrado — un metodo por tipo de documento: `StampInvoiceAsync` (`POST /api/v1/stamp/invoice`), `StampPaymentComplementAsync` (`POST /api/v1/stamp/payment-complement`), `StampCreditNoteAsync` (`POST /api/v1/stamp/credit-note`) y `CancelAsync` (`POST /api/v1/stamp/cancel`) |
 | Infrastructure | `ApiCallerStamping` | Implementacion del cliente HTTP anterior |
 | API | `CfdiController` | Expone el recurso de negocio `cfdi` al resto de Finanzas y a Venta Interna |
 
@@ -220,7 +234,9 @@ El recurso de negocio **CFDI** (crear, consultar, cancelar, listar) vive en **Pr
 
 ```
 1. CfdiController recibe la solicitud de negocio (ej. desde AdvanceInvoiceGenerateService, R16A-RE-FU-019)
-2. CfdiService arma StampingRequestDto y llama IApiCallerStamping.StampAsync (-> Timbrado POST /api/v1/stamp)
+2. CfdiService arma el request del tipo de documento y llama el metodo correspondiente de IApiCallerStamping:
+   StampInvoiceAsync (-> POST /api/v1/stamp/invoice), StampPaymentComplementAsync (-> POST /api/v1/stamp/payment-complement)
+   o StampCreditNoteAsync (-> POST /api/v1/stamp/credit-note)
 3. Si Timbrado responde exito (Uuid, XML, Series, Folio, FechaEmision):
    - INSERT/UPDATE CFDIGenerada (IdCatTipoCFDI, RFCEmisor, RFCReceptor, Serie, Folio, FechaEmision, UUID,
      Total, IdCatUsoCFDI, IdCatMetodoDePagoCFDI, IdCatMoneda, TipoCambio, Estado='Timbrado')
@@ -296,6 +312,9 @@ Filtro: vfccFactura.Activo=1 AND vfccFactura.EstadoFAA IN ('PendienteGenerar','P
         AND vfccFactura.RegionClave = 'MEX'  -- OBS-032/033: FAA solo aplica para Mexico; clientes Peru se excluyen del listado
         -- OBS-034: 'PendienteEnviar' incluye los casos donde el CFDI ya fue timbrado pero el usuario AÚN NO ha ejecutado "Enviar Factura"
         --          El envío de la factura es una acción EXPLÍCITA del usuario, NO automática post-timbrado.
+        -- Nota (RE-FU-015 v2.1): vfccFactura también expone IdCatFacturaEstado/FacturaEstadoClave (catFacturaEstado:
+        --          POR_GENERAR, ERROR_TIMBRADO, GENERADA, ENVIADA, PAGADA_PARCIAL, PAGADA, CANCELADA) — columnas
+        --          aditivas; el filtro del listado FAA sigue usando EstadoFAA sin cambios.
 
 Agrupacion: GROUP BY IdCliente
   COUNT(vfccFactura.IdFccFactura) AS FacturasPendientes
@@ -362,11 +381,11 @@ Buscador: TRIM(vfccFactura.ClienteRazonSocial) LIKE / TRIM(vfccFactura.ClienteRF
 |---|-----|--------|----------|
 | GAP-01 | Crear solucion y proyectos | sln + 5 csproj (Domain, Application, Infrastructure, API, Testing) | Medio |
 | GAP-02 | Domain: Entities + Interfaces | StampingLog, AppSetting + interfaces | Bajo |
-| GAP-03 | Application: DTOs + StampingService | StampingRequestDto, StampingResponseDto, StampingLogDto, Validators | Medio |
+| GAP-03 | Application: DTOs + StampingService | StampInvoiceRequestDto, StampPaymentComplementRequestDto, StampCreditNoteRequestDto, StampingResponseDto, StampingLogDto, Validators (uno por request DTO) | Medio |
 | GAP-04 | Infrastructure: StampingContext | EF Core con scaffold BD ProquifaDotNetTimbrado (2 tablas: AppSetting, StampingLog) | Bajo |
 | GAP-05 | Infrastructure: SapStampingClient | Cliente HTTP para invocar PAC SAP (timbrar/cancelar CFDI), un solo intento por peticion, sin retry ni cola | Alto |
 | GAP-06 | API: Program.cs + configuracion | DI, EF Core, Swagger, Serilog, IdentityServer, CORS | Medio |
-| GAP-07 | API: StampingController | Endpoints POST /api/v1/stamp, POST /api/v1/stamp/cancel (uso interno, consumido solo por Finanzas) | Medio |
+| GAP-07 | API: StampingController | Endpoints POST /api/v1/stamp/invoice, POST /api/v1/stamp/payment-complement, POST /api/v1/stamp/credit-note, POST /api/v1/stamp/cancel (uso interno, consumido solo por Finanzas) | Medio |
 | GAP-08 | BD: Ejecutar scripts DDL | CREATE DATABASE + 2 tablas (AppSetting, StampingLog) | Bajo |
 
 > Se retiraron los gaps de Worker.Timbrado/RabbitMQ (reintentos), de notificacion directa via Brevo, y de persistencia/Minio del CFDI (`Cfdi`, `FiscalDocumentType`, `CfdiRepository`, `MinioStorageService`): esa responsabilidad pasa a **ProquifaDotNet.Finanzas** (ver Gaps de Finanzas — CfdiController). El envio de correo se canaliza a traves de ProquifaDotNet.EnvioCorreo (Aplicativo Nuevo, regla 7).
@@ -377,7 +396,7 @@ Buscador: TRIM(vfccFactura.ClienteRazonSocial) LIKE / TRIM(vfccFactura.ClienteRF
 |---|-----|--------|----------|
 | GAP-09 | Infrastructure: Scaffold CFDIGenerada extendida | Agregar/actualizar entidad `CfdiGenerada` en el Scaffold de Finanzas tras el ALTER TABLE (R16A-RE-FU-018_BD.md Parte 3) | Bajo |
 | GAP-10 | Application: CfdiService | Arma request tecnico, llama IApiCallerStamping, persiste CFDIGenerada + Archivo, dispara Bitacora | Alto |
-| GAP-11 | Application/Infrastructure: IApiCallerStamping / ApiCallerStamping | Cliente HTTP hacia ProquifaDotNet.Timbrado (POST /api/v1/stamp, /cancel) | Medio |
+| GAP-11 | Application/Infrastructure: IApiCallerStamping / ApiCallerStamping | Cliente HTTP hacia ProquifaDotNet.Timbrado — metodos StampInvoiceAsync, StampPaymentComplementAsync, StampCreditNoteAsync, CancelAsync (POST /api/v1/stamp/invoice, /payment-complement, /credit-note, /cancel) | Medio |
 | GAP-12 | Infrastructure: MinioStorageService (Finanzas) | Upload XML a Minio + INSERT Archivo (reutiliza patron de RE-FU-016 si ya existe) | Bajo |
 | GAP-13 | API: CfdiController | Endpoints POST /api/v1/cfdi, POST /api/v1/cfdi/{id}/cancel, GET /api/v1/cfdi/{id}, GET /api/v1/cfdi/{id}/xml, POST /api/v1/cfdi/search | Medio |
 

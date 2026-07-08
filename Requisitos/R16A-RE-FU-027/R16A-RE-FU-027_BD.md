@@ -100,6 +100,7 @@ La tabla fccSaldoFavorCliente (creada en RE-FU-026) ya soporta PER porque:
 |-------|---------|-----------|
 | fccPagoFacturaPedido | Al confirmar asociacion (Proforma) | INSERT |
 | fccPagoFacturaAdelanto | Al confirmar asociacion (FAA) | INSERT |
+| fccFactura | Al confirmar asociacion (FAA) | UPDATE IdCatFacturaEstado = PAGADA o PAGADA_PARCIAL (mismo patron que MEX RE-FU-026 — catFacturaEstado, RE-FU-015 v2.1) |
 | fccNotaCredito | Al aplicar NC | UPDATE Aplicada=1, IdFCCPagoCliente=@id |
 | fccSaldoFavorCliente | Sobrepago | INSERT TipoSaldo='SaldoFavor', PEN=1 |
 | fccSaldoFavorCliente | Tolerancia PER | INSERT TipoSaldo='ToleranciaAplicada', PEN=1 |

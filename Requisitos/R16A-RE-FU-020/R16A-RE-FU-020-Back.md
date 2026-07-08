@@ -132,7 +132,7 @@ public class OseStampingClient : IOseStampingClient
 
 | Método | Endpoint | Descripción |
 |--------|----------|-------------|
-| POST | `/api/v1/stamp` | Recibe el request técnico SUNAT armado por Finanzas, retorna `StampSunatInvoiceResponseDto` — reutiliza el endpoint técnico único creado en RE-FU-018, sin controller ni ruta separados. El recurso de negocio `cfdi` (`CfdiController`, `POST /api/v1/cfdi`) vive en Finanzas. |
+| POST | `/api/v1/stamp/invoice` | Recibe el request técnico SUNAT armado por Finanzas, retorna `StampSunatInvoiceResponseDto` — reutiliza el endpoint técnico de facturas (`/api/v1/stamp/invoice`) creado en RE-FU-018, sin controller ni ruta separados. El recurso de negocio `cfdi` (`CfdiController`, `POST /api/v1/cfdi`) vive en Finanzas. |
 
 ---
 
@@ -147,7 +147,7 @@ Adaptar el módulo FAA en Finanzas (RE-FU-019) para soportar el flujo de Perú. 
 | Endpoint | Reutilización | Adaptación Perú |
 |----------|---------------|-----------------|
 | `POST /api/v1/advanceInvoice/{clientId}/detail` | ✅ Reutiliza | Filtro `RegionClave='PER'` en request |
-| `POST /api/v1/advanceInvoice/{id}/generate` | ⚙️ Extiende | Branch interno: si PER → arma UBL 2.1 → llama `ICfdiService.GenerateAsync` (que a su vez llama `POST /api/v1/stamp` en Timbrado y persiste CFDIGenerada) |
+| `POST /api/v1/advanceInvoice/{id}/generate` | ⚙️ Extiende | Branch interno: si PER → arma UBL 2.1 → llama `ICfdiService.GenerateAsync` (que a su vez llama `POST /api/v1/stamp/invoice` en Timbrado y persiste CFDIGenerada) |
 | `POST /api/v1/advanceInvoice/{id}/preview` | ⚙️ Extiende | Branch interno: si PER → template PDF GOLPERU |
 | `POST /api/v1/advanceInvoice/{id}/send` | ✅ Reutiliza | Sin rama Crédito; solo Validar Cobro |
 
@@ -185,11 +185,12 @@ Si RegionClave = 'PER':
      - TipoOperacion cat. 51 SUNAT (fijo "0101" o seleccionable — pendiente definir)
      - SIN MetodoPago / FormaPago / TipoComprobante SAT
   7. Llamar ICfdiService.GenerateAsync(request) — internamente: llama ApiCallerStamping.StampSunatInvoiceAsync
-     -> Timbrado POST /api/v1/stamp, y si el CDR es aceptado, INSERT CFDIGenerada + Archivo (PDF+XML+CDR,
+     -> Timbrado POST /api/v1/stamp/invoice, y si el CDR es aceptado, INSERT CFDIGenerada + Archivo (PDF+XML+CDR,
      bucket 'facturas-peru') en ProquifaDotNet
-  8. Si ERROR: retornar AdvanceInvoiceGenerateResponseDto con Exitoso=false + ErrorDescripcion (SUNAT),
-     sin modificar fccFactura
-  9. Si ÉXITO: UPDATE fccFactura SET IdCFDIGenerada = @IdCFDIGenerada, EsFacturaPorAdelantado = 0
+  8. Si ERROR: UPDATE fccFactura SET IdCatFacturaEstado = ERROR_TIMBRADO (sin tocar IdCFDIGenerada) y
+     retornar AdvanceInvoiceGenerateResponseDto con Exitoso=false + ErrorDescripcion (SUNAT)
+  9. Si ÉXITO: UPDATE fccFactura SET IdCFDIGenerada = @IdCFDIGenerada, EsFacturaPorAdelantado = 0,
+     IdCatFacturaEstado = GENERADA (catFacturaEstado, RE-FU-015 v2.1)
      (Id real retornado por ICfdiService.GenerateAsync, correspondiente al registro insertado en CFDIGenerada)
   10. Registrar el guardado de la factura en ProquifaDotNet.BitacoraCambios (Aplicativo Nuevo — regla 8)
   11. Retornar AdvanceInvoiceGenerateResponseDto con Exitoso=true + NumeroCPE (Serie-Correlativo)
@@ -231,7 +232,7 @@ El preview detecta la región y usa el template correspondiente:
 
 | Método | Endpoint Timbrado | Descripción |
 |--------|------------------|-------------|
-| `StampSunatInvoiceAsync(StampSunatInvoiceRequestDto)` | `POST /api/v1/stamp` | Timbrado UBL 2.1 SUNAT (invocado internamente por `CfdiService.GenerateAsync`, no directamente por `AdvanceInvoiceGenerateService`) |
+| `StampSunatInvoiceAsync(StampSunatInvoiceRequestDto)` | `POST /api/v1/stamp/invoice` | Timbrado UBL 2.1 SUNAT (invocado internamente por `CfdiService.GenerateAsync`, no directamente por `AdvanceInvoiceGenerateService`) |
 
 ---
 
@@ -354,7 +355,7 @@ WHERE Prefijo = 'GOLPERU';
 | GAP-01 | DTOs SUNAT: `StampSunatInvoiceRequestDto`, `SunatItemDto`, `SunatIssuerDataDto`, `SunatRecipientDataDto`, `StampSunatInvoiceResponseDto` | Modelos específicos UBL 2.1 con campos SUNAT | Medio | Abierto |
 | GAP-02 | Infrastructure: `OseStampingClient` (interface + implementación HTTP hacia OSE/PSE SUNAT) | Cliente HTTP intercambiable; proveedor pendiente | Alto | **BLOQUEANTE (brecha OSE)** |
 | GAP-03 | Application: ampliar `StampingService` con `StampSunatInvoiceAsync` (UBL 2.1, serie SUNAT, CDR) | Flujo completo: validar → folio → UBL 2.1 → OSE → persistir | Alto | **BLOQUEANTE (brecha OSE + datos SUNAT producto)** |
-| GAP-04 | API: `StampingController` — sin endpoint nuevo (reutiliza `POST /api/v1/stamp` creado en RE-FU-018) | Ajuste de orquestación interna para SUNAT | Bajo | Abierto |
+| GAP-04 | API: `StampingController` — sin endpoint nuevo (reutiliza `POST /api/v1/stamp/invoice` creado en RE-FU-018) | Ajuste de orquestación interna para SUNAT | Bajo | Abierto |
 
 ### En ProquifaDotNet.Finanzas
 
@@ -364,7 +365,7 @@ WHERE Prefijo = 'GOLPERU';
 | GAP-06 | Infrastructure: adaptar `AdvanceInvoiceFiscalDataRepository` para Perú (RUC, dirección fiscal, Tipo Operación cat. 51, datos SUNAT producto) | Branch regional en métodos existentes o métodos nuevos _Peru | Medio | **BLOQUEANTE (datos SUNAT producto)** |
 | GAP-07 | Application: extender `AdvanceInvoiceGenerateService` con branch Perú (UBL 2.1, IGV, sin PPD/99, Tipo Operación, llama `ICfdiService.GenerateAsync`) | Branch interno RegionClave='PER', alta complejidad | Alto | **BLOQUEANTE (datos SUNAT producto + OSE)** |
 | GAP-08 | Application: extender `AdvanceInvoicePreviewService` con template PDF GOLPERU (DocumentBuilder) | Branch regional para template PDF Perú | Medio | Abierto |
-| GAP-09 | Infrastructure: `ApiCallerStamping` (existente, RE-FU-018) agregar método `StampSunatInvoiceAsync` | Nuevo método HTTP hacia `POST /api/v1/stamp` | Bajo | Abierto |
+| GAP-09 | Infrastructure: `ApiCallerStamping` (existente, RE-FU-018) agregar método `StampSunatInvoiceAsync` | Nuevo método HTTP hacia `POST /api/v1/stamp/invoice` | Bajo | Abierto |
 
 ### En Base de Datos
 
@@ -383,7 +384,7 @@ WHERE Prefijo = 'GOLPERU';
 ```
 [Finanzas]                                  [Timbrado]                      [OSE/PSE SUNAT]
      |                                           |                                 |
-     | POST /api/v1/stamp (tecnico)              |                                 |
+     | POST /api/v1/stamp/invoice (tecnico)              |                                 |
      |------------------------------------------>|                                 |
      |                                           | 1. Validar request              |
      |                                           | 2. Consumir folio GOLPERU       |
@@ -456,7 +457,7 @@ WHERE Prefijo = 'GOLPERU';
 | Tipo de Operación | Catálogo 51 SUNAT; pendiente definir si es fijo "0101" o seleccionable por el operador (Regla 7 del requisito) |
 | Sin Método/Forma de Pago | El modal de Generación Perú NO muestra estos campos; el DTO no los incluye |
 | Sin Complemento de Pago | El CPE peruano se emite completo con IGV; no existe el esquema PPD + Complemento del SAT |
-| Branch regional en Finanzas | `AdvanceInvoiceGenerateService` detecta RegionClave y arma el request correspondiente; ambos casos llaman a `ICfdiService.GenerateAsync`, que internamente invoca el mismo endpoint técnico único `POST /api/v1/stamp` en Timbrado y persiste `CFDIGenerada` (resuelve el tipo con `catTipoCFDI`, sin discriminador propio de Timbrado) |
+| Branch regional en Finanzas | `AdvanceInvoiceGenerateService` detecta RegionClave y arma el request correspondiente; ambos casos llaman a `ICfdiService.GenerateAsync`, que internamente invoca el mismo endpoint técnico de facturas `POST /api/v1/stamp/invoice` en Timbrado y persiste `CFDIGenerada` (resuelve el tipo con `catTipoCFDI`, sin discriminador propio de Timbrado) |
 | Template PDF Perú | DocumentBuilder template `GOLPERU_PER_FAA` independiente del template México; definir en requisito independiente |
 | Fuente Tipo de Cambio Perú | La fuente oficial para TC en Perú (SBS, SUNAT, BCR) está pendiente de definir (no aplica el DOF mexicano) |
 | Interoperabilidad OSE | El `OseStampingClient` debe implementar via interface para facilitar cambio de proveedor OSE/PSE sin modificar la capa Application |

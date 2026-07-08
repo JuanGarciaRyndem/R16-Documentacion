@@ -11,7 +11,7 @@ sequenceDiagram
     F->>BDPQF2: Guarda base factura fccFactura con campo FacturaAdelantado = true
     BDPQF2-->>F: Regresa confirmación de guardado
 
-    F->>T: POST TimbrarFactura
+    F->>T: POST /api/v1/stamp/invoice
     activate T
 
     T->>BDT: Guardar TimbradoLog (<br/>IdPeticion, <br/>JSONPeticion, <br/>Catálogo Tipo de Petición: Factura/Nota de Crédito/Complemento de Pago, <br/>Fecha de Registro, <br/>Fecha Última Actualización, <br/>UserName, <br/>ClienteName: <br/>ProquifaDotNet/Finanzas/MailBot, <br/>IsActive, <br/>IdStatus = Pending)

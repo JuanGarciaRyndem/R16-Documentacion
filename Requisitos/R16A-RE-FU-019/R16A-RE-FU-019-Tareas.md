@@ -197,7 +197,7 @@ Corresponde a GAP-03. Patrón documentado en R16A-RE-FU-019_BD.md sección "Cons
 **Módulos:** Application/DTOs
 
 **Consideraciones previas:**
-- Los DTOs modelan el contrato del endpoint técnico `POST /api/v1/stamp` (ProquifaDotNet.Timbrado) — **no** `/api/v1/cfdi` (ese es el recurso de negocio expuesto por `CfdiController` en Finanzas, ver R16A-RE-FU-018-Back.md Parte B)
+- Los DTOs modelan el contrato del endpoint técnico `POST /api/v1/stamp/invoice` (ProquifaDotNet.Timbrado) — **no** `/api/v1/cfdi` (ese es el recurso de negocio expuesto por `CfdiController` en Finanzas, ver R16A-RE-FU-018-Back.md Parte B)
 - Valores forzados por normativa SAT (PPD, 99, I) se incluyen como propiedades con defaults
 - El response indica éxito/error con el resultado del timbrado (UUID, XML, Serie, Folio) — **sin Id de negocio**: Timbrado no tiene tabla `Cfdi` propia, el Id real (`IdCFDIGenerada`) lo asigna Finanzas al persistir
 
@@ -212,7 +212,7 @@ Crear los modelos DTO específicos para el timbrado técnico de Factura por Adel
 - Crear `DTOs/IssuerDataDto.cs` con: RFC, RazonSocial, RegimenFiscal, EmpresaClave
 
 **Resultado esperado:**
-DTOs completos que modelan el contrato de comunicación del endpoint técnico `/api/v1/stamp`.
+DTOs completos que modelan el contrato de comunicación del endpoint técnico `/api/v1/stamp/invoice`.
 
 **Entregables:**
 - `DTOs/StampAdvanceInvoiceRequestDto.cs`
@@ -295,7 +295,7 @@ Corresponde a GAP-02. Ver diagrama de flujo "Generar Factura" en R16A-RE-FU-019-
 
 ### Tarea 6
 
-**Título:** [ R16A-RE-FU-019 ] [IMP-EXIST-SERVICE] Enrutar timbrado FAA a través de `POST /api/v1/stamp` en StampingController
+**Título:** [ R16A-RE-FU-019 ] [IMP-EXIST-SERVICE] Enrutar timbrado FAA a través de `POST /api/v1/stamp/invoice` en StampingController
 
 **Aplicativos:** ProquifaDotNet.Timbrado
 
@@ -303,29 +303,29 @@ Corresponde a GAP-02. Ver diagrama de flujo "Generar Factura" en R16A-RE-FU-019-
 
 **Consideraciones previas:**
 - Depende de Tarea 5 (`StampingService.StampAdvanceInvoiceAsync`) y Tarea 4 (DTOs)
-- `StampingController` y el endpoint técnico `POST /api/v1/stamp` ya existen (RE-FU-018); no se crea endpoint ni ruta nueva
+- `StampingController` y el endpoint técnico `POST /api/v1/stamp/invoice` ya existen (RE-FU-018); no se crea endpoint ni ruta nueva
 - Timbrado no discrimina por catálogo propio (no tiene `FiscalDocumentType`): el tipo de documento lo resuelve Finanzas (via `catTipoCFDI`) antes de llamar a Timbrado; Timbrado solo recibe los datos fiscales ya armados
 - El recurso de negocio `cfdi` (`CfdiController`, `POST /api/v1/cfdi`) vive en Finanzas, no aquí (ver R16A-RE-FU-018-Back.md Parte B)
 - Autenticación via IdentityServer (token desde Finanzas)
 
 **Objetivo general:**
-Conectar el timbrado técnico de Factura por Adelantado al endpoint único de timbrado del controlador existente.
+Conectar el timbrado técnico de Factura por Adelantado al endpoint de facturas (`POST /api/v1/stamp/invoice`) del controlador existente.
 
 **Objetivos específicos:**
 - Ampliar la acción `POST` de `StampingController` para que delegue a `IStampingService.StampAdvanceInvoiceAsync([FromBody] StampAdvanceInvoiceRequestDto request)`
-- Ruta: `/api/v1/stamp` (sin ruta ni recurso separados)
+- Ruta: `/api/v1/stamp/invoice` (sin ruta ni recurso separados)
 - Retornar 200 OK con `StampAdvanceInvoiceResponseDto` (tanto en éxito como en error de PAC)
 - Retornar 400 BadRequest si validación de request falla
 - Retornar 500 si error interno no controlado
 
 **Resultado esperado:**
-Endpoint técnico único funcional que recibe la solicitud de timbrado FAA desde Finanzas y retorna el resultado (sin persistir el CFDI).
+Endpoint técnico de facturas funcional que recibe la solicitud de timbrado FAA desde Finanzas y retorna el resultado (sin persistir el CFDI).
 
 **Entregables:**
 - Ampliación de `Controllers/StampingController.cs`
 
 **Criterios de aceptación:**
-- El endpoint es accesible en `/api/v1/stamp`
+- El endpoint es accesible en `/api/v1/stamp/invoice`
 - Valida autenticación IdentityServer
 - Retorna `StampAdvanceInvoiceResponseDto` con Exitoso=true y datos del timbrado cuando es exitoso
 - Retorna `StampAdvanceInvoiceResponseDto` con Exitoso=false y ErrorDescripcion cuando PAC falla
@@ -548,7 +548,7 @@ Corresponde a GAP-09. Datos fiscales y Comentarios de Facturación alimentan el 
 
 ### Tarea 12
 
-> **Tarea ya cubierta en RE-FU-018 (Parte B, Tarea 10 — no se duplica aquí):** `IApiCallerStamping`/`ApiCallerStamping` (cliente HTTP hacia `POST /api/v1/stamp` en ProquifaDotNet.Timbrado, sin reintentos, con Polly solo para timeout) se crea en **R16A-RE-FU-018-Tareas.md, Parte B, Tarea 10**, junto con `CfdiService` (Tarea 9) y `CfdiController` (Tarea 12 de ese requisito). Este requisito (RE-FU-019) **consume** esos componentes existentes desde `AdvanceInvoiceGenerateService` (ver Tarea 13) — no crea un `ApiCallerStamping` propio ni llama a Timbrado directamente.
+> **Tarea ya cubierta en RE-FU-018 (Parte B, Tarea 10 — no se duplica aquí):** `IApiCallerStamping`/`ApiCallerStamping` (cliente HTTP hacia `POST /api/v1/stamp/invoice` en ProquifaDotNet.Timbrado, sin reintentos, con Polly solo para timeout) se crea en **R16A-RE-FU-018-Tareas.md, Parte B, Tarea 10**, junto con `CfdiService` (Tarea 9) y `CfdiController` (Tarea 12 de ese requisito). Este requisito (RE-FU-019) **consume** esos componentes existentes desde `AdvanceInvoiceGenerateService` (ver Tarea 13) — no crea un `ApiCallerStamping` propio ni llama a Timbrado directamente.
 
 **Título:** [ R16A-RE-FU-019 ] [IMP-EXIST-SERVICE] Verificar disponibilidad de `IApiCallerStamping`/`ICfdiService` (dependencia de RE-FU-018)
 
@@ -615,10 +615,11 @@ Implementar el servicio que orquesta el flujo completo desde la obtención de da
 5. Obtener Tipo de Cambio del día (si moneda != MXN)
 6. Armar StampAdvanceInvoiceRequestDto con valores forzados SAT (PPD, 99, I)
 7. Llamar ICfdiService.GenerateAsync(request) — internamente: llama IApiCallerStamping -> Timbrado
-   POST /api/v1/stamp, y si es exitoso INSERT CFDIGenerada + Archivo (XML) en ProquifaDotNet
-8. Si ERROR: retornar AdvanceInvoiceGenerateResponseDto con Exitoso=false + ErrorDescripcion (sin
-   modificar fccFactura)
-9. Si ÉXITO: UPDATE fccFactura SET IdCFDIGenerada = @IdCFDIGenerada, EsFacturaPorAdelantado = 0
+   POST /api/v1/stamp/invoice, y si es exitoso INSERT CFDIGenerada + Archivo (XML) en ProquifaDotNet
+8. Si ERROR: UPDATE fccFactura SET IdCatFacturaEstado = ERROR_TIMBRADO (sin tocar IdCFDIGenerada) y
+   retornar AdvanceInvoiceGenerateResponseDto con Exitoso=false + ErrorDescripcion
+9. Si ÉXITO: UPDATE fccFactura SET IdCFDIGenerada = @IdCFDIGenerada, EsFacturaPorAdelantado = 0,
+   IdCatFacturaEstado = GENERADA (catFacturaEstado, RE-FU-015 v2.1)
    (Id real retornado por ICfdiService.GenerateAsync, correspondiente al registro insertado en CFDIGenerada)
 10. Retornar AdvanceInvoiceGenerateResponseDto con Exitoso=true + datos factura
 ```
@@ -677,7 +678,8 @@ Implementar el servicio de envío de factura que envía el correo, marca como en
 4. Enviar correo vía ProquifaDotNet.EnvioCorreo con destinatario, CC, adjuntos PDF+XML, notas
 5. Si envío FALLA: retornar error sin modificar estado
 6. INSERT CorreoEnviado + ArchivoCorreoEnviado (2 registros: PDF, XML)
-7. UPDATE fccFactura SET Enviada = 1 (antes: UPDATE tpProformaAdelanto SET Enviada = 1)
+7. UPDATE fccFactura SET Enviada = 1, FechaEnvio = SYSUTCDATETIME(), IdCatFacturaEstado = ENVIADA
+   (antes: UPDATE tpProformaAdelanto SET Enviada = 1)
 8. Registrar el guardado/envío de la factura en ProquifaDotNet.BitacoraCambios (Aplicativo Nuevo — regla 8)
 9. Si Crédito (fccFactura.IdTPProformaPedido NOT NULL): ejecutar AdvanceInvoiceLegacyService.TransferInvoiceToLegacy
 10. Si Prepago (fccFactura.IdTPProformaPedido NULL): ejecutar AdvanceInvoiceValidateCollectionService.GenerarPendienteValidarCobro

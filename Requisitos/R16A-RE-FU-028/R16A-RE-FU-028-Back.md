@@ -44,10 +44,11 @@ Al confirmar el envío de cada línea, el sistema dispara automáticamente tres 
 | `fccNotaCredito.IdCFDI`                             | RE-FU-026     | UUID de la NC para incluir en nodo `CFDIRelacionados` al timbrar                                                                                       |
 | `tpProformaPedido.HayControlados`                   | RE-FU-013/014 | Flag que determina `FACTURA` vs `FACTURA_ANTICIPO` en la lógica condicional                                                                            |
 | `fccFactura.IdCFDIGenerada` (RE-FU-015, antes `tpProformaAdelanto.IdCFDIGenerada`) | RE-FU-015     | UUID de la FAA para `CFDIRelacionados` del Complemento de Pago                                                                                         |
+| `catFacturaEstado` + `fccFactura.IdCatFacturaEstado` | RE-FU-015 v2.1 | Estado del ciclo de vida de la factura FAA — al llegar al Paso 3 la FAA ya está en PAGADA/PAGADA_PARCIAL (transición ejecutada en el Paso 2, RE-FU-026); el Paso 3 no la modifica. Aplica solo a facturas con registro en `fccFactura` (origen FAA); las facturas emitidas desde proforma no tienen registro en `fccFactura` y su ciclo se rastrea por `EstadoLinea` + `CFDIGenerada` |
 | `DatosFacturacionCliente`                           | RE-FU-004     | RFC, Razón Social, Régimen Fiscal Receptor del CFDI 4.0                                                                                                |
 | `Empresa`                                           | Existente     | RFC Emisor, Régimen Fiscal Emisor, Prefijo por empresa PROQUIFA México                                                                                 |
 | Patrón timbrado PAC TurboPac                        | RE-FU-019     | Mismo flujo de timbrado y manejo de errores del PAC                                                                                                    |
-| `ApiCallerStamping` (HttpClient + Polly)            | RE-FU-019     | Cliente HTTP con retry policy hacia Timbrado — ya implementado, se reutiliza sin cambios                                                               |
+| `ApiCallerStamping` (HttpClient + Polly)            | RE-FU-019     | Cliente HTTP con retry policy hacia Timbrado — ya implementado; el Paso 3 usa `StampInvoiceAsync` (`POST /api/v1/stamp/invoice`) para Factura/Factura Anticipo y `StampPaymentComplementAsync` (`POST /api/v1/stamp/payment-complement`) para el CP en cascada                                                               |
 | `MexicoInvoicePdfMappingService`                    | RE-FU-021     | Consolida datos CFDI 4.0 en `InvoicePdfModel`; `MapearPreviewAsync` para preview, `MapearAsync` para PDF definitivo                                    |
 | `PersistMexicoInvoicePdfService`                  | RE-FU-021     | Genera PDF definitivo post-timbrado → lo sube a MinIO → INSERT `Archivo` → UPDATE `CFDI`. GAP-10 de RE-021 anticipó esta integración con Validar Cobro |
 | Templates DocumentBuilder `GOL/MUN/PRO/PQF_MEX_FAC` | RE-FU-021     | Plantillas de Factura CFDI 4.0 por empresa emisora — ya implementadas, se usan en Paso 3 sin cambios                                                   |
@@ -60,10 +61,10 @@ Al confirmar el envío de cada línea, el sistema dispara automáticamente tres 
 
 Catálogo de tipos de documento fiscal generables en el Paso 3. Determina el tipo de CFDI a emitir por línea según el origen de la asociación del Paso 2.
 
-| Clave | Descripción |
-|-------|-------------|
-| `FACTURA` | CFDI Ingreso PUE o PPD (proforma sin productos controlados) |
-| `FACTURA_ANTICIPO` | CFDI Ingreso rel. 07 SAT (proforma con productos controlados) |
+| Clave              | Descripción                                                          |
+| ------------------ | -------------------------------------------------------------------- |
+| `FACTURA`          | CFDI Ingreso PUE o PPD (proforma sin productos controlados)          |
+| `FACTURA_ANTICIPO` | CFDI Ingreso rel. 07 SAT (proforma con productos controlados)        |
 | `COMPLEMENTO_PAGO` | CFDI Pagos 2.0 (Factura por Adelantado existente con cobro asociado) |
 
 > Ver script completo en `R16A-RE-FU-028_BD.md` — Catálogo Nuevo: `catTipoDocumentoFiscal`.
@@ -72,11 +73,11 @@ Catálogo de tipos de documento fiscal generables en el Paso 3. Determina el tip
 
 Catálogo de estados del ciclo de vida de cada línea del Paso 3.
 
-| Clave | Descripción |
-|-------|-------------|
-| `PENDIENTE` | Estado inicial; línea creada, aún no timbrada ni enviada |
-| `GENERADO` | CFDIs timbrados exitosamente; pendiente de envío al cliente |
-| `ENVIADO` | Documentos enviados al cliente; línea cerrada operativamente |
+| Clave       | Descripción                                                  |
+| ----------- | ------------------------------------------------------------ |
+| `PENDIENTE` | Estado inicial; línea creada, aún no timbrada ni enviada     |
+| `GENERADO`  | CFDIs timbrados exitosamente; pendiente de envío al cliente  |
+| `ENVIADO`   | Documentos enviados al cliente; línea cerrada operativamente |
 
 > Ver script completo en `R16A-RE-FU-028_BD.md` — Catálogo Nuevo: `catDocumentoFiscalCobroEstado`.
 
@@ -84,12 +85,12 @@ Catálogo de estados del ciclo de vida de cada línea del Paso 3.
 
 Catálogo de tipos de CFDI timbrados. Discrimina el comprobante fiscal almacenado en `CFDIGenerada`.
 
-| Clave | Descripción |
-|-------|-------------|
-| `FACTURA_PPD` | Factura CFDI Ingreso con método PPD |
-| `FACTURA_PUE` | Factura CFDI Ingreso con método PUE |
+| Clave              | Descripción                               |
+| ------------------ | ----------------------------------------- |
+| `FACTURA_PPD`      | Factura CFDI Ingreso con método PPD       |
+| `FACTURA_PUE`      | Factura CFDI Ingreso con método PUE       |
 | `FACTURA_ANTICIPO` | Factura Anticipo CFDI Ingreso rel. 07 SAT |
-| `COMPLEMENTO_PAGO` | CFDI Pagos 2.0 |
+| `COMPLEMENTO_PAGO` | CFDI Pagos 2.0                            |
 
 > Ver script completo en `R16A-RE-FU-028_BD.md` — Catálogo Nuevo: `catTipoCFDI`.
 
@@ -309,9 +310,9 @@ Al detectar que todas las líneas del cliente están en estado `ENVIADO`, Finanz
 
 ## Parte C — ProquifaDotNet.Timbrado
 
-### C1 — Endpoint de timbrado por tipo de CFDI
+### C1 — Endpoints de timbrado por tipo de CFDI
 
-Timbrado recibe una solicitud por cada CFDI a generar desde Finanzas. La solicitud incluye el tipo de CFDI, los datos del emisor/receptor, partidas, NCs en `CFDIRelacionados` (cuando aplica) y, para el Complemento de Pago en cascada, el UUID de la Factura PPD relacionada.
+Timbrado recibe una solicitud por cada CFDI a generar desde Finanzas, en el endpoint del tipo de documento correspondiente (RE-018): `POST /api/v1/stamp/invoice` para Factura y Factura Anticipo, `POST /api/v1/stamp/payment-complement` para el Complemento de Pago en cascada. La solicitud incluye los datos del emisor/receptor, partidas, NCs en `CFDIRelacionados` (cuando aplica) y, para el Complemento de Pago en cascada, el UUID de la Factura PPD relacionada.
 
 **Por cada timbrado exitoso:**
 1. INSERT en `CFDIGenerada` con `IdCatTipoCFDI` resuelto desde `catTipoCFDI`.
@@ -333,16 +334,16 @@ Esta sección documenta todas las transferencias de datos y documentos que Proqu
 
 ### Resumen de transferencias
 
-| # | Transferencia | Tipo | Dependencia | Implementado en | Disparador |
-|---|---------------|------|-------------|-----------------|------------|
-| E1 | ETL Datos Buzón de Cobros | Datos | R16A-RE-FU-008 | **RE-FU-028** | Al confirmar cobro en Paso 1 |
-| E2 | ETL Datos Proforma | Datos | R16A-RE-FU-016 | **RE-FU-028** | Al tramitar pedido Prepago |
-| E3 | ETL Datos Factura | Datos | R16A-RE-FU-019 | **RE-FU-028** | Al enviar línea Paso 3 (Factura o Factura Anticipo) |
-| E4 | ETL Datos Complemento de Pago | Datos | R16A-RE-FU-030 | **RE-FU-030** | Al enviar línea Paso 3 (Complemento) |
-| E5 | ETL Datos Nota de Crédito | Datos | R16A-RE-FU-032 | **RE-FU-032** | Al enviar línea Paso 3 (si hay NCs aplicadas) |
-| E6 | Transferencia PDF Factura | Documento | R16A-RE-FU-021 | **RE-FU-028** | Al enviar línea Paso 3 (Factura o Factura Anticipo) |
-| E7 | Transferencia PDF Complemento de Pago | Documento | R16A-RE-FU-030 | **RE-FU-030** | Al enviar línea Paso 3 (Complemento) |
-| E8 | Transferencia PDF Nota de Crédito | Documento | R16A-RE-FU-034 | **RE-FU-034** | Al enviar línea Paso 3 (si hay NCs aplicadas) |
+| #   | Transferencia                         | Tipo      | Dependencia    | Implementado en | Disparador                                          |
+| --- | ------------------------------------- | --------- | -------------- | --------------- | --------------------------------------------------- |
+| E1  | ETL Datos Buzón de Cobros             | Datos     | R16A-RE-FU-008 | **RE-FU-028**   | Al confirmar cobro en Paso 1                        |
+| E2  | ETL Datos Proforma                    | Datos     | R16A-RE-FU-016 | **RE-FU-028**   | Al tramitar pedido Prepago                          |
+| E3  | ETL Datos Factura                     | Datos     | R16A-RE-FU-019 | **RE-FU-028**   | Al enviar línea Paso 3 (Factura o Factura Anticipo) |
+| E4  | ETL Datos Complemento de Pago         | Datos     | R16A-RE-FU-030 | **RE-FU-030**   | Al enviar línea Paso 3 (Complemento)                |
+| E5  | ETL Datos Nota de Crédito             | Datos     | R16A-RE-FU-032 | **RE-FU-032**   | Al enviar línea Paso 3 (si hay NCs aplicadas)       |
+| E6  | Transferencia PDF Factura             | Documento | R16A-RE-FU-021 | **RE-FU-028**   | Al enviar línea Paso 3 (Factura o Factura Anticipo) |
+| E7  | Transferencia PDF Complemento de Pago | Documento | R16A-RE-FU-030 | **RE-FU-030**   | Al enviar línea Paso 3 (Complemento)                |
+| E8  | Transferencia PDF Nota de Crédito     | Documento | R16A-RE-FU-034 | **RE-FU-034**   | Al enviar línea Paso 3 (si hay NCs aplicadas)       |
 
 > **Alcance de RE-FU-028:** Solo se implementan E1, E2, E3 y E6. Los ítems E4 y E7 (Complemento de Pago) se implementan en R16A-RE-FU-030. Los ítems E5 y E8 (Nota de Crédito) se implementan en R16A-RE-FU-032 y R16A-RE-FU-034 respectivamente.
 

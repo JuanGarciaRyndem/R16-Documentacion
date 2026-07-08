@@ -1,7 +1,7 @@
 {
 	"nodes":[
 		{"id":"bitacora","type":"text","text":"📋 PQF.Bitacora\n(EP Guardar — auditoría)","x":380,"y":-300,"width":280,"height":80,"color":"#ffb7b2"},
-		{"id":"legacy","type":"text","text":"🔌 PQF.LegacyBridge\nRabbit (Encolar) → sistema legado","x":-120,"y":400,"width":320,"height":80,"color":"#ffffb5"},
+		{"id":"legacy","type":"text","text":"🔌 PQF.LegacySync\nRabbit (Encolar) → sistema legado","x":-120,"y":400,"width":320,"height":80,"color":"#ffffb5"},
 		{"id":"envinm","type":"text","text":"📨 PQF.EnvioCorreo\nEnviarInmediato\n📥 PQF.EnvioCorreo\nEncolar Envío (Rabbit)","x":340,"y":360,"width":280,"height":270,"color":"#b5ead7"},
 		{"id":"brevo","type":"text","text":"📧 Brevo\n(servicio externo)","x":340,"y":700,"width":280,"height":80,"color":"#d3d3d3"},
 		{"id":"proforma","type":"text","text":"📄 PQF.Finanzas\nProforma (tpPedido)\nFactura por Adelantado\nValidación de Cobro\nNota de Credito\nSolicitar Timbrado (CFDI / NC / CDP)","x":380,"y":-90,"width":280,"height":250,"color":"#ffc8dd"},

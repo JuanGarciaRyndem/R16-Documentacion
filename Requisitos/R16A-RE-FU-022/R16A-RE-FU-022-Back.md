@@ -42,7 +42,7 @@ Este requisito implementa el **diseño y generación del PDF de la Factura elect
 | Componente | Origen | Reutilización |
 |------------|--------|---------------|
 | `StampingService.TimbrarFacturaSunatAsync` | RE-FU-020 | Sin cambios — ya genera el XML timbrado y retorna CDR SUNAT |
-| `ApiCallerStamping.TimbrarSunatAsync` | RE-FU-020 | Sin cambios — ya llama a `POST /api/v1/stamp` (servicio técnico de Timbrado) |
+| `ApiCallerStamping.TimbrarSunatAsync` | RE-FU-020 | Sin cambios — ya llama a `POST /api/v1/stamp/invoice` (servicio técnico de Timbrado) |
 | Tabla `Archivo` | RE-FU-017/018 | Sin cambios — patrón `INSERT Archivo` con `FileBucket='facturas'`, `IdRegion='PER'` |
 | Minio bucket `facturas` | RE-FU-017/018 | Sin cambios — mismo bucket, `IdRegion='PER'` |
 | Tabla `EmpresaFolio` GOLPERU | RE-FU-020 | Sin cambios — serie SUNAT F001/E001 + correlativo 8 dígitos |
@@ -306,7 +306,8 @@ Servicio transaccional que, tras el timbrado exitoso ante SUNAT/OSE, genera el P
    ContentType='application/pdf') → obtener IdArchivo
 6. UPDATE CFDIGenerada SET IdArchivoPdf = @IdArchivo (directo en BD, vía EF Core — CFDIGenerada
    es propiedad de Finanzas, sin llamada API, mismo patrón que RE-FU-021)
-6.1. UPDATE fccFactura SET IdCFDIGenerada = @IdCFDIGenerada, EsFacturaPorAdelantado = 0
+6.1. UPDATE fccFactura SET IdCFDIGenerada = @IdCFDIGenerada, EsFacturaPorAdelantado = 0,
+   IdCatFacturaEstado = GENERADA (catFacturaEstado, RE-FU-015 v2.1)
    (directo en BD, vía EF Core — corrección arquitectónica 06/07/2026: `fccFactura` es
    propiedad de ProquifaDotNet.Finanzas [Scaffold EF Core en Finanzas.Infrastructure],
    NO del sistema legado; ya NO requiere llamada API. Antes: `Llamar API ProquifaDotNet →
@@ -450,7 +451,7 @@ GO
              |<---referencia Minio ------------------------------------------------------------|
              | 6. INSERT Archivo (FileBucket='facturas', IdRegion='PER')      |                  |
              | 6.1 UPDATE CFDIGenerada SET IdArchivoPdf (directo en BD, vía EF Core — CFDIGenerada es propiedad de Finanzas, sin llamada API, mismo patrón que RE-FU-021)
-             | 6.2 UPDATE fccFactura SET IdCFDIGenerada, EsFacturaPorAdelantado=0 (directo en BD,
+             | 6.2 UPDATE fccFactura SET IdCFDIGenerada, EsFacturaPorAdelantado=0, IdCatFacturaEstado=GENERADA (directo en BD,
              |     vía EF Core — corrección 06/07/2026: fccFactura es propiedad de Finanzas, NO
              |     requiere llamada API a ProquifaDotNet .NET Fx 4.8, a diferencia de la extinta
              |     tpProformaAdelanto)                                          |                  |

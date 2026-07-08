@@ -50,7 +50,7 @@ La política operativa de R16 es **1 CP por factura**: si un cobro cubre N factu
 | `catUsoCFDI` | RE-028 o anterior | CP01 se inserta en el cambio BD #2; se lee al armar Receptor |
 | `catMetodoDePagoCFDI.PPD` | RE-028 T1 | Solo facturas PPD generan CP; discriminador en la cascada |
 | `CorreoEnviado` / `ArchivoCorreoEnviado` | RE-028 | Registro del correo enviado con PDF + XML del CP adjuntos |
-| `ApiCallerStamping` (HttpClient + Polly) | RE-019 | Cliente HTTP con retry policy hacia Timbrado — reutilizado sin cambios |
+| `ApiCallerStamping` (HttpClient + Polly) | RE-019 | Cliente HTTP con retry policy hacia Timbrado — se usa `StampPaymentComplementAsync` (`POST /api/v1/stamp/payment-complement`), método creado en RE-019/018 |
 | `MexicoInvoicePdfMappingService` | RE-021 | Patrón de referencia para `PaymentComplementPdfMappingService` |
 | `PersistMexicoInvoicePdfService` | RE-021 | Patrón de referencia para `PersistPaymentComplementPdfService` |
 | Templates `GOL/MUN/PRO/PQF_MEX_FAC` | RE-021 | Referencia de branding e identidad visual para diseño de templates CP |
@@ -339,9 +339,9 @@ El PDF del CP se obtiene de `MinIO` a través de `CFDIGenerada.IdArchivoPdf` →
 
 ## Parte C — ProquifaDotNet.Timbrado
 
-### C1 — Endpoint timbrado Complemento de Pago
+### C1 — Endpoint timbrado Complemento de Pago (`POST /api/v1/stamp/payment-complement`)
 
-Timbrado recibe la solicitud del CP desde Finanzas (sección B3) y ejecuta el mismo flujo que para Facturas, pero construyendo el XML según la especificación CFDI 4.0 Pagos20 v2.0.
+Timbrado recibe la solicitud del CP desde Finanzas (sección B3) en el endpoint `POST /api/v1/stamp/payment-complement` (RE-018) y ejecuta el mismo pipeline interno que para Facturas, pero construyendo el XML según la especificación CFDI 4.0 Pagos20 v2.0.
 
 **Por cada timbrado exitoso:**
 1. Arma el XML CFDI P con estructura Pagos20:

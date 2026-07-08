@@ -1,4 +1,4 @@
-# R16A-NO-FU-003 — Creación de Solución Base ProquifaDotNet.LegacyBridge
+# R16A-NO-FU-003 — Creación de Solución Base ProquifaDotNet.LegacySync
 
 **Tipo:** No Funcional
 **Estado:** Análisis
@@ -8,7 +8,7 @@
 
 ## 1. Objetivo
 
-Crear la solución base **ProquifaDotNet.LegacyBridge** (.NET Core 10), cuyo propósito es centralizar y gestionar la transferencia de datos desde ProquifaDotNet hacia el sistema Legacy (PCconnect), reemplazando los paquetes SSIS existentes y proveyendo una plataforma extensible, auditada y con reintentos automáticos para la sincronización de entidades entre ambos sistemas.
+Crear la solución base **ProquifaDotNet.LegacySync** (.NET Core 10), cuyo propósito es centralizar y gestionar la transferencia de datos desde ProquifaDotNet hacia el sistema Legacy (PCconnect), reemplazando los paquetes SSIS existentes y proveyendo una plataforma extensible, auditada y con reintentos automáticos para la sincronización de entidades entre ambos sistemas.
 
 La solución actúa como puente de integración entre ProquifaDotNet y Legacy, con soporte para reintentos configurables, logs estructurados por ejecución (con snapshot JSON del payload), notificaciones de fallos vía Brevo y API de monitoreo operativo.
 
@@ -32,9 +32,9 @@ La transferencia de datos de ProquifaDotNet hacia el sistema Legacy se realiza a
 
 En esta primera versión, la comunicación es **ProquifaDotNet → Legacy** únicamente. La arquitectura está diseñada para soportar comunicación bidireccional en futuras iteraciones sin cambios estructurales a la solución.
 
-### 2.3 Entidades que migran de SSIS a LegacyBridge
+### 2.3 Entidades que migran de SSIS a LegacySync
 
-Las siguientes transferencias, actualmente en SSIS, serán migradas progresivamente a LegacyBridge conforme avancen los requisitos funcionales:
+Las siguientes transferencias, actualmente en SSIS, serán migradas progresivamente a LegacySync conforme avancen los requisitos funcionales:
 
 | Entidad | Requisito origen | Observaciones |
 |---|---|---|
@@ -56,17 +56,17 @@ Las siguientes transferencias, actualmente en SSIS, serán migradas progresivame
 | **ProquifaDotNet** | Origen de datos — entidades a sincronizar | EF Core Scaffold (`ProquifaDotNetDbContext`) — solo lectura |
 | **ProquifaDotNet.Finanzas** | Disparador de eventos E1–E6 al completar wizard Validar Cobro | INSERT en `SyncControl` desde Finanzas |
 | **PCconnect (Legacy)** | Destino de sincronización | EF Core Scaffold (`PConnectDbContext`) — escritura |
-| **PConnectProquifaDotNet** | BD de control operativo propia de LegacyBridge | EF Core (`LegacyBridgeDbContext`) — lectura/escritura |
+| **PConnectProquifaDotNet** | BD de control operativo propia de LegacySync | EF Core (`LegacySyncDbContext`) — lectura/escritura |
 | **MinIO** | Almacenamiento de archivos origen (PDFs, adjuntos) | HTTP download vía `FileSyncService` |
 | **Brevo** | Envío de notificaciones de fallos de integración | API Brevo (mismo proveedor que el ecosistema ProquifaDotNet) |
 | **IdentityServer** | Autenticación/autorización para la API de monitoreo | JWT Bearer — misma infraestructura que Finanzas y Timbrado |
 | **Hangfire** | Motor de jobs asíncronos y reintentos | SQL Server storage en `PConnectProquifaDotNet` |
 
-> **Regla de negocio crítica:** Solo México transfiere datos a Legacy. Perú nunca ejecuta transferencias de LegacyBridge. La evaluación de región se realiza en el servicio de sincronización, no en la configuración del job.
+> **Regla de negocio crítica:** Solo México transfiere datos a Legacy. Perú nunca ejecuta transferencias de LegacySync. La evaluación de región se realiza en el servicio de sincronización, no en la configuración del job.
 
 ---
 
-## 4. Solución Propuesta — ProquifaDotNet.LegacyBridge
+## 4. Solución Propuesta — ProquifaDotNet.LegacySync
 
 ### 4.1 Stack tecnológico
 
@@ -87,22 +87,22 @@ Las siguientes transferencias, actualmente en SSIS, serán migradas progresivame
 |---|---|---|
 | `ProquifaDotNetDbContext` | ProquifaDotNet | Lectura de entidades origen (Clientes, Pedidos, Facturas, etc.) — Scaffold incremental por requisito |
 | `PConnectDbContext` | PConnect | Escritura en tablas Legacy destino — Scaffold de tablas receptoras |
-| `LegacyBridgeDbContext` | PConnectProquifaDotNet | SyncControl, SyncJobLog, AppSettings, vw_SyncPendientes y tablas internas de Hangfire |
+| `LegacySyncDbContext` | PConnectProquifaDotNet | SyncControl, SyncJobLog, AppSettings, vw_SyncPendientes y tablas internas de Hangfire |
 
 ---
 
 ## 5. Estructura de la Solución
 
 ```
-ProquifaDotNet.LegacyBridge/
-├── LegacyBridge.Domain/
+ProquifaDotNet.LegacySync/
+├── LegacySync.Domain/
 │   ├── Entities/               # SyncControl, SyncJobLog, AppSettings
 │   ├── Enums/                  # SyncEstado, ExceptionType, SyncEntidad
 │   ├── Exceptions/             # SyncPermanentException, SyncTransientException
 │   └── Interfaces/             # IRepository<T>, ISyncJobLog, IExceptionClassifier,
 │                               # IFileSyncService, INotificationService, ISyncJobBase
 │
-├── LegacyBridge.Application/
+├── LegacySync.Application/
 │   ├── CQRS/
 │   │   ├── Commands/           # MarcarEnProcesoCommand, MarcarCompletadoCommand,
 │   │   │                       # MarcarErrorCommand, ForzarReintentoCommand
@@ -112,11 +112,11 @@ ProquifaDotNet.LegacyBridge/
 │   │                           # SyncResultadoDto, ArchivoSyncDto
 │   └── Services/               # SyncControlService (ciclo de vida + reintentos)
 │
-├── LegacyBridge.Infrastructure/
+├── LegacySync.Infrastructure/
 │   ├── Persistence/
 │   │   ├── ProquifaDotNetContext/    # Scaffold tablas origen (incremental)
 │   │   ├── PConnectContext/          # Scaffold tablas Legacy destino
-│   │   └── LegacyBridgeContext/      # SyncControl, SyncJobLog, AppSettings, vistas
+│   │   └── LegacySyncContext/      # SyncControl, SyncJobLog, AppSettings, vistas
 │   ├── Repositories/           # Repository<T> genérico + AppSettingsRepository
 │   ├── Jobs/
 │   │   ├── SyncJobBase.cs      # Flujo estándar abstracto reutilizable
@@ -127,16 +127,16 @@ ProquifaDotNet.LegacyBridge/
 │   ├── Logging/                # SyncJobLogService — log estructurado por ejecución
 │   └── ExceptionClassification/ # ExceptionClassifier (Transient/Permanent)
 │
-├── LegacyBridge.API/
+├── LegacySync.API/
 │   ├── Controllers/
 │   │   └── MonitoreoController # /sync/status, /sync/pendientes, /sync/log,
 │   │                           # /sync/reintentar, /sync/jobs
 │   └── Program.cs / appsettings
 │
-├── LegacyBridge.Worker/
+├── LegacySync.Worker/
 │   └── Workers/                # Host Hangfire: HealthCheckJob + jobs por entidad
 │
-└── LegacyBridge.Testing/
+└── LegacySync.Testing/
     ├── Unit/                   # ExceptionClassifierTests, SyncControlServiceTests,
     │                           # SyncJobBaseTests
     └── Integration/            # Ciclo E2E, conectividad 3 BDs, FileSync, Brevo
@@ -284,7 +284,7 @@ Mecanismo genérico para transferir archivos relacionados con las entidades (PDF
 
 ### 8.1 Base de datos nueva: PConnectProquifaDotNet
 
-Base de datos propia de LegacyBridge creada en el servidor `RYNL010`. No almacena datos de negocio — solo control operativo, logs y configuración.
+Base de datos propia de LegacySync creada en el servidor `RYNL010`. No almacena datos de negocio — solo control operativo, logs y configuración.
 
 **Tabla: SyncControl**
 
@@ -335,7 +335,7 @@ Base de datos propia de LegacyBridge creada en el servidor `RYNL010`. No almacen
 | `Descripcion` | `nvarchar(500)` NULL | Descripción del parámetro |
 | `FechaUltimaActualizacion` | `datetime2(7)` NOT NULL DEFAULT SYSUTCDATETIME() | Última modificación |
 
-AppSettings iniciales: `LegacyBridge:MaxReintentos` (3), `LegacyBridge:BackoffSegundos` (60), `LegacyBridge:NotificarFallosPermanentes` (true), `LegacyBridge:NotificacionDestinatarios`.
+AppSettings iniciales: `LegacySync:MaxReintentos` (3), `LegacySync:BackoffSegundos` (60), `LegacySync:NotificarFallosPermanentes` (true), `LegacySync:NotificacionDestinatarios`.
 
 **Vista: vw_SyncPendientes**
 
@@ -369,7 +369,7 @@ Data Source=RYNL010;Initial Catalog=ProquifaDotNet;Integrated Security=True;Pers
 
 | Dependencia | Descripción |
 |---|---|
-| RE-002 al RE-006 | Campos de Catálogo de Clientes que LegacyBridge transfiere |
+| RE-002 al RE-006 | Campos de Catálogo de Clientes que LegacySync transfiere |
 | RE-008 | Buzón de Cobros y archivos adjuntos |
 | RE-010, RE-011, RE-012 | Pedidos Crédito y variantes |
 | RE-028 | ETL eventos E1/E2/E3/E6 (Buzón, Proforma, Factura, PDF) |
@@ -382,8 +382,8 @@ Data Source=RYNL010;Initial Catalog=ProquifaDotNet;Integrated Security=True;Pers
 
 ## 11. Referencias
 
-- `Soluciones Nuevas/ProquifaDotNet.LegacyBridge.md` — documento de solución con alcance funcional y estructura
+- `Soluciones Nuevas/ProquifaDotNet.LegacySync.md` — documento de solución con alcance funcional y estructura
 - `R16A-NO-FU-003-Tareas.md` — 10 tareas de implementación (BD → Domain → Application → Infrastructure → Testing)
-- `Endpoints/Endpoints-LegacyBridge.md` — transferencias ETL E1–E8 documentadas
+- `Endpoints/Endpoints-LegacySync.md` — transferencias ETL E1–E8 documentadas
 - `R16A-NO-FU-001.md` — integración Brevo (patrón de referencia)
 - `R16A-RE-FU-028.md` — disparadores de eventos E1/E2/E3/E6

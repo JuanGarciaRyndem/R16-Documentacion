@@ -304,9 +304,9 @@ Todos los escenarios ejecutados con evidencia. Los pasos del pipeline marcados c
 | T2 | SERV-TRANSACT | Generacion de pendiente FAA en transaccion de tramitacion | T1 |
 | T3 | ALG-BASIC-LOGIC | Validaciones Back para Factura por Adelantado | T1 |
 | T4 | ALG-BASIC-LOGIC | Vinculacion del pendiente FAA con modulo de facturacion (RE-FU-018/019/020) | T2 |
-| T5 | QUERY-G | Análisis — Migración de transferencia Pedidos Crédito de SSIS a aplicativo | — |
-| T6 | SERV-COMPLEX-TRANSACT | Implementación — Servicio aplicativo de transferencia Pedidos Crédito a Legacy | T5 |
-| T7 | SERV-TRANSACT | Integración — Canal definitivo y desactivación del SSIS de Pedidos Crédito | T5, T6 |
+| T5 | QUERY-G | Análisis — Migración de transferencia Pedidos Crédito de SSIS a LegacySync | — |
+| T6 | SERV-COMPLEX-TRANSACT | Implementación — PedidoCreditoSyncJob en LegacySync + disparador SyncControl | T5 |
+| T7 | SERV-TRANSACT | Integración — Validación E2E en LegacySync y desactivación del SSIS de Pedidos Crédito | T5, T6 |
 | T8 | ALG-BASIC-LOGIC | Validar flujo Venta Digital al tramitar pedido Crédito con FAA | T2 |
 | T9 | ALG-BASIC-LOGIC | Pruebas de flujo completo E2E — Tramitación Crédito con y sin FAA | T1,T2,T3,T4,T8 |
 
@@ -322,213 +322,221 @@ Todos los escenarios ejecutados con evidencia. Los pasos del pipeline marcados c
 | R16A-RE-FU-019 | Generacion de CFDI | Proceso posterior a factura |
 | R16A-RE-FU-020 | Timbrado fiscal (PAC) | Proceso posterior a CFDI |
 | Venta Digital | T8 | TaskScheduler lee `tpPedidoVD`/`tpPartidaPedidoVD` para procesar OC y transferir PDFs a Legacy |
+| R16A-RE-FU-008-Legacy | T5, T6, T7 | Infraestructura base de ProquifaDotNet.LegacySync (SyncControl, SyncJobLog, SyncJobBase, Hangfire, ExceptionClassifier, Brevo) — se crea allá, aquí solo se consume |
 
 
 
 ---
 
-## T5 — [ R16A-RE-FU-012 ] [ QUERY-G ] Análisis — Migración de transferencia Pedidos Crédito de SSIS a aplicativo
+## T5 — [ R16A-RE-FU-012 ] [ QUERY-G ] Análisis — Migración de transferencia Pedidos Crédito de SSIS a LegacySync
 
 ### Aplicativos
-- ProquifaDotNet.AplicativoLegacy / ETLs SSIS
+- ProquifaDotNet.LegacySync / ETLs SSIS / ProquifaDotNet
 
 ### Módulos
-- ETL — Migración transferencia Pedidos Crédito → Legacy (Análisis)
+- LegacySync — Migración transferencia Pedidos Crédito → Legacy (Análisis)
 
 ### Consideraciones previas
-- La transferencia de Pedidos Crédito a Legacy actualmente se realiza mediante un paquete SSIS en PCconnect. El objetivo de esta migración es **trasladar esa lógica al aplicativo ProquifaDotNet**, siguiendo el patrón `IEtlLegacyTransferenciaService` establecido en RE-028.
+- La transferencia de Pedidos Crédito a Legacy actualmente se realiza mediante un paquete SSIS en PCconnect. El objetivo de esta migración es **trasladar esa lógica a la solución ProquifaDotNet.LegacySync** (ver `Soluciones Nuevas/ProquifaDotNet.LegacySync.md` y `R16A-RE-FU-008-Legacy.md`), bajo el modelo `SyncControl` + recurring job de Hangfire — NO como servicio post-commit dentro del aplicativo ProquifaDotNet.
 - La migración debe contemplar las tres variantes del flujo de Pedido Crédito en R16: RE-010 (base + Pago contra entrega), RE-011 (Sustancias controladas, Perú sin transferencia), RE-012 (FAA paralelo).
-- **Perú no transfiere a Legacy** — la condición de región debe estar en el aplicativo, no en el SSIS.
-- Esta tarea analiza el SSIS existente para entender qué lógica debe migrarse y cómo mapearla al patrón de aplicativo. Es prerequisito bloqueante para T6 y T7.
-- Coordinar con el equipo de arquitectura para confirmar si el canal de transferencia es el mismo que RE-028 (Brecha B3) o uno ya definido para pedidos.
+- **Perú no transfiere a Legacy** — conforme a la regla de LegacySync, la evaluación de región se realiza en el servicio de sincronización, no en la configuración del job ni en el SSIS.
+- El único cambio en ProquifaDotNet es el disparador: INSERT en `SyncControl` (BD `PConnectProquifaDotNet`) post-commit de la tramitación. Toda la lógica de transferencia, reintentos y notificación vive en LegacySync.
+- Esta tarea analiza el SSIS existente para entender qué lógica debe migrarse y cómo mapearla al patrón `SyncJobBase` de LegacySync. Es prerequisito bloqueante para T6 y T7.
+- La infraestructura base de LegacySync (solución, `SyncControl`, `SyncJobLog`, `SyncJobBase`, Hangfire, `ExceptionClassifier`, `BrevoNotificationService`) se crea en **R16A-RE-FU-008-Legacy** — este requisito solo agrega el job de la entidad Pedidos Crédito; no duplicar esas tareas aquí.
 
 ### Descripción del problema
-El paquete SSIS de PCconnect realiza la transferencia de Pedidos Crédito a Legacy. Al migrar al aplicativo, esta lógica debe replicarse en ProquifaDotNet como un servicio que se invoca post-commit de tramitación, incluyendo las variantes nuevas de R16 que el SSIS actual no contempla (pago contra entrega, controlados, FAA, corte Perú).
+El paquete SSIS de PCconnect realiza la transferencia de Pedidos Crédito a Legacy. Al migrar a LegacySync, esta lógica debe replicarse como un job de sincronización por entidad (patrón `SyncJobBase` + Hangfire), incluyendo las variantes nuevas de R16 que el SSIS actual no contempla (pago contra entrega, controlados, FAA, corte Perú).
 
 ### Objetivos específicos
 - Analizar el paquete SSIS existente de Pedidos Crédito: identificar qué tablas lee, qué datos envía a Legacy (Pedido, Partidas), qué SPs invoca (`spActualizarBuzonPedidoLegacy` / `spActualizarBuzonPedidoLegacyEncolar`) y bajo qué condiciones.
-- Definir el modelo de migración al aplicativo:
-  - Servicio/interfaz a crear (siguiendo patrón `IEtlLegacyTransferenciaService` de RE-028).
-  - Builder del payload: `EtlPedidoCreditoPayloadBuilder` (o equivalente) que construya el objeto a enviar a Legacy.
-  - Momento de invocación: post-commit en `tpPedidoTramitarController` (o el punto de tramitación definitivo).
-- Mapear las variantes R16 en el nuevo servicio:
+- Definir el modelo de migración a LegacySync:
+  - Job a crear: `PedidoCreditoSyncJob` (hereda de `SyncJobBase`, Worker.LegacySync) con su servicio `PedidoCreditoSyncService` (`EjecutarSyncAsync`).
+  - Builder del payload: `PedidoCreditoPayloadBuilder` que construya el objeto a escribir en PCconnect (vía `PConnectDbContext` o los SPs existentes — definir en este análisis).
+  - Disparador: INSERT en `SyncControl` (`Entidad='PedidoCredito'`, `IdRegistro=IdTPPedido`, `Estado='Pendiente'`) post-commit en `tpPedidoTramitarController` (o el punto de tramitación definitivo).
+  - Lectura de origen: `tpPedido` + partidas vía `ProquifaDotNetDbContext` (Scaffold incremental — agregar las tablas que falten).
+- Mapear las variantes R16 en el nuevo job:
   - **RE-010 base:** Pedido + Partidas estándar.
   - **RE-010 Pago contra entrega:** marca de detención derivada de `catCondicionesDePago.Clave = 'pagocontraentrega'`.
   - **RE-011 Controlados (México):** incluir flag de sustancia controlada si Legacy lo requiere.
-  - **RE-011 Perú:** el servicio no ejecuta si `region.Clave != MEX` — sin error, sin log de fallo.
+  - **RE-011 Perú:** `PedidoCreditoSyncService` evalúa la región y marca el registro `Completado` sin transferir — sin error, sin notificación Brevo.
   - **RE-012 FAA:** transferencia idéntica al flujo base (FAA es paralelo, no altera el payload del pedido).
-- Confirmar el canal de transferencia definitivo (mismo B3 de RE-028, o SP directo ya funcional).
-- Confirmar si el SSIS debe desactivarse tras la migración o si ambos pueden coexistir temporalmente.
-- Documentar el diseño del servicio como insumo para T6.
+- Definir la escritura destino en PCconnect: reutilizar los SPs Legacy existentes o escribir directo en las tablas receptoras vía `PConnectDbContext` (Scaffold).
+- Confirmar si el SSIS debe desactivarse tras la migración o si ambos pueden coexistir temporalmente (riesgo de doble inserción).
+- Documentar el diseño del job como insumo para T6.
 
 ### Resultado esperado
-Documento de análisis con: lógica del SSIS existente documentada, diseño del servicio aplicativo equivalente, mapeo de variantes RE-010/011/012, canal de transferencia confirmado, plan de desactivación del SSIS.
+Documento de análisis con: lógica del SSIS existente documentada, diseño del `PedidoCreditoSyncJob` en LegacySync (job, servicio, builder, disparador SyncControl, destino PCconnect), mapeo de variantes RE-010/011/012, y plan de desactivación del SSIS.
 
 ### Entregables
 - Documento de análisis de migración con:
   - Lógica del SSIS existente (tablas, columnas, SPs, condiciones)
-  - Diseño del servicio aplicativo: interfaz, builder, DTO payload, punto de invocación
+  - Diseño del job LegacySync: `PedidoCreditoSyncJob`, `PedidoCreditoSyncService`, `PedidoCreditoPayloadBuilder`, punto de INSERT en `SyncControl`
+  - Tablas a agregar al Scaffold de `ProquifaDotNetDbContext` y `PConnectDbContext`
   - Mapeo de variantes RE-010 (base + pago contra entrega), RE-011 (controlados + Perú), RE-012 (FAA)
-  - Canal de transferencia confirmado
+  - Decisión SPs Legacy vs escritura directa vía `PConnectDbContext`
   - Plan de coexistencia o desactivación del SSIS
 
 ### Criterios de aceptación
 - [ ] La lógica del SSIS existente está documentada (tablas, SPs, condiciones).
-- [ ] El diseño del servicio aplicativo equivalente está definido (interfaz, builder, DTO, punto de invocación).
+- [ ] El diseño del job en LegacySync está definido (job, servicio, builder, disparador SyncControl, destino).
 - [ ] Las variantes RE-010, RE-011 y RE-012 están mapeadas en el nuevo diseño.
-- [ ] El canal de transferencia definitivo está confirmado con arquitectura.
+- [ ] La decisión SPs Legacy vs escritura directa está confirmada con arquitectura.
 - [ ] El plan de desactivación/coexistencia del SSIS está acordado.
 - [ ] El documento está aprobado como prerequisito para T6 y T7.
 
 ### Más información de la tarea
-- Patrón de referencia: `IEtlLegacyTransferenciaService` + `EtlLegacyTransferenciaServiceStub` de RE-028.
-- SPs Legacy a reemplazar o mantener: `spActualizarBuzonPedidoLegacy` / `spActualizarBuzonPedidoLegacyEncolar`.
-- Controlador de tramitación: `WebApi.Logistica\Controllers\Procesos\L05.TramitarPedido\Liberar	pPedidoTramitarController.cs`
+- Patrón de referencia: `SyncJobBase` + `SyncControl` + Hangfire de ProquifaDotNet.LegacySync (`R16A-RE-FU-008-Legacy.md`).
+- SPs Legacy a reemplazar o reutilizar: `spActualizarBuzonPedidoLegacy` / `spActualizarBuzonPedidoLegacyEncolar`.
+- Controlador de tramitación (punto del INSERT en SyncControl): `WebApi.Logistica\Controllers\Procesos\L05.TramitarPedido\Liberar\tpPedidoTramitarController.cs`
+- La infraestructura base de LegacySync NO se crea en este requisito (pertenece a RE-008-Legacy) — solo se referencia como dependencia.
 
 ### Recursos
-- `R16A-RE-FU-028-Back.md` — patrón `IEtlLegacyTransferenciaService`, Brecha B3
-- `R16A-RE-FU-028-Tareas.md` — T17/T18/T19 (referencia del patrón de migración)
+- `Soluciones Nuevas/ProquifaDotNet.LegacySync.md` — arquitectura de la solución
+- `R16A-RE-FU-008-Legacy.md` / `R16A-RE-FU-008-Legacy-Tareas.md` — infraestructura base (SyncControl, SyncJobBase, Hangfire)
 - `R16A-RE-FU-010-Back.md`, `R16A-RE-FU-011-Back.md`, `R16A-RE-FU-012-Back.md` — secciones Transferencia a Legacy
 - Paquete SSIS existente de Pedidos Crédito en PCconnect
 
 ---
 
-## T6 — [ R16A-RE-FU-012 ] [ SERV-COMPLEX-TRANSACT ] Implementación — Servicio aplicativo de transferencia Pedidos Crédito a Legacy
+## T6 — [ R16A-RE-FU-012 ] [ SERV-COMPLEX-TRANSACT ] Implementación — PedidoCreditoSyncJob en LegacySync + disparador SyncControl
 
 ### Aplicativos
-- ProquifaDotNet.LegacyBridge  / ETLs SSIS
+- ProquifaDotNet.LegacySync / ProquifaDotNet
 
 ### Módulos
-- ETL — Migración transferencia Pedidos Crédito → Legacy (Implementación)
+- LegacySync — Migración transferencia Pedidos Crédito → Legacy (Implementación)
 
 ### Consideraciones previas
-- **Predecesora: T5.** El diseño del servicio debe estar aprobado antes de implementar.
-- Seguir el patrón `IEtlLegacyTransferenciaService` / `EtlLegacyTransferenciaServiceStub` establecido en RE-028: crear primero el stub (logea `ETL_PENDIENTE` via Serilog) para no bloquear el flujo de tramitación mientras se define el canal definitivo.
-- El stub permite inyectar la implementación real via DI sin cambiar los callers — misma estrategia que RE-028.
-- **Perú no transfiere:** el servicio debe evaluar la región antes de ejecutar cualquier lógica.
+- **Predecesora: T5.** El diseño del job debe estar aprobado antes de implementar.
+- **Predecesora externa:** infraestructura base de LegacySync operativa (RE-008-Legacy: `SyncControl`, `SyncJobLog`, `SyncJobBase`, Hangfire, `ExceptionClassifier`, `BrevoNotificationService`) — solo se referencia, no se duplica aquí.
+- La lógica de transferencia vive íntegramente en LegacySync; en ProquifaDotNet solo se agrega el INSERT en `SyncControl` post-commit de la tramitación. El flujo de tramitación NO se bloquea por la transferencia: si LegacySync está caído, el registro queda `Pendiente` y el job lo procesa en el siguiente ciclo.
+- **Perú no transfiere:** `PedidoCreditoSyncService` evalúa la región antes de ejecutar cualquier lógica (regla de LegacySync: la evaluación de región vive en el servicio de sincronización, no en la configuración del job).
 
 ### Descripción del problema
-La lógica de transferencia de Pedidos Crédito a Legacy vive en el SSIS de PCconnect. Al migrar al aplicativo, se crea un servicio en ProquifaDotNet que reemplaza esa lógica, incluyendo las variantes R16. El stub permite avanzar el desarrollo sin bloquear en el canal definitivo.
+La lógica de transferencia de Pedidos Crédito a Legacy vive en el SSIS de PCconnect. Al migrar a LegacySync, se crea el job de la entidad Pedidos Crédito (patrón `SyncJobBase` + Hangfire) que reemplaza esa lógica, incluyendo las variantes R16, con reintentos automáticos y notificación de fallos vía Brevo.
 
 ### Objetivos específicos
-- Crear la interfaz `IEtlPedidoCreditoLegacyService` con el método `EnviarAsync(tpPedido pedido, Region region)` (o los parámetros que determine el análisis de T5).
-- Crear `EtlPedidoCreditoLegacyServiceStub` que implemente la interfaz y registre `ETL_PENDIENTE` via Serilog con contexto (IdPedido, Folio, Región, FechaIntento).
-- Crear `EtlPedidoCreditoPayloadBuilder` que construya el objeto a enviar a Legacy:
+- **ProquifaDotNet (disparador):** agregar en el punto de tramitación definido en T5 (`tpPedidoTramitarController` o equivalente) el INSERT post-commit en `SyncControl` (`Entidad='PedidoCredito'`, `IdRegistro=IdTPPedido`, `Estado='Pendiente'`).
+- **LegacySync (Worker):** crear `PedidoCreditoSyncJob` heredando de `SyncJobBase`, registrado como recurring job de Hangfire.
+- **LegacySync (Application):** crear `PedidoCreditoSyncService` con `EjecutarSyncAsync`:
+  - Lee `tpPedido` + partidas vía `ProquifaDotNetDbContext` (agregar tablas al Scaffold si faltan).
+  - Evalúa región: si `region.Clave != MEX`, marca el registro `Completado` sin transferir — sin error, sin notificación.
+  - Escribe en PCconnect vía `PConnectDbContext` o SPs Legacy (según decisión de T5).
+- Crear `PedidoCreditoPayloadBuilder` que construya el objeto a enviar a Legacy:
   - Campos base: Pedido (folio, cliente, montos), Partidas (producto, piezas, precios).
   - Variante Pago contra entrega: incluir marca de detención si `catCondicionesDePago.Clave = 'pagocontraentrega'`.
   - **OBS-024:** PCE (`catCondicionesDePago.Clave = 'pagocontraentrega'`) se traduce como **crédito** en el payload de Legacy, **NO como prepago**. Legacy procesa PCE como flujo de crédito independientemente del nombre de la condición.
   - Variante Controlados (RE-011): incluir flag si Legacy lo requiere según análisis T5.
   - Variante FAA (RE-012): payload idéntico al base (sin campos adicionales, FAA es paralelo).
-- **OBS-025:** PQF2 solo inserta datos planos en Legacy. La lógica de "Relacionar facturas" (asociación de facturas al pedido dentro de Legacy) es responsabilidad del proceso interno de Legacy — **el `EtlPedidoCreditoPayloadBuilder` no implementa esta lógica**.
-- Registrar el corte regional en el servicio: si `region.Clave != MEX`, retornar sin ejecutar (sin error, sin log de fallo innecesario).
-- Invocar el servicio post-commit en el punto de tramitación definido en T5 (`tpPedidoTramitarController` o equivalente), usando inyección de dependencias.
-- Registrar el stub en el contenedor de DI del proyecto.
-- Pruebas unitarias del builder para cada variante (base, pago contra entrega, controlados, FAA) y del corte de región.
+- **OBS-025:** LegacySync solo inserta datos planos en Legacy. La lógica de "Relacionar facturas" (asociación de facturas al pedido dentro de Legacy) es responsabilidad del proceso interno de Legacy — **el `PedidoCreditoPayloadBuilder` no implementa esta lógica**.
+- Manejo de errores con el patrón estándar de LegacySync: `ExceptionClassifier` (Transient → reintento Hangfire con backoff; Permanent → `Error` + `SyncJobLog` + notificación Brevo).
+- Registrar cada ejecución en `SyncJobLog` con snapshot JSON del payload.
+- Pruebas unitarias del builder para cada variante (base, pago contra entrega, controlados, FAA) y del corte de región en `PedidoCreditoSyncService`.
 
 ### Resultado esperado
-El servicio stub está integrado en el flujo de tramitación de Pedidos Crédito. El builder construye el payload correcto para cada variante. El flujo de tramitación no se bloquea por la transferencia.
+El `PedidoCreditoSyncJob` procesa los registros `Pendiente` de `SyncControl` y transfiere Pedidos Crédito a PCconnect para las variantes RE-010/011/012, con reintentos, log estructurado y corte regional. La tramitación en ProquifaDotNet solo inserta el evento y no se bloquea.
 
 ### Entregables
-- `IEtlPedidoCreditoLegacyService` — interfaz
-- `EtlPedidoCreditoLegacyServiceStub` — stub con log `ETL_PENDIENTE`
-- `EtlPedidoCreditoPayloadBuilder` — builder con variantes RE-010/011/012
-- `EtlPedidoCreditoPayload` — DTO del payload
-- Registro DI del stub en el proyecto
-- Invocación post-commit en el controlador de tramitación
+- INSERT en `SyncControl` post-commit en el controlador de tramitación (ProquifaDotNet)
+- `PedidoCreditoSyncJob` — recurring job Hangfire (Worker.LegacySync)
+- `PedidoCreditoSyncService` — servicio de sincronización con corte regional
+- `PedidoCreditoPayloadBuilder` — builder con variantes RE-010/011/012
+- Scaffold incremental: tablas origen en `ProquifaDotNetDbContext` y destino en `PConnectDbContext`
+- Registro del job en la configuración de Hangfire y en `AppSettings` (cron, reintentos, backoff)
 - Pruebas unitarias del builder (por variante) y del corte de región
 
 ### Criterios de aceptación
-- [ ] El servicio stub se invoca post-commit al tramitar un Pedido Crédito (México y Perú).
-- [ ] Para Perú: el servicio retorna sin ejecutar — sin error, sin log de fallo.
+- [ ] Al tramitar un Pedido Crédito se inserta el registro en `SyncControl` post-commit (México y Perú) sin bloquear la tramitación.
+- [ ] El job procesa registros `Pendiente` y los marca `EnProceso` → `Completado`/`Error` según el patrón `SyncJobBase`.
+- [ ] Para Perú: el servicio marca `Completado` sin transferir — sin error, sin notificación Brevo.
 - [ ] El builder genera el payload correcto para el flujo base (RE-010).
 - [ ] El builder incluye la marca de detención para Pago contra entrega (RE-010).
 - [ ] **OBS-024:** El builder traduce PCE (`catCondicionesDePago.Clave = 'pagocontraentrega'`) como **crédito** en Legacy, no como prepago.
 - [ ] **OBS-025:** El builder no implementa lógica de "Relacionar facturas" — esa responsabilidad recae en Legacy.
 - [ ] El builder contempla la variante de controlados (RE-011) según el análisis T5.
 - [ ] El builder genera el payload FAA idéntico al base (RE-012).
-- [ ] El stub logea `ETL_PENDIENTE` con contexto suficiente (IdPedido, Folio, Región).
+- [ ] Errores Transient reintentan con backoff; errores Permanent notifican vía Brevo y quedan en `SyncJobLog`.
 - [ ] Pruebas unitarias del builder aprobadas para todas las variantes.
 - [ ] PR aprobado por líder técnico.
 
 ### Más información de la tarea
-- Patrón de referencia: RE-028 T18 (`EtlBuzonCobrosPayloadBuilder`, `IEtlBuzonCobrosLegacyService`, `EtlLegacyTransferenciaServiceStub`).
-- El stub se reemplaza por la implementación real en T7 via DI, sin modificar el caller.
+- Patrón de referencia: `SyncJobBase` + jobs por entidad de LegacySync (`R16A-RE-FU-008-Legacy.md`); jobs análogos de RE-028 (Buzón Cobros/Proforma/Factura).
+- La desactivación del SSIS y la validación E2E se cierran en T7.
 
 ### Recursos
-- `R16A-RE-FU-028-Tareas.md` — T18 (referencia del patrón builder + stub)
+- `Soluciones Nuevas/ProquifaDotNet.LegacySync.md` — arquitectura (SyncJobBase, ExceptionClassifier, Hangfire)
 - Documento de análisis de T5
-- `tpPedidoTramitarController.cs` — punto de invocación post-commit
+- `tpPedidoTramitarController.cs` — punto del INSERT en SyncControl
 - `R16A-RE-FU-010-Back.md`, `R16A-RE-FU-011-Back.md`, `R16A-RE-FU-012-Back.md`
 
 ---
 
-## T7 — [ R16A-RE-FU-012 ] [ SERV-TRANSACT ] Integración — Canal definitivo y desactivación del SSIS de Pedidos Crédito
+## T7 — [ R16A-RE-FU-012 ] [ SERV-TRANSACT ] Integración — Validación E2E en LegacySync y desactivación del SSIS de Pedidos Crédito
 
 ### Aplicativos
-- ProquifaDotNet.LegacyBridge  / ETLs SSIS / ProquifaDotNet / PCconnect
+- ProquifaDotNet.LegacySync / ETLs SSIS / ProquifaDotNet / PCconnect
 
 ### Módulos
-- ETL — Migración transferencia Pedidos Crédito → Legacy (Integración y cierre)
+- LegacySync — Migración transferencia Pedidos Crédito → Legacy (Integración y cierre)
 
 ### Consideraciones previas
-- **Predecesoras: T5 y T6.** El stub debe estar integrado y el canal definitivo confirmado antes de esta tarea.
-- Esta tarea reemplaza el stub por la implementación real del canal (misma Brecha B3 de RE-028, o SP directo si ya está resuelto).
-- La implementación real se inyecta via DI sin cambiar el caller — esa es la ventaja del patrón stub.
-- Una vez validada la transferencia via aplicativo, el paquete SSIS de PCconnect debe desactivarse o retirarse según el plan acordado en T5.
-- **Perú no transfiere:** validar en pruebas que ningún pedido de región Perú genera registros en Legacy.
-- **OBS-025:** La integración E2E debe confirmar que "Relacionar facturas" **no es responsabilidad del aplicativo ProquifaDotNet** — es un proceso interno de Legacy. No replicar ni validar esta lógica en el canal real.
+- **Predecesoras: T5 y T6.** El `PedidoCreditoSyncJob` debe estar implementado y desplegado en QA antes de esta tarea.
+- El canal de transferencia queda resuelto por LegacySync (lectura `ProquifaDotNetDbContext` → escritura `PConnectDbContext`/SPs Legacy) — la antigua Brecha B3 de canal no aplica a este flujo.
+- Una vez validada la transferencia vía LegacySync, el paquete SSIS de PCconnect debe desactivarse o retirarse según el plan acordado en T5, evitando el periodo de doble inserción.
+- **Perú no transfiere:** validar en pruebas que ningún pedido de región Perú genera registros en Legacy (el registro de SyncControl queda `Completado` sin transferencia).
+- **OBS-025:** La integración E2E debe confirmar que "Relacionar facturas" **no es responsabilidad de LegacySync** — es un proceso interno de Legacy. No replicar ni validar esta lógica en el job.
 
 ### Descripción del problema
-Con el stub funcionando en tramitación, esta tarea cierra la migración: implementa el canal real de transferencia, valida E2E en QA/staging contra Legacy real, y desactiva el SSIS de PCconnect para eliminar la fuente doble.
+Con el job funcionando en QA, esta tarea cierra la migración: valida E2E contra Legacy real (tramitación → SyncControl → Hangfire → PCconnect), verifica el monitoreo y los reintentos, y desactiva el SSIS de PCconnect para eliminar la fuente doble.
 
 ### Objetivos específicos
-- Implementar `EtlPedidoCreditoLegacyService` (implementación real) usando el canal definitivo confirmado en T5 (SP directo, RabbitMQ, o API Legacy).
-- Reemplazar el stub por la implementación real en el registro DI — sin cambios al controlador ni al builder.
 - Ejecutar pruebas de integración E2E en QA/staging cubriendo:
   - **RE-010 base:** Pedido + Partidas → Legacy sin errores.
   - **RE-010 Pago contra entrega:** marca de detención presente en Legacy.
   - **RE-011 Controlados (México):** transferencia correcta a Legacy.
-  - **RE-011 Perú:** ningún registro llega a Legacy.
+  - **RE-011 Perú:** ningún registro llega a Legacy; SyncControl queda `Completado` sin transferencia.
   - **RE-012 FAA:** transferencia idéntica al flujo base.
 - Comparar directamente ProquifaDotNet ↔ Legacy: Pedido (folio, cliente, montos), Partidas (producto, piezas, precios), marca de detención (si aplica).
+- Validar el ciclo de reintentos: simular fallo Transient (Legacy no disponible) → reintento con backoff; fallo Permanent → `Error` + `SyncJobLog` + notificación Brevo.
+- Validar el monitoreo vía API de LegacySync: estado por entidad, pendientes, historial de intentos y `ForzarReintentoCommand` para registros en error reintentable.
 - Verificar no regresión del flujo base (pedidos anteriores a R16).
-- Coordinar con el equipo PCconnect/Legacy la desactivación del paquete SSIS una vez validada la transferencia por aplicativo.
+- Coordinar con el equipo PCconnect/Legacy la desactivación del paquete SSIS una vez validada la transferencia vía LegacySync.
 - Documentar evidencias, incidencias, resolución y el cierre de la migración.
 
 ### Resultado esperado
-La transferencia de Pedidos Crédito a Legacy se realiza íntegramente desde el aplicativo ProquifaDotNet para las variantes RE-010/011/012. El SSIS de PCconnect está desactivado o retirado. Las evidencias están documentadas y aprobadas para producción.
+La transferencia de Pedidos Crédito a Legacy se realiza íntegramente vía ProquifaDotNet.LegacySync para las variantes RE-010/011/012, con reintentos y monitoreo operativo. El SSIS de PCconnect está desactivado o retirado. Las evidencias están documentadas y aprobadas para producción.
 
 ### Entregables
-- `EtlPedidoCreditoLegacyService` — implementación real del canal
-- Registro DI actualizado (implementación real reemplaza stub)
 - Documento de resultados de integración:
   - Escenarios ejecutados (RE-010 base, pago contra entrega, RE-011 controlados, RE-011 Perú, RE-012 FAA)
   - Comparación ProquifaDotNet ↔ Legacy por variante
   - Verificación de corte Perú (sin registros en Legacy)
+  - Validación de reintentos (Transient/Permanent) y notificación Brevo
+  - Validación del monitoreo API y reintento manual
   - No regresión del flujo base
   - Incidencias y resolución
-- Evidencias de validación (queries o capturas por escenario)
+- Evidencias de validación (queries o capturas por escenario, registros SyncControl/SyncJobLog)
 - Confirmación de desactivación del SSIS en PCconnect
 - Aprobación para paso a producción
 
 ### Criterios de aceptación
-- [ ] La implementación real del canal sustituye el stub via DI — sin cambios al controlador ni al builder.
 - [ ] RE-010 base: Pedido y Partidas en Legacy con valores correctos.
 - [ ] RE-010 Pago contra entrega: marca de detención presente en Legacy.
 - [ ] RE-011 Controlados (México): transferencia correcta a Legacy.
-- [ ] RE-011 Perú: ningún registro de región Perú en Legacy.
+- [ ] RE-011 Perú: ningún registro de región Perú en Legacy; SyncControl `Completado` sin transferencia.
 - [ ] RE-012 FAA: transferencia idéntica al flujo base.
+- [ ] Reintentos Transient con backoff y notificación Brevo en errores Permanent, verificados con evidencia en `SyncJobLog`.
+- [ ] Monitoreo API operativo (estado, pendientes, historial, reintento manual).
 - [ ] Flujo base (pedidos previos a R16) sin regresión.
 - [ ] El paquete SSIS de PCconnect está desactivado o retirado según el plan.
 - [ ] Las pruebas están documentadas con evidencias y aprobadas por el líder técnico.
 - [ ] Aprobado para paso a producción.
 
 ### Más información de la tarea
-Esta tarea cierra la migración completa del ETL de Pedidos Crédito — de SSIS a aplicativo — para las variantes RE-010, RE-011 y RE-012. La Brecha B3 (canal de transferencia) debe estar resuelta antes de implementar el canal real.
+Esta tarea cierra la migración completa del ETL de Pedidos Crédito — de SSIS a ProquifaDotNet.LegacySync — para las variantes RE-010, RE-011 y RE-012.
 
 ### Recursos
-- `R16A-RE-FU-028-Tareas.md` — T19 (referencia del patrón integración canal real + sustitución stub)
-- Documento de análisis de T5
-- Implementación stub de T6
+- `Soluciones Nuevas/ProquifaDotNet.LegacySync.md` — flujo funcional, API de monitoreo
+- Documento de análisis de T5 e implementación de T6
 - Acceso a Legacy en ambiente QA/staging
 - Equipo PCconnect para desactivación del SSIS

@@ -1,6 +1,6 @@
 <svg viewBox="0 0 1200 820" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc" style="max-width:100%;height:auto;font-family:ui-sans-serif,system-ui,sans-serif">
   <title id="title">Arquitectura de comunicación entre aplicativos PQF</title>
-  <desc id="desc">Diagrama de componentes con carriles PQF, Finanzas, EnvioCorreo y Timbrado. Servicio de auditoría Bitácora arriba (flechas rojas hacia arriba); LegacyBridge abajo (flechas cian hacia abajo). Externos Brevo y PAC dentro de los carriles.</desc>
+  <desc id="desc">Diagrama de componentes con carriles PQF, Finanzas, EnvioCorreo y Timbrado. Servicio de auditoría Bitácora arriba (flechas rojas hacia arriba); LegacySync abajo (flechas cian hacia abajo). Externos Brevo y PAC dentro de los carriles.</desc>
 
   <defs>
     <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -109,9 +109,9 @@
   <text x="120" y="635" class="section-label">Sistema legado</text>
   <line x1="40" y1="642" x2="1160" y2="642" stroke="#d8d6cf" stroke-width="1"/>
 
-  <!-- PQF.LegacyBridge -->
+  <!-- PQF.LegacySync -->
   <rect x="500" y="655" width="210" height="58" class="node"/>
-  <text x="605" y="678" class="node-label">PQF.LegacyBridge</text>
+  <text x="605" y="678" class="node-label">PQF.LegacySync</text>
   <text x="605" y="700" class="node-label-sm" fill="#6b7280">Rabbit (Encolar)</text>
 
   <!-- =============== Edges del flujo principal =============== -->
@@ -155,12 +155,12 @@
   <!-- PQF.Timbrado (carril) -> Bitácora -->
   <path d="M 1050 172 C 1050 130, 850 105, 690 98" class="edge-bitacora" marker-end="url(#arrBitacora)"/>
 
-  <!-- =============== Flechas Carril -> LegacyBridge (cian, hacia abajo) =============== -->
+  <!-- =============== Flechas Carril -> LegacySync (cian, hacia abajo) =============== -->
 
-  <!-- PQF (carril) -> LegacyBridge -->
+  <!-- PQF (carril) -> LegacySync -->
   <path d="M 180 602 C 280 625, 420 655, 550 658" class="edge-legacy" marker-end="url(#arrLegacy)"/>
 
-  <!-- PQF.Finanzas (carril) -> LegacyBridge -->
+  <!-- PQF.Finanzas (carril) -> LegacySync -->
   <path d="M 440 602 C 480 625, 540 650, 600 655" class="edge-legacy" marker-end="url(#arrLegacy)"/>
 
   <!-- Legend -->
@@ -184,12 +184,12 @@
     <text x="723" y="11" class="legend-text">Carril → Bitácora (↑)</text>
 
     <line x1="855" y1="7" x2="885" y2="7" class="edge-legacy" marker-end="url(#arrLegacy)"/>
-    <text x="893" y="11" class="legend-text">Carril → LegacyBridge (↓)</text>
+    <text x="893" y="11" class="legend-text">Carril → LegacySync (↓)</text>
 
     <line x1="1040" y1="7" x2="1070" y2="7" class="edge" marker-end="url(#arr)"/>
     <text x="1078" y="11" class="legend-text">Flujo / mensaje</text>
   </g>
 
   <!-- Footer hint -->
-  <text x="600" y="795" text-anchor="middle" class="legend-text" font-style="italic">Bitácora (arriba) recibe los eventos de auditoría de cada carril · LegacyBridge (abajo) propaga al sistema legado vía Rabbit · Flujo funcional fluye horizontalmente entre carriles</text>
+  <text x="600" y="795" text-anchor="middle" class="legend-text" font-style="italic">Bitácora (arriba) recibe los eventos de auditoría de cada carril · LegacySync (abajo) propaga al sistema legado vía Rabbit · Flujo funcional fluye horizontalmente entre carriles</text>
 </svg>

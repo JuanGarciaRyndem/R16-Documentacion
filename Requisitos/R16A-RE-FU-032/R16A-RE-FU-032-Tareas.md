@@ -7,22 +7,22 @@
 
 ## Resumen de tareas
 
-| #             | Clave             | Título simple                                                                                 | Tipo | Aplicativo              |
-| ------------- | ----------------- | --------------------------------------------------------------------------------------------- | ---- | ----------------------- |
-| 1             | UPDATE-TABL-M     | Extender fccNotaCredito: ADD 13 columnas R16 (empresa, cliente, modalidad, estado, fiscal)    | BD   | ProquifaDotNet          |
-| 2             | UPDATE-TABL-M     | Extender fccNotaCreditoPartida: ADD 6 columnas R16 (concepto origen, importes fiscales)       | BD   | ProquifaDotNet          |
-| 3             | UPDATE-TABL-CH    | DML catUsoCFDI: INSERT clave G02 si no existe                                                 | BD   | ProquifaDotNet          |
-| 4             | UPDATE-TABL-CH    | DML catTipoCFDI: INSERT clave NOTA_CREDITO                                                    | BD   | ProquifaDotNet          |
-| 5             | UPDATE-TABL-CH    | DML EmpresaFolio: INSERT 4 filas Serie "P2" para GOL, MUN, PRO, PQF                           | BD   | ProquifaDotNetTimbrado  |
-| 6             | UPDATE-TABL-CH    | DML DocumentTemplate: INSERT 4 templates PDF NC México                                        | BD   | DocumentBuilder         |
-| 7             | ALG-COMPLX-LOGIC  | Implementar endpoint timbrado NC México (CFDI tipo E) en Timbrado — folio Serie P2 + TurboPac | Back | ProquifaDotNet.Timbrado |
-| 8             | IMP-EXIST-SERVICE | Implementar Wizard Paso 1 y Paso 2: búsqueda de facturas, captura por partidas y manual       | Back | ProquifaDotNet.Finanzas |
-| 9             | SERV-TRANSACT     | Implementar timbrado NC, persistencia MinIO, cancelación condicional y correo automático      | Back | ProquifaDotNet.Finanzas |
-| 10            | CREATE-TABL-CH    | Crear catMotivoCancelacionSAT con DDL + DML 4 claves SAT c_MotivoCancelacion                  | BD   | ProquifaDotNet          |
-| 11            | LIST-NO-FILTER    | Endpoint GET /api/v1/cancellationReason para que Front obtenga claves SAT                     | Back | ProquifaDotNet.Finanzas |
-| 12            | QUERY-G           | ETL PCconnect — Análisis de datos a transferir de NCs a Legacy                                | ETL  | SSIS / PCconnect        |
-| 13            | BD-OBJ-G          | ETL PCconnect — Desarrollo paquete SSIS: transferencia de datos NC y PDF a Legacy             | ETL  | SSIS / PCconnect        |
-| 14            | QUERY-M           | ETL PCconnect — Pruebas de validación de datos transferidos a Legacy                          | ETL  | SSIS / PCconnect        |
+| #   | Clave             | Título simple                                                                                 | Tipo | Aplicativo              |
+| --- | ----------------- | --------------------------------------------------------------------------------------------- | ---- | ----------------------- |
+| 1   | UPDATE-TABL-M     | Extender fccNotaCredito: ADD 13 columnas R16 (empresa, cliente, modalidad, estado, fiscal)    | BD   | ProquifaDotNet          |
+| 2   | UPDATE-TABL-M     | Extender fccNotaCreditoPartida: ADD 6 columnas R16 (concepto origen, importes fiscales)       | BD   | ProquifaDotNet          |
+| 3   | UPDATE-TABL-CH    | DML catUsoCFDI: INSERT clave G02 si no existe                                                 | BD   | ProquifaDotNet          |
+| 4   | UPDATE-TABL-CH    | DML catTipoCFDI: INSERT clave NOTA_CREDITO                                                    | BD   | ProquifaDotNet          |
+| 5   | UPDATE-TABL-CH    | DML EmpresaFolio: INSERT 4 filas Serie "P2" para GOL, MUN, PRO, PQF                           | BD   | ProquifaDotNetTimbrado  |
+| 6   | UPDATE-TABL-CH    | DML DocumentTemplate: INSERT 4 templates PDF NC México                                        | BD   | DocumentBuilder         |
+| 7   | ALG-COMPLX-LOGIC  | Implementar endpoint timbrado NC México (CFDI tipo E) en Timbrado — folio Serie P2 + TurboPac | Back | ProquifaDotNet.Timbrado |
+| 8   | IMP-EXIST-SERVICE | Implementar Wizard Paso 1 y Paso 2: búsqueda de facturas, captura por partidas y manual       | Back | ProquifaDotNet.Finanzas |
+| 9   | SERV-TRANSACT     | Implementar timbrado NC, persistencia MinIO, cancelación condicional y correo automático      | Back | ProquifaDotNet.Finanzas |
+| 10  | CREATE-TABL-CH    | Crear catMotivoCancelacionSAT con DDL + DML 4 claves SAT c_MotivoCancelacion                  | BD   | ProquifaDotNet          |
+| 11  | LIST-NO-FILTER    | Endpoint GET /api/v1/cancellationReason para que Front obtenga claves SAT                     | Back | ProquifaDotNet.Finanzas |
+| 12  | QUERY-G           | ETL PCconnect — Análisis de datos a transferir de NCs a Legacy                                | ETL  | SSIS / PCconnect        |
+| 13  | BD-OBJ-G          | ETL PCconnect — Desarrollo paquete SSIS: transferencia de datos NC y PDF a Legacy             | ETL  | SSIS / PCconnect        |
+| 14  | QUERY-M           | ETL PCconnect — Pruebas de validación de datos transferidos a Legacy                          | ETL  | SSIS / PCconnect        |
 
 > **Nota:** Las filas marcadas *(→ RE-034)* corresponden a tareas de generación de documentos que pertenecen a **R16A-RE-FU-034**. Se listan aquí para trazabilidad del orden de ejecución. Las tareas propias de este requisito (RE-032) son T1–T9 y T10–T14.
 
@@ -515,11 +515,11 @@ Ver sección *"DML DocumentTemplate"* en `R16A-RE-FU-032_BD.md` y sección *"Par
 - Mismo patrón que el endpoint de Factura México (RE-019/021) y Complemento de Pago (RE-030 C1).
 - El XML es CFDI 4.0 TipoDocumento='E', MetodoPago='PUE', CfdiRelacionados TipoRelacion='01'.
 - El folio se obtiene con UPDLOCK atómico sobre `EmpresaFolio` Serie "P2" (prereq: Tarea 5).
-- Si la cancelación de factura origen fue solicitada (`CancelarFacturaOrigen=1`), Finanzas llama a `POST /api/v1/cfdi/{id}/cancel` (endpoint único de cancelación, ya existente desde RE-FU-018/021/028 — no se crea uno nuevo).
+- Si la cancelación de factura origen fue solicitada (`CancelarFacturaOrigen=1`), Finanzas llama a `POST /api/v1/stamp/cancel` en Timbrado (vía `POST /api/v1/cfdi/{id}/cancel` de Finanzas — endpoint de cancelación ya existente desde RE-FU-018/021/028, no se crea uno nuevo).
 - Prerrequisitos: Tareas 4 y 5.
 
 **Objetivo general:**
-Ampliar el `CfdiController` (endpoint único `POST /api/v1/cfdi` creado en RE-FU-018) para que, al recibir `CreditNoteMexicoRequest` de Finanzas (discriminado por FiscalDocumentTypeId), construya el XML CFDI E, lo timbre vía PAC TurboPac, inserte en `CFDIGenerada` + `CFDI`, actualice `EmpresaFolio` y retorne el CFDI timbrado.
+Ampliar el `StampingController` (endpoint de Notas de Crédito `POST /api/v1/stamp/credit-note` creado en RE-FU-018) para que, al recibir `CreditNoteMexicoRequest` de Finanzas, construya el XML CFDI E, lo timbre vía PAC TurboPac, inserte en `CFDIGenerada` + `CFDI`, actualice `EmpresaFolio` y retorne el CFDI timbrado.
 
 **Objetivos específicos:**
 - Recibir y validar `CreditNoteMexicoRequest` (datos del emisor, receptor, conceptos, CFDI relacionado).
@@ -532,10 +532,10 @@ Ampliar el `CfdiController` (endpoint único `POST /api/v1/cfdi` creado en RE-FU
 - Manejo de errores PAC: retornar error con detalle sin persistir.
 
 **Resultado esperado:**
-Endpoint único (`POST /api/v1/cfdi`) funcional que timbra NCs México vía TurboPac con folios Serie "P2" únicos y consecutivos.
+Endpoint de Notas de Crédito (`POST /api/v1/stamp/credit-note`) funcional que timbra NCs México vía TurboPac con folios Serie "P2" únicos y consecutivos.
 
 **Entregables:**
-- Ampliación de `CfdiController` (`POST /api/v1/cfdi`) para el flujo de Nota de Crédito México
+- Ampliación de `StampingController` (`POST /api/v1/stamp/credit-note`) para el flujo de Nota de Crédito México
 - `CreditNoteMexicoRequest` / `CreditNoteMexicoResponse` DTOs
 - Unit tests del servicio de construcción XML
 
@@ -550,7 +550,7 @@ Ver sección *"Parte C / C1"* en `R16A-RE-FU-032-Back.md`.
 
 **Recursos:**
 - `R16A-RE-FU-032-Back.md` — Parte C, sección C1
-- Endpoint análogo: `POST /api/v1/cfdi` (mismo recurso único, discriminado por FiscalDocumentTypeId — RE-019/021)
+- Endpoint análogo: `POST /api/v1/stamp/invoice` (mismo StampingController, endpoint por tipo de documento — RE-019/021)
 
 ---
 
@@ -621,7 +621,7 @@ Implementar el flujo completo de Finanzas post-timbrado: llamada a Timbrado, (co
 
 **Objetivos específicos:**
 - Endpoint POST `/api/v1/creditNote/{id}/stamp`: orquesta toda la secuencia.
-- Llamada al API de Timbrado y manejo de error/éxito (Criterios J1, J5).
+- Llamada al API de Timbrado (`POST /api/v1/stamp/credit-note`, vía `ApiCallerStamping.StampCreditNoteAsync`) y manejo de error/éxito (Criterios J1, J5).
 - Si `CancelarFacturaOrigen=1`: llamada al endpoint de cancelación CFDI.
 - `PersistMexicoCreditNotePdfService.PersistirAsync()`: DocumentBuilder → MinIO → INSERT Archivo × 2 → INSERT CFDIGeneradaRelacionado → UPDATE fccNotaCredito → INSERT fccNotaCreditoPartida (si por partidas).
 - Envío de correo con INSERT `CorreoEnviado` + `ArchivoCorreoEnviado` (PDF + XML).

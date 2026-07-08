@@ -1,7 +1,7 @@
 # Impacto en BD - Tramitacion Pedidos Prepago sin Controlados con FAA
 **Requisito:** R16A-RE-FU-015
 **Base de Datos:** ProquifaDotNet
-**Version:** 2.0 (adopta el diseño del DIS-SOL v1.0 — reemplaza tpProformaAdelanto por fccFactura)
+**Version:** 2.1 (2.0 adopta el diseño del DIS-SOL v1.0 — reemplaza tpProformaAdelanto por fccFactura; 2.1 agrega el catálogo `catFacturaEstado`, la FK `fccFactura.IdCatFacturaEstado` y la columna `fccFactura.FechaEnvio`)
 
 ---
 
@@ -40,7 +40,7 @@ con la factura final via `EsFacturaPorAdelantado`), `fccFacturaPartida`
 
 ---
 
-## Impacto en BD: TRES TABLAS NUEVAS + ALTER pendiente (OBS-027)
+## Impacto en BD: CUATRO TABLAS NUEVAS + ALTER pendiente (OBS-027)
 
 > `tpProformaAdelanto` **ya NO aplica** a este requisito — reemplazada por
 > `fccFactura` + `fccFacturaPartida` + `fccFacturaReferenciaBancaria`.
@@ -54,6 +54,75 @@ con la factura final via `EsFacturaPorAdelantado`), `fccFacturaPartida`
 
 ## Diccionario de Datos
 
+### Tabla: `catFacturaEstado` (catálogo NUEVO)
+
+**Descripción:** Catálogo de estados del ciclo de vida de la Factura (`fccFactura`): generación → timbrado → envío → cobro (parcial/total) → cancelación. Sigue el patrón de catálogos del proyecto (`catTipoCFDI`, `catDocumentoFiscalCobroEstado`). Propiedad de `ProquifaDotNet.Finanzas` (Scaffold EF Core en `Finanzas.Infrastructure`).
+
+```sql
+CREATE TABLE [dbo].[catFacturaEstado](
+    [IdCatFacturaEstado]  uniqueidentifier NOT NULL
+        CONSTRAINT [DF_catFacturaEstado_Id]       DEFAULT (NEWID()),
+    [Clave]               varchar(30)      NOT NULL,
+    [Descripcion]         nvarchar(150)    NOT NULL,
+    [Orden]               int              NOT NULL,   -- orden natural del ciclo de vida (UI/reportes)
+    [EsTerminal]          bit              NOT NULL
+        CONSTRAINT [DF_catFacturaEstado_Terminal] DEFAULT (0),
+    [Activo]              bit              NOT NULL
+        CONSTRAINT [DF_catFacturaEstado_Activo]   DEFAULT (1),
+    [FechaRegistro]       datetime2(7)     NOT NULL
+        CONSTRAINT [DF_catFacturaEstado_FechaReg] DEFAULT (SYSUTCDATETIME()),
+    CONSTRAINT [PK_catFacturaEstado] PRIMARY KEY CLUSTERED ([IdCatFacturaEstado]),
+    CONSTRAINT [UQ_catFacturaEstado_Clave] UNIQUE ([Clave])
+);
+```
+
+**Seed:**
+
+```sql
+INSERT INTO [dbo].[catFacturaEstado] (Clave, Descripcion, Orden, EsTerminal) VALUES
+('POR_GENERAR',    N'Factura creada, pendiente de timbrado ante PAC/SUNAT',                                1, 0),
+('ERROR_TIMBRADO', N'El PAC/SUNAT rechazó el timbrado; requiere corrección y reintento (Finanzas)',        2, 0),
+('GENERADA',       N'Timbrada exitosamente (CFDI/CPE vigente); pendiente de envío al cliente',             3, 0),
+('ENVIADA',        N'Enviada al cliente con PDF + XML adjuntos',                                           4, 0),
+('PAGADA_PARCIAL', N'Con cobros aplicados parcialmente; saldo pendiente (PPD con complementos parciales)', 5, 0),
+('PAGADA',         N'Cobro asociado y aplicado en su totalidad (Validar Cobro)',                           6, 1),
+('CANCELADA',      N'Cancelada ante SAT/SUNAT (CFDICancelacion / NC según normativa)',                     7, 1);
+```
+
+**Columnas:**
+
+| Nombre             | Tipo de dato     | Descripción                                                       |
+| ------------------ | ---------------- | ------------------------------------------------------------------ |
+| IdCatFacturaEstado | uniqueidentifier | PK, DEFAULT NEWID()                                                 |
+| Clave              | varchar(30)      | Clave programática (UQ)                                             |
+| Descripcion        | nvarchar(150)    | Descripción legible                                                 |
+| Orden              | int              | Orden natural del ciclo de vida (UI/reportes)                       |
+| EsTerminal         | bit              | 1 = sin transiciones posteriores (PAGADA, CANCELADA)                |
+| Activo             | bit              | Borrado lógico, DEFAULT 1                                           |
+| FechaRegistro      | datetime2(7)     | Alta del registro, DEFAULT SYSUTCDATETIME()                         |
+
+**Relaciones:**
+
+| Relación | Tipo |
+|---|---|
+| `fccFactura.IdCatFacturaEstado` → `catFacturaEstado.IdCatFacturaEstado` | N:1 |
+
+**Índices:**
+
+| Nombre | Columnas | Tipo |
+|---|---|---|
+| PK_catFacturaEstado | IdCatFacturaEstado | Clustered (PK) |
+| UQ_catFacturaEstado_Clave | Clave | Unique nonclustered |
+
+**Consideraciones especiales:**
+- Transiciones válidas: POR_GENERAR → GENERADA \| ERROR_TIMBRADO; ERROR_TIMBRADO → GENERADA (reintento de Finanzas — Timbrado no reintenta, RE-FU-018); GENERADA → ENVIADA \| CANCELADA; ENVIADA → PAGADA_PARCIAL \| PAGADA \| CANCELADA; PAGADA_PARCIAL → PAGADA \| CANCELADA.
+- PAGADA y CANCELADA son estados terminales (`EsTerminal = 1`).
+- La inmutabilidad fiscal aplica desde GENERADA: la corrección posterior al timbrado es solo vía el módulo Notas de Crédito (RE-FU-032/033).
+- No confundir con `catDocumentoFiscalCobroEstado` (estado de línea del wizard Validar Cobro Paso 3, RE-FU-028), con `CFDIGenerada.Estado` (estado técnico del timbrado) ni con el `EstadoFAA` calculado de `vfccFactura` (estado del pendiente FAA).
+- La transición a PAGADA_PARCIAL/PAGADA la ejecuta Validar Cobro (RE-FU-026/027/028/029) al aplicar cobros; la transición a CANCELADA la ejecuta el flujo de cancelación (RE-FU-032, `POST /api/v1/stamp/cancel`).
+
+---
+
 ### Tabla: `fccFactura`
 
 **Descripción:** Cabecera única para la Factura por Adelantado (FAA) y para la factura final, diferenciadas por `EsFacturaPorAdelantado`. Los datos del receptor se fijan como snapshot de `DatosFacturacionCliente` al crear la FAA; los campos fiscales del timbrado SAT quedan `NULL` en la FAA y se llenan al timbrar la factura final (RT-10). Propiedad de `ProquifaDotNet.Finanzas` (Scaffold EF Core en `Finanzas.Infrastructure`).
@@ -66,7 +135,9 @@ con la factura final via `EsFacturaPorAdelantado`), `fccFacturaPartida`
 | IdTPPedido                                              | uniqueidentifier   | FK → `tpPedido.IdTPPedido`, requerido                                    |
 | IdTPProformaPedido                                      | uniqueidentifier NULL | FK → `tpProformaPedido.IdTPProformaPedido` — poblado únicamente cuando la FAA se origina desde una Confirmación de Pedido ya emitida (flujo Crédito, RE-FU-012); `NULL` en el flujo Prepago (RE-FU-015), que no genera proforma (unifica el antiguo `tpProformaAdelantoProformaPedido`) |
 | EsFacturaPorAdelantado                                  | bit                | 1 = FAA, 0 = factura final (bandera diferenciadora, RT-10)               |
+| IdCatFacturaEstado                                      | uniqueidentifier   | FK → `catFacturaEstado.IdCatFacturaEstado`, requerido — estado del ciclo de vida de la factura; se asigna POR_GENERAR al crear el registro (la app resuelve el Id por `Clave`) |
 | Enviada                                                 | bit                | 0 = no enviada / 1 = enviada al cliente con PDF+XML — determina, junto con `IdCFDIGenerada`, el estado calculado `EstadoFAA` en `vfccFactura` (equivalente a `tpProformaAdelanto.Enviada`, migrado de RE-FU-019) |
+| FechaEnvio                                              | datetime2(7) NULL  | Fecha y hora (UTC) del envío de la factura al cliente — se asigna con SYSUTCDATETIME() en el mismo UPDATE que `Enviada = 1` / `IdCatFacturaEstado = ENVIADA`; `NULL` mientras no se envía |
 | IdCliente                                               | uniqueidentifier   | FK, ← `tpPedido.IdCliente`                                               |
 | IdEmpresa                                               | uniqueidentifier   | FK, empresa emisora (Proquifa)                                           |
 | FolioPedidoInterno                                      | varchar            | ← `tpPedido.FolioPedidoInterno`                                          |
@@ -97,6 +168,7 @@ con la factura final via `EsFacturaPorAdelantado`), `fccFacturaPartida`
 | `fccFactura.IdTPPedido` → `tpPedido.IdTPPedido` | N:1 |
 | `fccFactura.IdTPProformaPedido` → `tpProformaPedido.IdTPProformaPedido` | N:1, opcional (solo origen Crédito) |
 | `fccFactura.IdCFDIGenerada` → `CFDIGenerada.IdCFDIGenerada` | N:1, opcional (NULL hasta timbrar) |
+| `fccFactura.IdCatFacturaEstado` → `catFacturaEstado.IdCatFacturaEstado` | N:1, requerido |
 | `fccFacturaPartida.IdFccFactura` → `fccFactura.IdFccFactura` | 1:N |
 | `fccFacturaReferenciaBancaria.IdFccFactura` → `fccFactura.IdFccFactura` | 1:N |
 | `fccPagoFacturaAdelanto.IdFccFactura` → `fccFactura.IdFccFactura` | N:1 (RE-FU-026/027/028/029/030 — reemplaza `fccPagoFacturaAdelanto.IdTPProformaAdelanto`) |
@@ -110,6 +182,7 @@ con la factura final via `EsFacturaPorAdelantado`), `fccFacturaPartida`
 | IX_fccFactura_IdTPProformaPedido | IdTPProformaPedido | Nonclustered (FK, búsqueda por proforma — origen Crédito) |
 | IX_fccFactura_IdCFDIGenerada | IdCFDIGenerada | Nonclustered (FK, búsqueda por CFDI timbrado) |
 | IX_fccFactura_FolioPedidoInterno | FolioPedidoInterno | Nonclustered (búsqueda por folio) |
+| IX_fccFactura_IdCatFacturaEstado | IdCatFacturaEstado | Nonclustered (FK, filtrado por estado) |
 
 **Consideraciones especiales:**
 - Un `fccFactura` debe tener exactamente un `IdTPPedido` válido.
@@ -117,6 +190,7 @@ con la factura final via `EsFacturaPorAdelantado`), `fccFacturaPartida`
 - `IdCFDIGenerada` debe permanecer `NULL` mientras `EsFacturaPorAdelantado = 1` y no se haya timbrado (`EstadoFAA = 'PendienteGenerar'` en `vfccFactura`).
 - `IdTPProformaPedido` es `NULL` para pedidos Prepago (RE-FU-015, que no genera proforma) y está poblado para pedidos Crédito (RE-FU-012, cuya proforma/Confirmación de Pedido se genera en paralelo a `fccFactura` dentro de la misma transacción de tramitación).
 - ⚠️ H-01 abierto: sin columnas para Tipo de Operación / Condición de Pago SUNAT (Perú).
+- `IdCatFacturaEstado` sigue el ciclo de `catFacturaEstado` (ver catálogo arriba): POR_GENERAR al crear; GENERADA al timbrar (junto con `IdCFDIGenerada`); ENVIADA al enviar (junto con `Enviada = 1` y `FechaEnvio = SYSUTCDATETIME()`); PAGADA_PARCIAL/PAGADA desde Validar Cobro; CANCELADA desde el flujo de cancelación. Convive con `EstadoFAA` (calculado en `vfccFactura`, específico del pendiente FAA) sin sustituirlo.
 - **Tabla única para el pendiente FAA, tanto en el origen Prepago (RE-015) como Crédito (RE-012)** — reemplaza `tpProformaAdelanto` en ambos flujos. Ver vista `vfccFactura` para el listado/estado calculado que antes ofrecía `vtpProformaAdelanto`.
 
 ---
@@ -145,12 +219,15 @@ SELECT
     f.IdEmpresa,
     e.Prefijo                   AS EmpresaPrefijo,
     e.Alias                     AS EmpresaAlias,
+    f.IdCatFacturaEstado,
+    fe.Clave                    AS FacturaEstadoClave,
     f.IdCFDIGenerada,
     cg.Folio                    AS FolioFactura,
     cg.Serie                    AS SerieFactura,
     cg.FechaEmision             AS FechaEmisionFactura,
     cg.Total                    AS TotalFactura,
     f.Enviada,
+    f.FechaEnvio,
     f.FechaRegistro,
     f.FechaUltimaActualizacion,
     f.Activo,
@@ -171,6 +248,7 @@ SELECT
 FROM dbo.fccFactura f
 LEFT JOIN dbo.Cliente c                     ON f.IdCliente = c.IdCliente
 LEFT JOIN dbo.Empresa e                     ON f.IdEmpresa = e.IdEmpresa
+LEFT JOIN dbo.catFacturaEstado fe           ON f.IdCatFacturaEstado = fe.IdCatFacturaEstado
 LEFT JOIN dbo.CFDIGenerada cg               ON f.IdCFDIGenerada = cg.IdCFDIGenerada
 LEFT JOIN dbo.tpPedido tp                   ON f.IdTPPedido = tp.IdTPPedido
 LEFT JOIN dbo.Region r                      ON tp.IdRegion = r.IdRegion
@@ -189,7 +267,9 @@ WHERE f.EsFacturaPorAdelantado = 1;
 | ClienteRazonSocial / ClienteRFC | fccFactura (snapshot) | DatosFacturacionCliente (JOIN) |
 | IdCFDIGenerada, FolioFactura, SerieFactura, FechaEmisionFactura, TotalFactura | fccFactura → CFDIGenerada (JOIN) | Igual |
 | Enviada | fccFactura | tpProformaAdelanto.Enviada |
+| FechaEnvio | fccFactura | (nuevo — sin equivalente; columna aditiva v2.1) |
 | EstadoFAA | Calculado (misma fórmula) | Igual |
+| IdCatFacturaEstado / FacturaEstadoClave | fccFactura → catFacturaEstado (JOIN) | (nuevo — sin equivalente; columnas aditivas v2.1) |
 | IdTPPedido, FolioPedidoInterno, Region, RegionClave, CondicionesDePago, EsPrepago | fccFactura → tpPedido (JOIN directo) | Igual (antes vía cadena de 3 JOINs) |
 
 ---
@@ -302,6 +382,7 @@ WHERE f.EsFacturaPorAdelantado = 1;
 | Tabla                            | Rol                                                                   | Estado                                                              |
 | -------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------- |
 | tpPedido                         | Cabecera - FacturaPorAdelantado=1, Prepago                            | Existente - sin cambios estructurales (pendiente ALTER por OBS-027) |
+| **catFacturaEstado**             | Catálogo de estados del ciclo de vida de la Factura                   | **NUEVA**                                                           |
 | **fccFactura**                   | Cabecera del pendiente FAA (y de la factura final)                    | **NUEVA**                                                           |
 | **fccFacturaPartida**            | Detalle de partidas del pendiente FAA                                 | **NUEVA**                                                           |
 | **fccFacturaReferenciaBancaria** | Referencias bancarias del pendiente FAA                               | **NUEVA**                                                           |
@@ -331,7 +412,8 @@ WHERE f.EsFacturaPorAdelantado = 1;
        por ProquifaDotNet antes de llamar a Finanzas)
     3. Fija datos de facturacion del catalogo vigente del cliente
     4. ProquifaDotNet.Finanzas INSERT atomico:
-       - fccFactura (EsFacturaPorAdelantado=1, campos fiscales timbrado NULL)
+       - fccFactura (EsFacturaPorAdelantado=1, IdCatFacturaEstado=POR_GENERAR,
+         campos fiscales timbrado NULL)
        - fccFacturaPartida (una por partida del pedido)
        - fccFacturaReferenciaBancaria (cuentas M.N./DLS + ReferenciaCliente)
     5. NO se genera tpProformaPedido, PDF ni correo en este flujo
@@ -341,11 +423,15 @@ WHERE f.EsFacturaPorAdelantado = 1;
 
    === POSTERIORMENTE (fuera scope este requisito) ===
    8. Modulo FAA emite factura PPD -> INSERT CFDIGenerada (Finanzas) ->
-      UPDATE fccFactura SET EsFacturaPorAdelantado=0, IdCFDIGenerada=@Id
+      UPDATE fccFactura SET EsFacturaPorAdelantado=0, IdCFDIGenerada=@Id,
+      IdCatFacturaEstado=GENERADA (si el PAC rechaza: ERROR_TIMBRADO, reintento de Finanzas)
       (Serie/Folio/FolioFiscal/Version/TipoDeComprobante/FechaCertificacion
       se leen de CFDIGenerada via este FK, no se duplican en fccFactura)
-   8b. Al enviar la factura -> UPDATE fccFactura SET Enviada=1
+   8b. Al enviar la factura -> UPDATE fccFactura SET Enviada=1, FechaEnvio=SYSUTCDATETIME(),
+       IdCatFacturaEstado=ENVIADA
    9. FAA genera pendiente Validar Cobro
+   10. Validar Cobro aplica cobros -> IdCatFacturaEstado=PAGADA_PARCIAL o PAGADA;
+       cancelacion (RE-032) -> IdCatFacturaEstado=CANCELADA
 
 ---
 
@@ -353,13 +439,14 @@ WHERE f.EsFacturaPorAdelantado = 1;
 
 | # | Script | Bloqueante |
 |---|---|---|
-| 1 | CREATE TABLE `CFDIGenerada` (si no existe aún — base, RE-FU-019) | No (prerrequisito de 2 y 5) |
-| 2 | CREATE TABLE `fccFactura` (incluye FK `IdCFDIGenerada`, `IdTPProformaPedido`) | No (depende de 1) |
-| 3 | CREATE TABLE `fccFacturaPartida` (FK → `fccFactura`) | No (depende de 2) |
-| 4 | CREATE TABLE `fccFacturaReferenciaBancaria` (FK → `fccFactura`) | No (depende de 2) |
-| 5 | CREATE VIEW `vfccFactura` (reemplaza `vtpProformaAdelanto`) | No (depende de 1, 2) |
-| 6 | CREATE TABLE `CatEstadoTpPedido` + seed | ⛔ Sí — OBS-027 |
-| 7 | ALTER TABLE `tpPedido` ADD `IdCatEstadoTpPedido` (FK → `CatEstadoTpPedido`) | ⛔ Sí — OBS-027, depende de 6 |
+| 1 | CREATE TABLE `CFDIGenerada` (si no existe aún — base, RE-FU-019) | No (prerrequisito de 3 y 6) |
+| 2 | CREATE TABLE `catFacturaEstado` + seed (7 estados) | No (prerrequisito de 3) |
+| 3 | CREATE TABLE `fccFactura` (incluye FK `IdCFDIGenerada`, `IdTPProformaPedido`, `IdCatFacturaEstado`) | No (depende de 1 y 2) |
+| 4 | CREATE TABLE `fccFacturaPartida` (FK → `fccFactura`) | No (depende de 3) |
+| 5 | CREATE TABLE `fccFacturaReferenciaBancaria` (FK → `fccFactura`) | No (depende de 3) |
+| 6 | CREATE VIEW `vfccFactura` (reemplaza `vtpProformaAdelanto`, incluye JOIN a `catFacturaEstado`) | No (depende de 1, 2, 3) |
+| 7 | CREATE TABLE `CatEstadoTpPedido` + seed | ⛔ Sí — OBS-027 |
+| 8 | ALTER TABLE `tpPedido` ADD `IdCatEstadoTpPedido` (FK → `CatEstadoTpPedido`) | ⛔ Sí — OBS-027, depende de 7 |
 
 > **Nota de migración (propagada a RE-FU-012/018/019/020/026/027/028/029/030):** estos requisitos consumían `tpProformaAdelanto` + `vtpProformaAdelanto`. A partir de la adopción de este esquema, deben apuntar a `fccFactura` + `vfccFactura`. Ver sección "Migración de `tpProformaAdelanto`" más abajo.
 
@@ -400,7 +487,7 @@ WHERE f.EsFacturaPorAdelantado = 1;
 | `tpProformaAdelanto` | `fccFactura` (WHERE `EsFacturaPorAdelantado=1`) | RE-FU-012, 018, 019, 020, 026, 027, 028, 029, 030 |
 | `tpProformaAdelanto.IdTPProformaAdelanto` (PK) | `fccFactura.IdFccFactura` (PK) | Todos los anteriores |
 | `tpProformaAdelanto.IdCFDIGenerada` | `fccFactura.IdCFDIGenerada` | RE-FU-019, 020, 026, 027, 028, 029, 030 |
-| `tpProformaAdelanto.Enviada` | `fccFactura.Enviada` | RE-FU-019, 020 |
+| `tpProformaAdelanto.Enviada` | `fccFactura.Enviada` (+ `FechaEnvio`, v2.1) | RE-FU-019, 020 |
 | `tpProformaAdelantoProformaPedido` (tabla puente Crédito) | `fccFactura.IdTPProformaPedido` (columna directa) | RE-FU-012, 018 |
 | `vtpProformaAdelanto` (vista, RE-FU-019) | `vfccFactura` (vista, este requisito) | RE-FU-018, 019, 020 |
 | `fccPagoFacturaAdelanto.IdTPProformaAdelanto` | `fccPagoFacturaAdelanto.IdFccFactura` | RE-FU-026, 027, 028, 029 |
@@ -420,10 +507,11 @@ Ver el detalle de la migración en cada requisito afectado (`_BD.md`/`-Back.md`/
 | R16A-RE-FU-013 | Arquitectura orquestador→Finanzas ya validada; folio interno |
 | R16A-RE-FU-014 | Flujo base Prepago sin FAA (este agrega FAA) |
 | R16A-RE-FU-016 | Criterio E1 — dos cuentas bancarias del grupo PROQUIFA México |
-| R16A-RE-FU-018/019/020 | Módulo FAA — consulta `vfccFactura`, actualiza `fccFactura` a factura final (`EsFacturaPorAdelantado=0`, `IdCFDIGenerada`, `Enviada`) |
+| R16A-RE-FU-018/019/020 | Módulo FAA — consulta `vfccFactura`, actualiza `fccFactura` a factura final (`EsFacturaPorAdelantado=0`, `IdCFDIGenerada`, `IdCatFacturaEstado`, `Enviada`, `FechaEnvio`) |
 | R16A-RE-FU-021 | `catClaveProdServSAT` reutilizado por `fccFacturaPartida.ClaveProductoServicioSAT` |
-| R16A-RE-FU-026/027 | Asociación de cobro — `fccPagoFacturaAdelanto.IdFccFactura` |
+| R16A-RE-FU-026/027 | Asociación de cobro — `fccPagoFacturaAdelanto.IdFccFactura`; transiciones PAGADA / PAGADA_PARCIAL |
 | R16A-RE-FU-028/029/030 | Complemento de Pago — JOIN `fccPagoFacturaAdelanto → fccFactura → CFDIGenerada` para `CFDIRelacionados` |
+| R16A-RE-FU-032 | Cancelación de factura origen — transición CANCELADA |
 
 ---
 

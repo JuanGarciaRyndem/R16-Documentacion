@@ -75,7 +75,7 @@ ver nota de arquitectura abajo.
 
     vfccFactura.FacturaPorAdelantado = 1
     AND vfccFactura.Activo = 1
-    AND vfccFactura.EstadoFAA IN ('PendienteGenerar', 'PendienteEnviar')
+    AND vfccFactura.EstadoFAA IN ('PendienteGenerar', ' ')
 
 ### Filtro por Cartera del Usuario
 

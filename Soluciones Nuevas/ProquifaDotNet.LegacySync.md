@@ -1,6 +1,6 @@
-### Creación de solución **ProquifaDotNet.LegacyBridge**
+### Creación de solución **ProquifaDotNet.LegacySync**
 
-**Descripción:** Se generará una solución denominada **ProquifaDotNet.LegacyBridge**, desarrollada en **.NET Core 10**, cuyo objetivo será centralizar y gestionar la transferencia de datos desde ProquifaDotNet hacia el sistema Legacy (PCconnect), reemplazando los paquetes SSIS existentes y proveyendo una plataforma extensible, auditada y con reintentos automáticos para la sincronización de entidades entre ambos sistemas.
+**Descripción:** Se generará una solución denominada **ProquifaDotNet.LegacySync**, desarrollada en **.NET Core 10**, cuyo objetivo será centralizar y gestionar la transferencia de datos desde ProquifaDotNet hacia el sistema Legacy (PCconnect), reemplazando los paquetes SSIS existentes y proveyendo una plataforma extensible, auditada y con reintentos automáticos para la sincronización de entidades entre ambos sistemas.
 
 **Alcance funcional:** La solución incluirá las siguientes funcionalidades:
 - **Jobs de sincronización por entidad**: Pedidos, Buzón de Cobros, Facturas, Notas de Crédito, PDFs.
@@ -13,10 +13,10 @@
 - **Dashboard Hangfire**: monitoreo operativo de recurring jobs en ambiente dev/QA.
 
 **Relación con otros sistemas:**
-La integración de LegacyBridge con el ecosistema ProquifaDotNet se realiza de la siguiente manera:
-- **ProquifaDotNet** (origen): LegacyBridge lee entidades mediante `ProquifaDotNetDbContext` (EF Core Scaffold), sin modificar el modelo ni los endpoints existentes.
+La integración de LegacySync con el ecosistema ProquifaDotNet se realiza de la siguiente manera:
+- **ProquifaDotNet** (origen): LegacySync lee entidades mediante `ProquifaDotNetDbContext` (EF Core Scaffold), sin modificar el modelo ni los endpoints existentes.
 - **ProquifaDotNet.Finanzas**: dispara transferencias E1–E3 y E6 (Buzón, Proforma, Factura, PDF) al completar los pasos del wizard de Validar Cobro.
-- **PCconnect (Legacy)**: destino de las transferencias. LegacyBridge escribe en `PConnectDbContext` (EF Core Scaffold de la BD Legacy).
+- **PCconnect (Legacy)**: destino de las transferencias. LegacySync escribe en `PConnectDbContext` (EF Core Scaffold de la BD Legacy).
 - **PConnectProquifaDotNet**: base de datos propia de control operativo — SyncControl, SyncJobLog, AppSettings y tablas Hangfire.
 - Solo México transfiere a Legacy. Perú nunca ejecuta transferencias (validado en el servicio, no en el job).
 
@@ -25,7 +25,7 @@ La integración de LegacyBridge con el ecosistema ProquifaDotNet se realiza de l
 - Garantizar la **consistencia de datos entre ProquifaDotNet y Legacy** con log auditables y política de errores configurable.
 - Facilitar la **incorporación de nuevas entidades** sin cambios estructurales a la solución — cada requisito funcional agrega su job concreto sobre la infraestructura base.
 
-## 📂 Estructura de la solución **ProquifaDotNet.LegacyBridge**
+## 📂 Estructura de la solución **ProquifaDotNet.LegacySync**
 
 ### 1. Capas principales
 
@@ -44,7 +44,7 @@ La integración de LegacyBridge con el ecosistema ProquifaDotNet se realiza de l
     - Persistencia con EF Core — 3 contextos independientes:
         - `ProquifaDotNetDbContext` — lectura de entidades origen.
         - `PConnectDbContext` — escritura en base de datos Legacy.
-        - `LegacyBridgeDbContext` — control operativo en `PConnectProquifaDotNet`.
+        - `LegacySyncDbContext` — control operativo en `PConnectProquifaDotNet`.
     - **Hangfire** como motor de recurring jobs con storage en `PConnectProquifaDotNet`.
     - `SyncJobBase` abstracto — flujo estándar reutilizable por todos los jobs de entidad.
     - `ExceptionClassifier` — clasifica Transient/Permanent para determinar estrategia de reintento.
@@ -58,7 +58,7 @@ La integración de LegacyBridge con el ecosistema ProquifaDotNet se realiza de l
     - Endpoints RESTful de monitoreo: estado por entidad, pendientes, historial de intentos, reintento manual, estado de jobs Hangfire.
     - Autenticación IdentityServer — misma infraestructura que Finanzas y Timbrado.
     - Documentación Swagger/OpenAPI.
-- **Worker.LegacyBridge**
+- **Worker.LegacySync**
     - Host de Hangfire que procesa recurring jobs de sincronización.
     - `HealthCheckJob` — valida conectividad a las 3 bases de datos cada 5 minutos.
     - Jobs por entidad (se agregan en cada requisito funcional): Clientes, Pedidos, BuzonCobros, Factura, NotaCredito, etc.
@@ -74,7 +74,7 @@ La integración de LegacyBridge con el ecosistema ProquifaDotNet se realiza de l
 | ------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------- |
 | `ProquifaDotNetDbContext` | ProquifaDotNet         | Lectura de entidades origen (Clientes, Pedidos, Facturas, etc.) — Scaffold incremental por requisito |
 | `PConnectDbContext`       | PConnect               | Escritura en tablas Legacy destino — Scaffold de tablas receptoras                                   |
-| `LegacyBridgeDbContext`   | PConnectProquifaDotNet | SyncControl, SyncJobLog, AppSettings, vistas Hangfire y vw_SyncPendientes                            |
+| `LegacySyncDbContext`   | PConnectProquifaDotNet | SyncControl, SyncJobLog, AppSettings, vistas Hangfire y vw_SyncPendientes                            |
 
 ### 3. Flujo funcional
 

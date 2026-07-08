@@ -23,7 +23,7 @@ La funcionalidad se distribuye en tres soluciones:
 | ProquifaDotNet.Timbrado (.NET Core 10) | Servicio técnico: consume folio, arma XML, llama SAP, **regresa el resultado a Finanzas sin persistir el CFDI como entidad de negocio** | Creada en RE-FU-018 |
 | ProquifaDotNet (.NET Framework 4.8) | Consumidor: controlador Detalle FAA que delega a Finanzas, transferencia Legacy | Existente |
 
-> **Nota de arquitectura (correccion — el CFDI no va en Timbrado, va en Finanzas):** este documento se corrigio para reflejar que `CfdiController` y la persistencia de `CFDIGenerada` viven en **ProquifaDotNet.Finanzas** (ver R16A-RE-FU-018-Back.md, Parte B), y que este mismo requisito (RE-FU-019) es el que ejecuta el `CREATE TABLE CFDIGenerada` base (ver R16A-RE-FU-019_BD.md). `ProquifaDotNet.Timbrado` expone el endpoint tecnico `POST /api/v1/stamp` (no `/api/v1/cfdi`, que es el recurso de negocio expuesto por Finanzas).
+> **Nota de arquitectura (correccion — el CFDI no va en Timbrado, va en Finanzas):** este documento se corrigio para reflejar que `CfdiController` y la persistencia de `CFDIGenerada` viven en **ProquifaDotNet.Finanzas** (ver R16A-RE-FU-018-Back.md, Parte B), y que este mismo requisito (RE-FU-019) es el que ejecuta el `CREATE TABLE CFDIGenerada` base (ver R16A-RE-FU-019_BD.md). `ProquifaDotNet.Timbrado` expone el endpoint tecnico `POST /api/v1/stamp/invoice` (no `/api/v1/cfdi`, que es el recurso de negocio expuesto por Finanzas).
 
 ---
 
@@ -102,7 +102,7 @@ public class EmpresaFolioRepository : GenericRepository<EmpresaFolio>, IEmpresaF
 
 | Método | Endpoint       | Descripción                                                                                                                     |
 | ------ | -------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| POST   | /api/v1/stamp  | Recibe el request técnico de timbrado FAA armado por Finanzas, retorna StampAdvanceInvoiceResponseDto — reutiliza el endpoint técnico único creado en RE-FU-018 (`StampingController`), sin controller ni ruta separados. El recurso de negocio `cfdi` (`CfdiController`, `POST /api/v1/cfdi`) vive en Finanzas, no aquí. |
+| POST   | /api/v1/stamp/invoice  | Recibe el request técnico de timbrado FAA armado por Finanzas, retorna StampAdvanceInvoiceResponseDto — reutiliza el endpoint técnico de facturas (`/api/v1/stamp/invoice`) creado en RE-FU-018 (`StampingController`), sin controller ni ruta separados. El recurso de negocio `cfdi` (`CfdiController`, `POST /api/v1/cfdi`) vive en Finanzas, no aquí. |
 
 ---
 
@@ -217,7 +217,7 @@ ORDER BY FechaTramitacion DESC
    - Emisor: RFC, RazonSocial, RegimenFiscal, EmpresaClave
    - Conceptos: partidas del pedido (cantidad, precioUnitario, importe). La descripción de cada concepto CFDI se construye como "catálogo + descripción + marca"; no se incluye lote ni pedimento (OBS-039).
    - Forzados: MetodoPago="PPD", FormaPago="99", TipoComprobante="I"
-7. Llamar ProquifaDotNet.Timbrado POST /api/v1/stamp (servicio técnico, sin persistir CFDI)
+7. Llamar ProquifaDotNet.Timbrado POST /api/v1/stamp/invoice (servicio técnico, sin persistir CFDI)
 8. Si EXITOSO (Timbrado regresa Uuid, Serie, Folio, FechaEmision, Total, XmlBase64):
    a. INSERT CFDIGenerada (CfdiService, en ProquifaDotNet): UUID, Serie, Folio, FechaEmision, Total,
       IdCatTipoCFDI, IdCatUsoCFDI, IdCatMetodoDePagoCFDI, IdCatMoneda, TipoCambio, Estado='Timbrado'
@@ -305,7 +305,8 @@ ORDER BY FechaTramitacion DESC
 4. Enviar correo via Brevo con adjuntos PDF+XML
 5. Si envío EXITOSO:
    a. INSERT CorreoEnviado + ArchivoCorreoEnviado (PDF, XML)
-   b. UPDATE fccFactura SET Enviada = 1 (antes: UPDATE tpProformaAdelanto SET Enviada = 1)
+   b. UPDATE fccFactura SET Enviada = 1, FechaEnvio = SYSUTCDATETIME(), IdCatFacturaEstado = ENVIADA
+      (catFacturaEstado y FechaEnvio, RE-FU-015 v2.1; antes: UPDATE tpProformaAdelanto SET Enviada = 1)
    c. Ejecutar salida operativa según tipo de pedido:
       - Crédito: transferir factura a Legacy (Pendientes, Pedido, Partidas, Cobro, PDF)
       - Prepago: generar pendiente en Validar Cobro
@@ -374,7 +375,7 @@ ORDER BY FechaTramitacion DESC
 
 | Integración | Componente | Descripción |
 |-------------|-----------|-------------|
-| ProquifaDotNet.Timbrado | ApiCallerStamping (existente, RE-FU-018) | POST /api/v1/stamp — servicio técnico (HttpClient con Polly), Finanzas persiste CFDIGenerada tras la respuesta |
+| ProquifaDotNet.Timbrado | ApiCallerStamping (existente, RE-FU-018) | POST /api/v1/stamp/invoice — servicio técnico (HttpClient con Polly), Finanzas persiste CFDIGenerada tras la respuesta |
 | DocumentBuilder | ApiCallerDocumentBuilder | Generar PDF factura desde template HTML |
 | ProquifaDotNet.EnvioCorreo (Aplicativo Nuevo) | ApiCallerMail (existente, RE-FU-016) | Enviar correo con adjuntos PDF+XML — regla 7, sin cliente Brevo propio |
 | Minio | MinioStorageService (existente, RE-FU-018) | Almacenar/obtener PDF y XML (bucket 'facturas') |
@@ -487,7 +488,7 @@ Cuando el tipo de pedido es Prepago y la factura se envió exitosamente:
 | GAP-02 | Application: EmpresaFolioService + StampingService ampliación | Consumo folio + nuevo método StampAdvanceInvoiceAsync | Alto |
 | GAP-03 | Infrastructure: EmpresaFolioRepository con UPDATE atómico (UPDLOCK) | Implementar consumo seguro de folio con raw SQL | Medio |
 | GAP-04 | Application: DTOs StampAdvanceInvoiceRequestDto, AdvanceInvoiceItemDto, StampAdvanceInvoiceResponseDto | Modelos de request/response para FAA | Bajo |
-| GAP-05 | API: StampingController — sin endpoint nuevo (reutiliza POST /api/v1/stamp creado en RE-FU-018) | Ajuste de orquestación interna para FAA | Bajo |
+| GAP-05 | API: StampingController — sin endpoint nuevo (reutiliza POST /api/v1/stamp/invoice creado en RE-FU-018) | Ajuste de orquestación interna para FAA | Bajo |
 | GAP-06 | Scripts DDL: CREATE TABLE EmpresaFolio + DML INSERT 4 empresas | Scripts BD ProquifaDotNetTimbrado | Bajo |
 
 ### En ProquifaDotNet.Finanzas (Módulo FAA — Detalle)
@@ -531,7 +532,7 @@ Cuando el tipo de pedido es Prepago y la factura se envió exitosamente:
      |                                 | 3. Obtener partidas pedido       |                      |
      |                                 | 4. Armar StampAdvanceInvoiceRequestDto    |                      |
      |                                 |                                  |                      |
-     |                                 | POST /api/v1/stamp (tecnico)     |                      |
+     |                                 | POST /api/v1/stamp/invoice (tecnico)     |                      |
      |                                 |--------------------------------->|                      |
      |                                 |                                  | 5. Consumir folio    |
      |                                 |                                  | 6. Armar XML CFDI    |

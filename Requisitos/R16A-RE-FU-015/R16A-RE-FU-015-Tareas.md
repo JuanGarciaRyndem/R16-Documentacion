@@ -4,7 +4,7 @@
 
 ---
 
-## T1 — [ R16A-RE-FU-015 ] [CREATE-TABL-M] Crear tablas fccFactura, fccFacturaPartida y fccFacturaReferenciaBancaria
+## T1 — [ R16A-RE-FU-015 ] [CREATE-TABL-M] Crear catálogo catFacturaEstado y tablas fccFactura, fccFacturaPartida y fccFacturaReferenciaBancaria
 
 ### Aplicativos
 - ProquifaDotNet.Finanzas
@@ -23,7 +23,8 @@
 Crear en la base de datos `ProquifaDotNet` las tres tablas nuevas requeridas para el pendiente de Factura por Adelantado, e incorporarlas al Scaffold EF Core de `Finanzas.Infrastructure`.
 
 ### Objetivos específicos
-- `CREATE TABLE fccFactura` (cabecera) con PK `IdFccFactura`, FK `IdTPPedido` → `tpPedido`, bandera `EsFacturaPorAdelantado`, datos de moneda/montos, snapshot de datos del receptor y campos fiscales del timbrado SAT (nullable)
+- `CREATE TABLE catFacturaEstado` + seed (7 estados: POR_GENERAR, ERROR_TIMBRADO, GENERADA, ENVIADA, PAGADA_PARCIAL, PAGADA, CANCELADA — ver `R16A-RE-FU-015_BD.md` v2.1)
+- `CREATE TABLE fccFactura` (cabecera) con PK `IdFccFactura`, FK `IdTPPedido` → `tpPedido`, FK `IdCatFacturaEstado` → `catFacturaEstado`, bandera `EsFacturaPorAdelantado`, datos de moneda/montos, snapshot de datos del receptor y campos fiscales del timbrado SAT (nullable)
 - `CREATE TABLE fccFacturaPartida` (detalle 1:N) con PK `IdFccFacturaPartida`, FK `IdFccFactura` → `fccFactura`
 - `CREATE TABLE fccFacturaReferenciaBancaria` (detalle 1:N) con PK `IdFccFacturaReferenciaBancaria`, FK `IdFccFactura` → `fccFactura`
 - Crear índices no clusterizados sobre las FK (`IdTPPedido`, `IdFccFactura`) y sobre `FolioPedidoInterno`
@@ -33,6 +34,7 @@ Crear en la base de datos `ProquifaDotNet` las tres tablas nuevas requeridas par
 Las tres tablas existen en `ProquifaDotNet` con la estructura definida en el DIS-SOL v1.0 y son accesibles desde `Finanzas.Infrastructure` vía EF Core.
 
 ### Entregables
+- Script DDL `CREATE TABLE catFacturaEstado` + seed
 - Script DDL `CREATE TABLE fccFactura`
 - Script DDL `CREATE TABLE fccFacturaPartida`
 - Script DDL `CREATE TABLE fccFacturaReferenciaBancaria`
@@ -42,6 +44,7 @@ Las tres tablas existen en `ProquifaDotNet` con la estructura definida en el DIS
 - Las tres tablas existen con las columnas, tipos y FK documentados en `R16A-RE-FU-015_BD.md`
 - Los índices sobre FK y `FolioPedidoInterno` existen
 - `fccFactura` permite `EsFacturaPorAdelantado = 1` con todos los campos fiscales del timbrado en `NULL`
+- `catFacturaEstado` queda poblado con los 7 estados y `fccFactura.IdCatFacturaEstado` se asigna a POR_GENERAR al crear el registro
 - Las tablas son visibles y operables desde el Scaffold EF Core de `Finanzas.Infrastructure`
 
 ### Más información de la tarea

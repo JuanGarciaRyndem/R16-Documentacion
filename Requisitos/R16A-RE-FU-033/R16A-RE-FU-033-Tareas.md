@@ -466,7 +466,7 @@ Ver secciones *"Parte B / B2, B3, B4"* en `R16A-RE-FU-033-Back.md`.
 - INSERT `CFDIGenerada` con `TipoDocumento='07'`, `IdCatTipoCFDI`=NOTA_CREDITO_PERU (prereq: Tarea 3).
 
 **Objetivo general:**
-Ampliar el `CfdiController` (endpoint único `POST /api/v1/cfdi` creado en RE-FU-018) para que, al recibir `CreditNotePeruStampingRequest` de Finanzas (discriminado por FiscalDocumentTypeId), envíe el XML UBL 2.1 al proveedor SUNAT, persista el resultado en `CFDIGenerada` y retorne la constancia.
+Ampliar el `StampingController` (endpoint de Notas de Crédito `POST /api/v1/stamp/credit-note` creado en RE-FU-018) para que, al recibir `CreditNotePeruStampingRequest` de Finanzas, envíe el XML UBL 2.1 al proveedor SUNAT, persista el resultado en `CFDIGenerada` y retorne la constancia.
 
 **Objetivos específicos:**
 - Recibir y validar `CreditNotePeruStampingRequest`.
@@ -478,10 +478,10 @@ Ampliar el `CfdiController` (endpoint único `POST /api/v1/cfdi` creado en RE-FU
 - Manejo de errores SUNAT.
 
 **Resultado esperado:**
-Endpoint único (`POST /api/v1/cfdi`) funcional que timbra NCs Perú con folios consecutivos únicos y constancia SUNAT.
+Endpoint de Notas de Crédito (`POST /api/v1/stamp/credit-note`) funcional que timbra NCs Perú con folios consecutivos únicos y constancia SUNAT.
 
 **Entregables:**
-- Ampliación de `CfdiController` (`POST /api/v1/cfdi`) para el flujo de Nota de Crédito Perú
+- Ampliación de `StampingController` (`POST /api/v1/stamp/credit-note`) para el flujo de Nota de Crédito Perú
 - `CreditNotePeruStampingRequest` / `CreditNotePeruStampingResponse` DTOs
 - Unit tests del servicio de construcción del XML a enviar al proveedor
 
@@ -523,7 +523,7 @@ Implementar el flujo completo de Finanzas post-timbrado NC Perú: llamada a Timb
 
 **Objetivos específicos:**
 - `POST /api/v1/creditNote/{id}/stamp` — orquesta la secuencia completa.
-- Llamada al endpoint único de Timbrado (`POST /api/v1/cfdi`, discriminado por FiscalDocumentTypeId).
+- Llamada al endpoint de Notas de Crédito de Timbrado (`POST /api/v1/stamp/credit-note`, vía `ApiCallerStamping.StampCreditNoteAsync`).
 - `PersistPeruCreditNotePdfService.PersistirAsync()`: DocumentBuilder → MinIO → INSERT Archivo × 2 → UPDATE `fccNotaCredito` (Estado='VIGENTE', IdArchivoPdf, IdArchivoXml, IdCFDIGenerada) → INSERT CFDIGeneradaConcepto (si por partidas) → INSERT fccNotaCreditoPartida.
 - Envío de correo vía ProquifaDotNet.EnvioCorreo (Aplicativo Nuevo, regla 7) con INSERT `CorreoEnviado` + `ArchivoCorreoEnviado`.
 - Registro del guardado de la NC en ProquifaDotNet.BitacoraCambios (Aplicativo Nuevo, regla 8).

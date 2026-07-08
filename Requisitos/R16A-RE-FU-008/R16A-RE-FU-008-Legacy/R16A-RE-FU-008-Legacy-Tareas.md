@@ -1,14 +1,14 @@
 # Tareas BackEnd — R16A-NO-FU-003
-**Requisito:** Creación de Solución Base ProquifaDotNet.LegacyBridge
-**Aplicativos:** ProquifaDotNet.LegacyBridge (.NET Core)
+**Requisito:** Creación de Solución Base ProquifaDotNet.LegacySync
+**Aplicativos:** ProquifaDotNet.LegacySync (.NET Core)
 
 ---
 
-> **Orden de ejecución sugerido:** BD PConnectProquifaDotNet — tablas control + log (T1) → Scaffold solución + Domain (T2) → Application CQRS base (T3) → Infrastructure: 3 contextos EF Core + repositorio genérico (T4) → SyncJobLog + ExceptionClassifier (T5) → Hangfire + Worker.LegacyBridge (T6) → Brevo notificaciones fallos (T7) → FileSync mecanismo archivos (T8) → API Monitoreo (T9) → Testing base (T10).
+> **Orden de ejecución sugerido:** BD PConnectProquifaDotNet — tablas control + log (T1) → Scaffold solución + Domain (T2) → Application CQRS base (T3) → Infrastructure: 3 contextos EF Core + repositorio genérico (T4) → SyncJobLog + ExceptionClassifier (T5) → Hangfire + Worker.LegacySync (T6) → Brevo notificaciones fallos (T7) → FileSync mecanismo archivos (T8) → API Monitoreo (T9) → Testing base (T10).
 >
 > **Dependencias externas:** Acceso a servidor RYNL010 para crear `PConnectProquifaDotNet`. Scaffold de `ProquifaDotNet` y `PConnect` requiere acceso a ambas bases. Credenciales Brevo para notificaciones. Configuración IdentityServer para la nueva solución. Hangfire requiere base de datos propia (puede ser `PConnectProquifaDotNet`).
 >
-> **Contexto:** LegacyBridge reemplaza los paquetes SSIS de PCconnect que actualmente transfieren datos de ProquifaDotNet hacia Legacy. La solución provee la infraestructura base reutilizable; cada requisito funcional (RE-006, RE-008, RE-010/012, RE-028) agrega sus jobs y builders específicos sobre esta base.
+> **Contexto:** LegacySync reemplaza los paquetes SSIS de PCconnect que actualmente transfieren datos de ProquifaDotNet hacia Legacy. La solución provee la infraestructura base reutilizable; cada requisito funcional (RE-006, RE-008, RE-010/012, RE-028) agrega sus jobs y builders específicos sobre esta base.
 
 ---
 
@@ -17,15 +17,15 @@
 | #   | Clave               | Título simple                                                                                    | Tipo | Aplicativo                  |
 | --- | ------------------- | ------------------------------------------------------------------------------------------------ | ---- | --------------------------- |
 | 1   | CREATE-TABL-M       | Crear BD PConnectProquifaDotNet — tablas SyncControl, SyncJobLog, AppSettings, vistas pendientes | BD   | PConnectProquifaDotNet      |
-| 2   | CREATE-SOLUTION     | Scaffold solución ProquifaDotNet.LegacyBridge — estructura de proyectos + capa Domain            | Back | ProquifaDotNet.LegacyBridge |
-| 3   | ALG-COMPLX-LOGIC    | Implementar Application layer — CQRS base, DTOs, interfaces de servicios                         | Back | ProquifaDotNet.LegacyBridge |
-| 4   | SERV-TRANSACT       | Implementar Infrastructure — 3 contextos EF Core + repositorio genérico CRUD                     | Back | ProquifaDotNet.LegacyBridge |
-| 5   | ALG-BASIC-LOGIC     | Implementar SyncJobLog + ExceptionClassifier (Transient/Permanent)                               | Back | ProquifaDotNet.LegacyBridge |
-| 6   | CREATE-WORKER       | Implementar Hangfire + Worker.LegacyBridge — recurring jobs base + worker host                   | Back | ProquifaDotNet.LegacyBridge |
-| 7   | SERV-TRANSACT       | Implementar servicio de notificaciones Brevo — alertas de fallos de integración                  | Back | ProquifaDotNet.LegacyBridge |
-| 8   | SERV-TRANSACT       | Implementar mecanismo de sincronización de archivos (FileSync)                                   | Back | ProquifaDotNet.LegacyBridge |
-| 9   | CREATE-API-ENDPOINT | Implementar API de monitoreo — endpoints consulta de estado y reintento                          | Back | ProquifaDotNet.LegacyBridge |
-| 10  | QUERY-M             | Testing base — pruebas unitarias e integración de infraestructura LegacyBridge                   | Back | ProquifaDotNet.LegacyBridge |
+| 2   | CREATE-SOLUTION     | Scaffold solución ProquifaDotNet.LegacySync — estructura de proyectos + capa Domain            | Back | ProquifaDotNet.LegacySync |
+| 3   | ALG-COMPLX-LOGIC    | Implementar Application layer — CQRS base, DTOs, interfaces de servicios                         | Back | ProquifaDotNet.LegacySync |
+| 4   | SERV-TRANSACT       | Implementar Infrastructure — 3 contextos EF Core + repositorio genérico CRUD                     | Back | ProquifaDotNet.LegacySync |
+| 5   | ALG-BASIC-LOGIC     | Implementar SyncJobLog + ExceptionClassifier (Transient/Permanent)                               | Back | ProquifaDotNet.LegacySync |
+| 6   | CREATE-WORKER       | Implementar Hangfire + Worker.LegacySync — recurring jobs base + worker host                   | Back | ProquifaDotNet.LegacySync |
+| 7   | SERV-TRANSACT       | Implementar servicio de notificaciones Brevo — alertas de fallos de integración                  | Back | ProquifaDotNet.LegacySync |
+| 8   | SERV-TRANSACT       | Implementar mecanismo de sincronización de archivos (FileSync)                                   | Back | ProquifaDotNet.LegacySync |
+| 9   | CREATE-API-ENDPOINT | Implementar API de monitoreo — endpoints consulta de estado y reintento                          | Back | ProquifaDotNet.LegacySync |
+| 10  | QUERY-M             | Testing base — pruebas unitarias e integración de infraestructura LegacySync                   | Back | ProquifaDotNet.LegacySync |
 
 ---
 
@@ -34,32 +34,32 @@
 **[ NO-FU-003 ] [ CREATE-TABL-M ] Crear BD PConnectProquifaDotNet — tablas de control, SyncJobLog y AppSettings**
 
 **Aplicativos:**
-ProquifaDotNet.LegacyBridge — Base de datos PConnectProquifaDotNet
+ProquifaDotNet.LegacySync — Base de datos PConnectProquifaDotNet
 
 **Módulos:**
 Infraestructura de control de sincronización
 
 **Consideraciones previas:**
-- Base de datos nueva `PConnectProquifaDotNet` en el servidor `RYNL010`, dedicada al control operativo de LegacyBridge.
+- Base de datos nueva `PConnectProquifaDotNet` en el servidor `RYNL010`, dedicada al control operativo de LegacySync.
 - No almacena datos de negocio — solo estado de sincronización, logs y configuración de la solución.
-- `SyncControl` es la tabla genérica de control por entidad (Clientes, Pedidos, Buzón, etc.). Cada requisito funcional que se integre a LegacyBridge tendrá una fila por registro a sincronizar.
+- `SyncControl` es la tabla genérica de control por entidad (Clientes, Pedidos, Buzón, etc.). Cada requisito funcional que se integre a LegacySync tendrá una fila por registro a sincronizar.
 - `SyncJobLog` registra el resultado de cada ejecución de job con snapshot JSON del payload.
 - `AppSettings` reemplaza la configuración de `appsettings.json` para valores modificables en runtime (reintentos, intervalos, flags de activación por entidad).
 - Hangfire puede usar esta misma base de datos para sus tablas internas (confirmar en T6).
 - Las vistas `vw_SyncPendientes` exponen los registros en estado `Pendiente` o `Error` con menos de `MaxReintentos` intentos — son el origen de los jobs Hangfire.
 
 **Objetivo general:**
-Crear la base de datos `PConnectProquifaDotNet` con las tablas de control, logs y configuración que sustentan la operación de LegacyBridge.
+Crear la base de datos `PConnectProquifaDotNet` con las tablas de control, logs y configuración que sustentan la operación de LegacySync.
 
 **Objetivos específicos:**
 - Crear la base de datos `PConnectProquifaDotNet` en `RYNL010`.
 - Ejecutar DDL para `SyncControl`, `SyncJobLog`, `AppSettings` con sus constraints, defaults e índices.
 - Crear vista `vw_SyncPendientes` que expone registros en estado `Pendiente` o `Error` elegibles para reintento.
-- Insertar AppSettings iniciales: `LegacyBridge:MaxReintentos` (default 3), `LegacyBridge:BackoffSegundos` (default 60), `LegacyBridge:NotificarFallosPermanentes` (default true).
+- Insertar AppSettings iniciales: `LegacySync:MaxReintentos` (default 3), `LegacySync:BackoffSegundos` (default 60), `LegacySync:NotificarFallosPermanentes` (default true).
 - Verificar que todos los constraints, defaults, índices y registros iniciales son correctos.
 
 **Resultado esperado:**
-Base de datos `PConnectProquifaDotNet` creada y funcional. Los workers de LegacyBridge pueden leer pendientes desde `vw_SyncPendientes` y escribir resultados en `SyncJobLog` inmediatamente después de ejecutar esta tarea.
+Base de datos `PConnectProquifaDotNet` creada y funcional. Los workers de LegacySync pueden leer pendientes desde `vw_SyncPendientes` y escribir resultados en `SyncJobLog` inmediatamente después de ejecutar esta tarea.
 
 **Entregables:**
 Scripts SQL:
@@ -117,7 +117,7 @@ Scripts SQL:
 | Nombre | Tipo | Descripción |
 |---|---|---|
 | `IdAppSettings` | `uniqueidentifier` PK DEFAULT NEWID() | Identificador único |
-| `Clave` | `nvarchar(200)` NOT NULL UNIQUE | Clave de configuración (ej. `LegacyBridge:MaxReintentos`) |
+| `Clave` | `nvarchar(200)` NOT NULL UNIQUE | Clave de configuración (ej. `LegacySync:MaxReintentos`) |
 | `Valor` | `nvarchar(max)` NOT NULL | Valor de la configuración |
 | `Descripcion` | `nvarchar(500)` NULL | Descripción del parámetro |
 | `FechaUltimaActualizacion` | `datetime2(7)` NOT NULL DEFAULT SYSUTCDATETIME() | Última modificación |
@@ -141,28 +141,28 @@ Expone registros de `SyncControl` donde `Estado IN ('Pendiente', 'Error')` y `Nu
 
 ## TAREA 2
 
-**[ NO-FU-003 ] [ CREATE-SOLUTION ] Scaffold solución ProquifaDotNet.LegacyBridge — estructura de proyectos y capa Domain**
+**[ NO-FU-003 ] [ CREATE-SOLUTION ] Scaffold solución ProquifaDotNet.LegacySync — estructura de proyectos y capa Domain**
 
 **Aplicativos:**
-ProquifaDotNet.LegacyBridge
+ProquifaDotNet.LegacySync
 
 **Módulos:**
 Infraestructura base — Scaffold y Domain
 
 **Consideraciones previas:**
 - La solución sigue el mismo arquetipo de `ProquifaDotNet.Finanzas` y `ProquifaDotNet.Timbrado`: Domain / Application / Infrastructure / API / Worker / Testing.
-- El proyecto `LegacyBridge.Domain` no tiene dependencias externas — solo tipos del framework y abstracciones propias.
+- El proyecto `LegacySync.Domain` no tiene dependencias externas — solo tipos del framework y abstracciones propias.
 - Las entidades de dominio son: `SyncControl`, `SyncJobLog`, `AppSettings` (espejo de BD), más interfaces `IRepository<T>`, `ISyncJobLog`, `IExceptionClassifier`, `IFileSyncService`, `INotificationService`.
 - Los enums: `SyncEstado` (Pendiente/EnProceso/Completado/Error), `ExceptionType` (Transient/Permanent), `SyncEntidad` (Clientes/PedidosCredito/BuzonCobros/etc.).
 - Crear el repositorio de Git para la solución y el pipeline de CI base.
 
 **Objetivo general:**
-Crear la solución `ProquifaDotNet.LegacyBridge` con la estructura de proyectos completa y la capa Domain implementada.
+Crear la solución `ProquifaDotNet.LegacySync` con la estructura de proyectos completa y la capa Domain implementada.
 
 **Objetivos específicos:**
-- Crear la solución en Visual Studio con los 6 proyectos: `LegacyBridge.Domain`, `LegacyBridge.Application`, `LegacyBridge.Infrastructure`, `LegacyBridge.API`, `LegacyBridge.Worker`, `LegacyBridge.Testing`.
+- Crear la solución en Visual Studio con los 6 proyectos: `LegacySync.Domain`, `LegacySync.Application`, `LegacySync.Infrastructure`, `LegacySync.API`, `LegacySync.Worker`, `LegacySync.Testing`.
 - Establecer referencias entre proyectos (Domain ← Application ← Infrastructure ← API/Worker).
-- Implementar `LegacyBridge.Domain`:
+- Implementar `LegacySync.Domain`:
   - Entidades: `SyncControl`, `SyncJobLog`, `AppSettings`
   - Interfaces: `IRepository<T>`, `ISyncJobLog`, `IExceptionClassifier`, `IFileSyncService`, `INotificationService`, `ISyncJobBase`
   - Enums: `SyncEstado`, `ExceptionType`, `SyncEntidad`
@@ -171,17 +171,17 @@ Crear la solución `ProquifaDotNet.LegacyBridge` con la estructura de proyectos 
 - Verificar que la solución compila sin errores.
 
 **Resultado esperado:**
-Solución `ProquifaDotNet.LegacyBridge` creada, con los 6 proyectos referenciados correctamente y la capa Domain implementada y compilando.
+Solución `ProquifaDotNet.LegacySync` creada, con los 6 proyectos referenciados correctamente y la capa Domain implementada y compilando.
 
 **Entregables:**
 - Solución `.sln` con 6 proyectos
-- `LegacyBridge.Domain` implementado (entidades, interfaces, enums, excepciones)
+- `LegacySync.Domain` implementado (entidades, interfaces, enums, excepciones)
 - Compilación sin errores en todos los proyectos
 - Repositorio Git creado con pipeline CI base
 
 **Criterios de aceptación:**
 - [ ] Los 6 proyectos de la solución existen con las referencias correctas.
-- [ ] `LegacyBridge.Domain` compila sin dependencias externas (solo framework).
+- [ ] `LegacySync.Domain` compila sin dependencias externas (solo framework).
 - [ ] Interfaces `IRepository<T>`, `ISyncJobLog`, `IExceptionClassifier`, `IFileSyncService`, `INotificationService`, `ISyncJobBase` definidas en Domain.
 - [ ] Enums `SyncEstado`, `ExceptionType`, `SyncEntidad` definidos.
 - [ ] Excepciones `SyncPermanentException` y `SyncTransientException` definidas.
@@ -198,10 +198,10 @@ Solución `ProquifaDotNet.LegacyBridge` creada, con los 6 proyectos referenciado
 **[ NO-FU-003 ] [ ALG-COMPLX-LOGIC ] Implementar Application layer — CQRS base, DTOs y interfaces de servicios**
 
 **Aplicativos:**
-ProquifaDotNet.LegacyBridge
+ProquifaDotNet.LegacySync
 
 **Módulos:**
-LegacyBridge.Application
+LegacySync.Application
 
 **Consideraciones previas:**
 - La capa Application implementa CQRS usando el patrón Command/Query con MediatR (o el equivalente definido por el equipo).
@@ -211,10 +211,10 @@ LegacyBridge.Application
 - Incluir `SyncControlService` base: gestión de estado (marcar EnProceso, Completado, Error), incremento de intentos, evaluación de elegibilidad para reintento.
 
 **Objetivo general:**
-Implementar la capa Application de LegacyBridge con la infraestructura CQRS base y los DTOs necesarios para orquestar sincronizaciones.
+Implementar la capa Application de LegacySync con la infraestructura CQRS base y los DTOs necesarios para orquestar sincronizaciones.
 
 **Objetivos específicos:**
-- Configurar MediatR (o patrón equivalente) en `LegacyBridge.Application`.
+- Configurar MediatR (o patrón equivalente) en `LegacySync.Application`.
 - Implementar Commands base:
   - `MarcarEnProcesoCommand` — marca un `SyncControl` como EnProceso.
   - `MarcarCompletadoCommand` — marca como Completado, registra log de éxito.
@@ -235,7 +235,7 @@ La capa Application tiene los Commands, Queries y servicios base que permiten a 
 - Queries: `ObtenerPendientesQuery`, `ObtenerEstadoSyncQuery`, `ObtenerLogsJobQuery`
 - `SyncControlService` con lógica de estados y reintentos
 - DTOs: `SyncControlDto`, `SyncJobLogDto`, `SyncPendienteDto`, `SyncResultadoDto`
-- `LegacyBridge.Application` compila sin errores
+- `LegacySync.Application` compila sin errores
 
 **Criterios de aceptación:**
 - [ ] MediatR (o equivalente) configurado en Application.
@@ -243,7 +243,7 @@ La capa Application tiene los Commands, Queries y servicios base que permiten a 
 - [ ] Las 3 Queries implementadas con sus handlers.
 - [ ] `SyncControlService` implementa las transiciones de estado correctamente (Pendiente → EnProceso → Completado/Error).
 - [ ] La lógica de elegibilidad para reintento (`NumeroIntentos < MaxReintentos` y `TipoError != Permanent`) está encapsulada en `SyncControlService`.
-- [ ] `LegacyBridge.Application` compila sin referencias a Infrastructure.
+- [ ] `LegacySync.Application` compila sin referencias a Infrastructure.
 - [ ] PR aprobado por líder técnico.
 
 **Recursos:**
@@ -257,27 +257,27 @@ La capa Application tiene los Commands, Queries y servicios base que permiten a 
 **[ NO-FU-003 ] [ SERV-TRANSACT ] Implementar Infrastructure — 3 contextos EF Core y repositorio genérico**
 
 **Aplicativos:**
-ProquifaDotNet.LegacyBridge
+ProquifaDotNet.LegacySync
 
 **Módulos:**
-LegacyBridge.Infrastructure — Persistencia
+LegacySync.Infrastructure — Persistencia
 
 **Consideraciones previas:**
-- Los 3 contextos EF Core acceden a bases de datos distintas: `ProquifaDotNet` (origen), `PConnect` (Legacy destino), `PConnectProquifaDotNet` (control LegacyBridge).
-- El Scaffold de `ProquifaDotNet` y `PConnect` genera las entidades necesarias. Se incluyen solo las tablas que LegacyBridge necesita leer o escribir — no el modelo completo.
+- Los 3 contextos EF Core acceden a bases de datos distintas: `ProquifaDotNet` (origen), `PConnect` (Legacy destino), `PConnectProquifaDotNet` (control LegacySync).
+- El Scaffold de `ProquifaDotNet` y `PConnect` genera las entidades necesarias. Se incluyen solo las tablas que LegacySync necesita leer o escribir — no el modelo completo.
 - El Scaffold se actualiza incrementalmente conforme cada requisito funcional integra nuevas entidades.
 - El repositorio genérico `Repository<T>` implementa `IRepository<T>` del Domain y es reutilizable para cualquier contexto.
 - La cadena de conexión de `ProquifaDotNet` usa: `Data Source=RYNL010;Initial Catalog=ProquifaDotNet;Integrated Security=True;Persist Security Info=False;Pooling=False;MultipleActiveResultSets=False;Encrypt=False;TrustServerCertificate=True;Command Timeout=0`
 - Registrar los 3 contextos y el repositorio genérico en el contenedor DI de la solución.
 
 **Objetivo general:**
-Implementar la capa de persistencia de LegacyBridge con los 3 contextos EF Core y un repositorio genérico reutilizable por todos los jobs y servicios.
+Implementar la capa de persistencia de LegacySync con los 3 contextos EF Core y un repositorio genérico reutilizable por todos los jobs y servicios.
 
 **Objetivos específicos:**
 - Configurar EF Core con los 3 contextos:
   - `ProquifaDotNetDbContext` — lectura de entidades origen (tablas a definir por cada requisito funcional).
   - `PConnectDbContext` — escritura en Legacy destino.
-  - `LegacyBridgeDbContext` — lectura/escritura en `PConnectProquifaDotNet` (SyncControl, SyncJobLog, AppSettings, vw_SyncPendientes).
+  - `LegacySyncDbContext` — lectura/escritura en `PConnectProquifaDotNet` (SyncControl, SyncJobLog, AppSettings, vw_SyncPendientes).
 - Generar Scaffold inicial de `ProquifaDotNetDbContext` y `PConnectDbContext` con las tablas base (se amplía en cada requisito).
 - Implementar `Repository<T>` genérico que implemente `IRepository<T>`:
   - `GetByIdAsync(Guid id)`
@@ -289,10 +289,10 @@ Implementar la capa de persistencia de LegacyBridge con los 3 contextos EF Core 
 - Verificar conectividad a las 3 bases de datos desde el ambiente de desarrollo.
 
 **Resultado esperado:**
-Los 3 contextos EF Core están configurados y el repositorio genérico está disponible para inyectarse en cualquier job o servicio de LegacyBridge.
+Los 3 contextos EF Core están configurados y el repositorio genérico está disponible para inyectarse en cualquier job o servicio de LegacySync.
 
 **Entregables:**
-- `ProquifaDotNetDbContext`, `PConnectDbContext`, `LegacyBridgeDbContext`
+- `ProquifaDotNetDbContext`, `PConnectDbContext`, `LegacySyncDbContext`
 - Scaffold inicial de tablas base en cada contexto
 - `Repository<T>` implementando `IRepository<T>`
 - `AppSettingsRepository` con lectura en runtime
@@ -301,7 +301,7 @@ Los 3 contextos EF Core están configurados y el repositorio genérico está dis
 
 **Criterios de aceptación:**
 - [ ] Los 3 contextos EF Core conectan correctamente a sus bases de datos respectivas.
-- [ ] `Repository<T>` funciona con `LegacyBridgeDbContext` para `SyncControl` y `SyncJobLog`.
+- [ ] `Repository<T>` funciona con `LegacySyncDbContext` para `SyncControl` y `SyncJobLog`.
 - [ ] `AppSettingsRepository` lee valores de `AppSettings` en runtime sin reiniciar la aplicación.
 - [ ] Scaffold inicial generado para `ProquifaDotNetDbContext` y `PConnectDbContext`.
 - [ ] Todos los contextos y repositorios registrados en DI.
@@ -319,10 +319,10 @@ Los 3 contextos EF Core están configurados y el repositorio genérico está dis
 **[ NO-FU-003 ] [ ALG-BASIC-LOGIC ] Implementar SyncJobLog y ExceptionClassifier**
 
 **Aplicativos:**
-ProquifaDotNet.LegacyBridge
+ProquifaDotNet.LegacySync
 
 **Módulos:**
-LegacyBridge.Infrastructure — Logging y clasificación de errores
+LegacySync.Infrastructure — Logging y clasificación de errores
 
 **Consideraciones previas:**
 - `SyncJobLogService` implementa `ISyncJobLog` del Domain. Persiste cada ejecución de job en la tabla `SyncJobLog` con snapshot JSON del payload.
@@ -341,7 +341,7 @@ Implementar el servicio de log estructurado por ejecución (`SyncJobLog`) y el c
   - Persiste en tabla `SyncJobLog` vía `Repository<SyncJobLog>`.
 - Implementar `ExceptionClassifier` (implementa `IExceptionClassifier`):
   - Clasifica por tipo de excepción: `TimeoutException`, `SqlException` (deadlock/timeout) → `Transient`; `InvalidOperationException`, violaciones de constraints, errores de negocio → `Permanent`.
-  - Lista de tipos Transient configurable desde `AppSettings` (clave `LegacyBridge:ExcepcionesTransient`).
+  - Lista de tipos Transient configurable desde `AppSettings` (clave `LegacySync:ExcepcionesTransient`).
   - Método: `ExceptionType Clasificar(Exception ex)`
 - Registrar `SyncJobLogService` y `ExceptionClassifier` en DI.
 - Pruebas unitarias de `ExceptionClassifier` cubriendo casos Transient, Permanent y tipos no clasificados (default Permanent).
@@ -373,16 +373,16 @@ Cada ejecución de job queda auditada en `SyncJobLog` con snapshot del payload. 
 
 ## TAREA 6
 
-**[ NO-FU-003 ] [ CREATE-WORKER ] Implementar Hangfire + Worker.LegacyBridge — recurring jobs base**
+**[ NO-FU-003 ] [ CREATE-WORKER ] Implementar Hangfire + Worker.LegacySync — recurring jobs base**
 
 **Aplicativos:**
-ProquifaDotNet.LegacyBridge
+ProquifaDotNet.LegacySync
 
 **Módulos:**
-LegacyBridge.Infrastructure (Hangfire) + LegacyBridge.Worker
+LegacySync.Infrastructure (Hangfire) + LegacySync.Worker
 
 **Consideraciones previas:**
-- Hangfire gestiona la ejecución y reintento de jobs. El `Worker.LegacyBridge` es el proceso host que ejecuta los jobs de Hangfire.
+- Hangfire gestiona la ejecución y reintento de jobs. El `Worker.LegacySync` es el proceso host que ejecuta los jobs de Hangfire.
 - Hangfire puede usar `PConnectProquifaDotNet` como base de datos de sus tablas internas (confirmar con DBA antes de implementar).
 - El job base genérico `SyncJobBase` implementa `ISyncJobBase` e incluye el flujo estándar: leer pendientes → marcar EnProceso → ejecutar → registrar resultado → marcar Completado/Error.
 - Cada entidad (Clientes, Pedidos, etc.) hereda de `SyncJobBase` e implementa solo el método `EjecutarSyncAsync(SyncPendienteDto pendiente)`.
@@ -391,10 +391,10 @@ LegacyBridge.Infrastructure (Hangfire) + LegacyBridge.Worker
 - El Dashboard de Hangfire se habilita solo en ambiente de desarrollo/QA, protegido por autenticación en producción.
 
 **Objetivo general:**
-Configurar Hangfire como motor de jobs asíncronos e implementar el `Worker.LegacyBridge` con el job base genérico reutilizable por todas las entidades.
+Configurar Hangfire como motor de jobs asíncronos e implementar el `Worker.LegacySync` con el job base genérico reutilizable por todas las entidades.
 
 **Objetivos específicos:**
-- Instalar y configurar Hangfire en `LegacyBridge.Infrastructure` y `LegacyBridge.Worker`:
+- Instalar y configurar Hangfire en `LegacySync.Infrastructure` y `LegacySync.Worker`:
   - Storage: `PConnectProquifaDotNet` (SQL Server).
   - Dashboard protegido por autenticación en producción.
   - Política de reintentos: usar clasificación de `ExceptionClassifier` para determinar si Hangfire reintenta o descarta.
@@ -403,7 +403,7 @@ Configurar Hangfire como motor de jobs asíncronos e implementar el `Worker.Lega
   - Método abstracto `EjecutarSyncAsync(SyncPendienteDto pendiente)` — implementado por cada entidad concreta.
   - Manejo de errores: clasificar con `ExceptionClassifier` → si Transient, Hangfire reintenta; si Permanent, marcar Error definitivo + notificar.
 - Registrar un recurring job de prueba (`HealthCheckJob`) con ejecución cada 5 minutos que valide conectividad a las 3 bases de datos.
-- Configurar el host `Worker.LegacyBridge` como Windows Service o proceso .NET Worker.
+- Configurar el host `Worker.LegacySync` como Windows Service o proceso .NET Worker.
 - Verificar que Hangfire Dashboard es accesible y muestra el `HealthCheckJob` ejecutándose.
 
 **Resultado esperado:**
@@ -413,7 +413,7 @@ Hangfire configurado y ejecutando. `SyncJobBase` disponible para que cada requis
 - Hangfire configurado con storage `PConnectProquifaDotNet`
 - `SyncJobBase` abstracto con flujo estándar implementado
 - `HealthCheckJob` recurring job de prueba/validación
-- `Worker.LegacyBridge` configurado como host ejecutable
+- `Worker.LegacySync` configurado como host ejecutable
 - Dashboard Hangfire habilitado (dev/QA) con autenticación
 - Instrucciones de despliegue del Worker como Windows Service
 
@@ -439,16 +439,16 @@ Hangfire configurado y ejecutando. `SyncJobBase` disponible para que cada requis
 **[ NO-FU-003 ] [ SERV-TRANSACT ] Implementar servicio de notificaciones Brevo — alertas de fallos de integración**
 
 **Aplicativos:**
-ProquifaDotNet.LegacyBridge
+ProquifaDotNet.LegacySync
 
 **Módulos:**
-LegacyBridge.Infrastructure — Notificaciones
+LegacySync.Infrastructure — Notificaciones
 
 **Consideraciones previas:**
 - El servicio implementa `INotificationService` del Domain. Se invoca desde `SyncJobBase` cuando un error es clasificado como Permanent o cuando un registro agota sus reintentos.
 - Usa Brevo (mismo proveedor que el resto de ProquifaDotNet) con la configuración de credenciales desde `AppSettings` o `PConnectProquifaDotNet.AppSettings`.
 - El correo de alerta incluye: entidad afectada, `IdRegistroOrigen`, número de intentos, tipo de error, mensaje de excepción y enlace al endpoint de monitoreo para reintento manual (T9).
-- La lista de destinatarios es configurable desde `AppSettings` (`LegacyBridge:NotificacionDestinatarios`).
+- La lista de destinatarios es configurable desde `AppSettings` (`LegacySync:NotificacionDestinatarios`).
 - Si el envío de la notificación falla, se loguea en Serilog pero NO se lanza excepción — la notificación es best-effort para no bloquear el flujo del job.
 
 **Objetivo general:**
@@ -458,8 +458,8 @@ Implementar el servicio de notificación de fallos de integración vía Brevo, q
 - Implementar `BrevoNotificationService` (implementa `INotificationService`):
   - Método `NotificarFalloAsync(SyncResultadoDto resultado)` — envía correo de alerta vía Brevo API.
   - Incluir en el cuerpo: entidad, `IdRegistroOrigen`, número de intentos, tipo de error, mensaje, enlace al endpoint de reintento.
-  - Leer destinatarios desde `AppSettings` (`LegacyBridge:NotificacionDestinatarios`).
-  - Leer credenciales Brevo desde `AppSettings` (`LegacyBridge:Brevo:ApiKey`, `LegacyBridge:Brevo:CorreoEmisor`).
+  - Leer destinatarios desde `AppSettings` (`LegacySync:NotificacionDestinatarios`).
+  - Leer credenciales Brevo desde `AppSettings` (`LegacySync:Brevo:ApiKey`, `LegacySync:Brevo:CorreoEmisor`).
 - Implementar plantilla HTML del correo de alerta (inline o desde `AppSettings`).
 - Manejo de fallo en envío: loguear en Serilog + continuar, sin propagar excepción.
 - Registrar `BrevoNotificationService` en DI.
@@ -494,10 +494,10 @@ Cuando un job marca un error Permanent o agota reintentos, el equipo de operacio
 **[ NO-FU-003 ] [ SERV-TRANSACT ] Implementar mecanismo de sincronización de archivos (FileSync)**
 
 **Aplicativos:**
-ProquifaDotNet.LegacyBridge
+ProquifaDotNet.LegacySync
 
 **Módulos:**
-LegacyBridge.Infrastructure — FileSync
+LegacySync.Infrastructure — FileSync
 
 **Consideraciones previas:**
 - Algunas entidades sincronizadas tienen archivos relacionados: Buzón de Cobros tiene archivos adjuntos en MinIO (`ArchivoCorreoRecibido`), Factura tiene PDFs, etc.
@@ -505,11 +505,11 @@ LegacyBridge.Infrastructure — FileSync
 - Los archivos origen pueden estar en: MinIO (bucket `mailbot` u otros) o en la base de datos ProquifaDotNet.
 - El destino de los archivos en Legacy es un directorio de red configurado por entidad en `AppSettings`.
 - FileSync tiene su propio log por archivo dentro del `SyncJobLog` del registro padre — un archivo fallido no cancela los demás ni el registro de datos.
-- Política de reintento de archivos: independiente de la política del registro padre. Configurable via `AppSettings` (`LegacyBridge:FileSync:MaxReintentos`).
+- Política de reintento de archivos: independiente de la política del registro padre. Configurable via `AppSettings` (`LegacySync:FileSync:MaxReintentos`).
 - La interfaz `IFileSyncService` ya está definida en Domain (T2).
 
 **Objetivo general:**
-Implementar el servicio de sincronización de archivos relacionados con las entidades que LegacyBridge transfiere, con log independiente por archivo y política de reintento propia.
+Implementar el servicio de sincronización de archivos relacionados con las entidades que LegacySync transfiere, con log independiente por archivo y política de reintento propia.
 
 **Objetivos específicos:**
 - Implementar `FileSyncService` (implementa `IFileSyncService`):
@@ -520,7 +520,7 @@ Implementar el servicio de sincronización de archivos relacionados con las enti
   - Por cada archivo: registrar resultado (éxito/error) en `SyncJobLog` como entrada individual.
   - Un archivo fallido no cancela los demás archivos ni el registro de datos del job padre.
 - Implementar `MinIOFileResolver`: obtiene la URL de descarga de un archivo dado su `IdArchivo` desde `ProquifaDotNetDbContext`.
-- Configurar directorio destino por entidad en `AppSettings` (ej. `LegacyBridge:FileSync:DirectorioClientes`, `LegacyBridge:FileSync:DirectorioBuzonCobros`).
+- Configurar directorio destino por entidad en `AppSettings` (ej. `LegacySync:FileSync:DirectorioClientes`, `LegacySync:FileSync:DirectorioBuzonCobros`).
 - Política de reintento por archivo: `MaxReintentos` desde `AppSettings`, independiente del registro padre.
 - Registrar `FileSyncService` y `MinIOFileResolver` en DI.
 
@@ -555,20 +555,20 @@ Los archivos relacionados con entidades sincronizadas se transfieren al director
 **[ NO-FU-003 ] [ CREATE-API-ENDPOINT ] Implementar API de monitoreo — endpoints de consulta de estado y reintento**
 
 **Aplicativos:**
-ProquifaDotNet.LegacyBridge
+ProquifaDotNet.LegacySync
 
 **Módulos:**
-LegacyBridge.API — Monitoreo
+LegacySync.API — Monitoreo
 
 **Consideraciones previas:**
-- La API de monitoreo es la interfaz operativa de LegacyBridge: permite consultar estado de sincronización y forzar reintentos sin acceso directo a la base de datos.
+- La API de monitoreo es la interfaz operativa de LegacySync: permite consultar estado de sincronización y forzar reintentos sin acceso directo a la base de datos.
 - Los endpoints usan los Commands y Queries de Application (T3) — la API no accede directamente a la BD.
 - La autenticación es via IdentityServer (mismo que ProquifaDotNet.Finanzas y ProquifaDotNet.Timbrado).
 - El endpoint `/sync/reintentar/{idSyncControl}` solo funciona si el registro está en estado `Error` con `TipoError != Permanent`. Si es Permanent, retorna 400 con mensaje explicativo.
 - Documentar la API con Swagger/OpenAPI.
 
 **Objetivo general:**
-Implementar la API RESTful de LegacyBridge que expone endpoints de monitoreo para consultar el estado de sincronizaciones y forzar reintentos manuales.
+Implementar la API RESTful de LegacySync que expone endpoints de monitoreo para consultar el estado de sincronizaciones y forzar reintentos manuales.
 
 **Objetivos específicos:**
 - Implementar `MonitoreoController` con los siguientes endpoints:
@@ -610,13 +610,13 @@ Los endpoints de monitoreo son accesibles y funcionales. El equipo de operacione
 
 ## TAREA 10
 
-**[ NO-FU-003 ] [ QUERY-M ] Testing base — pruebas unitarias e integración de infraestructura LegacyBridge**
+**[ NO-FU-003 ] [ QUERY-M ] Testing base — pruebas unitarias e integración de infraestructura LegacySync**
 
 **Aplicativos:**
-ProquifaDotNet.LegacyBridge
+ProquifaDotNet.LegacySync
 
 **Módulos:**
-LegacyBridge.Testing
+LegacySync.Testing
 
 **Consideraciones previas:**
 - Las pruebas de esta tarea validan la infraestructura base — no los jobs específicos por entidad (esos se prueban en cada requisito funcional).
@@ -625,7 +625,7 @@ LegacyBridge.Testing
 - Las pruebas de integración requieren acceso a ambiente QA — no se ejecutan en CI en cada commit, solo en pipeline de validación de release.
 
 **Objetivo general:**
-Validar mediante pruebas unitarias e integración que la infraestructura base de LegacyBridge funciona correctamente antes de que los requisitos funcionales empiecen a agregar jobs específicos.
+Validar mediante pruebas unitarias e integración que la infraestructura base de LegacySync funciona correctamente antes de que los requisitos funcionales empiecen a agregar jobs específicos.
 
 **Objetivos específicos:**
 - Pruebas unitarias:
@@ -641,7 +641,7 @@ Validar mediante pruebas unitarias e integración que la infraestructura base de
 - Documentar resultados de pruebas de integración con evidencias.
 
 **Resultado esperado:**
-Todas las pruebas unitarias pasan. Las pruebas de integración en QA confirman que la infraestructura base de LegacyBridge está operativa y lista para recibir los jobs de requisitos funcionales.
+Todas las pruebas unitarias pasan. Las pruebas de integración en QA confirman que la infraestructura base de LegacySync está operativa y lista para recibir los jobs de requisitos funcionales.
 
 **Entregables:**
 - Suite de pruebas unitarias: `ExceptionClassifierTests`, `SyncControlServiceTests`, `SyncJobBaseTests`

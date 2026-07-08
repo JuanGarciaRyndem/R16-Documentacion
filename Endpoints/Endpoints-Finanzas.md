@@ -50,7 +50,7 @@ Fuente: `R16A-RE-FU-016-Back-Finanzas.md` (CRUD base) + `R16A-RE-FU-016-Back.md`
 
 **Controllers:** `CfdiController` (recurso de negocio CFDI) + `AdvanceInvoiceController` (listado FAA)
 
-> **Nota de arquitectura:** el CFDI como entidad de negocio (`CFDIGenerada`) vive en Finanzas, no en Timbrado. `CfdiController` arma los datos fiscales, llama al servicio técnico de Timbrado (`POST /api/v1/stamp`, ver `Endpoints-Timbrado.md`) y persiste el resultado. Ruta alineada a `api/v1/{resource}/{id}/{subresource}` (Reglas al diseñar — regla 9): recurso singular `cfdi`.
+> **Nota de arquitectura:** el CFDI como entidad de negocio (`CFDIGenerada`) vive en Finanzas, no en Timbrado. `CfdiController` arma los datos fiscales, llama al endpoint técnico de Timbrado según el tipo de documento (`POST /api/v1/stamp/invoice`, `/payment-complement` o `/credit-note`, ver `Endpoints-Timbrado.md`) y persiste el resultado. Ruta alineada a `api/v1/{resource}/{id}/{subresource}` (Reglas al diseñar — regla 9): recurso singular `cfdi`.
 
 | Método | Ruta                            | Descripción                                                                               | Parámetros entrada                                                                           | Respuesta                              |
 | ------ | ------------------------------- | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | -------------------------------------- |
@@ -87,7 +87,7 @@ Reutiliza los mismos endpoints que RE-019. El branch interno de Perú se activa 
 | Ruta                                            | Variante Perú                                                                                         | Estado      |
 | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ----------- |
 | `POST /api/v1/advanceInvoice/{clientId}/detail` | `RegionClave='PER'` filtra pedidos Perú                                                               | ✅ Reutiliza |
-| `POST /api/v1/advanceInvoice/{id}/generate`     | Si `PER` → arma UBL 2.1 → `CfdiService.GenerateAsync` (internamente `POST /api/v1/stamp` en Timbrado) | ⚙️ Extiende |
+| `POST /api/v1/advanceInvoice/{id}/generate`     | Si `PER` → arma UBL 2.1 → `CfdiService.GenerateAsync` (internamente `POST /api/v1/stamp/invoice` en Timbrado) | ⚙️ Extiende |
 | `POST /api/v1/advanceInvoice/{id}/preview`      | Si `PER` → template PDF `GOLPERU_PER_FAC`                                                             | ⚙️ Extiende |
 | `POST /api/v1/advanceInvoice/{id}/send`         | Sin diferencias regionales                                                                            | ✅ Reutiliza |
 
@@ -182,16 +182,16 @@ Mismos endpoints que RE-026 con variaciones regionales: `region=PER`, moneda bas
 
 **Controller:** `PaymentValidationStep3Controller`
 
-| Método | Ruta | Descripción | Parámetros entrada | Respuesta |
-|--------|------|-------------|-------------------|-----------|
-| POST | `/api/v1/validate-collection/fiscalDocumentStep/initialize` | Crea las líneas de `fccDocumentoFiscalCobro` por cada documento de la asociación del Paso 2 al avanzar desde Paso 2, o recupera el estado existente al reingresar sin duplicar | Body: `{ IdFCCPagoCliente }` | `Step3InitializedDto` |
-| PUT | `/api/v1/validate-collection/fiscalDocumentLine/{idLinea}/cfdiConfig` | Persiste Uso CFDI y/o Método de Pago de forma inmediata (auto-guardado) al modificar campos en pantalla | `idLinea` en path; Body: `UpdateLineConfigurationDto` | `UpdateLineConfigurationDto` |
-| POST | `/api/v1/validate-collection/fiscalDocumentLine/{idLinea}/pdfPreview` | Genera PDF de previsualización en memoria sin persistir vía DocumentBuilder; template según tipo de línea | `idLinea` en path | `byte[]` PDF |
-| POST | `/api/v1/validate-collection/fiscalDocumentLine/{idLinea}/stamp` | Llama Timbrado y ejecuta el escenario de timbrado correcto por tipo de línea (incluye cascada Factura + Complemento cuando el método de pago es PPD) | `idLinea` en path; Body: `StampLineCommand` | `StampLineResultDto` |
-| POST | `/api/v1/validate-collection/fiscalDocumentLine/{idLinea}/send` | Genera PDF de Confirmación de Pedido, despacha correo con CFDI + Confirmación vía ProquifaDotNet.EnvioCorreo y marca la línea como `ENVIADO` | `idLinea` en path; Body: `SendLineRequestDto` | `SendLineResultDto` |
-| GET | `/api/v1/validate-collection/fiscalDocumentStep/{idCliente}/closingStatus` | Verifica si todas las líneas del cliente están en `ENVIADO` para permitir el cierre automático del wizard | `idCliente` en path | `Step3ClosureStatusDto` |
+| Método | Ruta                                                                       | Descripción                                                                                                                                                                    | Parámetros entrada                                    | Respuesta                    |
+| ------ | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- | ---------------------------- |
+| POST   | `/api/v1/validate-collection/fiscalDocumentStep/initialize`                | Crea las líneas de `fccDocumentoFiscalCobro` por cada documento de la asociación del Paso 2 al avanzar desde Paso 2, o recupera el estado existente al reingresar sin duplicar | Body: `{ IdFCCPagoCliente }`                          | `Step3InitializedDto`        |
+| PUT    | `/api/v1/validate-collection/fiscalDocumentLine/{idLinea}/cfdiConfig`      | Persiste Uso CFDI y/o Método de Pago de forma inmediata (auto-guardado) al modificar campos en pantalla                                                                        | `idLinea` en path; Body: `UpdateLineConfigurationDto` | `UpdateLineConfigurationDto` |
+| POST   | `/api/v1/validate-collection/fiscalDocumentLine/{idLinea}/pdfPreview`      | Genera PDF de previsualización en memoria sin persistir vía DocumentBuilder; template según tipo de línea                                                                      | `idLinea` en path                                     | `byte[]` PDF                 |
+| POST   | `/api/v1/validate-collection/fiscalDocumentLine/{idLinea}/stamp`           | Llama Timbrado y ejecuta el escenario de timbrado correcto por tipo de línea (incluye cascada Factura + Complemento cuando el método de pago es PPD)                           | `idLinea` en path; Body: `StampLineCommand`           | `StampLineResultDto`         |
+| POST   | `/api/v1/validate-collection/fiscalDocumentLine/{idLinea}/send`            | Genera PDF de Confirmación de Pedido, despacha correo con CFDI + Confirmación vía ProquifaDotNet.EnvioCorreo y marca la línea como `ENVIADO`                                   | `idLinea` en path; Body: `SendLineRequestDto`         | `SendLineResultDto`          |
+| GET    | `/api/v1/validate-collection/fiscalDocumentStep/{idCliente}/closingStatus` | Verifica si todas las líneas del cliente están en `ENVIADO` para permitir el cierre automático del wizard                                                                      | `idCliente` en path                                   | `Step3ClosureStatusDto`      |
 
-RE-029 (Perú) reutiliza los mismos endpoints del Paso 3 bajo la misma convención `/api/v1/validate-collection/fiscalDocumentStep|fiscalDocumentLine` sin rutas nuevas — branch interno por región (SUNAT en vez de SAT, sin trigger de Complemento de Pago para FAA directa). Ver `Endpoints-Timbrado.md`, que expone un único `POST /api/v1/stamp` reutilizado tanto para SAT como para SUNAT.
+RE-029 (Perú) reutiliza los mismos endpoints del Paso 3 bajo la misma convención `/api/v1/validate-collection/fiscalDocumentStep|fiscalDocumentLine` sin rutas nuevas — branch interno por región (SUNAT en vez de SAT, sin trigger de Complemento de Pago para FAA directa). Ver `Endpoints-Timbrado.md`, que expone un endpoint por tipo de documento (`/api/v1/stamp/invoice`, `/payment-complement`, `/credit-note`) reutilizado tanto para SAT como para SUNAT.
 
 ---
 
@@ -205,17 +205,17 @@ No agrega endpoints. El Complemento de Pago se genera como parte de la cascada P
 
 **Controller:** `CreditNoteController` (recurso `creditNote`) + `CfdiController` (timbrado, compartido con RE-018/021/028)
 
-| Método | Ruta | Descripción | Parámetros entrada | Respuesta |
-|--------|------|-------------|-------------------|-----------|
-| GET | `/api/v1/creditNote` | Pantalla principal — NCs agrupadas por cliente (Total NC, Vigentes, Por Aplicar, Monto Total) filtrado por cartera del cobrador autenticado | `?clientId={guid}&currency={str}&dateFrom={date}&dateTo={date}` (opcionales) | `List<CreditNoteClientSummaryDto>` |
-| GET | `/api/v1/client/{idCliente}/creditNote` | Drill-down — lista NCs del cliente con folio, fecha, monto, estado y comprobante origen | `idCliente` en path | `List<CreditNoteDto>` |
-| GET | `/api/v1/client/{id}/eligibleInvoice` | Lista facturas vigentes de prepago del cliente elegibles como origen de NC (≤ 5 años, no canceladas) | `id` en path | `List<EligibleInvoiceDto>` |
-| GET | `/api/v1/cfdi/{id}/lineItem` | Lista partidas de la factura origen (para wizard modalidad por partidas) | `id` en path (`IdCFDIGenerada`) | `List<InvoiceLineItemDto>` |
-| POST | `/api/v1/creditNote` | Persiste `fccNotaCredito` + `fccNotaCreditoPartida` (si aplica) en estado `PENDIENTE` — borrador previo al timbrado | Body: `CreditNoteDraftRequest` | `CreditNoteDto` |
-| GET | `/api/v1/creditNote/{id}/pdf/preview` | Genera PDF preview de NC en memoria sin timbrar | `id` en path | `byte[]` PDF |
-| POST | `/api/v1/creditNote/{id}/stamp` | Timbra NC México: llama Timbrado (`POST /api/v1/cfdi`), persiste PDF/XML en MinIO, cancela factura origen si `CancelarFacturaOrigen=true`, envía correo | `id` en path; Body: `CreditNoteMexicoRequest` | `CreditNoteMexicoResponse` |
-| POST | `/api/v1/creditNote/{id}/resendEmail` | Reenvía correo de NC usando PDF/XML ya existentes en MinIO | `id` en path | `SendStatusDto` |
-| GET | `/api/v1/cancellationReason` | Catálogo de motivos de cancelación SAT (`catMotivoCancelacionSAT`) para el modal de cancelación condicional | — | `List<CancellationReasonDto>` |
+| Método | Ruta                                    | Descripción                                                                                                                                             | Parámetros entrada                                                           | Respuesta                          |
+| ------ | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------- |
+| GET    | `/api/v1/creditNote`                    | Pantalla principal — NCs agrupadas por cliente (Total NC, Vigentes, Por Aplicar, Monto Total) filtrado por cartera del cobrador autenticado             | `?clientId={guid}&currency={str}&dateFrom={date}&dateTo={date}` (opcionales) | `List<CreditNoteClientSummaryDto>` |
+| GET    | `/api/v1/client/{idCliente}/creditNote` | Drill-down — lista NCs del cliente con folio, fecha, monto, estado y comprobante origen                                                                 | `idCliente` en path                                                          | `List<CreditNoteDto>`              |
+| GET    | `/api/v1/client/{id}/eligibleInvoice`   | Lista facturas vigentes de prepago del cliente elegibles como origen de NC (≤ 5 años, no canceladas)                                                    | `id` en path                                                                 | `List<EligibleInvoiceDto>`         |
+| GET    | `/api/v1/cfdi/{id}/lineItem`            | Lista partidas de la factura origen (para wizard modalidad por partidas)                                                                                | `id` en path (`IdCFDIGenerada`)                                              | `List<InvoiceLineItemDto>`         |
+| POST   | `/api/v1/creditNote`                    | Persiste `fccNotaCredito` + `fccNotaCreditoPartida` (si aplica) en estado `PENDIENTE` — borrador previo al timbrado                                     | Body: `CreditNoteDraftRequest`                                               | `CreditNoteDto`                    |
+| GET    | `/api/v1/creditNote/{id}/pdf/preview`   | Genera PDF preview de NC en memoria sin timbrar                                                                                                         | `id` en path                                                                 | `byte[]` PDF                       |
+| POST   | `/api/v1/creditNote/{id}/stamp`         | Timbra NC México: llama Timbrado (`POST /api/v1/cfdi`), persiste PDF/XML en MinIO, cancela factura origen si `CancelarFacturaOrigen=true`, envía correo | `id` en path; Body: `CreditNoteMexicoRequest`                                | `CreditNoteMexicoResponse`         |
+| POST   | `/api/v1/creditNote/{id}/resendEmail`   | Reenvía correo de NC usando PDF/XML ya existentes en MinIO                                                                                              | `id` en path                                                                 | `SendStatusDto`                    |
+| GET    | `/api/v1/cancellationReason`            | Catálogo de motivos de cancelación SAT (`catMotivoCancelacionSAT`) para el modal de cancelación condicional                                             | —                                                                            | `List<CancellationReasonDto>`      |
 
 Fuente: `R16A-RE-FU-032-Tareas.md` (rutas), `R16A-RE-FU-032-Back.md` Parte B (comportamiento).
 

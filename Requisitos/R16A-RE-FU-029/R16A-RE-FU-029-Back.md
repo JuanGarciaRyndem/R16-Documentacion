@@ -56,7 +56,7 @@ Al confirmar el envío de cada línea, Finanzas dispara dos acciones automática
 | `DatosFacturacionCliente` | RE-FU-004 | RUC, Razón Social receptor del CPE UBL 2.1 |
 | `Empresa` (GOLPERU) | RE-FU-020 | RUC Emisor, Razón Social emisora; datos fiscales pendientes (Brecha B4) |
 | `FacturaPdfMappingService` Perú | RE-FU-020 | Consolidación datos CPE en `InvoicePdfModel`; template `GOLPERU_PER_FAC` |
-| `ApiCallerStamping` (HttpClient + Polly) | RE-FU-019 | Cliente HTTP con retry policy hacia Timbrado — reutilizado sin cambios |
+| `ApiCallerStamping` (HttpClient + Polly) | RE-FU-019 | Cliente HTTP con retry policy hacia Timbrado — se usa `StampInvoiceAsync` (`POST /api/v1/stamp/invoice`), reutilizado sin cambios |
 | `tpProformaPedido.IdCFDIGenerada` | RE-FU-026 | Campo existente; Perú lo puebla con el `IdCFDIGenerada` del CPE timbrado |
 
 ---
@@ -289,9 +289,9 @@ WHERE IdFCCPagoCliente = @Id
 
 ## Parte C — ProquifaDotNet.Timbrado
 
-### C1 — Endpoint de timbrado CPE SUNAT
+### C1 — Endpoint de timbrado CPE SUNAT (`POST /api/v1/stamp/invoice`)
 
-Timbrado recibe una solicitud por línea desde Finanzas. A diferencia de México (que puede generar 2 CFDIs en cascada PPD), en Perú siempre es **1 CPE por llamada**.
+Timbrado recibe una solicitud por línea desde Finanzas en `POST /api/v1/stamp/invoice` (mismo endpoint que México — la región se resuelve por los datos del request). A diferencia de México (que puede generar 2 CFDIs en cascada PPD), en Perú siempre es **1 CPE por llamada**.
 
 La solicitud incluye: tipo `FACTURA_CPE`, RUC emisor (GOLPERU), RUC receptor, partidas UBL 2.1 (con código SUNAT, UdM SUNAT, afectación IGV), Tipo de Operación catálogo 51, y NCs aplicadas (mecánica catálogo 09 pendiente — RE-FU-033/035).
 

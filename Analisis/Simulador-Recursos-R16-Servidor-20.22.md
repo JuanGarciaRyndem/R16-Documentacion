@@ -112,7 +112,7 @@ El FCR representa el impacto esperado que el nuevo release puede generar sobre e
 | **Nivel 4** — Procesamiento intensivo o generación masiva | Generación de documentos o reportes masivos, procesamiento batch, agregaciones complejas, generación o almacenamiento de archivos, procesamiento intensivo de datos. Incremento alto en CPU, RAM y almacenamiento; posible impacto en tiempos de respuesta. | 1.20 | |
 
 > **Release R16 — Nivel seleccionado: Nivel 3 (FCR = 1.15)**  
-> Se introducen nuevos procesos transaccionales (Buzón de Cobros, Validar Cobro, Facturación, Notas de Crédito), inserción de registros en BD e integración con servicios internos (Finanzas, Timbrado, LegacyBridge).
+> Se introducen nuevos procesos transaccionales (Buzón de Cobros, Validar Cobro, Facturación, Notas de Crédito), inserción de registros en BD e integración con servicios internos (Finanzas, Timbrado, LegacySync).
 
 ---
 

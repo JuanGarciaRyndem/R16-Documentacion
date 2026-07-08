@@ -155,7 +155,7 @@ de timbrado en R16A-RE-FU-018 (Parte 3) via `ALTER TABLE` posteriores.
        Lee: vfccFactura (RE-FU-015 — antes: tpPedido, tpProformaAdelanto, DatosFacturacionCliente, Empresa), catUsoCFDI
 
     2. TIMBRAR (al confirmar previsualizacion) -- CfdiController (ProquifaDotNet.Finanzas)
-       ProquifaDotNet.Timbrado (servicio tecnico, POST /api/v1/stamp):
+       ProquifaDotNet.Timbrado (servicio tecnico, POST /api/v1/stamp/invoice):
          UPDATE EmpresaFolio SET UltimoFolio+1 (consume el folio atomicamente antes de armar el CFDI)
          Arma el CFDI con ese folio -> llama PAC -> recibe UUID
          INSERT StampingLog (ProquifaDotNetTimbrado, auditoria tecnica de la llamada)
@@ -164,13 +164,14 @@ de timbrado en R16A-RE-FU-018 (Parte 3) via `ALTER TABLE` posteriores.
          INSERT CFDIGenerada (ProquifaDotNet): UUID, Serie, Folio, FechaEmision, IdCatTipoCFDI, Total,
            IdCatUsoCFDI, IdCatMetodoDePagoCFDI, IdCatMoneda, TipoCambio, Estado='Timbrado'
          INSERT Archivo x2 (PDF+XML, FileBucket='facturas') + UPDATE CFDIGenerada SET IdArchivoXml
-         UPDATE fccFactura SET IdCFDIGenerada = @IdCFDIGenerada, EsFacturaPorAdelantado = 0
+         UPDATE fccFactura SET IdCFDIGenerada = @IdCFDIGenerada, EsFacturaPorAdelantado = 0,
+           IdCatFacturaEstado = GENERADA (catFacturaEstado, RE-FU-015 v2.1)
            (Id real de CFDIGenerada, no un Id de Timbrado; antes: UPDATE tpProformaAdelanto SET IdCFDIGenerada)
 
     3. ENVIAR (modal envio)
        ProquifaDotNet:
          INSERT CorreoEnviado + ArchivoCorreoEnviado
-         UPDATE fccFactura SET Enviada = 1 (antes: UPDATE tpProformaAdelanto SET Enviada = 1)
+         UPDATE fccFactura SET Enviada = 1, FechaEnvio = SYSUTCDATETIME(), IdCatFacturaEstado = ENVIADA (antes: UPDATE tpProformaAdelanto SET Enviada = 1)
          Segun tipo (fccFactura.IdTPProformaPedido NOT NULL = origen Credito):
            Credito -> transferencia Legacy
            Prepago -> pendiente Validar Cobro

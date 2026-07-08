@@ -124,7 +124,7 @@ Endpoint: `GET /api/v1/creditNote/{id}/pdf/preview` — retorna PDF en memoria s
 
 Orquesta la secuencia post-timbrado (⚠️ bloqueado por Brecha B1 — modalidad SUNAT pendiente):
 
-1. Llama al endpoint único de Timbrado (`POST /api/v1/cfdi`, discriminado por FiscalDocumentTypeId) con el `CreditNotePeruStampingRequest`.
+1. Llama al endpoint de Notas de Crédito de Timbrado (`POST /api/v1/stamp/credit-note`, vía `ApiCallerStamping.StampCreditNoteAsync`) con el `CreditNotePeruStampingRequest`.
 2. Recibe respuesta con constancia SUNAT (número, estado, fecha).
 3. Genera PDF post-timbrado vía DocumentBuilder con `CreditNotePeruPdfMappingService.MapearPostTimbrAsync()`.
 4. `PersistPeruCreditNotePdfService.PersistirAsync()`:
@@ -159,9 +159,9 @@ Al igual que en México (RE-032 Criterio A5), la pantalla principal de NC Perú 
 
 ## Parte C — ProquifaDotNet.Timbrado
 
-### C1 — Timbrado NC Perú (CPE tipo 07) vía endpoint único ⚠️ BLOQUEADO BRECHA B1
+### C1 — Timbrado NC Perú (CPE tipo 07) vía endpoint de Notas de Crédito ⚠️ BLOQUEADO BRECHA B1
 
-`POST /api/v1/cfdi` (discriminado por FiscalDocumentTypeId — mismo `CfdiController` de RE-FU-018, sin endpoint ni ruta separados)
+`POST /api/v1/stamp/credit-note` (mismo `StampingController` de RE-FU-018 — endpoint por tipo de documento, compartido SAT/SUNAT, la región se resuelve por los datos del request)
 
 ⚠️ **Brecha B1 bloqueante:** La modalidad de emisión electrónica ante SUNAT no está definida. No se asume OSE ni se reutiliza TurboPac de México. Esta orquestación no puede implementarse hasta que RE-029 resuelva la brecha de timbrado SUNAT.
 

@@ -33,7 +33,7 @@ Documentación técnica del proyecto R16 de ProquifaDotNet. Cubre el análisis, 
 
 - [ProquifaDotNet.Finanzas](Soluciones%20Nuevas/ProquifaDotNet.Finanzas.md)
 - [ProquifaDotNet.Timbrado](Soluciones%20Nuevas/ProquifaDotNet.Timbrado.md)
-- [ProquifaDotNet.LegacyBridge](Soluciones%20Nuevas/ProquifaDotNet.LegacyBridge.md)
+- [ProquifaDotNet.LegacySync](Soluciones%20Nuevas/ProquifaDotNet.LegacySync.md)
 - [ProquifaDotNet.EnvioCorreo](Soluciones%20Nuevas/ProquifaDotNet.EnvioCorreo.md)
 
 ---
@@ -68,7 +68,7 @@ Documentación técnica del proyecto R16 de ProquifaDotNet. Cubre el análisis, 
 - [ER — Finanzas](Database/ER-Finanzas.md)
 - [ER — Timbrado](Database/ER-Timbrado.md)
 - [ER — EnvioCorreo](Database/ER-EnvioCorreo.md)
-- [ER — LegacyBridge](Database/ER-LegacyBridge.md)
+- [ER — LegacySync](Database/ER-LegacySync.md)
 - [ER — PCconnect](Database/ER-PCconnect.md)
 - [Script DDL — ProquifaDotNet](Database/ProquifaDotNet.sql)
 
@@ -80,7 +80,7 @@ Documentación técnica del proyecto R16 de ProquifaDotNet. Cubre el análisis, 
 - [Endpoints — Finanzas](Endpoints/Endpoints-Finanzas.md)
 - [Endpoints — Timbrado](Endpoints/Endpoints-Timbrado.md)
 - [Endpoints — EnvioCorreo](Endpoints/Endpoints-EnvioCorreo.md)
-- [Endpoints — LegacyBridge](Endpoints/Endpoints-LegacyBridge.md)
+- [Endpoints — LegacySync](Endpoints/Endpoints-LegacySync.md)
 
 ---
 
