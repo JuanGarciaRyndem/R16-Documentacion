@@ -265,13 +265,13 @@ Estado inmutable:     fccPagoCliente.Folio = 'COB-mmddaa-NNNNNN'  →  Confirmad
 
 ## Ciclo de vida del registro fccPagoCliente
 
-| Estado                         | `Confirmado` | `BloqueadoPorTimbrado` | `Folio`             | `Activo` | `IdCatMoneda`                | Acciones UI Paso 1                 |
-| ------------------------------ | ------------ | ---------------------- | ------------------- | -------- | ---------------------------- | ---------------------------------- |
-| Auto-guardado (borrador)       | 0            | 0                      | NULL                | 1        | Poblado al seleccionar       | Edición continua del formulario    |
-| Cobro capturado (editable)     | 1            | 0                      | COB-mmddaa-NNNNNN   | 1        | Poblado                      | Lectura + **botón Editar visible** |
-| Cobro inmutable (post-timbrar) | 1            | 1                      | COB-mmddaa-NNNNNN   | 1        | Poblado                      | Solo lectura (sin botón Editar)    |
-| Saldo a favor (post-timbrar)   | 1            | 1                      | COB-mmddaa-NNNNNN   | 1        | Poblado                      | Solo lectura (sin botón Editar)    |
-| Inconsistencia marcada         | 1            | 0 o 1                  | COB-mmddaa-NNNNNN   | 0        | Poblado                      | Lectura (Editar según bloqueo)     |
+| Estado                         | `Confirmado` | `BloqueadoPorTimbrado` | `Folio`           | `Activo` | `IdCatMoneda`          | Acciones UI Paso 1                 |
+| ------------------------------ | ------------ | ---------------------- | ----------------- | -------- | ---------------------- | ---------------------------------- |
+| Auto-guardado (borrador)       | 0            | 0                      | NULL              | 1        | Poblado al seleccionar | Edición continua del formulario    |
+| Cobro capturado (editable)     | 1            | 0                      | COB-mmddaa-NNNNNN | 1        | Poblado                | Lectura + **botón Editar visible** |
+| Cobro inmutable (post-timbrar) | 1            | 1                      | COB-mmddaa-NNNNNN | 1        | Poblado                | Solo lectura (sin botón Editar)    |
+| Saldo a favor (post-timbrar)   | 1            | 1                      | COB-mmddaa-NNNNNN | 1        | Poblado                | Solo lectura (sin botón Editar)    |
+| Inconsistencia marcada         | 1            | 0 o 1                  | COB-mmddaa-NNNNNN | 0        | Poblado                | Lectura (Editar según bloqueo)     |
 
 > El flip `BloqueadoPorTimbrado = 0 → 1` lo dispara el Paso 3 al timbrar el documento al que se aplicó el cobro (un cobro puede estar asociado a uno o más documentos; en cuanto se timbra **cualquiera**, el cobro queda inmutable).
 

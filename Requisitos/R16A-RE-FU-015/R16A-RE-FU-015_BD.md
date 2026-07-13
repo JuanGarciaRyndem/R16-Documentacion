@@ -437,16 +437,16 @@ WHERE f.EsFacturaPorAdelantado = 1;
 
 ## Orden de Ejecución de Scripts
 
-| # | Script | Bloqueante |
-|---|---|---|
-| 1 | CREATE TABLE `CFDIGenerada` (si no existe aún — base, RE-FU-019) | No (prerrequisito de 3 y 6) |
-| 2 | CREATE TABLE `catFacturaEstado` + seed (7 estados) | No (prerrequisito de 3) |
-| 3 | CREATE TABLE `fccFactura` (incluye FK `IdCFDIGenerada`, `IdTPProformaPedido`, `IdCatFacturaEstado`) | No (depende de 1 y 2) |
-| 4 | CREATE TABLE `fccFacturaPartida` (FK → `fccFactura`) | No (depende de 3) |
-| 5 | CREATE TABLE `fccFacturaReferenciaBancaria` (FK → `fccFactura`) | No (depende de 3) |
-| 6 | CREATE VIEW `vfccFactura` (reemplaza `vtpProformaAdelanto`, incluye JOIN a `catFacturaEstado`) | No (depende de 1, 2, 3) |
-| 7 | CREATE TABLE `CatEstadoTpPedido` + seed | ⛔ Sí — OBS-027 |
-| 8 | ALTER TABLE `tpPedido` ADD `IdCatEstadoTpPedido` (FK → `CatEstadoTpPedido`) | ⛔ Sí — OBS-027, depende de 7 |
+| #   | Script                                                                                              | Bloqueante                   |
+| --- | --------------------------------------------------------------------------------------------------- | ---------------------------- |
+| 1   | CREATE TABLE `CFDIGenerada` (si no existe aún — base, RE-FU-019)                                    | No (prerrequisito de 3 y 6)  |
+| 2   | CREATE TABLE `catFacturaEstado` + seed (7 estados)                                                  | No (prerrequisito de 3)      |
+| 3   | CREATE TABLE `fccFactura` (incluye FK `IdCFDIGenerada`, `IdTPProformaPedido`, `IdCatFacturaEstado`) | No (depende de 1 y 2)        |
+| 4   | CREATE TABLE `fccFacturaPartida` (FK → `fccFactura`)                                                | No (depende de 3)            |
+| 5   | CREATE TABLE `fccFacturaReferenciaBancaria` (FK → `fccFactura`)                                     | No (depende de 3)            |
+| 6   | CREATE VIEW `vfccFactura` (reemplaza `vtpProformaAdelanto`, incluye JOIN a `catFacturaEstado`)      | No (depende de 1, 2, 3)      |
+| 7   | CREATE TABLE `CatEstadoTpPedido` + seed                                                             | ⛔ Sí — OBS-027               |
+| 8   | ALTER TABLE `tpPedido` ADD `IdCatEstadoTpPedido` (FK → `CatEstadoTpPedido`)                         | ⛔ Sí — OBS-027, depende de 7 |
 
 > **Nota de migración (propagada a RE-FU-012/018/019/020/026/027/028/029/030):** estos requisitos consumían `tpProformaAdelanto` + `vtpProformaAdelanto`. A partir de la adopción de este esquema, deben apuntar a `fccFactura` + `vfccFactura`. Ver sección "Migración de `tpProformaAdelanto`" más abajo.
 
@@ -500,18 +500,18 @@ Ver el detalle de la migración en cada requisito afectado (`_BD.md`/`-Back.md`/
 
 ## Dependencias
 
-| Requisito | Relacion |
-|-----------|----------|
-| R16A-RE-FU-006 | Referencia bancaria del documento fiscal (Codigo Validador) → `fccFacturaReferenciaBancaria.ReferenciaCliente` |
-| R16A-RE-FU-012 | Variante Crédito de FAA — migrada a `fccFactura` con `IdTPProformaPedido` poblado (ver sección de migración) |
-| R16A-RE-FU-013 | Arquitectura orquestador→Finanzas ya validada; folio interno |
-| R16A-RE-FU-014 | Flujo base Prepago sin FAA (este agrega FAA) |
-| R16A-RE-FU-016 | Criterio E1 — dos cuentas bancarias del grupo PROQUIFA México |
+| Requisito              | Relacion                                                                                                                                                                  |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R16A-RE-FU-006         | Referencia bancaria del documento fiscal (Codigo Validador) → `fccFacturaReferenciaBancaria.ReferenciaCliente`                                                            |
+| R16A-RE-FU-012         | Variante Crédito de FAA — migrada a `fccFactura` con `IdTPProformaPedido` poblado (ver sección de migración)                                                              |
+| R16A-RE-FU-013         | Arquitectura orquestador→Finanzas ya validada; folio interno                                                                                                              |
+| R16A-RE-FU-014         | Flujo base Prepago sin FAA (este agrega FAA)                                                                                                                              |
+| R16A-RE-FU-016         | Criterio E1 — dos cuentas bancarias del grupo PROQUIFA México                                                                                                             |
 | R16A-RE-FU-018/019/020 | Módulo FAA — consulta `vfccFactura`, actualiza `fccFactura` a factura final (`EsFacturaPorAdelantado=0`, `IdCFDIGenerada`, `IdCatFacturaEstado`, `Enviada`, `FechaEnvio`) |
-| R16A-RE-FU-021 | `catClaveProdServSAT` reutilizado por `fccFacturaPartida.ClaveProductoServicioSAT` |
-| R16A-RE-FU-026/027 | Asociación de cobro — `fccPagoFacturaAdelanto.IdFccFactura`; transiciones PAGADA / PAGADA_PARCIAL |
-| R16A-RE-FU-028/029/030 | Complemento de Pago — JOIN `fccPagoFacturaAdelanto → fccFactura → CFDIGenerada` para `CFDIRelacionados` |
-| R16A-RE-FU-032 | Cancelación de factura origen — transición CANCELADA |
+| R16A-RE-FU-021         | `catClaveProdServSAT` reutilizado por `fccFacturaPartida.ClaveProductoServicioSAT`                                                                                        |
+| R16A-RE-FU-026/027     | Asociación de cobro — `fccPagoFacturaAdelanto.IdFccFactura`; transiciones PAGADA / PAGADA_PARCIAL                                                                         |
+| R16A-RE-FU-028/029/030 | Complemento de Pago — JOIN `fccPagoFacturaAdelanto → fccFactura → CFDIGenerada` para `CFDIRelacionados`                                                                   |
+| R16A-RE-FU-032         | Cancelación de factura origen — transición CANCELADA                                                                                                                      |
 
 ---
 

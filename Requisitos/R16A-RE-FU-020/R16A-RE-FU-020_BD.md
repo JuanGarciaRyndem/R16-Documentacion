@@ -113,13 +113,13 @@ IGV 18%, RUC, serie alfanumerica SUNAT. Sin transferencia a Legacy. Post-envio: 
         ('GOLPERU', 'Golocaer S.A.C.', 'F001', 0, 'F001-{folio:00000000}', 8);
     -- Ajustar Serie y UltimoFolio al ultimo usado en produccion
 
-| Campo | Valor Mexico | Valor Peru |
-|-------|-------------|------------|
-| EmpresaClave | GOL/MUN/PRO/PQF | GOLPERU |
-| Serie | NULL | F001 (o la que use Golocaer SAC) |
-| UltimoFolio | numero (ej: 1500) | correlativo numerico |
-| FormatoFolio | '{folio}' | 'F001-{folio:00000000}' |
-| LongitudMaxima | 6 | 8 |
+| Campo          | Valor Mexico      | Valor Peru                       |
+| -------------- | ----------------- | -------------------------------- |
+| EmpresaClave   | GOL/MUN/PRO/PQF   | GOLPERU                          |
+| Serie          | NULL              | F001 (o la que use Golocaer SAC) |
+| UltimoFolio    | numero (ej: 1500) | correlativo numerico             |
+| FormatoFolio   | '{folio}'         | 'F001-{folio:00000000}'          |
+| LongitudMaxima | 6                 | 8                                |
 
 ---
 

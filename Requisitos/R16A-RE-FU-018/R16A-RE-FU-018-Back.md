@@ -434,10 +434,10 @@ Buscador: TRIM(vfccFactura.ClienteRazonSocial) LIKE / TRIM(vfccFactura.ClienteRF
 
 ## Resumen de Gaps
 
-| Repositorio | Cantidad | Detalle |
-|-------------|----------|---------|
+| Repositorio                                       | Cantidad            | Detalle                                                 |
+| ------------------------------------------------- | ------------------- | ------------------------------------------------------- |
 | ProquifaDotNet.Timbrado (NUEVA, servicio tecnico) | 8 (GAP-01 a GAP-08) | Creacion de solucion + BD (solo AppSetting/StampingLog) |
-| ProquifaDotNet.Finanzas — CfdiController | 5 (GAP-09 a GAP-13) | CFDIGenerada extendida + CfdiController + Minio/Archivo |
-| ProquifaDotNet.Finanzas — Modulo FAA (listado) | 5 (GAP-14 a GAP-18) | Modulo FAA listado agrupado |
-| ProquifaDotNet | 2 (GAP-19 a GAP-20) | Consumidor del listado |
-| **Total** | **20 gaps** | |
+| ProquifaDotNet.Finanzas — CfdiController          | 5 (GAP-09 a GAP-13) | CFDIGenerada extendida + CfdiController + Minio/Archivo |
+| ProquifaDotNet.Finanzas — Modulo FAA (listado)    | 5 (GAP-14 a GAP-18) | Modulo FAA listado agrupado                             |
+| ProquifaDotNet                                    | 2 (GAP-19 a GAP-20) | Consumidor del listado                                  |
+| **Total**                                         | **20 gaps**         |                                                         |

@@ -20,7 +20,7 @@
 - La tabla EmpresaFolio es NUEVA en ProquifaDotNet, propiedad de Finanzas (movida de ProquifaDotNetTimbrado el 07/07/2026 — Timbrado no gestiona folios)
 - La BD ProquifaDotNetTimbrado fue creada en RE-FU-018; esta tabla se agrega en este requisito
 - Contiene 4 registros iniciales: GOL, MUN, PRO, PQF
-- UltimoFolio debe ajustarse al MAX existente en producción antes del go-live
+- **El folio de Factura México se obtiene de la tabla legacy `consecutivo` (lectura + incremento). `EmpresaFolio.UltimoFolio` debe inicializarse al valor actual de `consecutivo` legacy en producción antes del go-live — confirmar estructura exacta de `consecutivo` (GAP-06)**
 - Debe ejecutarse ANTES de implementar el repositorio EmpresaFolioRepository (Tarea 3)
 
 **Objetivo general:**
@@ -153,15 +153,19 @@ Implementar el repositorio de EmpresaFolio con consumo atómico de folio concurr
 
 **Objetivos específicos:**
 - Crear `Repository/EmpresaFolioRepository.cs` extendiendo `GenericRepository<EmpresaFolio>`
-- Implementar `ConsumeNextFolioAsync` con raw SQL:
+- Implementar `ConsumeNextFolioAsync` con integración a tabla legacy `consecutivo`:
 
 ```sql
-UPDATE [dbo].[EmpresaFolio] WITH (UPDLOCK, ROWLOCK)
-SET    UltimoFolio = UltimoFolio + 1,
-       UpdatedAt   = SYSUTCDATETIME()
-OUTPUT INSERTED.UltimoFolio
-WHERE  EmpresaClave = @clave
-  AND  IsActive = 1;
+-- Ejecutar en transacción (fuente del folio = tabla legacy consecutivo)
+-- Paso 1 — Leer folio actual
+SELECT @NuevoFolio = [valor_consecutivo]   -- ** confirmar nombre de columna **
+FROM   [dbo].[consecutivo]                 -- ** confirmar nombre de tabla y BD **
+WHERE  [empresa] = @clave;                 -- ** confirmar nombre de columna clave **
+
+-- Paso 2 — Incrementar para siguiente factura
+UPDATE [dbo].[consecutivo]
+SET    [valor_consecutivo] = [valor_consecutivo] + 1
+WHERE  [empresa] = @clave;
 ```
 
 - Implementar `GetByClaveAsync` con consulta EF Core
@@ -260,7 +264,7 @@ Ampliar la capa Application con el servicio de consumo de folio y el método de 
 
 ```
 1. Validar request (FluentValidation)
-2. Consumir folio via EmpresaFolioService.GetNextFolioAsync(EmpresaClave)
+2. Consumir folio de tabla legacy `consecutivo` via `EmpresaFolioService.GetNextFolioAsync(EmpresaClave)` (Paso 1: SELECT folio, Paso 2: UPDATE consecutivo+1 — ver R16A-RE-FU-019_BD.md sección "Consumo del folio")
 3. Armar estructura XML CFDI con datos fiscales + conceptos
 4. INSERT StampingLog (NewStatus=Pending)
 5. Llamar SapStampingClient -> PAC SAP

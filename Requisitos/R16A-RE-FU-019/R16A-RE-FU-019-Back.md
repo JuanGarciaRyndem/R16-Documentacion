@@ -64,7 +64,7 @@ public interface IEmpresaFolioRepository : IGenericRepository<EmpresaFolio>
 
 | Método | Descripción |
 |--------|-------------|
-| GetNextFolioAsync(string empresaClave) | Consume folio atómico y retorna folio formateado (varchar 6) |
+| GetNextFolioAsync(string empresaClave) | Lee folio actual de tabla legacy `consecutivo` (Paso 1) + incrementa `consecutivo` en 1 (Paso 2) dentro de una transacción — retorna folio formateado (varchar 6) |
 | GetByClaveAsync(string empresaClave) | Obtener datos de empresa para el CFDI |
 
 #### Application — StampingService (Ampliación)
@@ -79,7 +79,7 @@ Ampliar `StampingService` para soportar el request de Factura por Adelantado:
 
 | DTO | Campos principales |
 |-----|-------------------|
-| StampAdvanceInvoiceRequestDto | IdProformaAdelanto, RecipientData (RFC, RazonSocial, CP, RegimenFiscal, UsoCFDI), IssuerData (RFC, RazonSocial, RegimenFiscal, EmpresaClave), Conceptos[], MetodoPago="PPD", FormaPago="99", TipoComprobante="I", Moneda, TipoCambio |
+| StampAdvanceInvoiceRequestDto | IdProformaAdelanto, RecipientData (RFC, RazonSocial, CP, RegimenFiscal, UsoCFDI), IssuerData (RFC, RazonSocial, RegimenFiscal, EmpresaClave), Conceptos[], IdCatMetodoDePagoCFDI (FK PPD), IdCatFormaPagoSAT (FK 99), TipoComprobante="I", Moneda, TipoCambio |
 | AdvanceInvoiceItemDto | Cantidad, Descripcion, PrecioUnitario, Importe, ClaveUnidad, ClaveProdServ — **Descripcion = "catálogo + descripción + marca"; NO se incluye lote ni pedimento (OBS-039)** |
 | StampAdvanceInvoiceResponseDto | Uuid, Serie, Folio, FechaEmision, Total, XmlBase64, Exitoso, ErrorDescripcion — **sin IdCFDI**: el Id de negocio real (`IdCFDIGenerada`) lo asigna Finanzas al persistir, no Timbrado |
 
@@ -90,10 +90,11 @@ public class EmpresaFolioRepository : GenericRepository<EmpresaFolio>, IEmpresaF
 {
     public async Task<int> ConsumeNextFolioAsync(string empresaClave)
     {
-        // UPDATE con UPDLOCK, ROWLOCK para atomicidad
-        // SET UltimoFolio = UltimoFolio + 1, UpdatedAt = SYSUTCDATETIME()
-        // WHERE EmpresaClave = @empresaClave AND IsActive = 1
-        // OUTPUT INSERTED.UltimoFolio
+        // Integración legacy: leer folio de tabla [consecutivo] + incrementar en 1
+        // Paso 1: SELECT @folio = valor FROM [consecutivo] WHERE empresa = @empresaClave
+        // Paso 2: UPDATE [consecutivo] SET valor = valor + 1 WHERE empresa = @empresaClave
+        // ** Pendiente confirmar nombre exacto de tabla, columnas y BD legacy **
+        // Ejecutar dentro de una transacción para garantizar atomicidad
     }
 }
 ```
@@ -216,7 +217,7 @@ ORDER BY FechaTramitacion DESC
    - Receptor: RFC, RazonSocial, CP, RegimenFiscal, UsoCFDI, Moneda, TipoCambio
    - Emisor: RFC, RazonSocial, RegimenFiscal, EmpresaClave
    - Conceptos: partidas del pedido (cantidad, precioUnitario, importe). La descripción de cada concepto CFDI se construye como "catálogo + descripción + marca"; no se incluye lote ni pedimento (OBS-039).
-   - Forzados: MetodoPago="PPD", FormaPago="99", TipoComprobante="I"
+   - Forzados: IdCatMetodoDePagoCFDI=<IdPPD>, IdCatFormaPagoSAT=<Id99>, TipoComprobante="I"
 7. Llamar ProquifaDotNet.Timbrado POST /api/v1/stamp/invoice (servicio técnico, sin persistir CFDI)
 8. Si EXITOSO (Timbrado regresa Uuid, Serie, Folio, FechaEmision, Total, XmlBase64):
    a. INSERT CFDIGenerada (CfdiService, en ProquifaDotNet): UUID, Serie, Folio, FechaEmision, Total,
@@ -328,6 +329,58 @@ ORDER BY FechaTramitacion DESC
 ---
 
 ### Componentes Nuevos en Finanzas
+
+#### Application — Catálogos Fiscales SAT (nuevos — Guía Técnica)
+
+Los catálogos `catImpuestoSat`, `catTipoFactorSat`, `catObjetoImpuestoSat` y la tabla `PerfilFiscal` se agregan en este requisito. Finanzas los consume al construir el XML del CFDI (nodo `Conceptos/Impuestos`).
+
+**Interfaces nuevas:**
+
+| Interface | Métodos |
+|-----------|---------|
+| IPerfilFiscalRepository | `GetByIdAsync(Guid id)`, `GetAllActiveAsync()` |
+| ICatImpuestoSatRepository | `GetByClave(string clave)`, `GetAllActiveAsync()` |
+| ICatTipoFactorSatRepository | `GetByClave(string clave)`, `GetAllActiveAsync()` |
+| ICatObjetoImpuestoSatRepository | `GetByClave(string clave)`, `GetAllActiveAsync()` |
+
+**Servicio nuevo:**
+
+| Servicio | Método | Descripción |
+|----------|--------|-------------|
+| PerfilFiscalService | `GetPerfilFiscalAsync(Guid idPerfilFiscal)` | Devuelve la configuración fiscal completa (impuesto + factor + tasa + objeto) para construir el nodo `Traslado` del CFDI |
+| PerfilFiscalService | `GetAllActiveAsync()` | Listado para configuración de productos |
+
+**DbSets a agregar al FinanzasContext:**
+
+| DbSet | Tabla | Uso |
+|-------|-------|-----|
+| `CatImpuestoSat` | `catImpuestoSat` | Catálogo c_Impuesto SAT |
+| `CatTipoFactorSat` | `catTipoFactorSat` | Catálogo c_TipoFactor SAT |
+| `CatObjetoImpuestoSat` | `catObjetoImpuestoSat` | Catálogo c_ObjetoImp SAT |
+| `PerfilFiscal` | `PerfilFiscal` | Perfil fiscal por producto/concepto |
+
+**Uso en la generación del CFDI:**
+
+Al armar `StampAdvanceInvoiceRequestDto`, por cada partida del pedido se resuelven los 3 campos fiscales **antes** de llegar a la pantalla de generación:
+
+```
+1. Resolver PerfilFiscal del producto:
+   a. Si Producto.IdPerfilFiscal IS NOT NULL → usar ese (override específico)
+   b. Si NO → usar FamiliaProducto.IdPerfilFiscal (herencia de Familia)
+   c. Si ninguno → error de configuración (producto sin perfil fiscal asignado)
+
+2. Resolver ClaveProdServ:
+   a. Si Producto.ClaveProdServSAT IS NOT NULL → usar ese
+   b. Si NO → usar FamiliaProducto.ClaveProdServSAT
+
+3. Resolver ClaveUnidad: misma precedencia que ClaveProdServ
+```
+
+Incluir en `AdvanceInvoiceItemDto`: `ClaveProdServ`, `ClaveUnidad`, y los campos del perfil fiscal (`TasaOCuota`, `ClaveTipoFactor`, `ClaveImpuesto`, `ClaveObjetoImpuesto`) resueltos antes de enviar el request a Timbrado.
+
+> **GAP-8 (pendiente bloqueante — ver RE-019_BD.md):** Confirmar nivel de configuración (Producto / Familia / Producto→Familia) antes de crear la FK en BD. No asumir que los 3 campos comparten el mismo nivel.
+
+---
 
 #### Application — DTOs
 

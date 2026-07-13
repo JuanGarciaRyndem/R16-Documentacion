@@ -32,15 +32,15 @@ Endpoints de la solución nueva `ProquifaDotNet.Finanzas`. Arquitectura Clean Ar
 
 **Controller:** `ProformaController`
 
-| Método | Ruta | Descripción | Parámetros entrada | Respuesta |
-|--------|------|-------------|-------------------|-----------|
-| GET | `/api/v1/proforma/{id}` | Obtener proforma por Id | `id` en path | `TpQuoteDto` |
-| POST | `/api/v1/proforma` | Crear proforma | Body: `TpProformaPedido` | `TpQuoteDto` |
-| PUT | `/api/v1/proforma/{id}` | Actualizar proforma | `id` en path; Body: `TpProformaPedido` | `TpQuoteDto` |
-| DELETE | `/api/v1/proforma/{id}` | Desactivar proforma | `id` en path | `204 NoContent` |
-| POST | `/api/v1/proforma/list` | Listado paginado | Body: `QueryInfo` | `QueryResult<TpQuoteDto>` |
-| POST | `/api/v1/proforma/{id}/pdf` | Genera PDF de proforma sin persistir (previsualización) o con persistencia; invoca DocumentBuilder con template `{EMPRESA}_MEX_PRO` | `id` en path; Body: `GenerateQuotePdfRequest { IdRegion, Persistir }` | `byte[]` PDF |
-| GET | `/api/v1/proforma/{id}/pdf` | Descarga PDF histórico de proforma desde MinIO sin regenerar | `id` en path | `application/pdf` |
+| Método | Ruta                        | Descripción                                                                                                                         | Parámetros entrada                                                    | Respuesta                 |
+| ------ | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | ------------------------- |
+| GET    | `/api/v1/proforma/{id}`     | Obtener proforma por Id                                                                                                             | `id` en path                                                          | `TpQuoteDto`              |
+| POST   | `/api/v1/proforma`          | Crear proforma                                                                                                                      | Body: `TpProformaPedido`                                              | `TpQuoteDto`              |
+| PUT    | `/api/v1/proforma/{id}`     | Actualizar proforma                                                                                                                 | `id` en path; Body: `TpProformaPedido`                                | `TpQuoteDto`              |
+| DELETE | `/api/v1/proforma/{id}`     | Desactivar proforma                                                                                                                 | `id` en path                                                          | `204 NoContent`           |
+| POST   | `/api/v1/proforma/list`     | Listado paginado                                                                                                                    | Body: `QueryInfo`                                                     | `QueryResult<TpQuoteDto>` |
+| POST   | `/api/v1/proforma/{id}/pdf` | Genera PDF de proforma sin persistir (previsualización) o con persistencia; invoca DocumentBuilder con template `{EMPRESA}_MEX_PRO` | `id` en path; Body: `GenerateQuotePdfRequest { IdRegion, Persistir }` | `byte[]` PDF              |
+| GET    | `/api/v1/proforma/{id}/pdf` | Descarga PDF histórico de proforma desde MinIO sin regenerar                                                                        | `id` en path                                                          | `application/pdf`         |
 
 Fuente: `R16A-RE-FU-016-Back-Finanzas.md` (CRUD base) + `R16A-RE-FU-016-Back.md` líneas 38-42, 183-234 (subrecurso `pdf`).
 

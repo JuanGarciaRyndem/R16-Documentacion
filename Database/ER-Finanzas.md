@@ -17,6 +17,38 @@ Tablas físicas en ProquifaDotNet gestionadas por la solución ProquifaDotNet.Fi
 
 ```mermaid
 erDiagram
+    catImpuestoSat {
+        uniqueidentifier IdCatImpuestoSat PK
+        varchar Clave
+        varchar Descripcion
+        bit Activo
+        datetime2 FechaRegistro
+    }
+    catTipoFactorSat {
+        uniqueidentifier IdCatTipoFactorSat PK
+        varchar Clave
+        varchar Descripcion
+        bit Activo
+        datetime2 FechaRegistro
+    }
+    catObjetoImpuestoSat {
+        uniqueidentifier IdCatObjetoImpuestoSat PK
+        varchar Clave
+        varchar Descripcion
+        bit Activo
+        datetime2 FechaRegistro
+    }
+    PerfilFiscal {
+        uniqueidentifier IdPerfilFiscal PK
+        nvarchar Nombre
+        uniqueidentifier IdCatImpuestoSat FK
+        uniqueidentifier IdCatTipoFactorSat FK
+        decimal TasaOCuota
+        uniqueidentifier IdCatObjetoImpuestoSat FK
+        nvarchar Fundamento
+        bit Activo
+        datetime2 FechaRegistro
+    }
     catTipoCFDI {
         uniqueidentifier IdCatTipoCFDI PK
         varchar Clave
@@ -107,6 +139,9 @@ erDiagram
         uniqueidentifier IdCFDIRelacionado FK
         varchar UUID
         decimal Total
+        uniqueidentifier IdCatMetodoDePagoCFDI FK
+        uniqueidentifier IdCatFormaPagoSAT FK
+        varchar Exportacion
         varchar Estado
         uniqueidentifier IdArchivoXml FK
         uniqueidentifier IdArchivoPdf FK
@@ -442,6 +477,12 @@ erDiagram
     fccNotaCredito ||--o{ fccNotaCreditoPartida : "tiene"
     catMotivoCancelacionSAT ||--o{ fccNotaCredito : "motivo cancelacion"
     CFDIGeneradaConcepto ||--o{ fccNotaCreditoPartida : "concepto origen"
+    catImpuestoSat ||--o{ PerfilFiscal : "clasifica impuesto"
+    catTipoFactorSat ||--o{ PerfilFiscal : "clasifica factor"
+    catObjetoImpuestoSat ||--o{ PerfilFiscal : "clasifica objeto impuesto"
+    PerfilFiscal ||--o{ CFDIGeneradaConcepto : "aplica perfil fiscal"
+    catFormaPagoSAT ||--o{ CFDIGenerada : "forma de pago CFDI"
+    catMetodoDePagoCFDI ||--o{ CFDIGenerada : "método de pago CFDI"
 ```
 
 > `EmpresaFolio.IdEmpresa` referencia a `Empresa` (tabla existente de ProquifaDotNet, ver `ER-ProquifaDotNet.md`). El folio se consume con UPDLOCK atómico (`UPDATE ... SET UltimoFolio = UltimoFolio + 1 OUTPUT inserted.UltimoFolio WHERE IdEmpresa = @Id AND Serie = @Serie`) al timbrar Factura (serie por empresa), Complemento de Pago (Serie 'P') y Nota de Crédito (Serie 'P2'), y para el correlativo GOLPERU (Perú).
@@ -452,52 +493,56 @@ erDiagram
 
 ### 1. Tablas propias de Finanzas (BD ProquifaDotNet, Scaffold EF Core en `Finanzas.Infrastructure`)
 
-| #   | Tabla                           | Estado                                                       | Requisito(s)                                                                                                                 | Uso                                                                                                          |
-| --- | ------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| 1   | `catFacturaEstado`              | ✨ Nueva R16                                                  | RE-015 v2.1                                                                                                                  | Catálogo de estados del ciclo de vida de la Factura (7 estados, transiciones en RE-015_BD)                   |
-| 2   | `fccFactura`                    | ✨ Nueva R16                                                  | RE-015 (dueño), RE-012, 018-022, 026-030                                                                                     | Cabecera única FAA + factura final (`EsFacturaPorAdelantado`); reemplaza `tpProformaAdelanto`                |
-| 3   | `fccFacturaPartida`             | ✨ Nueva R16                                                  | RE-015                                                                                                                       | Partidas snapshot del pedido (1:N)                                                                           |
-| 4   | `fccFacturaReferenciaBancaria`  | ✨ Nueva R16                                                  | RE-015, RE-006, RE-016                                                                                                       | Cuentas M.N./DLS + ReferenciaCliente (Código Validador)                                                      |
-| 5   | `EmpresaFolio`                  | ✨ Nueva R16 — **movida a Finanzas (07/07/2026)**             | RE-019 (crea), RE-020 (GOLPERU), RE-028/030/032 (series)                                                                     | Foliador por empresa/serie con UPDLOCK atómico; antes planeada en ProquifaDotNetTimbrado                     |
-| 6   | `CFDIGenerada`                  | ✨ Nueva R16 (base RE-019, extendida)                         | RE-019 (crea), RE-018/021 (IdArchivoPdf, FechaCertificacionSat), RE-028 (IdCatTipoCFDI, IdCFDIRelacionado)                   | Registro central de negocio de todo CFDI/CPE timbrado — single source of truth (Serie, Folio, UUID)          |
-| 7   | `CFDIGeneradaConcepto`          | ✨ Nueva R16                                                  | RE-021, RE-032                                                                                                               | Conceptos del CFDI (partidas fiscales)                                                                       |
-| 8   | `CFDIGeneradaRelacionado`       | ✨ Nueva R16                                                  | RE-028, RE-032                                                                                                               | Nodo CFDIRelacionados (NCs aplicadas, factura origen NC)                                                     |
-| 9   | `CFDICancelacion`               | Existente pre-R16                                            | RE-032                                                                                                                       | Cancelaciones ante SAT (motivo, estado, acuse)                                                               |
-| 10  | `catTipoCFDI`                   | ✨ Nueva R16                                                  | RE-028                                                                                                                       | Clasifica el CFDI: FACTURA, FACTURA_ANTICIPO, COMPLEMENTO_PAGO, NOTA_CREDITO, FACTURA_CPE...                 |
-| 11  | `catTipoDocumentoFiscal`        | ✨ Nueva R16                                                  | RE-028                                                                                                                       | Tipo de documento por línea del Paso 3 de Validar Cobro                                                      |
-| 12  | `catDocumentoFiscalCobroEstado` | ✨ Nueva R16                                                  | RE-028                                                                                                                       | Estado de línea del wizard VC Paso 3: PENDIENTE → GENERADO → ENVIADO                                         |
-| 13  | `fccDocumentoFiscalCobro`       | ✨ Nueva R16                                                  | RE-028, RE-029, RE-030                                                                                                       | Línea de documento fiscal a emitir por cobro (snapshot CFDI 4.0 / Pagos20)                                   |
-| 14  | `fccConfirmacionPedido`         | ✨ Nueva R16                                                  | RE-028                                                                                                                       | Confirmación de pedido del Paso 3                                                                            |
-| 15  | `fccFolioPagoCliente`           | ✅ Existente — sin cambios                                    | RE-008, RE-023                                                                                                               | Pendiente en Validar Cobro generado al clasificar correo como Cobro en el Buzón (Mailbot); incluye pre-extracción MailBot |
-| 16  | `fccPagoCliente`                | ✨ Existente + ALTER                                          | RE-008 (IdCatCobroEstatus), RE-023 (Confirmado, FechaConfirmacion, IdUsuarioConfirmacion, Notas, IdCatMoneda), RE-024, RE-025 | Cobro capturado en Validar Cobro Paso 1 (folio COB-mmddaa-#, inmutable al confirmar)                         |
-| 17  | `fccPagoFacturaPedido`          | ✨ Nueva R16                                                  | RE-026, RE-027                                                                                                               | Asociación N:N cobro ↔ proforma (Paso 2)                                                                     |
-| 18  | `fccPagoFacturaAdelanto`        | ✨ Nueva R16                                                  | RE-026, RE-027                                                                                                               | Asociación N:N cobro ↔ FAA (`IdFccFactura`)                                                                  |
-| 19  | `fccSaldoFavorCliente`          | ✨ Nueva R16                                                  | RE-026, RE-027                                                                                                               | Saldo a favor / tolerancia ≤100 MXN (Estado de Cuenta)                                                       |
-| 20  | `catTipoInconsistenciaCobro`    | ✨ Nueva R16                                                  | RE-024, RE-026                                                                                                               | Catálogo de tipos de inconsistencia (Pasos 1 y 2) — seed pendiente Tesorería                                 |
-| 21  | `fccInconsistenciaCobro`        | ✨ Nueva R16                                                  | RE-024, RE-026                                                                                                               | Inconsistencias marcadas sobre un cobro                                                                      |
-| 22  | `fccNotaCredito`                | Existente, ampliada R16                                      | RE-026 (vínculo cobro), RE-032/033 (módulo NC)                                                                               | Notas de Crédito (México CFDI E / Perú CPE 07)                                                               |
-| 23  | `fccNotaCreditoPartida`         | ✨ Nueva R16                                                  | RE-032                                                                                                                       | Detalle por partidas de la NC                                                                                |
-| 24  | `fccFechaEstimadaPagoHistorial` | ✨ Nueva R16                                                  | RE-023                                                                                                                       | Historial de fecha estimada de pago (Gestionar Cobranza)                                                     |
-| 25  | `catFormaPagoSAT`               | ✨ Nueva R16                                                  | RE-024                                                                                                                       | Catálogo c_FormaPago SAT para captura del cobro                                                              |
-| 26  | `catTipoOperacionSUNAT`         | ✨ Nueva R16                                                  | RE-020, RE-029                                                                                                               | Catálogo 51 SUNAT (Tipo de Operación, Perú)                                                                  |
-| 27  | `catMotivoCancelacionSAT`       | ✨ Nueva R16                                                  | RE-032                                                                                                                       | Motivos de cancelación SAT (01-04)                                                                           |
-| 28  | `catMotivoCreditoSUNAT09`       | ✨ Nueva R16                                                  | RE-033                                                                                                                       | Catálogo 09 SUNAT (motivos de NC, Perú)                                                                      |
-| 29  | `tpProformaPedido`              | Existente + ALTER R16 — **movida a Finanzas (07/07/2026)**   | RE-016 (ALTER: FolioProforma, ConsecutivoProforma), RE-023 (usa FechaPromesaPagoMonitoreoCobros), RE-026/027 (usa MontoPendiente), RE-028/029 (usa Controlados, IdCFDIGenerada) | Proforma/Confirmación de Pedido — antes vía API ProquifaDotNet, ahora lectura/escritura directa vía Scaffold |
-| 30  | `tpProformaPartidaPedido`       | Existente — **movida a Finanzas (08/07/2026)**               | RE-013/014 (INSERT al tramitar), RE-016 (partidas del PDF proforma), RE-028 (partidas de la factura desde proforma)          | Detalle 1:N de partidas de la proforma — mismo tratamiento que su cabecera: Scaffold directo                 |
-| 31  | `catCobroEstatus`               | ✨ Nueva R16 (definida en RE-002)                             | RE-002 (crea), RE-008 (FK en fccPagoCliente), RE-026                                                                         | Catálogo de estatus del ciclo de vida del cobro: BORRADOR → CAPTURADO → ASOCIADO / SALDO_A_FAVOR → COMPLETADO; CON_INCONSISTENCIA / CANCELADO |
+| #   | Tabla                           | Estado                                                     | Requisito(s)                                                                                                                                                                    | Uso                                                                                                                                           |
+| --- | ------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `catFacturaEstado`              | ✨ Nueva R16                                                | RE-015 v2.1                                                                                                                                                                     | Catálogo de estados del ciclo de vida de la Factura (7 estados, transiciones en RE-015_BD)                                                    |
+| 2   | `fccFactura`                    | ✨ Nueva R16                                                | RE-015 (dueño), RE-012, 018-022, 026-030                                                                                                                                        | Cabecera única FAA + factura final (`EsFacturaPorAdelantado`); reemplaza `tpProformaAdelanto`                                                 |
+| 3   | `fccFacturaPartida`             | ✨ Nueva R16                                                | RE-015                                                                                                                                                                          | Partidas snapshot del pedido (1:N)                                                                                                            |
+| 4   | `fccFacturaReferenciaBancaria`  | ✨ Nueva R16                                                | RE-015, RE-006, RE-016                                                                                                                                                          | Cuentas M.N./DLS + ReferenciaCliente (Código Validador)                                                                                       |
+| 5   | `EmpresaFolio`                  | ✨ Nueva R16 — **movida a Finanzas (07/07/2026)**           | RE-019 (crea), RE-020 (GOLPERU), RE-028/030/032 (series)                                                                                                                        | Foliador por empresa/serie con UPDLOCK atómico; antes planeada en ProquifaDotNetTimbrado                                                      |
+| 6   | `CFDIGenerada`                  | ✨ Nueva R16 (base RE-019, extendida)                       | RE-019 (crea), RE-018/021 (IdArchivoPdf, FechaCertificacionSat), RE-028 (IdCatTipoCFDI, IdCFDIRelacionado)                                                                      | Registro central de negocio de todo CFDI/CPE timbrado — single source of truth (Serie, Folio, UUID)                                           |
+| 7   | `CFDIGeneradaConcepto`          | ✨ Nueva R16                                                | RE-021, RE-032                                                                                                                                                                  | Conceptos del CFDI (partidas fiscales)                                                                                                        |
+| 8   | `CFDIGeneradaRelacionado`       | ✨ Nueva R16                                                | RE-028, RE-032                                                                                                                                                                  | Nodo CFDIRelacionados (NCs aplicadas, factura origen NC)                                                                                      |
+| 9   | `CFDICancelacion`               | Existente pre-R16                                          | RE-032                                                                                                                                                                          | Cancelaciones ante SAT (motivo, estado, acuse)                                                                                                |
+| 10  | `catTipoCFDI`                   | ✨ Nueva R16                                                | RE-028                                                                                                                                                                          | Clasifica el CFDI: FACTURA, FACTURA_ANTICIPO, COMPLEMENTO_PAGO, NOTA_CREDITO, FACTURA_CPE...                                                  |
+| 11  | `catTipoDocumentoFiscal`        | ✨ Nueva R16                                                | RE-028                                                                                                                                                                          | Tipo de documento por línea del Paso 3 de Validar Cobro                                                                                       |
+| 12  | `catDocumentoFiscalCobroEstado` | ✨ Nueva R16                                                | RE-028                                                                                                                                                                          | Estado de línea del wizard VC Paso 3: PENDIENTE → GENERADO → ENVIADO                                                                          |
+| 13  | `fccDocumentoFiscalCobro`       | ✨ Nueva R16                                                | RE-028, RE-029, RE-030                                                                                                                                                          | Línea de documento fiscal a emitir por cobro (snapshot CFDI 4.0 / Pagos20)                                                                    |
+| 14  | `fccConfirmacionPedido`         | ✨ Nueva R16                                                | RE-028                                                                                                                                                                          | Confirmación de pedido del Paso 3                                                                                                             |
+| 15  | `fccFolioPagoCliente`           | ✅ Existente — sin cambios                                  | RE-008, RE-023                                                                                                                                                                  | Pendiente en Validar Cobro generado al clasificar correo como Cobro en el Buzón (Mailbot); incluye pre-extracción MailBot                     |
+| 16  | `fccPagoCliente`                | ✨ Existente + ALTER                                        | RE-008 (IdCatCobroEstatus), RE-023 (Confirmado, FechaConfirmacion, IdUsuarioConfirmacion, Notas, IdCatMoneda), RE-024, RE-025                                                   | Cobro capturado en Validar Cobro Paso 1 (folio COB-mmddaa-#, inmutable al confirmar)                                                          |
+| 17  | `fccPagoFacturaPedido`          | ✨ Nueva R16                                                | RE-026, RE-027                                                                                                                                                                  | Asociación N:N cobro ↔ proforma (Paso 2)                                                                                                      |
+| 18  | `fccPagoFacturaAdelanto`        | ✨ Nueva R16                                                | RE-026, RE-027                                                                                                                                                                  | Asociación N:N cobro ↔ FAA (`IdFccFactura`)                                                                                                   |
+| 19  | `fccSaldoFavorCliente`          | ✨ Nueva R16                                                | RE-026, RE-027                                                                                                                                                                  | Saldo a favor / tolerancia ≤100 MXN (Estado de Cuenta)                                                                                        |
+| 20  | `catTipoInconsistenciaCobro`    | ✨ Nueva R16                                                | RE-024, RE-026                                                                                                                                                                  | Catálogo de tipos de inconsistencia (Pasos 1 y 2) — seed pendiente Tesorería                                                                  |
+| 21  | `fccInconsistenciaCobro`        | ✨ Nueva R16                                                | RE-024, RE-026                                                                                                                                                                  | Inconsistencias marcadas sobre un cobro                                                                                                       |
+| 22  | `fccNotaCredito`                | Existente, ampliada R16                                    | RE-026 (vínculo cobro), RE-032/033 (módulo NC)                                                                                                                                  | Notas de Crédito (México CFDI E / Perú CPE 07)                                                                                                |
+| 23  | `fccNotaCreditoPartida`         | ✨ Nueva R16                                                | RE-032                                                                                                                                                                          | Detalle por partidas de la NC                                                                                                                 |
+| 24  | `fccFechaEstimadaPagoHistorial` | ✨ Nueva R16                                                | RE-023                                                                                                                                                                          | Historial de fecha estimada de pago (Gestionar Cobranza)                                                                                      |
+| 25  | `catFormaPagoSAT`               | ✨ Nueva R16                                                | RE-019                                                                                                                                                                          | Catálogo c_FormaPago SAT para captura del cobro                                                                                               |
+| 26  | `catTipoOperacionSUNAT`         | ✨ Nueva R16                                                | RE-020, RE-029                                                                                                                                                                  | Catálogo 51 SUNAT (Tipo de Operación, Perú)                                                                                                   |
+| 27  | `catMotivoCancelacionSAT`       | ✨ Nueva R16                                                | RE-032                                                                                                                                                                          | Motivos de cancelación SAT (01-04)                                                                                                            |
+| 28  | `catMotivoCreditoSUNAT09`       | ✨ Nueva R16                                                | RE-033                                                                                                                                                                          | Catálogo 09 SUNAT (motivos de NC, Perú)                                                                                                       |
+| 29  | `tpProformaPedido`              | Existente + ALTER R16 — **movida a Finanzas (07/07/2026)** | RE-016 (ALTER: FolioProforma, ConsecutivoProforma), RE-023 (usa FechaPromesaPagoMonitoreoCobros), RE-026/027 (usa MontoPendiente), RE-028/029 (usa Controlados, IdCFDIGenerada) | Proforma/Confirmación de Pedido — antes vía API ProquifaDotNet, ahora lectura/escritura directa vía Scaffold                                  |
+| 30  | `tpProformaPartidaPedido`       | Existente — **movida a Finanzas (08/07/2026)**             | RE-013/014 (INSERT al tramitar), RE-016 (partidas del PDF proforma), RE-028 (partidas de la factura desde proforma)                                                             | Detalle 1:N de partidas de la proforma — mismo tratamiento que su cabecera: Scaffold directo                                                  |
+| 31  | `catCobroEstatus`               | ✨ Nueva R16 (definida en RE-002)                           | RE-002 (crea), RE-008 (FK en fccPagoCliente), RE-026                                                                                                                            | Catálogo de estatus del ciclo de vida del cobro: BORRADOR → CAPTURADO → ASOCIADO / SALDO_A_FAVOR → COMPLETADO; CON_INCONSISTENCIA / CANCELADO |
+| 32  | `catImpuestoSat`                | ✨ Nueva R16                                                | RE-019 (Guía Técnica — agrega catálogo c_Impuesto SAT)                                                                                                                          | Catálogo c_Impuesto SAT: IVA, ISR, IEPS                                                                                                       |
+| 33  | `catTipoFactorSat`              | ✨ Nueva R16                                                | RE-019 (Guía Técnica — agrega catálogo c_TipoFactor SAT)                                                                                                                        | Catálogo c_TipoFactor SAT: Tasa, Cuota, Exento                                                                                                |
+| 34  | `catObjetoImpuestoSat`          | ✨ Nueva R16                                                | RE-019 (Guía Técnica — agrega catálogo c_ObjetoImp SAT)                                                                                                                         | Catálogo c_ObjetoImp SAT: 01-No objeto, 02-Sí objeto, 03-Sí objeto no obligado, 04-Sí objeto IVA crédito IEPS                                 |
+| 35  | `PerfilFiscal`                  | ✨ Nueva R16                                                | RE-019 (Guía Técnica — configuración fiscal por producto/concepto)                                                                                                              | Perfil fiscal: combinación catImpuestoSat × catTipoFactorSat × TasaOCuota × catObjetoImpuestoSat aplicada a conceptos del CFDI                |
 
 ### 2. Tablas existentes de ProquifaDotNet consumidas vía Scaffold (lectura / escritura puntual)
 
-| Tabla | Acceso | Requisito(s) | Uso |
-|-------|--------|--------------|-----|
-| `Empresa` | Lectura | RE-016, 019-022, 028-033 | Datos del emisor (RFC, régimen, prefijo, branding) + FK de `EmpresaFolio` |
-| `Cliente` | Lectura | RE-018+, 023-029 | Razón social, clave; joins de listados |
-| `DatosFacturacionCliente` | Lectura | RE-004, 012, 015, 019 | Snapshot fiscal del receptor al crear FAA/factura |
-| `Archivo` | Escritura | RE-016, 019-022, 028-033 | Registro de PDF/XML subidos a MinIO (FileKey/FileBucket) |
-| `RegionConfiguracionMinioBucket` / `Region` | Lectura | RE-020, 022, 028-033 | Resolución de bucket por región; corte MEX/PER |
-| `catMoneda`, `catUsoCFDI`, `catMetodoDePagoCFDI`, `catCondicionesDePago` | Lectura | RE-005, 019, 024, 028 | Catálogos fiscales/comerciales existentes |
-| `CorreoEnviado` / `ArchivoCorreoEnviado` | Escritura | RE-019, 020, 028, 030, 032, 033 | Trazabilidad de correos con PDF+XML adjuntos (envío vía ProquifaDotNet.EnvioCorreo) |
-| `vUsuarioCartera` | Lectura | RE-018, 023, 032 | Filtrado por cartera del Cobrador |
+| Tabla                                                                    | Acceso    | Requisito(s)                    | Uso                                                                                                                                                                                                          |
+| ------------------------------------------------------------------------ | --------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Empresa`                                                                | Lectura   | RE-016, 019-022, 028-033        | Datos del emisor: `RFC`, `RazonSocial`, `Alias`, `Prefijo`, `IdCatRegimenFiscal` (→ `catRegimenFiscal.RegimenFiscal`), `IdDireccion` (→ `Direccion.CodigoPostal` = `LugarExpedicion`) + FK de `EmpresaFolio` |
+| `Cliente`                                                                | Lectura   | RE-018+, 023-029                | Razón social, clave; joins de listados                                                                                                                                                                       |
+| `DatosFacturacionCliente`                                                | Lectura   | RE-004, 012, 015, 019           | Snapshot fiscal del receptor al crear FAA/factura                                                                                                                                                            |
+| `Archivo`                                                                | Escritura | RE-016, 019-022, 028-033        | Registro de PDF/XML subidos a MinIO (FileKey/FileBucket)                                                                                                                                                     |
+| `RegionConfiguracionMinioBucket` / `Region`                              | Lectura   | RE-020, 022, 028-033            | Resolución de bucket por región; corte MEX/PER                                                                                                                                                               |
+| `catMoneda`, `catUsoCFDI`, `catMetodoDePagoCFDI`, `catCondicionesDePago` | Lectura   | RE-005, 019, 024, 028           | Catálogos fiscales/comerciales existentes                                                                                                                                                                    |
+| `CorreoEnviado` / `ArchivoCorreoEnviado`                                 | Escritura | RE-019, 020, 028, 030, 032, 033 | Trazabilidad de correos con PDF+XML adjuntos (envío vía ProquifaDotNet.EnvioCorreo)                                                                                                                          |
+| `vUsuarioCartera`                                                        | Lectura   | RE-018, 023, 032                | Filtrado por cartera del Cobrador                                                                                                                                                                            |
 
 ### 3. Tablas con Controller/BO propio en ProquifaDotNet — consumo vía llamadas entre APIs (no Scaffold)
 
@@ -513,6 +558,58 @@ erDiagram
 ## Diccionario de datos — tablas del Scaffold de Finanzas
 
 > Una tabla por entidad: Columna, Tipo de Dato, Índice (PK/FK/UK) y Descripción. Tipos y llaves conforme al diagrama ER; el DDL completo vive en el `_BD.md` del requisito indicado en cada descripción.
+
+### Tabla: `catImpuestoSat`
+
+Catálogo c_Impuesto del SAT (IVA, ISR, IEPS). Detalle: RE-019_BD (Guía Técnica).
+
+| Columna             | Tipo de Dato     | Índice | Descripción                  |
+| ------------------- | ---------------- | ------ | ---------------------------- |
+| `IdCatImpuestoSat`  | uniqueidentifier | PK     | Identificador único (PK)     |
+| `Clave`             | varchar          | —      | Clave SAT (ej. `001` IVA, `002` ISR, `003` IEPS) |
+| `Descripcion`       | varchar          | —      | Descripción legible          |
+| `Activo`            | bit              | —      | Borrado lógico (1 = vigente) |
+| `FechaRegistro`     | datetime2        | —      | Fecha de alta del registro   |
+
+### Tabla: `catTipoFactorSat`
+
+Catálogo c_TipoFactor del SAT (Tasa, Cuota, Exento). Detalle: RE-019_BD (Guía Técnica).
+
+| Columna               | Tipo de Dato     | Índice | Descripción                  |
+| --------------------- | ---------------- | ------ | ---------------------------- |
+| `IdCatTipoFactorSat`  | uniqueidentifier | PK     | Identificador único (PK)     |
+| `Clave`               | varchar          | —      | Clave SAT (`Tasa`, `Cuota`, `Exento`) |
+| `Descripcion`         | varchar          | —      | Descripción legible          |
+| `Activo`              | bit              | —      | Borrado lógico (1 = vigente) |
+| `FechaRegistro`       | datetime2        | —      | Fecha de alta del registro   |
+
+### Tabla: `catObjetoImpuestoSat`
+
+Catálogo c_ObjetoImp del SAT (01-04). Detalle: RE-019_BD (Guía Técnica).
+
+| Columna                    | Tipo de Dato     | Índice | Descripción                  |
+| -------------------------- | ---------------- | ------ | ---------------------------- |
+| `IdCatObjetoImpuestoSat`   | uniqueidentifier | PK     | Identificador único (PK)     |
+| `Clave`                    | varchar          | —      | Clave SAT (`01` No objeto, `02` Sí objeto, `03` Sí objeto no obligado, `04` Sí objeto IVA crédito IEPS) |
+| `Descripcion`              | varchar          | —      | Descripción legible          |
+| `Activo`                   | bit              | —      | Borrado lógico (1 = vigente) |
+| `FechaRegistro`            | datetime2        | —      | Fecha de alta del registro   |
+
+### Tabla: `PerfilFiscal`
+
+Perfil fiscal reutilizable: combinación de catálogos SAT que define cómo se grava un concepto del CFDI (impuesto × factor × tasa × objeto de impuesto). Se asigna a `CFDIGeneradaConcepto` al construir el XML. Catálogo de negocio de 3-4 filas administrado por PROQUIFA. Detalle: RE-019_BD (Guía Técnica).
+
+| Columna                    | Tipo de Dato     | Índice | Descripción                                                      |
+| -------------------------- | ---------------- | ------ | ---------------------------------------------------------------- |
+| `IdPerfilFiscal`           | uniqueidentifier | PK     | Identificador único (PK)                                         |
+| `Nombre`                   | nvarchar         | —      | Nombre descriptivo (ej. `IVA General 16%`, `IVA Tasa 0%`, `Exento`) |
+| `IdCatImpuestoSat`         | uniqueidentifier | FK     | FK → `catImpuestoSat` — tipo de impuesto (IVA/ISR/IEPS)         |
+| `IdCatTipoFactorSat`       | uniqueidentifier | FK     | FK → `catTipoFactorSat` — factor (Tasa/Cuota/Exento)            |
+| `TasaOCuota`               | decimal(6,6)     | —      | Tasa o cuota (`0.160000` para 16%); **NULL cuando TipoFactor = Exento** |
+| `IdCatObjetoImpuestoSat`   | uniqueidentifier | FK     | FK → `catObjetoImpuestoSat` — objeto del impuesto (01-04)       |
+| `Fundamento`               | nvarchar         | —      | Referencia legal informativa (ej. `Art. 1 LIVA`, `Art. 2-A LIVA`, `Art. 9 LIVA`) — no afecta el cálculo |
+| `Activo`                   | bit              | —      | Borrado lógico (1 = vigente)                                     |
+| `FechaRegistro`            | datetime2        | —      | Fecha de alta del registro                                       |
 
 ### Tabla: `catTipoCFDI`
 
@@ -640,17 +737,17 @@ Catálogo de tipos de inconsistencia de cobro (Pasos 1 y 2) — seed pendiente T
 
 Foliador por empresa/serie; consumo UPDLOCK atómico al timbrar. Movida de ProquifaDotNetTimbrado a Finanzas (07/07/2026). Detalle: RE-019_BD.
 
-| Columna | Tipo de Dato | Índice | Descripción |
-|---------|--------------|--------|-------------|
-| `IdEmpresaFolio` | uniqueidentifier | PK | Identificador único (PK) |
-| `IdEmpresa` | uniqueidentifier | FK | FK → `Empresa` |
-| `Serie` | varchar | — | Serie del foliador (factura por empresa; 'P' CP, 'P2' NC, F001 GOLPERU) |
-| `UltimoFolio` | int | — | Último folio consumido (UPDATE con UPDLOCK atómico) |
-| `FormatoFolio` | varchar | — | Formato de presentación del folio |
-| `LongitudMaxima` | int | — | Longitud máxima del folio (varchar 6 en factura) |
-| `Activo` | bit | — | Borrado lógico (1 = vigente) |
-| `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
-| `FechaUltimaActualizacion` | datetime2 | — | Fecha de última actualización |
+| Columna                    | Tipo de Dato     | Índice | Descripción                                                             |
+| -------------------------- | ---------------- | ------ | ----------------------------------------------------------------------- |
+| `IdEmpresaFolio`           | uniqueidentifier | PK     | Identificador único (PK)                                                |
+| `IdEmpresa`                | uniqueidentifier | FK     | FK → `Empresa`                                                          |
+| `Serie`                    | varchar          | —      | Serie del foliador (factura por empresa; 'P' CP, 'P2' NC, F001 GOLPERU) |
+| `UltimoFolio`              | int              | —      | Último folio consumido (UPDATE con UPDLOCK atómico)                     |
+| `FormatoFolio`             | varchar          | —      | Formato de presentación del folio                                       |
+| `LongitudMaxima`           | int              | —      | Longitud máxima del folio (varchar 6 en factura)                        |
+| `Activo`                   | bit              | —      | Borrado lógico (1 = vigente)                                            |
+| `FechaRegistro`            | datetime2        | —      | Fecha de alta del registro                                              |
+| `FechaUltimaActualizacion` | datetime2        | —      | Fecha de última actualización                                           |
 
 ### Tabla: `CFDIGenerada`
 
@@ -658,23 +755,26 @@ Registro central de negocio de todo CFDI/CPE timbrado — single source of truth
 
 | Columna                    | Tipo de Dato     | Índice | Descripción                                                      |
 | -------------------------- | ---------------- | ------ | ---------------------------------------------------------------- |
-| `IdCFDIGenerada`           | uniqueidentifier | PK     | Identificador único (PK)                                         |
-| `RFCEmisor`                | varchar          | —      | RFC de la empresa emisora                                        |
-| `RFCReceptor`              | varchar          | —      | RFC del cliente receptor                                         |
-| `Serie`                    | varchar          | —      | Serie del documento                                              |
-| `Folio`                    | varchar          | —      | Folio consecutivo                                                |
-| `FechaEmision`             | datetime2        | —      | Fecha de emisión del CFDI                                        |
-| `FechaCertificacionSat`    | datetime2        | —      | Fecha de certificación (timbrado) por el PAC/SAT (RE-021)        |
-| `IdCatTipoCFDI`            | uniqueidentifier | FK     | FK → `catTipoCFDI`                                               |
-| `IdCFDIRelacionado`        | uniqueidentifier | FK     | FK → `CFDIGenerada`                                              |
-| `UUID`                     | varchar          | —      | Folio fiscal (UUID) asignado por SAT                             |
-| `Total`                    | decimal          | —      | Total del comprobante                                            |
-| `Estado`                   | varchar          | —      | Estado técnico del timbrado ('Timbrado', 'Fallido', 'Cancelado') |
-| `IdArchivoXml`             | uniqueidentifier | FK     | FK → `Archivo`                                                   |
-| `IdArchivoPdf`             | uniqueidentifier | FK     | FK → `Archivo`                                                   |
-| `Activo`                   | bit              | —      | Borrado lógico (1 = vigente)                                     |
-| `FechaRegistro`            | datetime         | —      | Fecha de alta del registro                                       |
-| `FechaUltimaActualizacion` | datetime         | —      | Fecha de última modificación                                     |
+| `IdCFDIGenerada`           | uniqueidentifier | PK     | Identificador único (PK)                                                            |
+| `RFCEmisor`                | varchar          | —      | RFC de la empresa emisora                                                           |
+| `RFCReceptor`              | varchar          | —      | RFC del cliente receptor                                                            |
+| `Serie`                    | varchar          | —      | Serie del documento                                                                 |
+| `Folio`                    | varchar          | —      | Folio consecutivo                                                                   |
+| `FechaEmision`             | datetime2        | —      | Fecha de emisión del CFDI                                                           |
+| `FechaCertificacionSat`    | datetime2        | —      | Fecha de certificación (timbrado) por el PAC/SAT (RE-021)                           |
+| `IdCatTipoCFDI`            | uniqueidentifier | FK     | FK → `catTipoCFDI`                                                                  |
+| `IdCFDIRelacionado`        | uniqueidentifier | FK     | FK → `CFDIGenerada`                                                                 |
+| `UUID`                     | varchar          | —      | Folio fiscal (UUID) asignado por SAT                                                |
+| `Total`                    | decimal          | —      | Total del comprobante                                                               |
+| `IdCatMetodoDePagoCFDI`    | uniqueidentifier | FK     | FK → `catMetodoDePagoCFDI` — c_MetodoPago SAT: `PPD` (FAA/crédito) o `PUE` (pago único) |
+| `IdCatFormaPagoSAT`        | uniqueidentifier | FK     | FK → `catFormaPagoSAT` — c_FormaPago SAT (`99` en FAA; forma real en CP)           |
+| `Exportacion`              | varchar(2)       | —      | c_Exportacion SAT — default `01` (No aplica); requerido en CFDI 4.0                |
+| `Estado`                   | varchar          | —      | Estado técnico del timbrado ('Timbrado', 'Fallido', 'Cancelado')                    |
+| `IdArchivoXml`             | uniqueidentifier | FK     | FK → `Archivo`                                                                      |
+| `IdArchivoPdf`             | uniqueidentifier | FK     | FK → `Archivo`                                                                      |
+| `Activo`                   | bit              | —      | Borrado lógico (1 = vigente)                                                        |
+| `FechaRegistro`            | datetime         | —      | Fecha de alta del registro                                                          |
+| `FechaUltimaActualizacion` | datetime         | —      | Fecha de última modificación                                                        |
 
 ### Tabla: `CFDIGeneradaConcepto`
 
@@ -939,31 +1039,31 @@ Asociación N:N cobro ↔ Factura por Adelantado. Detalle: RE-026_BD.
 
 Línea de documento fiscal a emitir por cobro — snapshot CFDI 4.0 / Pagos20 (VC Paso 3). Detalle: RE-028_BD.
 
-| Columna | Tipo de Dato | Índice | Descripción |
-|---------|--------------|--------|-------------|
-| `IdFCCDocumentoFiscalCobro` | uniqueidentifier | PK | Identificador único (PK) |
-| `IdFCCPagoFacturaPedido` | uniqueidentifier | FK | FK → `fccPagoFacturaPedido` |
-| `IdFCCPagoFacturaAdelanto` | uniqueidentifier | FK | FK → `fccPagoFacturaAdelanto` |
-| `IdCatTipoDocumentoFiscal` | uniqueidentifier | FK | FK → `catTipoDocumentoFiscal` |
-| `IdCatDocumentoFiscalCobroEstado` | uniqueidentifier | FK | FK → `catDocumentoFiscalCobroEstado` |
-| `IdCatUsoCFDI` | uniqueidentifier | FK | FK → `catUsoCFDI` |
-| `IdCatMetodoDePagoCFDI` | uniqueidentifier | FK | FK → `catMetodoDePagoCFDI` |
-| `IdCFDIGeneradaFactura` | uniqueidentifier | FK | FK → `CFDIGenerada` |
-| `IdCFDIGeneradaComplemento` | uniqueidentifier | FK | FK → `CFDIGenerada` |
-| `IdCatTipoOperacionSUNAT` | uniqueidentifier | FK | FK → `catTipoOperacionSUNAT` |
-| `IdCatCondicionesDePago` | uniqueidentifier | FK | FK → `catCondicionesDePago` |
-| `FechaPagoCP` | datetime2 | — | Fecha de pago del Complemento (nodo Pagos) |
-| `IdCatFormaPagoSAT` | uniqueidentifier | FK | FK → `catFormaPagoSAT` |
-| `TipoCambioP_CP` | decimal | — | Tipo de cambio P del Complemento de Pago |
-| `NumParcialidad` | int | — | Parcialidad del DoctoRelacionado (UPDLOCK, RE-030) |
-| `ImpSaldoAnt` | decimal | — | Saldo anterior del DoctoRelacionado |
-| `ImpPagado` | decimal | — | Importe pagado del DoctoRelacionado |
-| `ImpSaldoInsoluto` | decimal | — | Saldo insoluto del DoctoRelacionado |
-| `EquivalenciaDR` | decimal | — | EquivalenciaDR multi-divisa (Pagos20) |
-| `FechaGeneracion` | datetime2 | — | Fecha de timbrado exitoso de la línea |
-| `FechaEnvio` | datetime2 | — | Fecha de envío de la línea al cliente |
-| `Activo` | bit | — | Borrado lógico (1 = vigente) |
-| `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
+| Columna                           | Tipo de Dato     | Índice | Descripción                                        |
+| --------------------------------- | ---------------- | ------ | -------------------------------------------------- |
+| `IdFCCDocumentoFiscalCobro`       | uniqueidentifier | PK     | Identificador único (PK)                           |
+| `IdFCCPagoFacturaPedido`          | uniqueidentifier | FK     | FK → `fccPagoFacturaPedido`                        |
+| `IdFCCPagoFacturaAdelanto`        | uniqueidentifier | FK     | FK → `fccPagoFacturaAdelanto`                      |
+| `IdCatTipoDocumentoFiscal`        | uniqueidentifier | FK     | FK → `catTipoDocumentoFiscal`                      |
+| `IdCatDocumentoFiscalCobroEstado` | uniqueidentifier | FK     | FK → `catDocumentoFiscalCobroEstado`               |
+| `IdCatUsoCFDI`                    | uniqueidentifier | FK     | FK → `catUsoCFDI`                                  |
+| `IdCatMetodoDePagoCFDI`           | uniqueidentifier | FK     | FK → `catMetodoDePagoCFDI`                         |
+| `IdCFDIGeneradaFactura`           | uniqueidentifier | FK     | FK → `CFDIGenerada`                                |
+| `IdCFDIGeneradaComplemento`       | uniqueidentifier | FK     | FK → `CFDIGenerada`                                |
+| `IdCatTipoOperacionSUNAT`         | uniqueidentifier | FK     | FK → `catTipoOperacionSUNAT`                       |
+| `IdCatCondicionesDePago`          | uniqueidentifier | FK     | FK → `catCondicionesDePago`                        |
+| `FechaPagoCP`                     | datetime2        | —      | Fecha de pago del Complemento (nodo Pagos)         |
+| `IdCatFormaPagoSAT`               | uniqueidentifier | FK     | FK → `catFormaPagoSAT`                             |
+| `TipoCambioP_CP`                  | decimal          | —      | Tipo de cambio P del Complemento de Pago           |
+| `NumParcialidad`                  | int              | —      | Parcialidad del DoctoRelacionado (UPDLOCK, RE-030) |
+| `ImpSaldoAnt`                     | decimal          | —      | Saldo anterior del DoctoRelacionado                |
+| `ImpPagado`                       | decimal          | —      | Importe pagado del DoctoRelacionado                |
+| `ImpSaldoInsoluto`                | decimal          | —      | Saldo insoluto del DoctoRelacionado                |
+| `EquivalenciaDR`                  | decimal          | —      | EquivalenciaDR multi-divisa (Pagos20)              |
+| `FechaGeneracion`                 | datetime2        | —      | Fecha de timbrado exitoso de la línea              |
+| `FechaEnvio`                      | datetime2        | —      | Fecha de envío de la línea al cliente              |
+| `Activo`                          | bit              | —      | Borrado lógico (1 = vigente)                       |
+| `FechaRegistro`                   | datetime2        | —      | Fecha de alta del registro                         |
 
 ### Tabla: `fccConfirmacionPedido`
 
@@ -1115,6 +1215,10 @@ dotnet ef dbcontext scaffold \
   --table catTipoOperacionSUNAT \
   --table catMotivoCancelacionSAT \
   --table catMotivoCreditoSUNAT09 \
+  --table catImpuestoSat \
+  --table catTipoFactorSat \
+  --table catObjetoImpuestoSat \
+  --table PerfilFiscal \
   --table tpProformaPedido \
   --table tpProformaPartidaPedido \
   --table Empresa \

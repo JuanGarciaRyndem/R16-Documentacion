@@ -14,10 +14,28 @@ erDiagram
         varchar Nombre
         bit Activo
     }
+    catRegimenFiscal {
+        uniqueidentifier IdCatRegimenFiscal PK
+        varchar RegimenFiscal
+        varchar Descripcion
+        bit Activo
+    }
+    Direccion {
+        uniqueidentifier IdDireccion PK
+        varchar CodigoPostal
+        varchar Calle
+        varchar Ciudad
+        varchar Estado
+        bit Activo
+    }
     Empresa {
         uniqueidentifier IdEmpresa PK
         varchar Prefijo
-        varchar Nombre
+        varchar Alias
+        varchar RazonSocial
+        varchar RFC
+        uniqueidentifier IdDireccion FK
+        uniqueidentifier IdCatRegimenFiscal FK
         uniqueidentifier IdRegion FK
         bit Activo
     }
@@ -239,6 +257,8 @@ erDiagram
     %% Esos flujos ahora usan fccFactura/fccFacturaPartida/fccFacturaReferenciaBancaria,
     %% propiedad de ProquifaDotNet.Finanzas — ver ER-Finanzas.md y
     %% R16A-RE-FU-015_BD.md ("Migración de tpProformaAdelanto").
+    catRegimenFiscal ||--o{ Empresa : "régimen fiscal emisor"
+    Direccion ||--o| Empresa : "domicilio fiscal (LugarExpedicion)"
     Region ||--o{ Empresa : "tiene"
     Region ||--o{ EmpresaRegion : "tiene"
     Empresa ||--o{ EmpresaRegion : "pertenece a"

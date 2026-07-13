@@ -15,8 +15,8 @@ La estructura de control de estado del Paso 3 (`fccDocumentoFiscalCobro`,
 `CFDIGenerada.IdCFDIRelacionado`) fue creada en RE-028 y se **reutiliza**.
 
 RE-030 agrega únicamente lo necesario para materializar los datos fiscales específicos del
-Complemento de Pago: el catálogo nuevo `catFormaPagoSAT` (c_FormaPago SAT, confirmado
-inexistente), la clave `CP01` en `catUsoCFDI` (confirmada inexistente), las columnas del
+Complemento de Pago: el catálogo `catFormaPagoSAT` (c_FormaPago SAT, **creado en RE-FU-019**
+como prerrequisito de `CFDIGenerada.IdCatFormaPagoSAT`), la clave `CP01` en `catUsoCFDI` (confirmada inexistente), las columnas del
 DoctoRelacionado (NumParcialidad, saldos, equivalencias) en `fccDocumentoFiscalCobro`,
 las entradas del foliador con Serie "P" en `EmpresaFolio` y los templates PDF en
 `DocumentTemplate` (tabla existente desde requisito anterior).
@@ -37,26 +37,26 @@ las entradas del foliador con Serie "P" en `EmpresaFolio` y los templates PDF en
 
 ## Impacto en BD
 
-| #   | Cambio                                                                                    | Base de Datos          | Tipo      | Prioridad |
-| --- | ----------------------------------------------------------------------------------------- | ---------------------- | --------- | --------- |
-| 1   | CREATE TABLE catFormaPagoSAT — confirmado no existe en ProquifaDotNet                     | ProquifaDotNet         | DDL + DML | Alta      |
-| 2   | DML catUsoCFDI — INSERT clave CP01 (Pagos) — confirmado no existe                         | ProquifaDotNet         | DML       | Alta      |
-| 3   | ALTER TABLE fccDocumentoFiscalCobro — ADD columnas DR del Complemento de Pago (8 cols)    | ProquifaDotNet         | DDL       | Alta      |
-| 4   | DML EmpresaFolio — INSERT filas Serie "P" para GOL, MUN, PRO, PQF                         | ProquifaDotNet (Finanzas) | DML       | Alta      |
-| 5   | DML DocumentTemplate — INSERT 4 templates PDF Complemento de Pago México                  | DocumentBuilder        | DML       | Media     |
-| 6   | ALTER VIEW vfccDocumentoFiscalCobro v3.0 — exponer columnas DR nuevas                     | ProquifaDotNet         | DDL       | Media     |
-| —   | Reutiliza: CFDIGenerada con `IdCatTipoCFDI='COMPLEMENTO_PAGO'` (RE-028)                   | ProquifaDotNet         | Existente | —         |
-| —   | Reutiliza: `catTipoCFDI.COMPLEMENTO_PAGO` (clave creada en RE-028 T1)                     | ProquifaDotNet         | Existente | —         |
-| —   | Reutiliza: `fccDocumentoFiscalCobro.IdCFDIGeneradaComplemento` (RE-028 T3)                | ProquifaDotNet         | Existente | —         |
-| —   | Reutiliza: `CFDIGenerada.IdCFDIRelacionado` — link CP → Factura PPD (RE-028 T5)           | ProquifaDotNet         | Existente | —         |
-| —   | Reutiliza: `EmpresaFolio` — estructura existente (RE-019); solo se insertan filas Serie P | ProquifaDotNet (Finanzas) | Existente | —         |
-| —   | Reutiliza: PAC TurboPac — misma integración que Factura México (RE-019)                   | ProquifaDotNet         | Existente | —         |
-| —   | Reutiliza: `catUsoCFDI` — tabla existente; CP01 se inserta en cambio #2                   | ProquifaDotNet         | Existente | —         |
-| —   | Reutiliza: `catMetodoDePagoCFDI.PPD` — solo facturas PPD generan CP (RE-028 T1)           | ProquifaDotNet         | Existente | —         |
-| —   | Reutiliza: `CorreoEnviado`, `ArchivoCorreoEnviado` — envío de correo al cliente (RE-028)  | ProquifaDotNet         | Existente | —         |
-| —   | Reutiliza: `fccDocumentoFiscalCobro` base completa (RE-028 T3, RE-029 T3)                 | ProquifaDotNet         | Existente | —         |
-| —   | Reutiliza: `DocumentTemplate` — tabla existente desde requisito anterior                  | DocumentBuilder        | Existente | —         |
-| —   | Reutiliza: bucket `cobranza` en `RegionConfiguracionMinioBucket` (IdRegion=MEX) — almacenamiento PDF y XML del CP | ProquifaDotNet | Existente | —         |
+| #   | Cambio                                                                                                            | Base de Datos             | Tipo      | Prioridad |
+| --- | ----------------------------------------------------------------------------------------------------------------- | ------------------------- | --------- | --------- |
+| 1   | ~~CREATE TABLE catFormaPagoSAT~~ — **creada en RE-FU-019** (prerrequisito disponible)             | ProquifaDotNet            | Existente | —         |
+| 2   | DML catUsoCFDI — INSERT clave CP01 (Pagos) — confirmado no existe                                                 | ProquifaDotNet            | DML       | Alta      |
+| 3   | ALTER TABLE fccDocumentoFiscalCobro — ADD columnas DR del Complemento de Pago (8 cols)                            | ProquifaDotNet            | DDL       | Alta      |
+| 4   | DML EmpresaFolio — INSERT filas Serie "P" para GOL, MUN, PRO, PQF                                                 | ProquifaDotNet (Finanzas) | DML       | Alta      |
+| 5   | DML DocumentTemplate — INSERT 4 templates PDF Complemento de Pago México                                          | DocumentBuilder           | DML       | Media     |
+| 6   | ALTER VIEW vfccDocumentoFiscalCobro v3.0 — exponer columnas DR nuevas                                             | ProquifaDotNet            | DDL       | Media     |
+| —   | Reutiliza: CFDIGenerada con `IdCatTipoCFDI='COMPLEMENTO_PAGO'` (RE-028)                                           | ProquifaDotNet            | Existente | —         |
+| —   | Reutiliza: `catTipoCFDI.COMPLEMENTO_PAGO` (clave creada en RE-028 T1)                                             | ProquifaDotNet            | Existente | —         |
+| —   | Reutiliza: `fccDocumentoFiscalCobro.IdCFDIGeneradaComplemento` (RE-028 T3)                                        | ProquifaDotNet            | Existente | —         |
+| —   | Reutiliza: `CFDIGenerada.IdCFDIRelacionado` — link CP → Factura PPD (RE-028 T5)                                   | ProquifaDotNet            | Existente | —         |
+| —   | Reutiliza: `EmpresaFolio` — estructura existente (RE-019); solo se insertan filas Serie P                         | ProquifaDotNet (Finanzas) | Existente | —         |
+| —   | Reutiliza: PAC TurboPac — misma integración que Factura México (RE-019)                                           | ProquifaDotNet            | Existente | —         |
+| —   | Reutiliza: `catUsoCFDI` — tabla existente; CP01 se inserta en cambio #2                                           | ProquifaDotNet            | Existente | —         |
+| —   | Reutiliza: `catMetodoDePagoCFDI.PPD` — solo facturas PPD generan CP (RE-028 T1)                                   | ProquifaDotNet            | Existente | —         |
+| —   | Reutiliza: `CorreoEnviado`, `ArchivoCorreoEnviado` — envío de correo al cliente (RE-028)                          | ProquifaDotNet            | Existente | —         |
+| —   | Reutiliza: `fccDocumentoFiscalCobro` base completa (RE-028 T3, RE-029 T3)                                         | ProquifaDotNet            | Existente | —         |
+| —   | Reutiliza: `DocumentTemplate` — tabla existente desde requisito anterior                                          | DocumentBuilder           | Existente | —         |
+| —   | Reutiliza: bucket `cobranza` en `RegionConfiguracionMinioBucket` (IdRegion=MEX) — almacenamiento PDF y XML del CP | ProquifaDotNet            | Existente | —         |
 
 ---
 
@@ -176,17 +176,17 @@ México tipo `FACTURA` / `FACTURA_ANTICIPO` y para todas las líneas Perú (que 
 sus propias columnas de RE-029).
 
 > **Columnas del snapshot fiscal del CP:**
->
-> | Campo XML | Columna BD | Descripción |
-> |-----------|------------|-------------|
-> | `FechaPago` | `FechaPagoCP` | Fecha/hora del cobro para el nodo Pago. ⚠️ Pendiente confirmar hora (12:00:00 fija vs real). |
-> | `FormaDePagoP` | `IdCatFormaPagoSAT` | FK catFormaPagoSAT. Forma real del cobro (típicamente 03). |
-> | `TipoCambioP` | `TipoCambioP_CP` | TC del pago vs MXN. NULL cuando MonedaP = MXN. |
-> | `NumParcialidad` | `NumParcialidad` | Número consecutivo de pagos aplicados a la factura PPD (1, 2, 3...). |
-> | `ImpSaldoAnt` | `ImpSaldoAnt` | Saldo de la factura PPD antes de este pago. En MonedaDR. |
-> | `ImpPagado` | `ImpPagado` | Porción del cobro aplicada a esta factura. En MonedaDR. |
-> | `ImpSaldoInsoluto` | `ImpSaldoInsoluto` | Saldo restante después de este pago (ImpSaldoAnt − ImpPagado). En MonedaDR. |
-> | `EquivalenciaDR` | `EquivalenciaDR` | Factor de conversión cuando MonedaDR ≠ MonedaP. 1 si las monedas coinciden. |
+
+| Campo XML          | Columna BD          | Descripción                                                                                  |
+| ------------------ | ------------------- | -------------------------------------------------------------------------------------------- |
+| `FechaPago`        | `FechaPagoCP`       | Fecha/hora del cobro para el nodo Pago. ⚠️ Pendiente confirmar hora (12:00:00 fija vs real). |
+| `FormaDePagoP`     | `IdCatFormaPagoSAT` | FK catFormaPagoSAT. Forma real del cobro (típicamente 03).                                   |
+| `TipoCambioP`      | `TipoCambioP_CP`    | TC del pago vs MXN. NULL cuando MonedaP = MXN.                                               |
+| `NumParcialidad`   | `NumParcialidad`    | Número consecutivo de pagos aplicados a la factura PPD (1, 2, 3...).                         |
+| `ImpSaldoAnt`      | `ImpSaldoAnt`       | Saldo de la factura PPD antes de este pago. En MonedaDR.                                     |
+| `ImpPagado`        | `ImpPagado`         | Porción del cobro aplicada a esta factura. En MonedaDR.                                      |
+| `ImpSaldoInsoluto` | `ImpSaldoInsoluto`  | Saldo restante después de este pago (ImpSaldoAnt − ImpPagado). En MonedaDR.                  |
+| `EquivalenciaDR`   | `EquivalenciaDR`    | Factor de conversión cuando MonedaDR ≠ MonedaP. 1 si las monedas coinciden.                  |
 
 ```sql
 -- Prerequisito: catFormaPagoSAT debe existir (o el catálogo equivalente ya existente)

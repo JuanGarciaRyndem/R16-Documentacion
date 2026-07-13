@@ -1,7 +1,7 @@
 # Impacto en BD - Factura por Adelantado: Detalle Mexico
 **Requisito:** R16A-RE-FU-019
 **Bases de Datos:** ProquifaDotNet (lectura/escritura) + ProquifaDotNetTimbrado (escritura)
-**Version:** 2.0 - EmpresaFolio + migracion a fccFactura/vfccFactura (RE-FU-015) + correccion arquitectura CFDI (Finanzas, no Timbrado)
+**Version:** 3.0 - EmpresaFolio + migracion a fccFactura/vfccFactura (RE-FU-015) + correccion arquitectura CFDI (Finanzas, no Timbrado) + catalogos fiscales SAT (catImpuestoSat, catTipoFactorSat, catObjetoImpuestoSat, PerfilFiscal) + campos CFDIGenerada (IdCatMetodoDePagoCFDI FK, IdCatFormaPagoSAT FK, Exportacion)
 
 ---
 
@@ -30,14 +30,19 @@ Solo clientes Mexico. Sin sustancias controladas.
 
 ## Impacto en BD
 
-| #   | Cambio                                                             | Base de Datos          | Tipo | Prioridad |
-| --- | ------------------------------------------------------------------ | ---------------------- | ---- | --------- |
-| 1   | CREATE TABLE dbo.CFDIGenerada (ER-Finanzas.md, base)               | ProquifaDotNet         | DDL  | Alta      |
-| 2   | CREATE TABLE dbo.EmpresaFolio                                      | ProquifaDotNet (Finanzas) | DDL  | Alta      |
-| 3   | INSERT EmpresaFolio (4 empresas MEX)                               | ProquifaDotNet (Finanzas) | DML  | Alta      |
-| -   | ~~ALTER TABLE tpProformaAdelanto ADD Enviada~~ / ~~CREATE VIEW vtpProformaAdelanto~~ | ProquifaDotNet | **Movido a RE-FU-015** (`fccFactura.Enviada` + `vfccFactura`) | - |
+| #   | Cambio                                                                               | Base de Datos             | Tipo                                                          | Prioridad |
+| --- | ------------------------------------------------------------------------------------ | ------------------------- | ------------------------------------------------------------- | --------- |
+| 1   | CREATE TABLE dbo.CFDIGenerada (incl. IdCatMetodoDePagoCFDI FK, IdCatFormaPagoSAT col, Exportacion) | ProquifaDotNet            | DDL                                                           | Alta      |
+| 2   | CREATE TABLE dbo.EmpresaFolio                                                        | ProquifaDotNet (Finanzas) | DDL                                                           | Alta      |
+| 3   | INSERT EmpresaFolio (4 empresas MEX)                                                 | ProquifaDotNet (Finanzas) | DML                                                           | Alta      |
+| 4   | CREATE TABLE dbo.catFormaPagoSAT + INSERT seed (22 claves c_FormaPago SAT)           | ProquifaDotNet (Finanzas) | DDL + DML                                                     | Alta      |
+| 5   | CREATE TABLE dbo.catImpuestoSat + INSERT seed (IVA, ISR, IEPS)                       | ProquifaDotNet (Finanzas) | DDL + DML                                                     | Alta      |
+| 6   | CREATE TABLE dbo.catTipoFactorSat + INSERT seed (Tasa, Cuota, Exento)                | ProquifaDotNet (Finanzas) | DDL + DML                                                     | Alta      |
+| 7   | CREATE TABLE dbo.catObjetoImpuestoSat + INSERT seed (01-04)                          | ProquifaDotNet (Finanzas) | DDL + DML                                                     | Alta      |
+| 8   | CREATE TABLE dbo.PerfilFiscal + INSERT seed (IVA 16% Tasa / Exento)                  | ProquifaDotNet (Finanzas) | DDL + DML                                                     | Alta      |
+| -   | ~~ALTER TABLE tpProformaAdelanto ADD Enviada~~ / ~~CREATE VIEW vtpProformaAdelanto~~ | ProquifaDotNet            | **Movido a RE-FU-015** (`fccFactura.Enviada` + `vfccFactura`) | -         |
 
-> **Nota (origen de CFDIGenerada):** este requisito ejecuta el `CREATE TABLE CFDIGenerada` (columnas base de `ER-Finanzas.md`, mas `Total` que ya consume `vfccFactura`). Los catalogos `IdCatTipoCFDI`/`IdCFDIRelacionado` se agregan despues via `ALTER TABLE` en R16A-RE-FU-028, y las columnas tecnicas (Estado, MensajeError, IdArchivoXml, IdCatUsoCFDI, IdCatMetodoDePagoCFDI, IdCatMoneda, TipoCambio) se agregan via `ALTER TABLE` en R16A-RE-FU-018 (Parte 3) — ambos posteriores a la creacion base aqui.
+> **Nota (origen de CFDIGenerada):** este requisito ejecuta el `CREATE TABLE CFDIGenerada` con todas sus columnas iniciales (incluye `IdCatMetodoDePagoCFDI` FK, `IdCatFormaPagoSAT` col y `Exportacion`). Los catalogos `IdCatTipoCFDI`/`IdCFDIRelacionado` se agregan despues via `ALTER TABLE` en R16A-RE-FU-028, y las columnas tecnicas (Estado, MensajeError, IdArchivoXml, IdCatUsoCFDI, IdCatMoneda, TipoCambio) se agregan via `ALTER TABLE` en R16A-RE-FU-018 (Parte 3) — ambos posteriores a la creacion aqui.
 >
 > **Orden de dependencia:** `fccFactura.IdCFDIGenerada` (RE-FU-015) requiere que `CFDIGenerada` exista — este requisito (paso 1 de esta tabla) debe ejecutarse antes de que RE-FU-015 pueda agregar esa FK.
 
@@ -46,44 +51,309 @@ Solo clientes Mexico. Sin sustancias controladas.
 ## CREATE TABLE CFDIGenerada (ProquifaDotNet — propiedad de Finanzas)
 
 **Proposito:** Registro central de negocio de todo CFDI emitido (diseñado en `ER-Finanzas.md`,
-gestionado por `ProquifaDotNet.Finanzas` via EF Core Scaffold). Se crea aqui con las columnas
-base; `IdCatTipoCFDI`/`IdCFDIRelacionado` se agregan en R16A-RE-FU-028 y las columnas tecnicas
-de timbrado en R16A-RE-FU-018 (Parte 3) via `ALTER TABLE` posteriores.
+gestionado por `ProquifaDotNet.Finanzas` via EF Core Scaffold). Incluye las columnas base más
+los campos CFDI 4.0 requeridos por la Guía Técnica SAT (Guía Técnica Facturas Ingreso MX).
+`IdCatTipoCFDI`/`IdCFDIRelacionado` se agregan en R16A-RE-FU-028 y las columnas técnicas de
+timbrado en R16A-RE-FU-018 (Parte 3) via `ALTER TABLE` posteriores.
 
-    -- Created by GitHub Copilot in SSMS - review carefully before executing
+```sql
     -- Ejecutar sobre ProquifaDotNet
+    -- Requiere: catMetodoDePagoCFDI (tabla existente), catFormaPagoSAT (creada en este mismo requisito, paso anterior)
     CREATE TABLE [dbo].[CFDIGenerada](
-        [IdCFDIGenerada] uniqueidentifier NOT NULL
+        [IdCFDIGenerada]        uniqueidentifier NOT NULL
             CONSTRAINT [DF_CFDIGenerada_Id] DEFAULT (NEWID()),
-        [RFCEmisor]    varchar(13)  NOT NULL,
-        [RFCReceptor]  varchar(50)  NOT NULL,
-        [Serie]        varchar(25)  NULL,
-        [Folio]        varchar(40)  NULL,
-        [FechaEmision] datetime2(7) NULL,
-        [UUID]         varchar(36)  NULL,
-        [Total]        decimal(18,2) NULL,
-        [Activo]       bit NOT NULL
+        [RFCEmisor]             varchar(13)   NOT NULL,
+        [RFCReceptor]           varchar(50)   NOT NULL,
+        [Serie]                 varchar(25)   NULL,
+        [Folio]                 varchar(40)   NULL,
+        [FechaEmision]          datetime2(7)  NULL,
+        [UUID]                  varchar(36)   NULL,
+        [Total]                 decimal(18,2) NULL,
+        [IdCatMetodoDePagoCFDI] uniqueidentifier NULL
+            CONSTRAINT [FK_CFDIGenerada_catMetodoDePagoCFDI]
+            FOREIGN KEY REFERENCES [dbo].[catMetodoDePagoCFDI]([IdCatMetodoDePagoCFDI]),
+        [IdCatFormaPagoSAT]     uniqueidentifier NULL
+            CONSTRAINT [FK_CFDIGenerada_catFormaPagoSAT]
+            FOREIGN KEY REFERENCES [dbo].[catFormaPagoSAT]([IdCatFormaPagoSAT]),
+        [Exportacion]           varchar(2)    NULL
+            CONSTRAINT [DF_CFDIGenerada_Exportacion] DEFAULT ('01'),
+        [Activo]                bit NOT NULL
             CONSTRAINT [DF_CFDIGenerada_Activo] DEFAULT (1),
-        [FechaRegistro] datetime2(7) NOT NULL
+        [FechaRegistro]         datetime2(7)  NOT NULL
             CONSTRAINT [DF_CFDIGenerada_FechaRegistro] DEFAULT (SYSUTCDATETIME()),
         CONSTRAINT [PK_CFDIGenerada] PRIMARY KEY CLUSTERED ([IdCFDIGenerada])
     );
     GO
+```
 
-| Columna | Tipo | Nulo | Default | Descripcion |
-|---------|------|------|---------|-------------|
-| IdCFDIGenerada | uniqueidentifier | NO | NEWID() | PK |
-| RFCEmisor | varchar(13) | NO | - | RFC de la empresa emisora |
-| RFCReceptor | varchar(50) | NO | - | RFC/RUC del cliente receptor |
-| Serie | varchar(25) | SI | - | Serie del CFDI |
-| Folio | varchar(40) | SI | - | Folio del CFDI (consumido de EmpresaFolio) |
-| FechaEmision | datetime2(7) | SI | - | Fecha de emision (timbrado) |
-| UUID | varchar(36) | SI | - | UUID asignado por el PAC al timbrar |
-| Total | decimal(18,2) | SI | - | Monto total del CFDI (usado por vfccFactura) |
-| Activo | bit | NO | 1 | Activo |
-| FechaRegistro | datetime2(7) | NO | SYSUTCDATETIME() | Fecha de creacion del registro |
+| Columna               | Tipo             | Nulo | Default          | Descripcion                                                  |
+| --------------------- | ---------------- | ---- | ---------------- | ------------------------------------------------------------ |
+| IdCFDIGenerada        | uniqueidentifier | NO   | NEWID()          | PK                                                           |
+| RFCEmisor             | varchar(13)      | NO   | -                | RFC de la empresa emisora                                    |
+| RFCReceptor           | varchar(50)      | NO   | -                | RFC/RUC del cliente receptor                                 |
+| Serie                 | varchar(25)      | SI   | -                | Serie del CFDI                                               |
+| Folio                 | varchar(40)      | SI   | -                | Folio del CFDI (consumido de tabla legacy `consecutivo`)     |
+| FechaEmision          | datetime2(7)     | SI   | -                | Fecha de emisión (timbrado)                                  |
+| UUID                  | varchar(36)      | SI   | -                | UUID asignado por el PAC al timbrar                          |
+| Total                 | decimal(18,2)    | SI   | -                | Monto total del CFDI (usado por vfccFactura)                 |
+| IdCatMetodoDePagoCFDI | uniqueidentifier | SI   | -                | FK → `catMetodoDePagoCFDI` — `PPD` (FAA/crédito) o `PUE`     |
+| IdCatFormaPagoSAT     | uniqueidentifier | SI   | -                | FK → `catFormaPagoSAT`; `99` (Por definir) en FAA            |
+| Exportacion           | varchar(2)       | SI   | `01`             | c_Exportacion SAT, obligatorio CFDI 4.0; `01` = No aplica    |
+| Activo                | bit              | NO   | 1                | Activo                                                       |
+| FechaRegistro         | datetime2(7)     | NO   | SYSUTCDATETIME() | Fecha de creación del registro                               |
 
-> Ver R16A-RE-FU-028_BD.md (ALTER: IdCatTipoCFDI, IdCFDIRelacionado) y R16A-RE-FU-018_BD.md Parte 3 (ALTER: IdCatUsoCFDI, IdCatMetodoDePagoCFDI, IdCatMoneda, TipoCambio, IdArchivoXml, Estado, MensajeError, FechaUltimaActualizacion) para las extensiones posteriores de esta tabla.
+> Ver R16A-RE-FU-028_BD.md (ALTER: IdCatTipoCFDI, IdCFDIRelacionado) y R16A-RE-FU-018_BD.md Parte 3 (ALTER: Estado, MensajeError, IdArchivoXml, IdCatUsoCFDI, IdCatMoneda, TipoCambio, FechaUltimaActualizacion) para las extensiones posteriores de esta tabla.
+
+---
+
+## CREATE TABLE catFormaPagoSAT (ProquifaDotNet — Finanzas)
+
+Catálogo c_FormaPago del SAT. Seed con las 22 claves vigentes. Requerido como prerequisito de `CFDIGenerada` (FK `IdCatFormaPagoSAT`). La clave `99` (Por definir) se usa en FAA; las demás claves son utilizadas en facturas PUE y Complementos de Pago (RE-FU-030).
+
+```sql
+-- Ejecutar sobre ProquifaDotNet — ANTES de CREATE TABLE CFDIGenerada
+CREATE TABLE [dbo].[catFormaPagoSAT](
+    [IdCatFormaPagoSAT]  uniqueidentifier NOT NULL
+        CONSTRAINT [DF_catFormaPagoSAT_Id]      DEFAULT (NEWID()),
+    [Clave]              varchar(10)      NOT NULL,
+    [Descripcion]        nvarchar(150)    NOT NULL,
+    [Activo]             bit              NOT NULL
+        CONSTRAINT [DF_catFormaPagoSAT_Activo]  DEFAULT (1),
+    [FechaRegistro]      datetime2(7)     NOT NULL
+        CONSTRAINT [DF_catFormaPagoSAT_FechaReg] DEFAULT (SYSUTCDATETIME()),
+    CONSTRAINT [PK_catFormaPagoSAT]
+        PRIMARY KEY CLUSTERED ([IdCatFormaPagoSAT]),
+    CONSTRAINT [UQ_catFormaPagoSAT_Clave]
+        UNIQUE ([Clave])
+);
+GO
+
+INSERT INTO [dbo].[catFormaPagoSAT] ([Clave], [Descripcion]) VALUES
+    ('01', 'Efectivo'),
+    ('02', 'Cheque nominativo'),
+    ('03', 'Transferencia electrónica de fondos'),
+    ('04', 'Tarjeta de crédito'),
+    ('05', 'Monedero electrónico'),
+    ('06', 'Dinero electrónico'),
+    ('08', 'Vales de despensa'),
+    ('12', 'Dación en pago'),
+    ('13', 'Pago por subrogación'),
+    ('14', 'Pago por consignación'),
+    ('15', 'Condonación'),
+    ('17', 'Compensación'),
+    ('23', 'Novación'),
+    ('24', 'Confusión'),
+    ('25', 'Remisión de deuda'),
+    ('26', 'Prescripción o caducidad'),
+    ('27', 'A satisfacción del acreedor'),
+    ('28', 'Tarjeta de débito'),
+    ('29', 'Tarjeta de servicios'),
+    ('30', 'Aplicación de anticipos'),
+    ('31', 'Intermediario pagos'),
+    ('99', 'Por definir');
+GO
+```
+
+| Columna           | Tipo             | Nulo | Descripcion                                                                  |
+| ----------------- | ---------------- | ---- | ---------------------------------------------------------------------------- |
+| IdCatFormaPagoSAT | uniqueidentifier | NO   | PK                                                                           |
+| Clave             | varchar(10)      | NO   | Código c_FormaPago SAT. UNIQUE. `99` = Por definir (usado en FAA)            |
+| Descripcion       | nvarchar(150)    | NO   | Descripción legible de la forma de pago                                      |
+| Activo            | bit              | NO   | 1 = vigente                                                                  |
+| FechaRegistro     | datetime2(7)     | NO   | Fecha de inserción                                                           |
+
+---
+
+## CREATE TABLE catImpuestoSat (ProquifaDotNet — Finanzas)
+
+Catálogo c_Impuesto del SAT. Seed inicial con los 3 valores vigentes.
+```sql
+    -- Ejecutar sobre ProquifaDotNet
+    CREATE TABLE [dbo].[catImpuestoSat](
+        [IdCatImpuestoSat] uniqueidentifier NOT NULL
+            CONSTRAINT [DF_catImpuestoSat_Id] DEFAULT (NEWID()),
+        [Clave]       varchar(10)  NOT NULL,
+        [Descripcion] varchar(100) NOT NULL,
+        [Activo]      bit NOT NULL
+            CONSTRAINT [DF_catImpuestoSat_Activo] DEFAULT (1),
+        [FechaRegistro] datetime2(7) NOT NULL
+            CONSTRAINT [DF_catImpuestoSat_FechaRegistro] DEFAULT (SYSUTCDATETIME()),
+        CONSTRAINT [PK_catImpuestoSat] PRIMARY KEY CLUSTERED ([IdCatImpuestoSat]),
+        CONSTRAINT [UQ_catImpuestoSat_Clave] UNIQUE ([Clave])
+    );
+    GO
+
+    INSERT INTO [dbo].[catImpuestoSat] ([Clave], [Descripcion])
+    VALUES
+        ('001', 'ISR'),
+        ('002', 'IVA'),
+        ('003', 'IEPS');
+```
+---
+
+## CREATE TABLE catTipoFactorSat (ProquifaDotNet — Finanzas)
+
+Catálogo c_TipoFactor del SAT. Seed inicial con los 3 valores vigentes.
+```sql
+    -- Ejecutar sobre ProquifaDotNet
+    CREATE TABLE [dbo].[catTipoFactorSat](
+        [IdCatTipoFactorSat] uniqueidentifier NOT NULL
+            CONSTRAINT [DF_catTipoFactorSat_Id] DEFAULT (NEWID()),
+        [Clave]       varchar(20)  NOT NULL,
+        [Descripcion] varchar(100) NOT NULL,
+        [Activo]      bit NOT NULL
+            CONSTRAINT [DF_catTipoFactorSat_Activo] DEFAULT (1),
+        [FechaRegistro] datetime2(7) NOT NULL
+            CONSTRAINT [DF_catTipoFactorSat_FechaRegistro] DEFAULT (SYSUTCDATETIME()),
+        CONSTRAINT [PK_catTipoFactorSat] PRIMARY KEY CLUSTERED ([IdCatTipoFactorSat]),
+        CONSTRAINT [UQ_catTipoFactorSat_Clave] UNIQUE ([Clave])
+    );
+    GO
+
+    INSERT INTO [dbo].[catTipoFactorSat] ([Clave], [Descripcion])
+    VALUES
+        ('Tasa',   'Tasa'),
+        ('Cuota',  'Cuota'),
+        ('Exento', 'Exento');
+```
+---
+
+## CREATE TABLE catObjetoImpuestoSat (ProquifaDotNet — Finanzas)
+
+Catálogo c_ObjetoImp del SAT. Seed inicial con los 4 valores vigentes.
+```sql
+    -- Ejecutar sobre ProquifaDotNet
+    CREATE TABLE [dbo].[catObjetoImpuestoSat](
+        [IdCatObjetoImpuestoSat] uniqueidentifier NOT NULL
+            CONSTRAINT [DF_catObjetoImpuestoSat_Id] DEFAULT (NEWID()),
+        [Clave]       varchar(5)   NOT NULL,
+        [Descripcion] varchar(200) NOT NULL,
+        [Activo]      bit NOT NULL
+            CONSTRAINT [DF_catObjetoImpuestoSat_Activo] DEFAULT (1),
+        [FechaRegistro] datetime2(7) NOT NULL
+            CONSTRAINT [DF_catObjetoImpuestoSat_FechaRegistro] DEFAULT (SYSUTCDATETIME()),
+        CONSTRAINT [PK_catObjetoImpuestoSat] PRIMARY KEY CLUSTERED ([IdCatObjetoImpuestoSat]),
+        CONSTRAINT [UQ_catObjetoImpuestoSat_Clave] UNIQUE ([Clave])
+    );
+    GO
+
+    INSERT INTO [dbo].[catObjetoImpuestoSat] ([Clave], [Descripcion])
+    VALUES
+        ('01', 'No objeto de impuesto'),
+        ('02', 'Sí objeto de impuesto'),
+        ('03', 'Sí objeto del impuesto y no obligado al desglose'),
+        ('04', 'Sí objeto del impuesto y no causa impuesto');
+```
+---
+
+## CREATE TABLE PerfilFiscal (ProquifaDotNet — Finanzas)
+
+Catálogo de negocio de 3-4 filas que traduce la tasa de IVA de un producto a las claves técnicas exigidas por el XML del CFDI (nodo `Impuestos/Traslados`). Lo administra PROQUIFA. Ver sección "Datos del producto — ClaveProdServ, ClaveUnidad y PerfilFiscal" para el modelo conceptual completo.
+```sql
+    -- Ejecutar sobre ProquifaDotNet (requiere catImpuestoSat, catTipoFactorSat, catObjetoImpuestoSat)
+    CREATE TABLE [dbo].[PerfilFiscal](
+        [IdPerfilFiscal] uniqueidentifier NOT NULL
+            CONSTRAINT [DF_PerfilFiscal_Id] DEFAULT (NEWID()),
+        [Nombre]                  nvarchar(100)   NOT NULL,   -- 'IVA General 16%', 'IVA Tasa 0%', 'Exento'
+        [IdCatImpuestoSat]        uniqueidentifier NOT NULL
+            CONSTRAINT [FK_PerfilFiscal_catImpuestoSat]
+            FOREIGN KEY REFERENCES [dbo].[catImpuestoSat]([IdCatImpuestoSat]),
+        [IdCatTipoFactorSat]      uniqueidentifier NOT NULL
+            CONSTRAINT [FK_PerfilFiscal_catTipoFactorSat]
+            FOREIGN KEY REFERENCES [dbo].[catTipoFactorSat]([IdCatTipoFactorSat]),
+        [TasaOCuota]              decimal(6,6)    NULL,       -- NULL cuando IdCatTipoFactorSat = 'Exento'
+        [IdCatObjetoImpuestoSat]  uniqueidentifier NOT NULL
+            CONSTRAINT [FK_PerfilFiscal_catObjetoImpuestoSat]
+            FOREIGN KEY REFERENCES [dbo].[catObjetoImpuestoSat]([IdCatObjetoImpuestoSat]),
+        [Fundamento]              nvarchar(200)   NULL,       -- referencia legal, ej. 'Art. 2-A LIVA'
+        [Activo]        bit NOT NULL
+            CONSTRAINT [DF_PerfilFiscal_Activo] DEFAULT (1),
+        [FechaRegistro] datetime2(7) NOT NULL
+            CONSTRAINT [DF_PerfilFiscal_FechaRegistro] DEFAULT (SYSUTCDATETIME()),
+        CONSTRAINT [PK_PerfilFiscal] PRIMARY KEY CLUSTERED ([IdPerfilFiscal]),
+        CONSTRAINT [CK_PerfilFiscal_TasaOCuota] CHECK (
+            ([TasaOCuota] IS NULL     AND EXISTS (SELECT 1 FROM [dbo].[catTipoFactorSat] t WHERE t.[IdCatTipoFactorSat] = [IdCatTipoFactorSat] AND t.[Clave] = 'Exento'))
+            OR
+            ([TasaOCuota] IS NOT NULL AND NOT EXISTS (SELECT 1 FROM [dbo].[catTipoFactorSat] t WHERE t.[IdCatTipoFactorSat] = [IdCatTipoFactorSat] AND t.[Clave] = 'Exento'))
+        )
+    );
+    GO
+
+    -- Seed inicial — 3 filas conocidas para la operación de PROQUIFA
+    -- IVA General 16%
+    INSERT INTO [dbo].[PerfilFiscal] ([Nombre], [IdCatImpuestoSat], [IdCatTipoFactorSat], [TasaOCuota], [IdCatObjetoImpuestoSat], [Fundamento])
+    SELECT 'IVA General 16%',
+           (SELECT IdCatImpuestoSat  FROM catImpuestoSat       WHERE Clave = '002'),
+           (SELECT IdCatTipoFactorSat FROM catTipoFactorSat     WHERE Clave = 'Tasa'),
+           0.160000,
+           (SELECT IdCatObjetoImpuestoSat FROM catObjetoImpuestoSat WHERE Clave = '02'),
+           'Art. 1 LIVA';
+
+    -- IVA Tasa 0%
+    INSERT INTO [dbo].[PerfilFiscal] ([Nombre], [IdCatImpuestoSat], [IdCatTipoFactorSat], [TasaOCuota], [IdCatObjetoImpuestoSat], [Fundamento])
+    SELECT 'IVA Tasa 0%',
+           (SELECT IdCatImpuestoSat  FROM catImpuestoSat       WHERE Clave = '002'),
+           (SELECT IdCatTipoFactorSat FROM catTipoFactorSat     WHERE Clave = 'Tasa'),
+           0.000000,
+           (SELECT IdCatObjetoImpuestoSat FROM catObjetoImpuestoSat WHERE Clave = '02'),
+           'Art. 2-A LIVA';
+
+    -- Exento de IVA (TasaOCuota = NULL)
+    INSERT INTO [dbo].[PerfilFiscal] ([Nombre], [IdCatImpuestoSat], [IdCatTipoFactorSat], [TasaOCuota], [IdCatObjetoImpuestoSat], [Fundamento])
+    SELECT 'Exento',
+           (SELECT IdCatImpuestoSat  FROM catImpuestoSat       WHERE Clave = '002'),
+           (SELECT IdCatTipoFactorSat FROM catTipoFactorSat     WHERE Clave = 'Exento'),
+           NULL,
+           (SELECT IdCatObjetoImpuestoSat FROM catObjetoImpuestoSat WHERE Clave = '02'),
+           'Art. 9 LIVA';
+    -- IEPS: agregar SOLO si PROQUIFA confirma que algún producto lo requiere (ver GAP-8)
+```
+
+> **Por qué 3 filas son suficientes:** el valor timbrado es idéntico para todos los productos que caen en la misma categoría (ej. todos los "IVA Tasa 0%" usan el mismo número independientemente de si la razón legal es Art. 2-A LIVA, medicinas, publicaciones, o exportación). La columna `Fundamento` recoge la referencia legal como dato informativo, no como dato que cambia el cálculo.
+
+---
+
+## Datos del producto — ClaveProdServ, ClaveUnidad y PerfilFiscal
+
+### Modelo conceptual
+
+Al construir cada concepto del CFDI se necesitan 3 valores que no los captura el usuario al facturar — se resuelven de la configuración del producto:
+
+| Campo            | Catálogo                                                | Origen                            |
+| ---------------- | ------------------------------------------------------- | --------------------------------- |
+| `ClaveProdServ`  | `catClaveProdServSAT` (c_ClaveProdServ, ~55,000 claves) | Asignado al producto (RE-021)     |
+| `ClaveUnidad`    | `catClaveUnidadSAT` (c_ClaveUnidad, estándar UN/ECE)    | Asignado al producto (RE-021)     |
+| `IdPerfilFiscal` | `PerfilFiscal` (3-4 filas)                              | Asignado al producto o su Familia |
+
+> `catClaveProdServSAT` y `catClaveUnidadSAT` son catálogos de referencia completos (import del catálogo oficial SAT) — no se administran fila por fila. Su DDL y la columna `Producto.ClaveProdServSAT` son propiedad de **RE-021**. Este requisito solo los consume.
+
+### Datos del emisor — `EmpresaEmisora` = tabla `Empresa` existente (sin tabla nueva)
+
+Los datos del emisor requeridos para el CFDI ya existen en la tabla `Empresa` (BD `ProquifaDotNet`). **No se crea tabla `EmpresaEmisora`.**
+
+| Campo CFDI | Fuente en BD | Notas |
+|------------|-------------|-------|
+| `RazonSocial` | `Empresa.RazonSocial` | |
+| `RFC` | `Empresa.RFC` | |
+| `RegimenFiscal` (código SAT) | `catRegimenFiscal.RegimenFiscal` vía `Empresa.IdCatRegimenFiscal` | ej. `601` |
+| `LugarExpedicion` | `Direccion.CodigoPostal` vía `Empresa.IdDireccion` | Código postal del domicilio fiscal |
+
+> **Eje independiente de `PerfilFiscal`:** que un producto tribute al 0% es una propiedad del **producto** (`PerfilFiscal`), no de la empresa emisora. No acoplar tasa de IVA a empresa emisora — siempre se resuelve por producto/familia.
+
+### Jerarquía de resolución — Producto → Familia (con precedencia)
+
+Los 3 campos se pueden configurar a 2 niveles, con precedencia:
+
+```
+SI el Producto tiene su propio valor capturado (override específico) → se usa ese
+SI NO → se hereda el valor configurado en la Familia/Categoría del producto
+```
+
+Esto permite definir "toda la Familia X tributa al 16%" una sola vez y solo capturar excepciones puntuales por producto (ej. una publicación dentro de una familia que normalmente no las tiene).
+
+**Ninguno de los 3 campos es editable por el usuario al momento de facturar** — siempre se resuelven por la jerarquía Producto→Familia antes de llegar a la pantalla de generación.
+
+> **GAP-8 (pendiente bloqueante):** Confirmar con PROQUIFA el nivel de configuración para cada campo: ¿`ClaveProdServ` siempre a nivel Producto? ¿`IdPerfilFiscal` a nivel Familia como default con override en Producto? ¿`ClaveUnidad` igual para toda la Familia? Cada campo podría tener un nivel distinto — no asumir que los 3 comparten el mismo nivel. Esto determina si se agrega FK directa en `Producto`, en `FamiliaProducto`, o en ambas.
 
 ---
 
@@ -104,7 +374,7 @@ de timbrado en R16A-RE-FU-018 (Parte 3) via `ALTER TABLE` posteriores.
 ---
 
 ## CREATE TABLE EmpresaFolio (ProquifaDotNet — propiedad Finanzas, movida de ProquifaDotNetTimbrado el 07/07/2026)
-
+```sql
     -- Created by GitHub Copilot in SSMS - review carefully before executing
     -- Ejecutar en ProquifaDotNetTimbrado
     CREATE TABLE [dbo].[EmpresaFolio](
@@ -137,15 +407,31 @@ de timbrado en R16A-RE-FU-018 (Parte 3) via `ALTER TABLE` posteriores.
         ('PRO', 'Proquifa S.A. de C.V.', 0),
         ('PQF', 'Proveedora Quimico Farmaceutica S.A. de C.V.', 0);
     -- Ajustar UltimoFolio al MAX existente en produccion
+```
+### Consumo del folio — Integración con tabla legacy `consecutivo`
 
-### Consumo atomico del folio
+> **Actualización (13/07/2026 — integración legacy):** el folio de la Factura México se obtiene de la tabla legacy `consecutivo`, no mediante un UPDATE directo a `EmpresaFolio`. El proceso es de dos pasos atómicos dentro de una transacción:
 
-    UPDATE [dbo].[EmpresaFolio] WITH (UPDLOCK, ROWLOCK)
-    SET @NuevoFolio = UltimoFolio = UltimoFolio + 1,
-        UpdatedAt = SYSUTCDATETIME()
-    WHERE EmpresaClave = @EmpresaClave AND IsActive = 1;
+```sql
+    -- Paso 1: Leer folio actual (fuente de verdad = tabla legacy consecutivo)
+    SELECT @NuevoFolio = [valor_consecutivo]
+    FROM   [dbo].[consecutivo]  -- ** pendiente confirmar nombre exacto de columna y clave de empresa **
+    WHERE  [empresa] = @EmpresaClave;
 
-> Se consume SOLO al timbrar exitosamente (sin huecos por errores PAC).
+    -- Paso 2: Incrementar en 1 para la siguiente factura
+    UPDATE [dbo].[consecutivo]
+    SET    [valor_consecutivo] = [valor_consecutivo] + 1
+    WHERE  [empresa] = @EmpresaClave;
+    
+```
+
+> Los dos pasos deben ejecutarse dentro de una transacción con aislamiento suficiente para evitar duplicados bajo concurrencia.
+>
+> `EmpresaFolio.UltimoFolio` debe inicializarse al valor actual de `consecutivo` en producción antes del go-live y mantenerse en sincronía como referencia de auditoría interna de PQF2.
+>
+> El folio se consume SOLO al timbrar exitosamente (sin huecos por errores PAC).
+>
+> ** Pendiente: confirmar nombre exacto de tabla (`consecutivo`), columnas y clave de empresa en la BD legacy. **
 
 ---
 
@@ -156,7 +442,7 @@ de timbrado en R16A-RE-FU-018 (Parte 3) via `ALTER TABLE` posteriores.
 
     2. TIMBRAR (al confirmar previsualizacion) -- CfdiController (ProquifaDotNet.Finanzas)
        ProquifaDotNet.Timbrado (servicio tecnico, POST /api/v1/stamp/invoice):
-         UPDATE EmpresaFolio SET UltimoFolio+1 (consume el folio atomicamente antes de armar el CFDI)
+         SELECT folio de tabla legacy [consecutivo] + UPDATE consecutivo+1 (integración legacy, ver sección "Consumo del folio")
          Arma el CFDI con ese folio -> llama PAC -> recibe UUID
          INSERT StampingLog (ProquifaDotNetTimbrado, auditoria tecnica de la llamada)
          Regresa a Finanzas: UUID, Serie, Folio, XML, FechaEmision (sin persistir el CFDI como negocio)
@@ -192,10 +478,15 @@ de timbrado en R16A-RE-FU-018 (Parte 3) via `ALTER TABLE` posteriores.
 
 | Paso | Script | BD |
 |------|--------|-----|
-| 1 | CREATE TABLE CFDIGenerada (base) | ProquifaDotNet |
-| 2 | CREATE TABLE fccFactura + fccFacturaPartida + fccFacturaReferenciaBancaria + CREATE VIEW vfccFactura (RE-FU-015, requiere Paso 1) | ProquifaDotNet |
-| 3 | CREATE TABLE EmpresaFolio | ProquifaDotNet (Finanzas) |
-| 4 | INSERT EmpresaFolio (datos iniciales) | ProquifaDotNet (Finanzas) |
+| 1 | CREATE TABLE catFormaPagoSAT + INSERT seed (22 claves) | ProquifaDotNet (Finanzas) |
+| 2 | CREATE TABLE CFDIGenerada (requiere Paso 1) | ProquifaDotNet |
+| 3 | CREATE TABLE fccFactura + fccFacturaPartida + fccFacturaReferenciaBancaria + CREATE VIEW vfccFactura (RE-FU-015, requiere Paso 2) | ProquifaDotNet |
+| 4 | CREATE TABLE EmpresaFolio | ProquifaDotNet (Finanzas) |
+| 5 | INSERT EmpresaFolio (datos iniciales) | ProquifaDotNet (Finanzas) |
+| 6 | CREATE TABLE catImpuestoSat + INSERT seed | ProquifaDotNet (Finanzas) |
+| 7 | CREATE TABLE catTipoFactorSat + INSERT seed | ProquifaDotNet (Finanzas) |
+| 8 | CREATE TABLE catObjetoImpuestoSat + INSERT seed | ProquifaDotNet (Finanzas) |
+| 9 | CREATE TABLE PerfilFiscal + INSERT seed (requiere Pasos 6-8) | ProquifaDotNet (Finanzas) |
 
 > Los pasos 2 (`fccFactura`/`vfccFactura`) se ejecutan como parte de RE-FU-015, no de este requisito — se listan aquí solo para dejar clara la dependencia de orden.
 
@@ -205,11 +496,14 @@ de timbrado en R16A-RE-FU-018 (Parte 3) via `ALTER TABLE` posteriores.
 
 | # | Gap | Tipo | Accion |
 |---|-----|------|--------|
-| 1 | UltimoFolio inicial por empresa | Tecnico | Consultar MAX(folio) produccion |
+| 1 | UltimoFolio inicial por empresa | Tecnico | Inicializar EmpresaFolio.UltimoFolio al valor actual de consecutivo legacy en producción |
 | 2 | Lote del producto al timbrar FAA | Negocio | No disponible - confirmar |
 | 3 | Politica ante caida del PAC | Tecnico | Definir reintento/encolamiento |
 | 4 | Rol operativo | Negocio | Confirmar denominacion |
 | 5 | Alias vs RazonSocial | Negocio | Confirmar dato fuente |
+| 6 | Estructura tabla legacy `consecutivo` | Tecnico | Confirmar nombre exacto de tabla, columnas (valor y clave empresa) y BD donde reside — fuente del folio para Factura México (ver `Analisis/Foliados-Documentos.md`, sección Factura) |
+| 7 | Nivel de configuración ClaveProdServ/ClaveUnidad/PerfilFiscal | Negocio/Técnico | Confirmar si cada campo se configura a nivel Producto, Familia, o con precedencia Producto→Familia — y si los 3 campos comparten el mismo nivel o cada uno puede tener el suyo (ver sección "Datos del producto") |
+| 8 | IEPS — confirmar si algún producto lo requiere | Negocio | Solo agregar la 4ª fila de PerfilFiscal (IEPS) si PROQUIFA confirma que algún producto lo requiere; no crear sin esa confirmación |
 
 ---
 

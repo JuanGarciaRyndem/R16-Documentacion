@@ -1,4 +1,4 @@
-﻿# Diccionario de Datos — R16A-RE-FU-004 Información Fiscal del Cliente
+# Diccionario de Datos — R16A-RE-FU-004 Información Fiscal del Cliente
 
 | Campo | Valor |
 |---|---|
@@ -279,14 +279,14 @@ ORDER BY r.ClaveISO, c.Nombre;
 
 ## Reglas de Negocio Implementadas
 
-| Regla | Descripción | Implementación |
-|---|---|---|
-| Regla 1 | 3 campos obligatorios al guardar | Validación en capa aplicación (campos NULLABLE en BD) |
-| Regla 2 | Validación RFC México (formato SAT) | ✅ Ya implementada en PQF2 |
-| Regla 3 | Validación RUC Perú (formato) | ❌ Pendiente implementar |
-| Regla 4 | Algoritmo Módulo 11 para dígito verificador RUC | ❌ Pendiente implementar en capa aplicación |
-| Regla 5 | Catálogos por Región | Catálogo único sin distinción — filtrado en UI |
-| Regla 6 | Edición sin restricción de rol | Sin control de rol en BD — acceso por cartera |
+| Regla   | Descripción                                     | Implementación                                        |
+| ------- | ----------------------------------------------- | ----------------------------------------------------- |
+| Regla 1 | 3 campos obligatorios al guardar                | Validación en capa aplicación (campos NULLABLE en BD) |
+| Regla 2 | Validación RFC México (formato SAT)             | ✅ Ya implementada en PQF2                             |
+| Regla 3 | Validación RUC Perú (formato)                   | ❌ Pendiente implementar                               |
+| Regla 4 | Algoritmo Módulo 11 para dígito verificador RUC | ❌ Pendiente implementar en capa aplicación            |
+| Regla 5 | Catálogos por Región                            | Catálogo único sin distinción — filtrado en UI        |
+| Regla 6 | Edición sin restricción de rol                  | Sin control de rol en BD — acceso por cartera         |
 
 ---
 
