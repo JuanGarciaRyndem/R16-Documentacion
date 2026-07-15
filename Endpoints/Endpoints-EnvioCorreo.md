@@ -118,9 +118,9 @@ Envío usando una plantilla nativa de Brevo (renderizada en servidores Brevo). S
 
 ## Endpoint de Integración en ProquifaDotNet (Refactorizado)
 
-| Método | Ruta (ProquifaDotNet) | Delegado a | Descripción |
-|--------|-----------------------|-----------|-------------|
-| PATCH | `/EnviarCorreo` | `POST /api/v1/mail/send` | Refactorizado: en lugar de encolar directamente en RabbitMQ, ahora llama al servicio SendInBlue |
+| Método | Ruta (ProquifaDotNet) | Delegado a               | Descripción                                                                                     |
+| ------ | --------------------- | ------------------------ | ----------------------------------------------------------------------------------------------- |
+| PATCH  | `/EnviarCorreo`       | `POST /api/v1/mail/send` | Refactorizado: en lugar de encolar directamente en RabbitMQ, ahora llama al servicio SendInBlue |
 
 Fuente: `R16A-NO-FU-001.md` líneas 205-254, 402-583.
 
