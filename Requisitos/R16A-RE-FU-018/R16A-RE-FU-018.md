@@ -176,10 +176,10 @@ Entonces deberá mostrar una vista de estado vacío con mensaje informativo y el
 
 ## Cambios
 
-| # | Fecha | Observación | Descripción del cambio |
-|---|-------|-------------|------------------------|
-| 1 | 2026-06-10 | OBS-032/033 | Riesgo Perú corregido: premisa "aparecen aunque no puedan cerrarse" eliminada. Ahora: mientras la brecha de timbrado Perú (OSE/SUNAT) no esté habilitada, no se generan pendientes de Perú para evitar huérfanos y ruido. Actualizado en Riesgo 1 (antes Riesgo 2) y Nota al final del documento. |
-| 2 | 2026-06-10 | OBS-036 | Riesgo 1 anterior ("cliente sin Cobrador invisible") eliminado: mitigado por FU-002 Regla 6 (Cobrador no puede quedar vacío tras primera asignación). Riesgo 2 renumerado a Riesgo 1. |
-| 3 | 2026-06-10 | OBS-037 | Nota agregada: distinción explícita entre Factura por Adelantado (apoyo al cliente, nunca con controlados) y Factura Anticipo (exclusiva prepago con controlados, desde Validar Cobro). |
-| 4 | 2026-06-10 | OBS-041 | Regla 7 y Criterio C3: buscador aplica trim automático (ignora espacios al inicio y al final del texto ingresado). |
+| #   | Fecha      | Observación | Descripción del cambio                                                                                                                                                                                                                                                                            |
+| --- | ---------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | 2026-06-10 | OBS-032/033 | Riesgo Perú corregido: premisa "aparecen aunque no puedan cerrarse" eliminada. Ahora: mientras la brecha de timbrado Perú (OSE/SUNAT) no esté habilitada, no se generan pendientes de Perú para evitar huérfanos y ruido. Actualizado en Riesgo 1 (antes Riesgo 2) y Nota al final del documento. |
+| 2   | 2026-06-10 | OBS-036     | Riesgo 1 anterior ("cliente sin Cobrador invisible") eliminado: mitigado por FU-002 Regla 6 (Cobrador no puede quedar vacío tras primera asignación). Riesgo 2 renumerado a Riesgo 1.                                                                                                             |
+| 3   | 2026-06-10 | OBS-037     | Nota agregada: distinción explícita entre Factura por Adelantado (apoyo al cliente, nunca con controlados) y Factura Anticipo (exclusiva prepago con controlados, desde Validar Cobro).                                                                                                           |
+| 4   | 2026-06-10 | OBS-041     | Regla 7 y Criterio C3: buscador aplica trim automático (ignora espacios al inicio y al final del texto ingresado).                                                                                                                                                                                |
 

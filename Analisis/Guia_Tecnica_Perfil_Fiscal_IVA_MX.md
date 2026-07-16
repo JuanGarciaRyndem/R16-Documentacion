@@ -4,15 +4,15 @@
 
 ## 0. Glosario
 
-| Término | Qué es |
-|---|---|
-| **LIVA** | Ley del Impuesto al Valor Agregado — determina cuándo, cómo y a qué tasa se cobra IVA en México |
-| **Tasa** | Porcentaje de IVA que se traslada en una operación — en México: 16%, 8% (zona fronteriza) o 0% |
-| **Exento** | La operación no causa IVA — no se traslada ningún monto, ni siquiera al 0% |
+| Término                | Qué es                                                                                                                    |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **LIVA**               | Ley del Impuesto al Valor Agregado — determina cuándo, cómo y a qué tasa se cobra IVA en México                           |
+| **Tasa**               | Porcentaje de IVA que se traslada en una operación — en México: 16%, 8% (zona fronteriza) o 0%                            |
+| **Exento**             | La operación no causa IVA — no se traslada ningún monto, ni siquiera al 0%                                                |
 | **Objeto de impuesto** | Si una operación está dentro del ámbito que regula la LIVA — una operación puede no ser "objeto" del impuesto en absoluto |
-| **Pedimento** | Trámite aduanal que ampara la importación o exportación de mercancía |
-| **RFC genérico** | RFC estándar para receptores sin RFC mexicano (`XAXX010101000` público en general nacional, `XEXX010101000` extranjero) |
-| **Perfil Fiscal** | El conjunto de reglas que determina el tratamiento de IVA de un producto en una operación dada |
+| **Pedimento**          | Trámite aduanal que ampara la importación o exportación de mercancía                                                      |
+| **RFC genérico**       | RFC estándar para receptores sin RFC mexicano (`XAXX010101000` público en general nacional, `XEXX010101000` extranjero)   |
+| **Perfil Fiscal**      | El conjunto de reglas que determina el tratamiento de IVA de un producto en una operación dada                            |
 
 ---
 
@@ -33,11 +33,11 @@ Existe un tercer factor legal (zona geográfica del emisor, tasa 8% fronteriza) 
 
 ## 2. Marco legal
 
-| Factor | Artículo LIVA | Efecto |
-|---|---|---|
-| Naturaleza del producto/servicio | Art. 1 (general) / Art. 2-A (tasa 0%) / Art. 9 (exento) | Tasa base: 16% / 0% / Exento |
-| Destino de la operación | Art. 29 | Exportación real (con pedimento) fuerza tasa 0% |
-| Ubicación del emisor | Decreto de Estímulos Región Fronteriza | Zona fronteriza: tasa 8% en vez de 16% |
+| Factor                           | Artículo LIVA                                           | Efecto                                          |
+| -------------------------------- | ------------------------------------------------------- | ----------------------------------------------- |
+| Naturaleza del producto/servicio | Art. 1 (general) / Art. 2-A (tasa 0%) / Art. 9 (exento) | Tasa base: 16% / 0% / Exento                    |
+| Destino de la operación          | Art. 29                                                 | Exportación real (con pedimento) fuerza tasa 0% |
+| Ubicación del emisor             | Decreto de Estímulos Región Fronteriza                  | Zona fronteriza: tasa 8% en vez de 16%          |
 
 No existe un cuarto factor legal. Cualquier variación en la tasa que no se derive de estos 3 puntos no corresponde a una regla del IVA.
 
@@ -92,11 +92,11 @@ CREATE TABLE PerfilFiscal (
 );
 ```
 
-| `PerfilFiscalId` | Nombre | `TasaOCuota` | `SatTipoFactorCode` | `SatObjetoImpCode` | Fundamento |
-|---|---|---|---|---|---|
-| 1 | IVA General 16% | 0.160000 | Tasa | 02 | Art. 1 LIVA |
-| 2 | IVA Tasa 0% | 0.000000 | Tasa | 02 | Art. 2-A LIVA |
-| 3 | Exento | NULL | Exento | 02 | Art. 9 LIVA |
+| `PerfilFiscalId` | Nombre          | `TasaOCuota` | `SatTipoFactorCode` | `SatObjetoImpCode` | Fundamento    |
+| ---------------- | --------------- | ------------ | ------------------- | ------------------ | ------------- |
+| 1                | IVA General 16% | 0.160000     | Tasa                | 02                 | Art. 1 LIVA   |
+| 2                | IVA Tasa 0%     | 0.000000     | Tasa                | 02                 | Art. 2-A LIVA |
+| 3                | Exento          | NULL         | Exento              | 02                 | Art. 9 LIVA   |
 
 Una cuarta fila (IEPS) se agrega únicamente si el cliente confirma que algún producto lo requiere.
 
@@ -134,11 +134,11 @@ Este dato vive en el **Pedido**, nunca en el producto — la misma partida puede
 
 Que el cliente tenga domicilio en el extranjero no determina, por sí solo, el resultado de este eje. Lo que determina el tratamiento es la **ruta física real de la mercancía**:
 
-| Ruta | Descripción | `ExportacionCode` / `ObjetoImp` | Tasa | Fundamento |
-|---|---|---|---|---|
-| **A — Triangulación sin tocar México** | El producto se compra en el extranjero y se envía directo a otro país, sin entrar nunca a territorio mexicano | `ObjetoImp=01` (No objeto) | No aplica IVA — la operación no es objeto de la LIVA | Art. 1 y 10 LIVA — el acto no ocurre en territorio nacional |
-| **B — Exportación real** | El producto entra a México (pedimento de **importación**) y después se reexporta al cliente con pedimento de **exportación** | `ExportacionCode=02` | 0% | Art. 29 LIVA |
-| **C — Envío sin trámite formal** | El producto entra a México y se envía al extranjero sin pedimento de exportación | Ninguno de los anteriores cumple | Riesgo de incumplimiento | No satisface el requisito de "exportación definitiva" del Art. 29 |
+| Ruta                                   | Descripción                                                                                                                  | `ExportacionCode` / `ObjetoImp`  | Tasa                                                 | Fundamento                                                        |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------- |
+| **A — Triangulación sin tocar México** | El producto se compra en el extranjero y se envía directo a otro país, sin entrar nunca a territorio mexicano                | `ObjetoImp=01` (No objeto)       | No aplica IVA — la operación no es objeto de la LIVA | Art. 1 y 10 LIVA — el acto no ocurre en territorio nacional       |
+| **B — Exportación real**               | El producto entra a México (pedimento de **importación**) y después se reexporta al cliente con pedimento de **exportación** | `ExportacionCode=02`             | 0%                                                   | Art. 29 LIVA                                                      |
+| **C — Envío sin trámite formal**       | El producto entra a México y se envía al extranjero sin pedimento de exportación                                             | Ninguno de los anteriores cumple | Riesgo de incumplimiento                             | No satisface el requisito de "exportación definitiva" del Art. 29 |
 
 **Nota sobre los 2 pedimentos de la Ruta B — no confundir uno con otro:** el pedimento de **importación** (cuando PROQUIFA recibe la mercancía de su proveedor extranjero) es el que exige el Art. 29-A CFF citar en la factura de reventa (guía de Facturas, sección 5.5) — es un trámite distinto y anterior al pedimento de **exportación** (cuando la mercancía sale de México hacia el cliente final), que es el que activa la tasa 0% de este Eje 2. En una operación de Ruta B, **ambos pedimentos existen y ambos importan**, en 2 momentos distintos del proceso.
 
@@ -172,10 +172,10 @@ El campo existe con default `'01'` (No aplica). Existe evidencia real de exporta
 
 Que un receptor tenga RFC genérico de extranjero no determina, por sí solo, el resultado del Eje 2.
 
-| Dato | Qué resuelve | Campos que afecta |
-|---|---|---|
-| ¿El receptor tiene RFC mexicano o es extranjero? | Identidad fiscal del comprador | `RFC` (`XEXX010101000` si extranjero), `RegimenFiscalReceptor` (`616` si sin obligaciones fiscales en México), `UsoCFDI` (`S01` si sin efectos fiscales) |
-| ¿La mercancía sale físicamente de México con pedimento? | Eje 2 (sección 4) | `ExportacionCode`, y si aplica, fuerza `TasaOCuota=0` |
+| Dato                                                    | Qué resuelve                   | Campos que afecta                                                                                                                                        |
+| ------------------------------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ¿El receptor tiene RFC mexicano o es extranjero?        | Identidad fiscal del comprador | `RFC` (`XEXX010101000` si extranjero), `RegimenFiscalReceptor` (`616` si sin obligaciones fiscales en México), `UsoCFDI` (`S01` si sin efectos fiscales) |
+| ¿La mercancía sale físicamente de México con pedimento? | Eje 2 (sección 4)              | `ExportacionCode`, y si aplica, fuerza `TasaOCuota=0`                                                                                                    |
 
 **Ejemplo — Pharma Scientific Inc. (EUA):** RFC genérico de extranjero, régimen 616. Si compra mercancía y la recoge directamente en la bodega de México, sin pedimento de exportación, la venta se factura al 16% — el RFC extranjero determina la cabecera del receptor, no la tasa.
 
@@ -185,13 +185,13 @@ Que un receptor tenga RFC genérico de extranjero no determina, por sí solo, el
 
 ## 6. Impacto por etapa del sistema
 
-| Etapa | Cálculo esperado | Punto de verificación |
-|---|---|---|
-| **Cotización** | Total por línea, según el `PerfilFiscal` real del producto (Eje 1) — el Eje 2 (Exportación) todavía no se conoce en esta etapa | Que el cálculo se resuelva por línea, no con una tasa plana sobre el total |
-| **Orden de Compra (OC)** | Hereda los montos ya cotizados, la envía el cliente con base en la Cotización | Que la OC no recalcule con lógica propia, independiente de la Cotización |
-| **Pedido** | Conserva, por línea, el `PerfilFiscal` resuelto desde Cotización/OC (Eje 1) | Que el Pedido guarde el perfil fiscal por línea, no solo un total genérico |
-| **Proforma** | Mismo cálculo que el Pedido (Eje 1) — para Prepago, la Proforma se genera antes de comprarle al proveedor, así que tampoco conoce el Eje 2 todavía (sección 4.4) | Que la Proforma no asuma un resultado de exportación que aún no es un hecho |
-| **Factura** | Aplica el Eje 1 y, si ya existe el pedimento de exportación real, el Eje 2 — puede diferir del cálculo mostrado en Cotización/Pedido/Proforma, y es correcto que difiera (sección 4.2) | Cubierto en las guías de Facturas y de NC |
+| Etapa                    | Cálculo esperado                                                                                                                                                                       | Punto de verificación                                                       |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| **Cotización**           | Total por línea, según el `PerfilFiscal` real del producto (Eje 1) — el Eje 2 (Exportación) todavía no se conoce en esta etapa                                                         | Que el cálculo se resuelva por línea, no con una tasa plana sobre el total  |
+| **Orden de Compra (OC)** | Hereda los montos ya cotizados, la envía el cliente con base en la Cotización                                                                                                          | Que la OC no recalcule con lógica propia, independiente de la Cotización    |
+| **Pedido**               | Conserva, por línea, el `PerfilFiscal` resuelto desde Cotización/OC (Eje 1)                                                                                                            | Que el Pedido guarde el perfil fiscal por línea, no solo un total genérico  |
+| **Proforma**             | Mismo cálculo que el Pedido (Eje 1) — para Prepago, la Proforma se genera antes de comprarle al proveedor, así que tampoco conoce el Eje 2 todavía (sección 4.4)                       | Que la Proforma no asuma un resultado de exportación que aún no es un hecho |
+| **Factura**              | Aplica el Eje 1 y, si ya existe el pedimento de exportación real, el Eje 2 — puede diferir del cálculo mostrado en Cotización/Pedido/Proforma, y es correcto que difiera (sección 4.2) | Cubierto en las guías de Facturas y de NC                                   |
 
 **No es una inconsistencia que la Factura difiera de la Cotización/Pedido/Proforma en el tratamiento de IVA** — es el comportamiento esperado cuando el Eje 2 se confirma después de que esos documentos ya se generaron (sección 4.2).
 
