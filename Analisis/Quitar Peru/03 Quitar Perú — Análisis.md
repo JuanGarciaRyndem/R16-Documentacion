@@ -1,4 +1,4 @@
-# Quitar Perú — Análisis Exhaustivo
+# Quitar Perú — Análisis
 
 Complemento del documento `Quitar Perú como análisis Inicial.md`. Aquí se mapea con precisión requisito por requisito (con foco en RE-027 a RE-035), sus dependencias cruzadas y las secciones concretas a modificar. Sirve como plan de ejecución antes de tocar el contenido de los requisitos.
 
