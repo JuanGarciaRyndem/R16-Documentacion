@@ -96,16 +96,16 @@ Es un componente NUEVO que construye el DTO hacia Legacy, pero el diseño no des
 
 ## Resumen
 
-| Área | Estado |
-|---|---|
-| Perú sin Legacy / sin FAA | ✅ Correcto |
-| Atomicidad pendiente FAA | ✅ Correcto |
-| Bloqueo datos fiscales | ✅ Correcto |
-| Bypass código autorización | ⚠️ Sin detalle de implementación |
-| DEP-015 (SyncControl) | ⚠️ No marcada como bloqueante |
-| CA-C4 Pago contra entrega | ⚠️ No mapeado como bloqueante |
-| CA-C3 Cancelación | ⚠️ Sin caso de prueba |
-| CA-A4 Panel Facturación PE | ⚠️ No mapeado |
-| Manejo de errores / DoR | ⚠️ Ausentes |
-| §3.1.1 Integración VD | ⚠️ Truncada / incompleta |
-| `PedidoCreditoPayloadBuilder` | ⚠️ Sin reglas de mapping |
+| Área                          | Estado                           |
+| ----------------------------- | -------------------------------- |
+| Perú sin Legacy / sin FAA     | ✅ Correcto                       |
+| Atomicidad pendiente FAA      | ✅ Correcto                       |
+| Bloqueo datos fiscales        | ✅ Correcto                       |
+| Bypass código autorización    | ⚠️ Sin detalle de implementación |
+| DEP-015 (SyncControl)         | ⚠️ No marcada como bloqueante    |
+| CA-C4 Pago contra entrega     | ⚠️ No mapeado como bloqueante    |
+| CA-C3 Cancelación             | ⚠️ Sin caso de prueba            |
+| CA-A4 Panel Facturación PE    | ⚠️ No mapeado                    |
+| Manejo de errores / DoR       | ⚠️ Ausentes                      |
+| §3.1.1 Integración VD         | ⚠️ Truncada / incompleta         |
+| `PedidoCreditoPayloadBuilder` | ⚠️ Sin reglas de mapping         |

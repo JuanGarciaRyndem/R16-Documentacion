@@ -1,116 +1,140 @@
-# Catálogo de Estatus de Facturación — Factura por Adelantado (FAA)
+# Catálogo de Estatus de Facturación — `catFacturaEstado`
 
 | Campo | Valor |
 |---|---|
 | **Módulo** | Factura por Adelantado |
 | **Soluciones involucradas** | ProquifaDotNet · ProquifaDotNet.Finanzas · ProquifaDotNet.Timbrado |
-| **Tabla catálogo** | `catEstatusFactura` |
-| **Tabla principal** | `fccFactura` (FK → `IdCatEstatusFactura`) |
+| **Tabla catálogo** | `catFacturaEstado` (definida en RE-FU-015 BD v2.1) |
+| **Tabla principal** | `fccFactura` (FK → `IdCatFacturaEstado`) |
+| **Aplica a** | FAA y Factura Normal (`fccFactura` es tabla única, diferenciada por `EsFacturaPorAdelantado`) |
 | **Fecha** | 2026-07-20 |
 
 ---
 
-## Tabla catálogo — `catEstatusFactura`
+## DDL (RE-FU-015 — no duplicar)
 
 ```sql
-CREATE TABLE dbo.catEstatusFactura (
-    IdCatEstatusFactura  uniqueidentifier NOT NULL CONSTRAINT PK_catEstatusFactura PRIMARY KEY,
-    Clave                nvarchar(50)     NOT NULL CONSTRAINT UQ_catEstatusFactura_Clave UNIQUE,
-    Nombre               nvarchar(100)    NOT NULL,
-    Descripcion          nvarchar(255)    NOT NULL,
-    Activo               bit              NOT NULL CONSTRAINT DF_catEstatusFactura_Activo DEFAULT 1
+CREATE TABLE [dbo].[catFacturaEstado](
+    [IdCatFacturaEstado]  uniqueidentifier NOT NULL
+        CONSTRAINT [DF_catFacturaEstado_Id]       DEFAULT (NEWID()),
+    [Clave]               varchar(30)      NOT NULL,
+    [Descripcion]         nvarchar(150)    NOT NULL,
+    [Orden]               int              NOT NULL,
+    [EsTerminal]          bit              NOT NULL
+        CONSTRAINT [DF_catFacturaEstado_Terminal] DEFAULT (0),
+    [Activo]              bit              NOT NULL
+        CONSTRAINT [DF_catFacturaEstado_Activo]   DEFAULT (1),
+    [FechaRegistro]       datetime2(7)     NOT NULL
+        CONSTRAINT [DF_catFacturaEstado_FechaReg] DEFAULT (SYSUTCDATETIME()),
+    CONSTRAINT [PK_catFacturaEstado]       PRIMARY KEY CLUSTERED ([IdCatFacturaEstado]),
+    CONSTRAINT [UQ_catFacturaEstado_Clave] UNIQUE ([Clave])
 );
 ```
 
-### Datos iniciales
+### Seed data
 
 ```sql
-INSERT INTO dbo.catEstatusFactura (IdCatEstatusFactura, Clave, Nombre, Descripcion) VALUES
-('A1B2C3D4-0001-0000-0000-000000000001', 'PendienteEmision',  'Pendiente de Emisión',   'El pendiente FAA fue generado al tramitar. Aún no se ha iniciado el timbrado.'),
-('A1B2C3D4-0002-0000-0000-000000000002', 'EnProcesoTimbrado', 'En proceso de timbrado', 'Solicitud enviada al PAC. Se están ejecutando los reintentos sincrónicos.'),
-('A1B2C3D4-0003-0000-0000-000000000003', 'Timbrada',          'Timbrada',               'El PAC retornó UUID y XML firmado. La factura aún no ha sido enviada al cliente.'),
-('A1B2C3D4-0004-0000-0000-000000000004', 'ErrorTimbrado',     'Error al timbrar',       'El Worker agotó todos los reintentos. Se notificó al equipo de soporte vía Brevo.'),
-('A1B2C3D4-0005-0000-0000-000000000005', 'Enviada',           'Enviada',                'La factura PPD timbrada fue enviada exitosamente al cliente.');
+INSERT INTO [dbo].[catFacturaEstado] (Clave, Descripcion, Orden, EsTerminal) VALUES
+('POR_GENERAR',    N'Factura creada, pendiente de timbrado ante PAC/SUNAT',                                1, 0),
+('ERROR_TIMBRADO', N'El PAC/SUNAT rechazó el timbrado; requiere corrección y reintento (Finanzas)',        2, 0),
+('GENERADA',       N'Timbrada exitosamente (CFDI/CPE vigente); pendiente de envío al cliente',             3, 0),
+('ENVIADA',        N'Enviada al cliente con PDF + XML adjuntos',                                           4, 0),
+('PAGADA_PARCIAL', N'Con cobros aplicados parcialmente; saldo pendiente (PPD con complementos parciales)', 5, 0),
+('PAGADA',         N'Cobro asociado y aplicado en su totalidad (Validar Cobro)',                           6, 1),
+('CANCELADA',      N'Cancelada ante SAT/SUNAT (CFDICancelacion / NC según normativa)',                     7, 1);
 ```
-
-> Los GUIDs son fijos (seed data) para que las referencias desde código sean estables entre ambientes.
-
----
-
-## FK en `fccFactura`
-
-```sql
-ALTER TABLE dbo.fccFactura
-    ADD IdCatEstatusFactura uniqueidentifier NOT NULL
-        CONSTRAINT DF_fccFactura_IdCatEstatusFactura
-            DEFAULT 'A1B2C3D4-0001-0000-0000-000000000001',  -- 'PendienteEmision'
-        CONSTRAINT FK_fccFactura_catEstatusFactura
-            FOREIGN KEY (IdCatEstatusFactura)
-            REFERENCES dbo.catEstatusFactura (IdCatEstatusFactura);
-```
-
-> Al insertar el pendiente FAA en la tramitación del pedido (RE-FU-012 / RE-FU-015), el registro nace con la clave `PendienteEmision` por `DEFAULT`.
 
 ---
 
 ## Catálogo de estatus
 
-### 1 — Pendiente de Emisión
-
-| Campo                 | Valor                                                                         |
-| --------------------- | ----------------------------------------------------------------------------- |
-| **Clave**             | `PendienteEmision`                                                            |
-| **Quién asigna**      | `DEFAULT` al insertar `fccFactura` en la tramitación del pedido               |
-| **Descripción**       | El pendiente FAA fue generado al tramitar. Aún no se ha iniciado el timbrado. |
-| **Origen**            | RE-FU-012 (Crédito con FAA) · RE-FU-015 (Prepago con FAA)                     |
-| **Acción disponible** | El gestor de cobranza puede seleccionar la factura e iniciar el timbrado      |
-
----
-
-### 2 — En proceso de timbrado
+### POR_GENERAR
 
 | Campo | Valor |
 |---|---|
-| **Clave** | `EnProcesoTimbrado` |
-| **Quién asigna** | `TimbradoService` al crear el registro en tabla `CFDI` y enviar al PAC |
-| **Descripción** | Solicitud enviada al PAC (SAP/TurboPac). Reintentos sincrónicos activos (hasta 3, backoff exponencial via Polly). |
-| **Origen** | RE-FU-019 al llamar `POST /api/timbrado/timbrar` en ProquifaDotNet.Timbrado |
-| **Acción disponible** | Ninguna — el sistema está procesando |
+| **Orden** | 1 |
+| **Terminal** | No |
+| **Quién asigna** | `DEFAULT` al insertar `fccFactura` en la tramitación del pedido |
+| **Descripción** | Factura creada, pendiente de timbrado ante PAC/SUNAT. El pendiente FAA fue generado al tramitar pero aún no se ha iniciado el timbrado. |
+| **Origen** | RE-FU-012 (Crédito con FAA) · RE-FU-015 (Prepago con FAA) |
+| **Acción disponible** | El gestor de cobranza puede seleccionar la factura e iniciar el timbrado |
 
 ---
 
-### 3 — Timbrada
+### ERROR_TIMBRADO
 
 | Campo | Valor |
 |---|---|
-| **Clave** | `Timbrada` |
+| **Orden** | 2 |
+| **Terminal** | No |
+| **Quién asigna** | `TimbradoService` / `TimbradoWorker` al agotar reintentos ante el PAC |
+| **Descripción** | El PAC/SUNAT rechazó el timbrado. Requiere corrección y reintento desde Finanzas. El Worker RabbitMQ notifica al equipo de soporte vía Brevo. |
+| **Origen** | RE-FU-018 — Worker al agotar reintentos |
+| **Acción disponible** | Reintento manual desde el módulo Finanzas o escalación a soporte |
+
+---
+
+### GENERADA
+
+| Campo | Valor |
+|---|---|
+| **Orden** | 3 |
+| **Terminal** | No |
 | **Quién asigna** | `TimbradoService` al recibir respuesta exitosa del PAC (flujo sincrónico o Worker asíncrono) |
-| **Descripción** | El PAC retornó UUID, Serie y Folio. El XML firmado fue almacenado en Minio (bucket `timbrado`). La factura aún no ha sido enviada al cliente. |
+| **Descripción** | Timbrada exitosamente. CFDI/CPE vigente. El XML firmado fue almacenado en Minio (bucket `timbrado`) y `fccFactura.IdCFDIGenerada` fue actualizado. Pendiente de envío al cliente. |
 | **Origen** | RE-FU-018/019 — flujo sincrónico o Worker RabbitMQ exitoso |
 | **Acción disponible** | El gestor puede enviar la factura al cliente |
 
 ---
 
-### 4 — Error al timbrar
+### ENVIADA
 
 | Campo | Valor |
 |---|---|
-| **Clave** | `ErrorTimbrado` |
-| **Quién asigna** | `TimbradoWorker` al agotar todos los reintentos asíncronos en la cola RabbitMQ |
-| **Descripción** | El PAC falló en los reintentos sincrónicos y el Worker agotó todos sus reintentos. Se notifica al equipo de soporte vía Brevo. |
-| **Origen** | RE-FU-018 — Worker al agotar reintentos |
-| **Acción disponible** | Reintento manual o escalación a soporte técnico |
+| **Orden** | 4 |
+| **Terminal** | No |
+| **Quién asigna** | RE-FU-019 al completar el envío al cliente (`Enviada = 1`, `FechaEnvio = SYSUTCDATETIME()`) |
+| **Descripción** | Enviada al cliente con PDF + XML adjuntos. Sale del conteo de facturas pendientes en el listado FAA. |
+| **Origen** | RE-FU-019 |
+| **Acción disponible** | Aplican cobros (Validar Cobro) o cancelación |
 
 ---
 
-### 5 — Enviada
+### PAGADA_PARCIAL
 
 | Campo | Valor |
 |---|---|
-| **Clave** | `Enviada` |
-| **Quién asigna** | RE-FU-019 al completar el envío al cliente |
-| **Descripción** | La factura PPD timbrada fue enviada exitosamente al cliente. Sale del conteo de facturas pendientes en el listado FAA. |
-| **Origen** | RE-FU-019 |
+| **Orden** | 5 |
+| **Terminal** | No |
+| **Quién asigna** | Módulo Validar Cobro (RE-FU-026/027/028/029) al aplicar complementos de pago parciales |
+| **Descripción** | Con cobros aplicados parcialmente. Saldo pendiente (PPD con complementos parciales). |
+| **Origen** | RE-FU-026/027/028/029 |
+| **Acción disponible** | Cobros adicionales hasta completar el total, o cancelación |
+
+---
+
+### PAGADA
+
+| Campo | Valor |
+|---|---|
+| **Orden** | 6 |
+| **Terminal** | **Sí** |
+| **Quién asigna** | Módulo Validar Cobro (RE-FU-026/027/028/029) al aplicar el cobro total |
+| **Descripción** | Cobro asociado y aplicado en su totalidad. Sin transiciones posteriores. |
+| **Origen** | RE-FU-026/027/028/029 |
+| **Acción disponible** | Ninguna — flujo completado |
+
+---
+
+### CANCELADA
+
+| Campo | Valor |
+|---|---|
+| **Orden** | 7 |
+| **Terminal** | **Sí** |
+| **Quién asigna** | Flujo de cancelación (RE-FU-032) vía `POST /api/v1/stamp/cancel` |
+| **Descripción** | Cancelada ante SAT/SUNAT (CFDI de cancelación o Nota de Crédito según normativa). Sin transiciones posteriores. |
+| **Origen** | RE-FU-032 |
 | **Acción disponible** | Ninguna — flujo completado |
 
 ---
@@ -120,104 +144,117 @@ ALTER TABLE dbo.fccFactura
 ```
 [Tramitar Pedido — RE-FU-012 / RE-FU-015]
        │
-       │ INSERT fccFactura → IdCatEstatusFactura = 1 (DEFAULT)
+       │ INSERT fccFactura → IdCatFacturaEstado = POR_GENERAR (DEFAULT)
        ▼
-┌──────────────────────┐
-│  1. Pendiente de     │
-│     Emisión          │
-└──────────┬───────────┘
-           │ Gestor inicia timbrado (RE-FU-019)
-           │ UPDATE IdCatEstatusFactura = 2
-           ▼
-┌──────────────────────┐
-│  2. En proceso de    │
-│     timbrado         │
-└──────┬───────────────┘
-       │
-  ┌────┴──────────────────────────┐
-  │ PAC exitoso                   │ PAC falla → Worker RabbitMQ
-  │ UPDATE = 3                    │
-  ▼                               │
-┌──────────┐              ┌───────┴──────────┐
-│ 3.       │              │ Worker reintenta  │
-│ Timbrada │              └───────┬──────────┘
-└────┬─────┘                      │
-     │                    ┌───────┴──────────┐
-     │              Exitoso│                  │Agota reintentos
-     │              UPDATE=3                  │UPDATE = 4
-     │                    │                  ▼
-     │                    ▼         ┌─────────────────┐
-     │              ┌──────────┐    │  4. Error al    │
-     │              │3.Timbrada│    │     timbrar     │
-     │              └────┬─────┘    └─────────────────┘
-     │                   │
-     └─────┬─────────────┘
-           │ Gestor envía factura (RE-FU-019)
-           │ UPDATE IdCatEstatusFactura = 5
-           ▼
-┌──────────────────────┐
-│  5. Enviada          │
-└──────────────────────┘
+┌─────────────────┐
+│  POR_GENERAR    │
+└────────┬────────┘
+         │ Gestor inicia timbrado (RE-FU-019)
+         │ PAC responde
+    ┌────┴──────────────────┐
+    │ Exitoso               │ Fallo (reintentos agotados)
+    ▼                       ▼
+┌──────────┐        ┌───────────────┐
+│ GENERADA │        │ ERROR_TIMBRADO│◄── reintento desde Finanzas
+└────┬─────┘        └───────┬───────┘
+     │                      │ Reintento exitoso
+     │              ┌───────┘
+     │              ▼
+     │          ┌──────────┐
+     │          │ GENERADA │
+     │          └────┬─────┘
+     └──────┬────────┘
+            │ Gestor envía factura (RE-FU-019)
+            │ Enviada=1, FechaEnvio=SYSUTCDATETIME()
+            ▼
+┌─────────────────┐
+│    ENVIADA      │
+└────────┬────────┘
+         │
+    ┌────┴──────────────────────────┐
+    │ Cobro parcial                 │ Cobro total        │ Cancelación
+    ▼                               ▼                    ▼
+┌────────────────┐          ┌──────────┐        ┌────────────┐
+│ PAGADA_PARCIAL │──cobro──►│  PAGADA  │        │ CANCELADA  │
+│                │  total   │(terminal)│        │ (terminal) │
+│                │          └──────────┘        └────────────┘
+└────────┬───────┘
+         │ Cancelación
+         ▼
+    ┌────────────┐
+    │ CANCELADA  │
+    │ (terminal) │
+    └────────────┘
+```
+
+---
+
+## Transiciones válidas
+
+| Desde | Hacia | Quién ejecuta |
+|---|---|---|
+| `POR_GENERAR` | `GENERADA` | TimbradoService — PAC exitoso |
+| `POR_GENERAR` | `ERROR_TIMBRADO` | TimbradoWorker — reintentos agotados |
+| `ERROR_TIMBRADO` | `GENERADA` | TimbradoService — reintento desde Finanzas |
+| `GENERADA` | `ENVIADA` | RE-FU-019 — envío al cliente |
+| `GENERADA` | `CANCELADA` | RE-FU-032 — cancelación fiscal |
+| `ENVIADA` | `PAGADA_PARCIAL` | RE-FU-026/027/028/029 — cobro parcial |
+| `ENVIADA` | `PAGADA` | RE-FU-026/027/028/029 — cobro total |
+| `ENVIADA` | `CANCELADA` | RE-FU-032 — cancelación fiscal |
+| `PAGADA_PARCIAL` | `PAGADA` | RE-FU-026/027/028/029 — cobro total |
+| `PAGADA_PARCIAL` | `CANCELADA` | RE-FU-032 — cancelación fiscal |
+
+> `PAGADA` y `CANCELADA` son estados terminales (`EsTerminal = 1`) — sin transiciones posteriores.
+
+---
+
+## Constantes en código
+
+```csharp
+// ProquifaDotNet.Finanzas — Domain/Constants/FacturaEstado.cs
+public static class FacturaEstado
+{
+    public const string PorGenerar    = "POR_GENERAR";
+    public const string ErrorTimbrado = "ERROR_TIMBRADO";
+    public const string Generada      = "GENERADA";
+    public const string Enviada       = "ENVIADA";
+    public const string PagadaParcial = "PAGADA_PARCIAL";
+    public const string Pagada        = "PAGADA";
+    public const string Cancelada     = "CANCELADA";
+}
+```
+
+Uso al actualizar la transición:
+
+```csharp
+factura.IdCatFacturaEstado = await _catalogoRepo
+    .ObtenerIdPorClave<catFacturaEstado>(FacturaEstado.Generada);
 ```
 
 ---
 
 ## Filtro del listado FAA (RE-FU-018)
 
-El listado muestra únicamente facturas activas no finalizadas:
+El listado muestra únicamente facturas activas no finalizadas. La `vfccFactura` ya expone `FacturaEstadoClave` (JOIN a `catFacturaEstado`):
 
 ```sql
-WHERE fcc.FacturaPorAdelantado = 1
-  AND fcc.Tramitado            = 1
-  AND fcc.Activo               = 1
-  AND ef.Clave                != 'Enviada'
-```
-
-Al pasar a estatus `Enviada`, el registro sale automáticamente del listado.
-
----
-
-## Diccionario de datos — `catEstatusFactura`
-
-| Columna | Tipo | Nulo | Descripción |
-|---|---|---|---|
-| `IdCatEstatusFactura` | `uniqueidentifier` | NO | PK — GUID fijo de seed data |
-| `Clave` | `nvarchar(50)` | NO | Clave única para consumo desde código (`EstatusFactura.Clave`) |
-| `Nombre` | `nvarchar(100)` | NO | Etiqueta de presentación en pantalla |
-| `Descripcion` | `nvarchar(255)` | NO | Descripción funcional del estatus |
-| `Activo` | `bit` | NO | Permite desactivar estatus sin eliminarlos |
-
----
-
-## Constantes en código
-
-Las claves del catálogo se usan directamente como constantes de cadena, alineadas con el campo `Clave` de la BD:
-
-```csharp
-// ProquifaDotNet.Finanzas — Domain/Constants/EstatusFactura.cs
-public static class EstatusFactura
-{
-    public const string PendienteEmision  = "PendienteEmision";
-    public const string EnProcesoTimbrado = "EnProcesoTimbrado";
-    public const string Timbrada          = "Timbrada";
-    public const string ErrorTimbrado     = "ErrorTimbrado";
-    public const string Enviada           = "Enviada";
-}
-```
-
-Uso en servicio al actualizar la transición:
-
-```csharp
-factura.IdCatEstatusFactura = await _catalogoRepo
-    .ObtenerIdPorClave<catEstatusFactura>(EstatusFactura.EnProcesoTimbrado);
+WHERE fcc.EsFacturaPorAdelantado = 1
+  AND fcc.Activo                 = 1
+  AND ef.Clave NOT IN ('PAGADA', 'CANCELADA')
 ```
 
 ---
 
-## Pendientes abiertos
+## Nota sobre `EstadoFAA` en `vfccFactura`
 
-| ID | Descripción | Requisito |
-|---|---|---|
-| PA-2 (RE-FU-012) | Confirmar que todos los módulos consumidores lean `IdCatEstatusFactura` en lugar de calcular el estatus via condiciones en vistas | RE-FU-012 |
-| OBS-032/033 | FAA Perú excluida del listado hasta RE-FU-005 Brecha 5 | RE-FU-018 |
-| RE-FU-019 | Definir el contrato de callback Timbrado → Finanzas para actualizar el estatus al completar el timbrado asíncrono | RE-FU-018/019 |
+La vista `vfccFactura` mantiene el campo calculado `EstadoFAA` (compatibilidad con el consumo que tenía `vtpProformaAdelanto`) independientemente de `IdCatFacturaEstado`:
+
+```sql
+CASE
+    WHEN f.IdCFDIGenerada IS NULL                              THEN 'PendienteGenerar'
+    WHEN f.IdCFDIGenerada IS NOT NULL AND f.Enviada = 0        THEN 'PendienteEnviar'
+    ELSE                                                            'Completada'
+END AS EstadoFAA
+```
+
+`EstadoFAA` es el estado del **pendiente FAA** (3 valores, compatibilidad). `IdCatFacturaEstado` / `FacturaEstadoClave` es el estado del **ciclo de vida completo de la factura** (7 valores, fuente de verdad). Ambos conviven en la vista — no se sustituyen.
