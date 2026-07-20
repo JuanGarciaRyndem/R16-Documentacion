@@ -200,3 +200,24 @@ Con este análisis listo, empezar por el **Punto 1 (cancelar RE-020, RE-022, RE-
 
 - Se renombran las carpetas al patrón `-Cancelado/` (como RE-008 y RE-031), o solo se agrega un banner al inicio del `.md`.
 - Se quiere conservar contenido histórico del archivo (recomendado, por si el timbrado Perú se retoma).
+
+---
+
+## 9. Ejecución — Cancelaciones confirmadas (2026-07-20)
+
+**Decisión:** El timbrado fiscal y la facturación electrónica de Perú quedan fuera del alcance de R16 por decisión del cliente. Se confirma la cancelación de los siguientes requisitos (Punto 1 del orden de ejecución).
+
+| ID | Título | Acción | Archivo de cancelación |
+|---|---|---|---|
+| RE-FU-020 | Factura por Adelantado: Detalle Perú | **CANCELADO** | `R16A-RE-FU-020/R16A-RE-FU-020-Cancelado.md` |
+| RE-FU-022 | Diseño y generación de Documentos: Factura Perú | **CANCELADO** | `R16A-RE-FU-022/R16A-RE-FU-022-Cancelado.md` |
+| RE-FU-031 | Diseño y generación de Documentos: CDP Perú | **CANCELADO** | `R16A-RE-FU-031/R16A-RE-FU-031-Cancelado.md` (preexistente) |
+| RE-FU-033 | Notas de Crédito: Perú | **CANCELADO** | `R16A-RE-FU-033/R16A-RE-FU-033-Cancelado.md` |
+| RE-FU-035 | Diseño y generación de Documentos: NDC Perú | **CANCELADO** | `R16A-RE-FU-035/R16A-RE-FU-035-Cancelado.md` |
+
+**Patrón aplicado:** se agrega archivo `*-Cancelado.md` dentro de cada carpeta de requisito con motivo, impacto y referencia a este análisis. El contenido histórico de los demás archivos de cada requisito se conserva sin modificar.
+
+**Pendientes del Punto 1 ejecutado — siguiente paso (Punto 2):**
+- Simplificar RE-027 (Validar Cobro: Paso 2 Perú): retirar aplicación de NCs y referencias a RE-033/035.
+- Simplificar RE-029 (Validar Cobro: Paso 3 Perú): retirar timbrado SUNAT y generación de Factura Perú.
+- Ajustar RE-015 y RE-018: bloquear FpA Perú.

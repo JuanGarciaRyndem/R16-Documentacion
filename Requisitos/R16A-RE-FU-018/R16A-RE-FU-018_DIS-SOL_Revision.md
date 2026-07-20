@@ -55,14 +55,14 @@ Dicho esto, se encontraron dos categorías de hallazgos críticos: (1) **incumpl
 
 La regla del proyecto es explícita: `api/v1/{resource}/{id}/{subresource}`, recurso singular en inglés, CRUD por verbo HTTP, acciones especiales solo como subrecurso explícito (ejemplo dado: `POST api/v1/invoice/{id}/cancel`). Los 6 endpoints creados por este DIS-SOL:
 
-| Endpoint del DIS-SOL | Incumplimientos |
-|---|---|
+| Endpoint del DIS-SOL                  | Incumplimientos                                                                                                      |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `POST /api/factura-adelantado/listar` | Falta `v1`; recurso en español y no singular-CRUD (`factura-adelantado`); acción `listar` en español como subrecurso |
-| `POST /api/timbrado/timbrar` | Falta `v1`; recurso y acción en español, y redundantes entre sí (`timbrado`/`timbrar`) |
-| `POST /api/timbrado/cancelar` | Falta `v1`; recurso y acción en español (la regla ya da el ejemplo correcto: `.../cancel`, en inglés) |
-| `GET /api/cfdi/{id}` | Falta `v1` (recurso `cfdi` es aceptable como término regulatorio) |
-| `GET /api/cfdi/{id}/xml` | Falta `v1` |
-| `POST /api/cfdi/listar` | Falta `v1`; acción `listar` en español como subrecurso |
+| `POST /api/timbrado/timbrar`          | Falta `v1`; recurso y acción en español, y redundantes entre sí (`timbrado`/`timbrar`)                               |
+| `POST /api/timbrado/cancelar`         | Falta `v1`; recurso y acción en español (la regla ya da el ejemplo correcto: `.../cancel`, en inglés)                |
+| `GET /api/cfdi/{id}`                  | Falta `v1` (recurso `cfdi` es aceptable como término regulatorio)                                                    |
+| `GET /api/cfdi/{id}/xml`              | Falta `v1`                                                                                                           |
+| `POST /api/cfdi/listar`               | Falta `v1`; acción `listar` en español como subrecurso                                                               |
 
 **Acción:** Renombrar las 6 rutas antes de GAP-10/GAP-11/GAP-16, por ejemplo: `POST /api/v1/advanceInvoice/search` (o resolver el listado con `GET /api/v1/advanceInvoice` + query params), `POST /api/v1/cfdi/{id}/stamp`, `POST /api/v1/cfdi/{id}/cancel`, `GET /api/v1/cfdi/{id}`, `GET /api/v1/cfdi/{id}/xml`, `POST /api/v1/cfdi/search`.
 
