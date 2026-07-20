@@ -102,13 +102,13 @@ flowchart TD
 
 ## 4. Los mecanismos de facturación — matriz consolidada
 
-| Escenario                                                                           | Documento que se genera | MetodoPago | ¿Editable? / Por qué ese MetodoPago                                                                                        | ¿Requiere Complemento de Pago?                  |
-| ----------------------------------------------------------------------------------- | ----------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| Prepago normal (sin controlado)                                                     | Factura de Ingreso      | `PUE`      | No — el pago ya se recibió antes de timbrar (la secuencia lo garantiza), así que no hay nada que quede pendiente de cobrar | No                                              |
-| Prepago normal (con controlado)                                                     | **Factura Anticipo**    | `PUE`      | No — mismo motivo que la fila anterior; el anticipo ya está cobrado al momento de timbrar                                  | No                                              |
-| Prepago adelantado (sin controlado; con controlado no aplica, cae al caso anterior) | Factura de Ingreso      | `PPD`      | No — se timbra antes de que el cliente pague, por definición de "adelantado"; no hay forma de que sea PUE                  | Sí — se genera en `Validar Cobro` (sección 7)   |
-| Crédito adelantado (sin controlado; con controlado no aplica, va a Legacy)          | Factura de Ingreso      | `PPD`      | No — mismo motivo: se timbra antes del cobro (que llega según días de crédito)                                             | Sí — pero se genera en Legacy, fuera de alcance |
-| Contra Entrega adelantado (sin controlado; con controlado no aplica, va a Legacy)   | Factura de Ingreso      | `PPD`      | No — mismo motivo: se timbra antes del cobro (que llega contra la entrega)                                                 | Sí — mismo caso que Crédito adelantado          |
+| Escenario | Documento que se genera | MetodoPago | ¿Editable? / Por qué ese MetodoPago | ¿Requiere Complemento de Pago? |
+|---|---|---|---|---|
+| Prepago normal (sin controlado) | Factura de Ingreso | `PUE` | No — el pago ya se recibió antes de timbrar (la secuencia lo garantiza), así que no hay nada que quede pendiente de cobrar | No |
+| Prepago normal (con controlado) | **Factura Anticipo** | `PUE` | No — mismo motivo que la fila anterior; el anticipo ya está cobrado al momento de timbrar | No |
+| Prepago adelantado (sin controlado; con controlado no aplica, cae al caso anterior) | Factura de Ingreso | `PPD` | No — se timbra antes de que el cliente pague, por definición de "adelantado"; no hay forma de que sea PUE | Sí — se genera en `Validar Cobro` (sección 7) |
+| Crédito adelantado (sin controlado; con controlado no aplica, va a Legacy) | Factura de Ingreso | `PPD` | No — mismo motivo: se timbra antes del cobro (que llega según días de crédito) | Sí — pero se genera en Legacy, fuera de alcance |
+| Contra Entrega adelantado (sin controlado; con controlado no aplica, va a Legacy) | Factura de Ingreso | `PPD` | No — mismo motivo: se timbra antes del cobro (que llega contra la entrega) | Sí — mismo caso que Crédito adelantado |
 
 **El criterio que determina PUE vs. PPD no es el tipo de cliente — es si el pago ya se recibió antes de timbrar o no.** Prepago normal (con o sin controlado) es el único caso donde la secuencia obliga a que el cliente ya pagó y envió comprobante antes de que exista la factura — de ahí que sea el único PUE de los 5. Los otros 4 timbran primero y cobran después, por eso son PPD.
 
@@ -172,11 +172,11 @@ CREATE TABLE PerfilFiscal (
 
 **Filas iniciales del catálogo, ya conocidas para la operación de PROQUIFA:**
 
-| `PerfilFiscalId` | Nombre          | `TasaOCuota` | `SatTipoFactorCode` | `SatObjetoImpCode` | Fundamento    |
-| ---------------- | --------------- | ------------ | ------------------- | ------------------ | ------------- |
-| 1                | IVA General 16% | 0.160000     | Tasa                | 02                 | Art. 1 LIVA   |
-| 2                | IVA Tasa 0%     | 0.000000     | Tasa                | 02                 | Art. 2-A LIVA |
-| 3                | Exento          | NULL         | Exento              | 02                 | Art. 9 LIVA   |
+| `PerfilFiscalId` | Nombre | `TasaOCuota` | `SatTipoFactorCode` | `SatObjetoImpCode` | Fundamento |
+|---|---|---|---|---|---|
+| 1 | IVA General 16% | 0.160000 | Tasa | 02 | Art. 1 LIVA |
+| 2 | IVA Tasa 0% | 0.000000 | Tasa | 02 | Art. 2-A LIVA |
+| 3 | Exento | NULL | Exento | 02 | Art. 9 LIVA |
 
 Una cuarta fila (IEPS) queda pendiente de agregar únicamente si el cliente confirma que algún producto lo requiere — no se crea sin esa confirmación.
 
@@ -293,17 +293,17 @@ Tabla consolidada de todo lo definido en las secciones 4-5, en un solo lugar, pa
 
 Se genera cuando una OC de Prepago trae al menos un producto controlado. Sigue el procedimiento del Apéndice 6 del Anexo 20:
 
-| Campo                       | Valor                                                                                                                                                                    |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `TipoDeComprobante`         | `I` — Ingreso                                                                                                                                                            |
-| `MetodoPago`                | `PUE` — el dinero ya está en la cuenta al momento de timbrar                                                                                                             |
-| `FormaPago`                 | La forma real en que se recibió el pago                                                                                                                                  |
-| `Moneda` / `TipoCambio`     | Hereda de la Proforma (sección 8) — la secuencia de Prepago con controlado siempre pasa por Proforma, no es un caso especial                                             |
-| `Conceptos > ClaveProdServ` | `84111506` — Servicios de facturación                                                                                                                                    |
-| `Conceptos > ClaveUnidad`   | `ACT` — Actividad                                                                                                                                                        |
-| `Conceptos > Cantidad`      | `1`                                                                                                                                                                      |
-| `Conceptos > Descripcion`   | `"Anticipo del bien o servicio"` — no se menciona el producto controlado real, porque a este nivel no hay certeza de que la venta se vaya a concretar tal como se cotizó |
-| `Conceptos > ValorUnitario` | El monto recibido como anticipo, antes de impuestos                                                                                                                      |
+| Campo | Valor |
+|---|---|
+| `TipoDeComprobante` | `I` — Ingreso |
+| `MetodoPago` | `PUE` — el dinero ya está en la cuenta al momento de timbrar |
+| `FormaPago` | La forma real en que se recibió el pago |
+| `Moneda` / `TipoCambio` | Hereda de la Proforma (sección 8) — la secuencia de Prepago con controlado siempre pasa por Proforma, no es un caso especial |
+| `Conceptos > ClaveProdServ` | `84111506` — Servicios de facturación |
+| `Conceptos > ClaveUnidad` | `ACT` — Actividad |
+| `Conceptos > Cantidad` | `1` |
+| `Conceptos > Descripcion` | `"Anticipo del bien o servicio"` — no se menciona el producto controlado real, porque a este nivel no hay certeza de que la venta se vaya a concretar tal como se cotizó |
+| `Conceptos > ValorUnitario` | El monto recibido como anticipo, antes de impuestos |
 
 **Fuera de alcance — la Factura Final.** Cuando el producto controlado finalmente se libera/autoriza y la venta se concreta, se debe emitir una Factura Final por el valor total real, relacionada hacia la Factura Anticipo vía `TipoRelacion=07` (CFDI por aplicación de anticipo). Esa Factura Final depende de que el controlado ya haya pasado por todo el proceso regulatorio y de importación — el mismo tramo que ya está fuera de alcance de ProquifaNet 2. Se genera en Legacy.
 
@@ -596,10 +596,10 @@ Cuando `TotalDisponible` de un Cobro no llega a $0 al terminar una operación de
 
 **Decisión, no pendiente de confirmar con el cliente:** a diferencia del Cobro (que no es un CFDI y no tiene una dimensión "vigente/cancelado ante el SAT"), la Factura sí es un CFDI — tiene exactamente la misma dimensión externa que ya resolvimos para la Nota de Crédito (guía de NC, sección 13). Por consistencia con esa decisión, la Factura se modela igual: **2 campos independientes**, no uno solo.
 
-| Campo | Quién lo controla | Qué responde |
-|---|---|---|
-| `EstatusSAT` | El SAT — resultado de su servicio de "Consulta de CFDI" | ¿Este CFDI sigue vigente, o fue cancelado ante la autoridad? |
-| `EstatusCobranza` | ProquifaNet 2 — control interno | ¿En qué punto va el cobro de esta factura? |
+| Campo             | Quién lo controla                                       | Qué responde                                                 |
+| ----------------- | ------------------------------------------------------- | ------------------------------------------------------------ |
+| `EstatusSAT`      | El SAT — resultado de su servicio de "Consulta de CFDI" | ¿Este CFDI sigue vigente, o fue cancelado ante la autoridad? |
+| `EstatusCobranza` | ProquifaNet 2 — control interno                         | ¿En qué punto va el cobro de esta factura?                   |
 
 **Por qué no se combinan en un solo campo:** si una Factura con cobro parcial se cancela, un solo campo `CANCELADA` perdería el dato de que ya tenía cobro parcial antes de cancelarse — información que sí importa para entender qué tan grave fue esa cancelación. Con 2 campos separados, ese caso se representa sin perder nada: `EstatusSAT=Cancelado`, `EstatusCobranza=Parcialmente Cobrada` — ambos hechos conviven, porque son independientes (mismo razonamiento aplicado a NC).
 

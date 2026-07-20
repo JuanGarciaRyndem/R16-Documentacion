@@ -19,21 +19,21 @@ Un requisito requiere curación de datos cuando, además de los cambios DDL (CRE
 
 ## Clasificación de Requisitos
 
-| #   | Requisito | Tipo de curación                                                                    | Riesgo     | Esfuerzo estimado                    |
-| --- | --------- | ----------------------------------------------------------------------------------- | ---------- | ------------------------------------ |
-| 1   | RE-001    | Backfill de IdRegion en `EmpresaDatosBancarios`                                     | 🟡 Medio   | Bajo (1 UPDATE automático)           |
-| 2   | RE-005    | Normalización regional de 3 catálogos de facturación                                | 🔴 Alto    | Bajo-Medio (script + validación)     |
-| 3   | RE-008    | Backfill `fccPagoCliente.IdCatCobroEstatus` + renombre clasificación correo         | 🔴 Alto    | Medio                                |
-| 4   | RE-009    | `ppPedido.AceptaEntregasParciales` NOT NULL (DEFAULT automático)                    | 🟢 Bajo    | Mínimo                               |
-| 5   | RE-015    | Backfill `tpPedido.IdEstatusPedido` en todos los pedidos históricos (OBS-027)       | 🔴 Crítico | Alto — BLOQUEANTE (pendiente cliente)|
-| 6   | RE-019    | Decisión: ¿migrar historial `tpProformaAdelanto` → `fccFactura` (RE-FU-015)? (ya no es ALTER+backfill de columna) | 🟡 Medio   | Bajo si no se migra; Medio si sí     |
-| 7   | RE-020    | Datos fiscales SUNAT en productos y unidades (curación manual)                      | 🔴 Alto    | Alto (negocio)                       |
-| 8   | RE-021    | `ClaveProdServSAT` y `ClaveSAT` en productos y unidades (curación manual)           | 🔴 Alto    | Alto (negocio)                       |
-| 9   | RE-023    | `tpPedido` campos de trazabilidad de cancelación (NULL — brecha de historial)       | 🟡 Medio   | Bajo (decisión sobre historial)      |
-| 10  | RE-026    | UPDATE `catTipoInconsistenciaCobro.AplicaMarkPendienteCancelacion`                  | 🟡 Medio   | Mínimo                               |
-| 11  | RE-028    | Backfill `CFDIGenerada.IdCatTipoCFDI` en facturas por adelantado históricas        | 🔴 Alto    | Medio (requiere decisión de negocio) |
-| 12  | RE-029    | Backfill `catTipoCFDI.IdRegion` en entradas México + INSERT Perú                   | 🟡 Medio   | Bajo                                 |
-| 13  | RE-032    | Brecha `fccNotaCredito.IdTPProformaPedido` NOT NULL vs NCs R16 sin pedido           | 🔴 Crítico | Medio-Alto (decisión arquitectónica) |
+| #   | Requisito | Tipo de curación                                                                                                  | Riesgo     | Esfuerzo estimado                     |
+| --- | --------- | ----------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------- |
+| 1   | RE-001    | Backfill de IdRegion en `EmpresaDatosBancarios`                                                                   | 🟡 Medio   | Bajo (1 UPDATE automático)            |
+| 2   | RE-005    | Normalización regional de 3 catálogos de facturación                                                              | 🔴 Alto    | Bajo-Medio (script + validación)      |
+| 3   | RE-008    | Backfill `fccPagoCliente.IdCatCobroEstatus` + renombre clasificación correo                                       | 🔴 Alto    | Medio                                 |
+| 4   | RE-009    | `ppPedido.AceptaEntregasParciales` NOT NULL (DEFAULT automático)                                                  | 🟢 Bajo    | Mínimo                                |
+| 5   | RE-015    | Backfill `tpPedido.IdEstatusPedido` en todos los pedidos históricos (OBS-027)                                     | 🔴 Crítico | Alto — BLOQUEANTE (pendiente cliente) |
+| 6   | RE-019    | Decisión: ¿migrar historial `tpProformaAdelanto` → `fccFactura` (RE-FU-015)? (ya no es ALTER+backfill de columna) | 🟡 Medio   | Bajo si no se migra; Medio si sí      |
+| 7   | RE-020    | Datos fiscales SUNAT en productos y unidades (curación manual)                                                    | 🔴 Alto    | Alto (negocio)                        |
+| 8   | RE-021    | `ClaveProdServSAT` y `ClaveSAT` en productos y unidades (curación manual)                                         | 🔴 Alto    | Alto (negocio)                        |
+| 9   | RE-023    | `tpPedido` campos de trazabilidad de cancelación (NULL — brecha de historial)                                     | 🟡 Medio   | Bajo (decisión sobre historial)       |
+| 10  | RE-026    | UPDATE `catTipoInconsistenciaCobro.AplicaMarkPendienteCancelacion`                                                | 🟡 Medio   | Mínimo                                |
+| 11  | RE-028    | Backfill `CFDIGenerada.IdCatTipoCFDI` en facturas por adelantado históricas                                       | 🔴 Alto    | Medio (requiere decisión de negocio)  |
+| 12  | RE-029    | Backfill `catTipoCFDI.IdRegion` en entradas México + INSERT Perú                                                  | 🟡 Medio   | Bajo                                  |
+| 13  | RE-032    | Brecha `fccNotaCredito.IdTPProformaPedido` NOT NULL vs NCs R16 sin pedido                                         | 🔴 Crítico | Medio-Alto (decisión arquitectónica)  |
 
 ---
 

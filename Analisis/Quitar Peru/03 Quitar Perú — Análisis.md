@@ -13,16 +13,16 @@ Nomenclatura usada en la tabla de acción:
 
 ## 1. Mapeo confirmado de requisitos 027–035
 
-| ID | Título | Región | Acción | Motivo |
-|---|---|---|---|---|
-| RE-027 | Validar Cobro: Paso 2 Perú | Perú | **SIMPLIFICA** | Retirar aplicación de NCs, simplificar cálculo de saldo, quitar referencias a RE-020/022/033/035, ajustar Regla 2 (asociación siempre contra Proformas). |
-| RE-028 | Validar Cobro: Paso 3 México | México | **CONSERVA** | Retirar referencias a "estructura reutilizada por Perú" (ya no aplica). |
-| RE-029 | Validar Cobro: Paso 3 Perú | Perú | **SIMPLIFICA (mayor)** | Retirar timbrado SUNAT, generación de Factura Perú y envío de PDF/XML. Queda solo el envío de la Confirmación de Pedido y establecimiento de FEE. |
-| RE-030 | Diseño y generación de Documentos: CDP México | México | **CONSERVA** | Sin cambios (Perú CDP ya estaba fuera). Retirar en No aplica la frase "requisito independiente si SUNAT exige documento equivalente". |
-| RE-032 | Notas de Crédito: México | México | **CONSERVA** | Retirar referencias a "estructura reutilizada por Perú" y "R16A-RE-FU-033". |
-| RE-033 | Notas de Crédito: Perú | Perú | **SALE** | Módulo NC Perú completo fuera de alcance. |
-| RE-034 | Diseño y generación de Documentos: NDC México | México | **CONSERVA** | Retirar referencia a "requisito independiente" para Perú. |
-| RE-035 | Diseño y generación de Documentos: NDC Perú | Perú | **SALE** | PDF NC Perú fuera de alcance. |
+| ID     | Título                                        | Región | Acción                 | Motivo                                                                                                                                                   |
+| ------ | --------------------------------------------- | ------ | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RE-027 | Validar Cobro: Paso 2 Perú                    | Perú   | **SIMPLIFICA**         | Retirar aplicación de NCs, simplificar cálculo de saldo, quitar referencias a RE-020/022/033/035, ajustar Regla 2 (asociación siempre contra Proformas). |
+| RE-028 | Validar Cobro: Paso 3 México                  | México | **CONSERVA**           | Retirar referencias a "estructura reutilizada por Perú" (ya no aplica).                                                                                  |
+| RE-029 | Validar Cobro: Paso 3 Perú                    | Perú   | **SIMPLIFICA (mayor)** | Retirar timbrado SUNAT, generación de Factura Perú y envío de PDF/XML. Queda solo el envío de la Confirmación de Pedido y establecimiento de FEE.        |
+| RE-030 | Diseño y generación de Documentos: CDP México | México | **CONSERVA**           | Sin cambios (Perú CDP ya estaba fuera). Retirar en No aplica la frase "requisito independiente si SUNAT exige documento equivalente".                    |
+| RE-032 | Notas de Crédito: México                      | México | **CONSERVA**           | Retirar referencias a "estructura reutilizada por Perú" y "R16A-RE-FU-033".                                                                              |
+| RE-033 | Notas de Crédito: Perú                        | Perú   | **SALE**               | Módulo NC Perú completo fuera de alcance.                                                                                                                |
+| RE-034 | Diseño y generación de Documentos: NDC México | México | **CONSERVA**           | Retirar referencia a "requisito independiente" para Perú.                                                                                                |
+| RE-035 | Diseño y generación de Documentos: NDC Perú   | Perú   | **SALE**               | PDF NC Perú fuera de alcance.                                                                                                                            |
 
 ---
 
