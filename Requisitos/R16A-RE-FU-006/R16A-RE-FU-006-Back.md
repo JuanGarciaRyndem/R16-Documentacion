@@ -433,7 +433,7 @@ ORDER BY LEN(c.Nombre) DESC;
 | P3 | Confirmar si el campo `Clave` existe en la tabla `Cliente` y su tipo de dato (para segmento 4 de la referencia Banamex). Si no existe, decidir entre agregarlo permanentemente o definir fuente alternativa (no depender de tabla ETL `Carga_ClientesR1` a largo plazo). | Desarrollo |
 | P4 | Validar con el cliente si la asignación de cuentas y captura del CódValidador debe restringirse al rol Coordinador de Tesorería. | Funcional / Cliente |
 | P5 | Confirmar si puede haber más de una cuenta bancaria activa por cliente y si se requiere tope máximo. | Funcional / Cliente |
-| P6 | Confirmar si la funcionalidad aplica para clientes de Perú. Modelo bancario PE no definido. | Funcional / Cliente |
+| ~~P6~~ | ~~Confirmar si la funcionalidad aplica para clientes de Perú. Modelo bancario PE no definido.~~ **[Resuelto — Duda FU-006/FU-017]** Perú no tiene mecanismo de Código Validador; la referencia se genera por default con la **Razón Social** del cliente (mismo camino que bancos no-Banamex). La pantalla de captura no aplica para Perú. Ver Regla 6-PER en el requisito. | Cerrado |
 | P7 | Verificar longitud máxima de `Cliente.Nombre` en BD para asegurar que varchar(80) de `ReferenciaPago` en `tpProformaPedido` es suficiente. | Desarrollo |
 | P8 | Decidir mecanismo de regeneración de `ReferenciaVigente` ante cambio en `Cliente.Nombre` o `Cliente.Clave` (GAP-07: hook en `ClienteBO` vs trigger BD vs lazy). | Arquitectura |
 | P9 | Decidir cómo se selecciona la cuenta destino del pedido cuando el cliente tiene varias asignaciones activas (DUDA-118 — Mayra/Daniel). | Funcional / Cliente |

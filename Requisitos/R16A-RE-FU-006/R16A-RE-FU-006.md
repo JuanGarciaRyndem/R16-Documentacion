@@ -37,7 +37,7 @@ El sistema debe contar en la sección **Cobros** del Catálogo de Clientes con u
 
 ### No aplica a
 
-- Clientes de Perú: queda fuera del alcance de este requisito en R16 hasta definir con el cliente el modelo bancario peruano de identificación de pagos. Levantada como duda formal del proyecto.
+- ~~Clientes de Perú~~ **[Resuelto — Duda FU-006/FU-017]** — La pantalla "Referencia de Pago" y la captura de Código Validador **no aplican** a clientes de Perú (no existe mecanismo de identificación de pagos por código validador en Perú). Sin embargo, la generación de referencia bancaria **sí aplica**: para clientes Perú se genera por default con la **Razón Social** del cliente, utilizando el mismo camino que bancos distintos de Banamex (ver Regla 6-PER).
 - Validación de formato o longitud del Código Validador (pendiente definir con el cliente si se requiere validación; el documento del cliente no especifica longitud máxima ni reglas de formato).
 - Recálculo de la referencia ya casada a una proforma emitida (el PDF cae en firme; las proformas históricas conservan su referencia y no se regeneran al consultarse — OBS-015).
 - Vista en pantalla del historial del Código Validador: el historial se conserva en ProquifaDotNet.BitacoraCambios para auditoría, sin componente de UI en R16 (la consulta se hace desde ese aplicativo).
@@ -70,6 +70,9 @@ La referencia bancaria se arma al configurar/actualizar la cuenta del cliente, a
 
 **Regla 6 — Referencia para bancos distintos de Banamex**
 Para cuentas de bancos distintos de Banamex, la referencia bancaria es el **Nombre del cliente** como cadena directa, sin transformación adicional.
+
+**Regla 6-PER — Referencia para clientes de Perú (sin Código Validador)** **[Resuelto — Duda FU-006/FU-017]**
+Para clientes de la Región Perú, no existe un mecanismo de identificación de pagos mediante Código Validador. La referencia bancaria se genera por default con la **Razón Social** del cliente como cadena directa, sin transformación adicional. No se requiere captura de Código Validador para estos clientes. Este mecanismo sigue el mismo camino que la Regla 6 (no-Banamex), usando Razón Social en lugar de Nombre.
 
 **Regla 7 — Referencia para Banamex (concatenación de 7 segmentos)**
 Para cuentas de Banamex, la referencia bancaria se compone por la concatenación determinista de 7 segmentos:
@@ -106,8 +109,10 @@ La asignación de cuentas bancarias del grupo PROQUIFA a clientes y la captura d
 
 > **⚠️ Pendiente** — Validar con el cliente si debe restringirse a un rol específico (probablemente Coordinador de Tesorería).
 
-**Riesgo 3 — Modelo Perú no definido**
-La lógica documentada por el cliente corresponde exclusivamente a PROQUIFA México (Banamex, prefijos de empresas mexicanas, moneda en pesos/dólares). No existe documentación equivalente para el modelo bancario peruano de identificación de pagos. Mientras no se resuelva, los clientes Perú no podrán tener referencia bancaria armada por el sistema ProquifaDotNet.
+~~**Riesgo 3 — Modelo Perú no definido**~~ **[Resuelto — Duda FU-006/FU-017]**
+~~La lógica documentada por el cliente corresponde exclusivamente a PROQUIFA México (Banamex, prefijos de empresas mexicanas, moneda en pesos/dólares). No existe documentación equivalente para el modelo bancario peruano de identificación de pagos. Mientras no se resuelva, los clientes Perú no podrán tener referencia bancaria armada por el sistema ProquifaDotNet.~~
+
+> **Resolución:** Para clientes de Perú no existe mecanismo de Código Validador. La referencia bancaria se genera por default con la **Razón Social** del cliente (mismo camino que bancos no-Banamex, ver Regla 6-PER). No se requiere lógica adicional específica para Perú.
 
 > **Riesgos retirados** — El riesgo de inconsistencia entre proformas re-emitidas por reconstrucción dinámica (antiguo Riesgo 1) queda descartado por OBS-013 (persistencia en dos niveles + snapshot inmutable en PDF). El riesgo de pérdida de trazabilidad por sobrescritura del Código Validador (antiguo Riesgo 5) queda descartado por el registro de cada cambio en ProquifaDotNet.BitacoraCambios (historial completo — actualización 2026-07-07, sustituye a OBS-014).
 

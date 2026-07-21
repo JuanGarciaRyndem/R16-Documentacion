@@ -5,7 +5,7 @@
 | **ID** | R16A-RE-FU-019 |
 | **Título** | Factura por Adelantado: Detalle México |
 | **Módulo / Épica** | Factura por Adelantado |
-| **Historia de Usuario** | Yo como ** Gestor de Cobranza / Analista de Cuentas por Cobrar (denominación pendiente resolver) **, quiero contar con una pantalla de detalle por cliente en Factura por Adelantado que me permita generar, timbrar y enviar la factura de cada pedido pendiente, para emitir oportunamente las facturas por adelantado y dar continuidad al flujo de cobro o transferencia a Legacy según el tipo de pedido. |
+| **Historia de Usuario** | Yo como **Gestor de Cobranza**, quiero contar con una pantalla de detalle por cliente en Factura por Adelantado que me permita generar, timbrar y enviar la factura de cada pedido pendiente, para emitir oportunamente las facturas por adelantado y dar continuidad al flujo de cobro o transferencia a Legacy según el tipo de pedido. |
 | **Prioridad** | Alta |
 | **Estado** | Propuesto |
 | **Requisito asociado** | R16.2M-RE-FU-001 |
@@ -99,8 +99,8 @@ Los conceptos de la Factura se obtienen del Pedido: por cada partida, cantidad, 
 Riesgo 1 — Indisponibilidad del PAC TurboPac
 Si el PAC TurboPac (RFC QSO100827UB0, Quadrum Tecnologías) está caído o responde con timeout, no se puede timbrar la Factura.
 
-Riesgo 2 — Solapamiento de denominación de rol
-La denominación del rol que opera este módulo aparece como "Gestor de Cobranza" en la matriz del cliente y como "Analista de Cuentas por Cobrar" en sesiones de revisión de pantallas Factura por Adelantado. ** Pendiente resolver formalmente la denominación canónica antes del desarrollo. **
+~~Riesgo 2 — Solapamiento de denominación de rol~~ **[Resuelto — Duda 047]**
+La denominación canónica quedó confirmada: el **rol** es **Gestor de Cobranza** y el **puesto de trabajo** es **Analista de Cuentas por Pagar**. Toda la documentación del módulo usa "Gestor de Cobranza" como denominación del rol operativo.
 
 Riesgo 3 — Brecha de timbrado para Perú
 La habilitación para Región Perú depende de la integración con OSE/SUNAT autorizado, brecha mayor no resuelta del proyecto documentada en R16A-RE-FU-005 (Brecha 5). Mientras no se resuelva, los clientes Perú no pueden usar este módulo.
@@ -331,7 +331,7 @@ Entonces deberá seguirse el siguiente orden:
 - Cobertura geográfica de esta fila: clientes con Región México exclusivamente. La habilitación para Perú depende de la integración con OSE/SUNAT autorizado (brecha mayor del proyecto) y se documenta en requisito independiente cuando esté disponible.
 - **Decisión OBS-039:** ninguna Factura por Adelantado consigna lote ni pedimento. El pedimento ya se manejaba como N/A (comportamiento preexistente); el lote sigue la misma decisión — el surtido (asignación de lote en almacén) ocurre después del cobro y la facturación, por lo que el lote no está disponible al timbrar. Decisión cerrada y confirmada por el cliente.
 - **Resuelto:** Timbrado no reintenta ante indisponibilidad del PAC TurboPac — es un servicio síncrono de un solo intento por petición (ver R16A-RE-FU-018). Ante fallo, Timbrado retorna el error de inmediato a Finanzas; el reintento es responsabilidad de Finanzas, implementado en este mismo flujo de generación de la Factura por Adelantado: el pendiente permanece sin timbrar, se incrementa un contador de reintentos, y se notifica a soporte por correo si se supera el límite (ver `Diagramas/Diagrama Secuencia Encolamiento Finanzas y Timbrado Factura.md`).
-- ** Pendiente resolver formalmente la denominación canónica del rol operativo entre "Gestor de Cobranza" y "Analista de Cuentas por Cobrar". **
+- **[Resuelto — Duda 047]** Denominación canónica confirmada: el rol operativo es **Gestor de Cobranza**; el puesto de trabajo es **Analista de Cuentas por Pagar**.
 
 ---
 

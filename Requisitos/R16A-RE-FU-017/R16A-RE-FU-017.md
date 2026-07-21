@@ -83,7 +83,7 @@ Regla 11 — Paginación automática (comportamiento existente)
 Cuando las partidas del pedido exceden el espacio disponible en una sola página, el sistema genera páginas adicionales con la misma cabecera y pie completo, mostrando la numeración "X/Y" en cada página. Este comportamiento ya existe en PQF2.
 
 Regla 12 — Origen de los datos por sección
-Los paneles del documento se arman desde las fuentes indicadas: datos de partidas (cantidad, descripción, precio unitario, importe) desde el Pedido; identificación del cliente, RUC y dirección fiscal desde el Catálogo de Clientes; moneda aplicada a los cálculos desde la moneda de facturación configurada en el Catálogo del cliente (no del pedido); Condiciones de Pago desde la configuración del cliente en el Catálogo; cuentas bancarias (Banca, Sucursal, Cuenta, CCI) desde el Catálogo de Cuentas Bancarias de Golocaer S.A.C. Perú; REF. CLIENTE de cada cuenta construida con la lógica de identificación de pagos peruana; Pedido interno, Parciales, Contacto y Lugar de entrega desde el Pedido; logo, color institucional, dirección y razón social legal generados por el sistema correspondientes a Golocaer S.A.C. Perú. ** El modelo de cuentas bancarias Perú y el modelo de Referencia Bancaria Perú no están definidos: brechas mayores documentadas en B1 y B2. **
+Los paneles del documento se arman desde las fuentes indicadas: datos de partidas (cantidad, descripción, precio unitario, importe) desde el Pedido; identificación del cliente, RUC y dirección fiscal desde el Catálogo de Clientes; moneda aplicada a los cálculos desde la moneda de facturación configurada en el Catálogo del cliente (no del pedido); Condiciones de Pago desde la configuración del cliente en el Catálogo; cuentas bancarias (Banca, Sucursal, Cuenta, CCI) desde el Catálogo de Cuentas Bancarias de Golocaer S.A.C. Perú; REF. CLIENTE de cada cuenta construida con la lógica de identificación de pagos peruana; Pedido interno, Parciales, Contacto y Lugar de entrega desde el Pedido; logo, color institucional, dirección y razón social legal generados por el sistema correspondientes a Golocaer S.A.C. Perú. El modelo de cuentas bancarias Perú permanece pendiente (B1). ** La Referencia Bancaria Perú (B2) está resuelta: REF. CLIENTE = Razón Social del cliente (Duda FU-006/FU-017). **
 
 ---
 
@@ -196,10 +196,10 @@ Cuando arma el contenido,
 Entonces deberá mostrar las cuentas bancarias de Golocaer S.A.C. Perú. ** El modelo bancario Perú no está definido: pendiente confirmar (a) cuántas cuentas se muestran, (b) en qué monedas (solo PEN, o PEN + USD), (c) en qué bancos peruanos opera Golocaer S.A.C. (BCP, BBVA Continental, Interbank, Scotiabank Perú u otros), (d) si se muestran siempre las cuentas independientemente de la moneda del pedido (análogo a México) o solo la cuenta de la moneda aplicable. Brecha mayor del proyecto. **
 Los campos por cuenta esperados son: Moneda, Banca, Sucursal, Cuenta, CCI (Código de Cuenta Interbancario de 20 dígitos, en lugar de CLABE) y REF. CLIENTE.
 
-Criterio E2 — Referencia bancaria del cliente (REF. CLIENTE)
+Criterio E2 — Referencia bancaria del cliente (REF. CLIENTE) **[Resuelto — Duda FU-006/FU-017]**
 Dado que el sistema renderiza la REF. CLIENTE de cada cuenta,
-Cuando construye el valor,
-Entonces ** el modelo de Referencia Bancaria para Perú no está definido. La lógica usada en México (cuenta Banamex con 7 segmentos basados en nombre del cliente, clave, código del banco, moneda y CodValidador; cuenta no-Banamex con nombre del cliente directo) es exclusiva de PROQUIFA México y no aplica a Perú. Brecha mayor del proyecto. Pendiente definir antes de habilitar Perú productivamente. **
+Cuando construye el valor para un cliente de Perú,
+Entonces deberá mostrar la **Razón Social** del cliente como referencia bancaria por default. Para Perú no existe mecanismo de identificación de pagos mediante Código Validador; se utiliza el mismo camino que bancos distintos de Banamex (RE-FU-006 Regla 6-PER), con Razón Social en lugar de Nombre. ~~Brecha mayor del proyecto — pendiente definir.~~
 
 ═══════════════════════════════════════════════════════════════
 SECCIÓN F — DATOS DE FACTURACIÓN
@@ -325,8 +325,9 @@ Las siguientes brechas se documentan formalmente y deben resolverse antes de hab
 B1 — Modelo de cuentas bancarias de Golocaer S.A.C. Perú
 No se conocen los bancos peruanos donde Golocaer opera, ni la cantidad de cuentas que se muestran en la Proforma, ni las monedas (PEN únicamente o PEN + USD), ni el formato del CCI de 20 dígitos. Pendiente capturar y configurar.
 
-B2 — Modelo de Referencia Bancaria Perú (Código Validador)
-La lógica para construir la REF. CLIENTE que permite identificar pagos del cliente en cuentas peruanas no está definida. La lógica México (Banamex 7 segmentos / no-Banamex nombre directo) es exclusiva del Legacy mexicano y no replica al contexto peruano. Pendiente definir mecanismo de identificación de pagos por banco peruano.
+~~B2 — Modelo de Referencia Bancaria Perú (Código Validador)~~ **[Resuelto — Duda FU-006/FU-017]**
+~~La lógica para construir la REF. CLIENTE que permite identificar pagos del cliente en cuentas peruanas no está definida. La lógica México (Banamex 7 segmentos / no-Banamex nombre directo) es exclusiva del Legacy mexicano y no replica al contexto peruano. Pendiente definir mecanismo de identificación de pagos por banco peruano.~~
+Perú no cuenta con mecanismo de Código Validador. La REF. CLIENTE se genera por default con la **Razón Social** del cliente (mismo mecanismo que bancos no-Banamex en México, RE-FU-006 Regla 6-PER). No requiere configuración adicional por cuenta bancaria peruana.
 
 B3 — Datos legales y de contacto de Golocaer S.A.C. Perú
 Dirección legal, teléfonos, web institucional, correo de ventas y redes sociales de Golocaer Perú no están disponibles en el sistema actual. Pendiente recopilar y capturar.

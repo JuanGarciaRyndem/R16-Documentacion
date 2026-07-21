@@ -7,7 +7,7 @@
 
 ## Resumen
 
-Tramitación de pedidos Prepago con sustancias controladas. El flujo de tramitación (proforma, envío, pendiente Validar Cobro) **aplica a México y Perú de forma idéntica**. Lo que no está soportado en esta release para Perú es el documento fiscal posterior (factura anticipo / timbrado), el cual ocurre en Validar Cobro y está fuera del alcance de este requisito.
+Tramitación de pedidos Prepago con sustancias controladas para **Región México**. El manejo de sustancias controladas en Región Perú no está contemplado en el alcance de esta release (confirmado por el cliente — Duda 061); el sistema no lo restringe por código, el control es operativo.
 
 No renderiza FAA ni Entrega con Remisión. Datos de facturación en solo lectura.
 
@@ -143,14 +143,14 @@ No renderiza FAA ni Entrega con Remisión. Datos de facturación en solo lectura
 
 | Aspecto | México (MEX) | Perú (PER) |
 | --- | --- | --- |
-| Tramitación Prepago con controlados | ✅ Soportado | ✅ Soportado (idéntico) |
-| Generación proforma | ✅ | ✅ |
-| Envío correo | ✅ | ✅ |
-| Pendiente Validar Cobro | ✅ | ✅ |
-| Documento fiscal posterior (factura anticipo / timbrado) | ✅ México — Factura Anticipo (CFDI) | ❌ No soportado en esta release (OBS-032) |
+| Tramitación Prepago con controlados | ✅ En alcance | ❌ Fuera de alcance en esta release (Duda 061) |
+| Generación proforma | ✅ | ❌ No aplica — controlados Perú fuera de scope |
+| Envío correo | ✅ | ❌ No aplica |
+| Pendiente Validar Cobro | ✅ | ❌ No aplica |
+| Restricción por código | ✅ Validaciones regulatorias activas | ❌ Sin restricción por código — control operativo |
 | Transferencia a Legacy (post-Validar Cobro) | ✅ | ❌ No aplica — operación termina en PQF2 |
 
-> **Nota:** Lo que no está soportado para Perú en esta release es el documento fiscal posterior, no el flujo de tramitación. El control de controlados en Perú es **operativo, no de sistema** — no se restringe por código (ver Riesgo 3 del requisito).
+> **Controlados Perú (Duda 061):** El cliente confirmó que el manejo de sustancias controladas no está contemplado en el alcance de esta release para Perú. El sistema no restringe el avance de un pedido con controlados de cliente Perú (Riesgo 3 del requisito); el control es operativo, no de sistema.
 
 ---
 

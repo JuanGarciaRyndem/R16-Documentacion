@@ -499,7 +499,7 @@ Esto permite definir "toda la Familia X tributa al 16%" una sola vez y solo capt
 | 1 | UltimoFolio inicial por empresa | Tecnico | Inicializar EmpresaFolio.UltimoFolio al valor actual de consecutivo legacy en producción |
 | 2 | Lote del producto al timbrar FAA | Negocio | No disponible - confirmar |
 | 3 | Politica ante caida del PAC | Tecnico | Definir reintento/encolamiento |
-| 4 | Rol operativo | Negocio | Confirmar denominacion |
+| ~~4~~ | ~~Rol operativo~~ | Negocio | **[Resuelto — Duda 047]** Rol: **Gestor de Cobranza**. Puesto de trabajo: **Analista de Cuentas por Pagar**. |
 | 5 | Alias vs RazonSocial | Negocio | Confirmar dato fuente |
 | 6 | Estructura tabla legacy `consecutivo` | Tecnico | Confirmar nombre exacto de tabla, columnas (valor y clave empresa) y BD donde reside — fuente del folio para Factura México (ver `Analisis/Foliados-Documentos.md`, sección Factura) |
 | 7 | Nivel de configuración ClaveProdServ/ClaveUnidad/PerfilFiscal | Negocio/Técnico | Confirmar si cada campo se configura a nivel Producto, Familia, o con precedencia Producto→Familia — y si los 3 campos comparten el mismo nivel o cada uno puede tener el suyo (ver sección "Datos del producto") |

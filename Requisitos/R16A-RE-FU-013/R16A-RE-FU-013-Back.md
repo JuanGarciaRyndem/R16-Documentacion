@@ -8,7 +8,7 @@
 
 ## Resumen
 
-Este requisito corresponde a la tramitación de pedidos Prepago con sustancias controladas (Mundial, Nacional, Origen). El flujo de tramitación (proforma, envío, pendiente Validar Cobro) **aplica a México y Perú de forma idéntica**. Lo que no está soportado en esta release para Perú es el documento fiscal posterior (factura anticipo, timbrado), que ocurre en Validar Cobro y se cubre en requisitos independientes. El flujo base **ya existe**:
+Este requisito corresponde a la tramitación de pedidos Prepago con sustancias controladas (Mundial, Nacional, Origen) **para la operación de México**. El manejo de sustancias controladas en Región Perú no está contemplado en el alcance de esta release (confirmado por el cliente — Duda 061); el sistema no lo restringe por código, el control es operativo (ver Riesgo 3 del requisito). El flujo base **ya existe**:
 
 - `tpPedidoFacturaToTPProformaPedidoBO.cs` ya detecta controlados y genera proformas con `Controlados=true`
 - `tpProformaPedidoFactory.cs` crea la entidad `tpProformaPedido` (actualmente recibe `Empresa` como parametro)
@@ -95,7 +95,7 @@ La proforma se genera **por empresa** (`tpProformaPedidoFactory` recibe `Empresa
 | GAP-08 | Validacion Back: rechazar Remision con controlados | Si `TieneControlados() && EntregaConRemision=1` -> rechazar tramitacion con error | Bajo |
 | GAP-09 | Validacion Back: datos facturacion solo lectura en Prepago | Rechazar edicion de datos facturacion cuando SinCredito=1 | Bajo |
 | GAP-10 | Cierre de pendiente Tramitar Pedido | Al completar tramitacion + envio correo + pendientes generados, cerrar pendiente de bandeja | Bajo |
-| GAP-11 | Verificacion operacion Perú | El flujo de tramitación (proforma, envío, pendiente Validar Cobro) aplica a Perú de forma idéntica a México. Verificar que `TieneControlados()` procesa correctamente IdRegion de Perú y que no existe lógica que excluya Perú del flujo de proformas. Sin transferencia a Legacy (termina en PQF2). | Bajo |
+| GAP-11 | Controlados Perú — confirmación fuera de alcance | El manejo de sustancias controladas en Región Perú está confirmado como fuera del alcance de esta release (Duda 061). No se implementa restricción por código; el control es operativo. Documentar en el código con comentario que explique la decisión para evitar que se interprete como un olvido. | Bajo |
 
 ---
 
@@ -152,14 +152,14 @@ La proforma se genera **por empresa** (`tpProformaPedidoFactory` recibe `Empresa
 
 ## Conclusion
 
-El requisito R16A-RE-FU-013 tiene **impacto medio** en desarrollo Back. El flujo base de generación de proformas con controlados **ya existe**. Los gaps principales son:
+El requisito R16A-RE-FU-013 tiene **impacto medio** en desarrollo Back. El flujo base de generación de proformas con controlados **ya existe** y aplica únicamente a **Región México**. Los gaps principales son:
 
 1. **Foliador global** (GAP-01) — algoritmo nuevo, un contador sin segmentación. ⚠️ Pendiente definir política de folio al cancelar previsualización.
-2. **PDF via DocumentBuilder** (GAP-02) — se desarrolla en **RE-FU-016/017**, se vincula con tarea GAP-12. Sin bloqueo para México; Perú bloqueado por OBS-032.
+2. **PDF via DocumentBuilder** (GAP-02) — se desarrolla en **RE-FU-016/017**, se vincula con tarea GAP-12.
 3. **Aplicabilidad por empresa** (GAP-03) — la proforma se genera por empresa, verificar si todas aplican y si hay templates diferentes.
-4. **IdArchivoPDF** (BD Gap 4) — verificar FK en `tpProformaPedido` para recuperar el PDF en la previsualización (GAP-04).
+4. **IdArchivoPDF** (BD Gap 3) — verificar FK en `tpProformaPedido` para recuperar el PDF en la previsualización (GAP-04).
 
-> **Aclaración sobre Perú:** El flujo de tramitación (proforma, envío, pendiente Validar Cobro) **aplica a Perú de forma idéntica a México**. Lo que no está soportado en esta release para Perú es el documento fiscal posterior (factura anticipo / timbrado), que se resuelve en módulos de Validar Cobro y está fuera del alcance de este requisito.
+> **Controlados Perú (Duda 061):** El cliente confirmó que el manejo de sustancias controladas no está contemplado en el alcance de esta release para Perú. No se implementa restricción por código (control operativo). El desarrollador debe documentar esta decisión con un comentario en el código para que no se interprete como un olvido.
 
 El desarrollador debe:
 - Revisar `tpProformaPedidoFactory.cs` donde actualmente `Folio = null`

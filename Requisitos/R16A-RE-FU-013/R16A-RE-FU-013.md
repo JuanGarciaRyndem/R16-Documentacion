@@ -40,7 +40,7 @@ El sistema debe permitir, en el módulo Tramitar Pedido, la tramitación de pedi
 - Pedidos prepago sin sustancias controladas (variante cubierta en requisitos independientes del bloque Prepago).
 - Pedidos con activación de Factura por Adelantado: en México no se permite con controlados porque el CFDI de venta de primera mano exige el dato del pedimento aduanero, inexistente al facturar por adelantado (los radio buttons no aparecen).
 - Pedidos con marca de Entrega con Remisión (no permitida por regla regulatoria cuando hay controlados; los radio buttons no aparecen).
-- La **facturación fiscal de controlados en Perú** (factura anticipo / timbrado): el flujo de tramitación, generación de proforma y envío aplica a Perú de forma idéntica a México; lo que no está soportado en esta release es el documento fiscal posterior que se emite en Validar Cobro. El avance de pedidos con controlados en Perú no se restringe por código (control operativo); ver Riesgo 3.
+- Región Perú: el manejo de Sustancias Controladas no está contemplado dentro del alcance de esta release para Perú (confirmado por el cliente — Duda 061). Este flujo (Prepago con controlados) se acota a Región México. El sistema no restringe el avance por código; el control es operativo (ver Riesgo 3).
 - La validación de presencia de Licencia Sanitaria y Aviso de Responsable Sanitario del cliente, que ocurre en el módulo Pretramitar Pedido antes de llegar a Tramitar Pedido.
 - La validación del cobro de la proforma, la emisión de la factura anticipo, el timbrado fiscal, el cálculo de la FEE y la generación de la Confirmación de Pedido. Todas esas acciones ocurren en el módulo Validar Cobro y se cubren en requisitos independientes.
 
@@ -92,7 +92,9 @@ La no visualización de las opciones Factura por Adelantado y Entrega con Remisi
 Los campos de información fiscal del módulo Tramitar Pedido están actualmente configurados conforme a las normas fiscales de México. Al operar pedidos peruanos, el ESAC podría experimentar confusión sobre qué campos aplican o cómo interpretarlos en el contexto fiscal peruano. Se espera capacitación al equipo operativo para clarificar el manejo de los campos fiscales en pedidos de la región Perú.
 
 **Riesgo 3 — Avance de pedidos con controlados de Región Perú (riesgo operativo asumido)**
-El manejo de Sustancias Controladas para Región Perú no está soportado en esta release y se decidió no restringirlo por código, para evitar desarrollo y reversa cuando Perú habilite controlados más adelante. En consecuencia, el sistema no impide que un pedido con controlados de un cliente Perú avance hacia la tramitación y la facturación; el control es operativo, no de sistema. Se asume este riesgo y se comunica al cliente.
+El manejo de Sustancias Controladas para Región Perú no está contemplado en el alcance de esta release (confirmado por el cliente — Duda 061). Se decidió **no restringirlo por código**, para evitar desarrollo y reversa cuando Perú habilite controlados más adelante. En consecuencia, el sistema no impide que un pedido con controlados de un cliente Perú avance hacia la tramitación; el control es operativo, no de sistema.
+
+> **Decisión acordada entre Osmar y Robert:** el flujo para Perú con controlados queda como control operativo del equipo. No se implementa bloqueo en sistema. Se asume el riesgo y se comunica al equipo operativo.
 
 ---
 
