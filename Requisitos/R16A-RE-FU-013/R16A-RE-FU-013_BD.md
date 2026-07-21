@@ -1,15 +1,17 @@
-# Impacto en BD - Tramitacion Pedidos Prepago con Sustancias Controladas
+# Impacto en BD — Tramitación Pedidos Prepago con Sustancias Controladas
 **Requisito:** R16A-RE-FU-013
 **Base de Datos:** ProquifaDotNet
-**Version:** 1.0
+**Versión:** 1.1
 
 ---
 
 ## Resumen
-Tramitacion de pedidos Prepago con sustancias controladas (MEX y PER).
-Genera proforma, envia al cliente y crea pendiente en Validar Cobro.
-No renderiza FAA ni Entrega con Remision. Datos facturacion solo lectura.
-SIN CAMBIOS ESTRUCTURALES en BD - flujo preexistente.
+
+Tramitación de pedidos Prepago con sustancias controladas. El flujo de tramitación (proforma, envío, pendiente Validar Cobro) **aplica a México y Perú de forma idéntica**. Lo que no está soportado en esta release para Perú es el documento fiscal posterior (factura anticipo / timbrado), el cual ocurre en Validar Cobro y está fuera del alcance de este requisito.
+
+No renderiza FAA ni Entrega con Remisión. Datos de facturación en solo lectura.
+
+**SIN CAMBIOS ESTRUCTURALES en BD — flujo preexistente.**
 
 ---
 
@@ -139,24 +141,26 @@ SIN CAMBIOS ESTRUCTURALES en BD - flujo preexistente.
 
 ## Diferencia MEX vs PER
 
-| Aspecto                                     | Mexico (MEX) | Peru (PER)                |
-| ------------------------------------------- | ------------ | ------------------------- |
-| Tramitacion Prepago con controlados         | Identica     | Identica                  |
-| Generacion proforma                         | SI           | SI                        |
-| Envio correo                                | SI           | SI                        |
-| Pendiente Validar Cobro                     | SI           | SI                        |
-| Transferencia a Legacy (post-Validar Cobro) | SI           | NO (fuera scope este req) |
+| Aspecto | México (MEX) | Perú (PER) |
+| --- | --- | --- |
+| Tramitación Prepago con controlados | ✅ Soportado | ✅ Soportado (idéntico) |
+| Generación proforma | ✅ | ✅ |
+| Envío correo | ✅ | ✅ |
+| Pendiente Validar Cobro | ✅ | ✅ |
+| Documento fiscal posterior (factura anticipo / timbrado) | ✅ México — Factura Anticipo (CFDI) | ❌ No soportado en esta release (OBS-032) |
+| Transferencia a Legacy (post-Validar Cobro) | ✅ | ❌ No aplica — operación termina en PQF2 |
+
+> **Nota:** Lo que no está soportado para Perú en esta release es el documento fiscal posterior, no el flujo de tramitación. El control de controlados en Perú es **operativo, no de sistema** — no se restringe por código (ver Riesgo 3 del requisito).
 
 ---
 
 ## Gaps
 
-| # | Gap | Accion |
-|---|-----|--------|
-| 1 | fnEsProductoControlado sin 'origen' | ALTER FUNCTION (compartido RE-FU-007/009/011) |
-| 2 | Folio proforma lineal global | Verificar mecanismo actual de foliador en BD |
-| 3 | Politica folio proforma si ESAC cancela previsualizacion | Confirmar con cliente |
-| 4 | PDF proforma vinculado a tpProformaPedido | No hay FK directa a Archivo - verificar IdArchivoPDF |
+| # | Gap | Acción | Propietario |
+|---|-----|--------|-------------|
+| 1 | `fnEsProductoControlado` sin soporte para tipo 'Origen' | ALTER FUNCTION — compartida con RE-FU-007/009/011. **No es propietaria de este requisito; se gestiona en RE-FU-007.** | RE-FU-007 |
+| 2 | Folio proforma lineal global | Verificar mecanismo actual de foliador en BD; crear nuevo caso en `FolioBO` si no existe contador global. **⚠️ Pendiente definir con el cliente:** política del folio si el ESAC cancela la previsualización (¿se conserva o se descarta?). Impacta GAP-01 del Back. | Este requisito |
+| 3 | PDF proforma vinculado a `tpProformaPedido` | No hay FK directa a la tabla de archivos — verificar campo `IdArchivoPDF` en `tpProformaPedido`. Necesario para recuperar el PDF en la previsualización (GAP-04 del Back). | Este requisito |
 
 ---
 

@@ -27,22 +27,22 @@ tipo + referencia al CFDI relacionado) y condicionalmente `tpPedido` (FEE).
 
 ## Impacto en BD
 
-| #   | Cambio                                                                          | Base de Datos          | Tipo      | Prioridad |
-| --- | ------------------------------------------------------------------------------- | ---------------------- | --------- | --------- |
-| 1   | CREATE TABLE catTipoDocumentoFiscal                                             | ProquifaDotNet         | DDL       | Alta      |
-| 2   | CREATE TABLE catDocumentoFiscalCobroEstado                                      | ProquifaDotNet         | DDL       | Alta      |
-| 3   | CREATE TABLE catTipoCFDI                                                        | ProquifaDotNet         | DDL       | Alta      |
-| 4   | CREATE TABLE fccDocumentoFiscalCobro                                            | ProquifaDotNet         | DDL       | Alta      |
-| 5   | CREATE TABLE fccConfirmacionPedido                                              | ProquifaDotNet         | DDL       | Alta      |
-| 6   | ALTER TABLE CFDIGenerada ADD IdCatTipoCFDI (FK) + IdCFDIRelacionado             | ProquifaDotNet         | DDL       | Alta      |
-| 7   | ALTER TABLE tpPedido ADD FechaEstimadaEntrega (si no existe)                    | ProquifaDotNet         | DDL       | Alta      |
-| 8   | CREATE VIEW vfccDocumentoFiscalCobro                                            | ProquifaDotNet         | DDL       | Media     |
-| 8   | Reutiliza: CFDIGenerada (timbrado FAA RE-FU-019)                                | ProquifaDotNet         | Existente | —         |
+| #   | Cambio                                                                          | Base de Datos             | Tipo      | Prioridad |
+| --- | ------------------------------------------------------------------------------- | ------------------------- | --------- | --------- |
+| 1   | CREATE TABLE catTipoDocumentoFiscal                                             | ProquifaDotNet            | DDL       | Alta      |
+| 2   | CREATE TABLE catDocumentoFiscalCobroEstado                                      | ProquifaDotNet            | DDL       | Alta      |
+| 3   | CREATE TABLE catTipoCFDI                                                        | ProquifaDotNet            | DDL       | Alta      |
+| 4   | CREATE TABLE fccDocumentoFiscalCobro                                            | ProquifaDotNet            | DDL       | Alta      |
+| 5   | CREATE TABLE fccConfirmacionPedido                                              | ProquifaDotNet            | DDL       | Alta      |
+| 6   | ALTER TABLE CFDIGenerada ADD IdCatTipoCFDI (FK) + IdCFDIRelacionado             | ProquifaDotNet            | DDL       | Alta      |
+| 7   | ALTER TABLE tpPedido ADD FechaEstimadaEntrega (si no existe)                    | ProquifaDotNet            | DDL       | Alta      |
+| 8   | CREATE VIEW vfccDocumentoFiscalCobro                                            | ProquifaDotNet            | DDL       | Media     |
+| 8   | Reutiliza: CFDIGenerada (timbrado FAA RE-FU-019)                                | ProquifaDotNet            | Existente | —         |
 | 9   | Reutiliza: EmpresaFolio (foliador por empresa RE-FU-019)                        | ProquifaDotNet (Finanzas) | Existente | —         |
-| 10  | Reutiliza: fccPagoFacturaPedido (cobro ↔ proforma, RE-FU-026)                   | ProquifaDotNet         | Existente | —         |
-| 11  | Reutiliza: fccPagoFacturaAdelanto (cobro ↔ FAA, RE-FU-026)                      | ProquifaDotNet         | Existente | —         |
-| 12  | Reutiliza: tpProformaPedido.IdCFDIGenerada (ya declarado en RE-FU-026)          | ProquifaDotNet         | Existente | —         |
-| 13  | Reutiliza: fccNotaCredito.IdCFDI (UUID NC para nodo CFDIRelacionados RE-FU-026) | ProquifaDotNet         | Existente | —         |
+| 10  | Reutiliza: fccPagoFacturaPedido (cobro ↔ proforma, RE-FU-026)                   | ProquifaDotNet            | Existente | —         |
+| 11  | Reutiliza: fccPagoFacturaAdelanto (cobro ↔ FAA, RE-FU-026)                      | ProquifaDotNet            | Existente | —         |
+| 12  | Reutiliza: tpProformaPedido.IdCFDIGenerada (ya declarado en RE-FU-026)          | ProquifaDotNet            | Existente | —         |
+| 13  | Reutiliza: fccNotaCredito.IdCFDI (UUID NC para nodo CFDIRelacionados RE-FU-026) | ProquifaDotNet            | Existente | —         |
 
 ---
 

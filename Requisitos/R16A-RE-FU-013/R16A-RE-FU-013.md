@@ -1,9 +1,9 @@
-﻿# Tramitación de pedidos Prepago con sustancias controladas
+# Tramitación de pedidos Prepago — Con controlados, no aplica FxA
 
 | Campo | Valor |
 |---|---|
 | **ID** | R16A-RE-FU-013 |
-| **Nombre** | Tramitación de pedidos Prepago con sustancias controladas |
+| **Nombre** | Tramitación de pedidos Prepago (Con controlados, no aplica FxA) |
 | **Módulo** | Tramitar Pedido |
 | **Estatus** | Propuesto |
 | **Referencia Legacy** | R16.1M-RE-FU-001, R16.1M-RE-FU-006, R16.1M-RE-FU-007, R16.1M-RE-FU-008, R16.1M-RE-FU-015 |
@@ -18,7 +18,7 @@
 
 ## Requisito
 
-El sistema debe permitir, en el módulo Tramitar Pedido, la tramitación de pedidos de clientes con condición de pago Prepago que contienen sustancias controladas tipo Mundial, Nacional u Origen, en las operaciones de México y Perú. Al tramitar, el sistema genera la proforma, la presenta al ESAC para validación visual y, tras confirmar el envío al cliente, genera el pendiente correspondiente en el módulo Validar Cobro asociado al pedido y la proforma. Por restricción regulatoria, en este flujo las opciones Factura por Adelantado y Entrega con Remisión no se renderizan en la pantalla.
+El sistema debe permitir, en el módulo Tramitar Pedido, la tramitación de pedidos de clientes con condición de pago Prepago que contienen sustancias controladas tipo Mundial, Nacional u Origen, en la operación de México. Región Perú no está soportada para el manejo de Sustancias Controladas en esta release. Al tramitar, el sistema genera la proforma, la presenta al ESAC para validación visual y, tras confirmar el envío al cliente, genera el pendiente correspondiente en el módulo Validar Cobro asociado al pedido y la proforma. En este flujo las opciones Factura por Adelantado y Entrega con Remisión no se muestran en la pantalla: Entrega con Remisión queda excluida por restricción regulatoria, y Factura por Adelantado queda excluida en México porque el CFDI de venta de primera mano de un producto controlado exige el dato del pedimento aduanero, que aún no existe al facturar por adelantado.
 
 ---
 
@@ -26,21 +26,21 @@ El sistema debe permitir, en el módulo Tramitar Pedido, la tramitación de pedi
 
 ### Aplica a
 
-- Pedidos de clientes con condición de pago Prepago en las operaciones de México y Perú.
+- Pedidos de clientes con condición de pago Prepago en la operación de México.
 - Pedidos que contienen al menos una sustancia controlada clasificada como Mundial, Nacional u Origen.
 - Generación de la proforma al ejecutar la acción Tramitar en el módulo Tramitar Pedido.
 - Asignación del folio interno del pedido conforme a la mecánica actual del sistema.
 - Asignación del folio de la proforma desde el foliador lineal global de PQF2 (un solo contador para todas las proformas del sistema, sin segmentación por empresa o región).
 - Flujo de envío con dos pasos: previsualización del PDF de la proforma + pantalla de datos de envío del correo.
 - Generación automática del pendiente en el módulo Validar Cobro al confirmar el envío del correo.
-- Operación en Perú: el flujo opera idéntico al de México durante la tramitación en este módulo. Las diferencias para Perú se materializan posteriormente fuera de Tramitar Pedido (no transfiere a Legacy tras la validación de cobro).
 
 ### No aplica a
 
 - Pedidos de clientes con condición de pago Crédito (esos siguen los flujos descritos en los requisitos del bloque Crédito).
 - Pedidos prepago sin sustancias controladas (variante cubierta en requisitos independientes del bloque Prepago).
-- Pedidos con activación de Factura por Adelantado (no permitida por regla regulatoria cuando hay controlados; los radio buttons no aparecen).
+- Pedidos con activación de Factura por Adelantado: en México no se permite con controlados porque el CFDI de venta de primera mano exige el dato del pedimento aduanero, inexistente al facturar por adelantado (los radio buttons no aparecen).
 - Pedidos con marca de Entrega con Remisión (no permitida por regla regulatoria cuando hay controlados; los radio buttons no aparecen).
+- La **facturación fiscal de controlados en Perú** (factura anticipo / timbrado): el flujo de tramitación, generación de proforma y envío aplica a Perú de forma idéntica a México; lo que no está soportado en esta release es el documento fiscal posterior que se emite en Validar Cobro. El avance de pedidos con controlados en Perú no se restringe por código (control operativo); ver Riesgo 3.
 - La validación de presencia de Licencia Sanitaria y Aviso de Responsable Sanitario del cliente, que ocurre en el módulo Pretramitar Pedido antes de llegar a Tramitar Pedido.
 - La validación del cobro de la proforma, la emisión de la factura anticipo, el timbrado fiscal, el cálculo de la FEE y la generación de la Confirmación de Pedido. Todas esas acciones ocurren en el módulo Validar Cobro y se cubren en requisitos independientes.
 
@@ -48,8 +48,8 @@ El sistema debe permitir, en el módulo Tramitar Pedido, la tramitación de pedi
 
 ## Reglas de Negocio
 
-**Regla 1 — No renderización de Factura por Adelantado y Entrega con Remisión**
-Para pedidos que contienen al menos una sustancia controlada tipo Mundial, Nacional u Origen, el sistema no renderiza los radio buttons de Factura por Adelantado ni de Entrega con Remisión. Estas opciones no aparecen en la pantalla.
+**Regla 1 — No visualización de Factura por Adelantado y Entrega con Remisión**
+Para pedidos que contienen al menos una sustancia controlada tipo Mundial, Nacional u Origen, el sistema no muestra los radio buttons de Factura por Adelantado ni de Entrega con Remisión. Estas opciones no aparecen en la pantalla.
 
 **Regla 2 — Generación automática de proforma al tramitar**
 Al ejecutar la acción de tramitar un pedido prepago con sustancias controladas, el sistema genera automáticamente una proforma en formato PDF.
@@ -78,15 +78,21 @@ Para pedidos de clientes con condición de pago Prepago, el sistema no permite e
 **Regla 10 — Cierre del pendiente de Tramitar Pedido al completar la acción**
 Una vez ejecutada exitosamente la acción de tramitar, completado el envío del correo correspondiente al flujo y generados los pendientes derivados (si aplica), el sistema cierra y elimina el pendiente del pedido en la bandeja de Tramitar Pedido, de modo que el pedido ya no aparece como acción pendiente para el ESAC.
 
+**Regla 11 — Composición regionalizada del panel de Información de Facturación**
+El panel de Información de Facturación de Tramitar Pedido es transversal a ambas regiones y muestra los datos del cliente tomados del catálogo, en modo solo lectura. Los campos comunes a México y Perú son: Razón Social, identificador fiscal (RFC para México / RUC para Perú), Moneda, Quién Factura (empresa emisora), Condiciones de Pago (plazo comercial; ej. "60 Días", "Prepago 100%") y Comentarios para la Facturación. Los campos fiscales se regionalizan según la Región del cliente: para México se muestran Uso CFDI y Método de Pago (catálogos SAT); para Perú estos se reemplazan por Tipo de Operación (catálogo 51 SUNAT) y Condición de Pago SUNAT (Contado/Crédito). Los campos Forma de Pago (medio) y correo de envío no se muestran en este panel en ninguna región.
+
 ---
 
 ## Riesgos
 
 **Riesgo 1 — Detección incorrecta de sustancias controladas**
-La no renderización de las opciones Factura por Adelantado y Entrega con Remisión depende de que el sistema identifique correctamente la presencia de sustancias controladas en el pedido. Si la clasificación del producto en el catálogo es incorrecta o el sistema falla en detectar la presencia de un controlado, podrían aparecer opciones que violan la restricción regulatoria.
+La no visualización de las opciones Factura por Adelantado y Entrega con Remisión depende de que el sistema identifique correctamente la presencia de sustancias controladas en el pedido. Si la clasificación del producto en el catálogo es incorrecta o el sistema falla en detectar la presencia de un controlado, podrían aparecer opciones que violan la restricción regulatoria.
 
 **Riesgo 2 — Campos de información fiscal originalmente configurados para México**
 Los campos de información fiscal del módulo Tramitar Pedido están actualmente configurados conforme a las normas fiscales de México. Al operar pedidos peruanos, el ESAC podría experimentar confusión sobre qué campos aplican o cómo interpretarlos en el contexto fiscal peruano. Se espera capacitación al equipo operativo para clarificar el manejo de los campos fiscales en pedidos de la región Perú.
+
+**Riesgo 3 — Avance de pedidos con controlados de Región Perú (riesgo operativo asumido)**
+El manejo de Sustancias Controladas para Región Perú no está soportado en esta release y se decidió no restringirlo por código, para evitar desarrollo y reversa cuando Perú habilite controlados más adelante. En consecuencia, el sistema no impide que un pedido con controlados de un cliente Perú avance hacia la tramitación y la facturación; el control es operativo, no de sistema. Se asume este riesgo y se comunica al cliente.
 
 ---
 
@@ -94,15 +100,20 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 
 ### Sección A — Tramitación y restricciones regulatorias
 
-**Criterio A1 — Tramitación habilitada para Prepago con controlados**
-- **Dado** que un pedido pertenece a un cliente Prepago en México o Perú y contiene al menos una sustancia controlada tipo Mundial, Nacional u Origen,
+**Criterio A1 — Tramitación habilitada para Prepago con controlados (Región México)**
+- **Dado** que un pedido pertenece a un cliente Prepago de Región México y contiene al menos una sustancia controlada tipo Mundial, Nacional u Origen,
 - **Cuando** el ESAC opera el módulo Tramitar Pedido,
 - **Entonces** el sistema deberá permitir la tramitación y, al ejecutarse, generar automáticamente la proforma asociada al pedido.
 
-**Criterio A2 — No renderización de opciones bloqueadas por controlados**
-- **Dado** que el pedido contiene al menos una sustancia controlada,
+**Criterio A2 — No visualización de opciones bloqueadas por controlados**
+- **Dado** que un pedido contiene al menos una sustancia controlada (escenario soportado únicamente para Región México),
 - **Cuando** el ESAC visualiza la pantalla del pedido,
-- **Entonces** los radio buttons de Factura por Adelantado y Entrega con Remisión no deberán aparecer en la pantalla.
+- **Entonces** los radio buttons de Factura por Adelantado y Entrega con Remisión no deberán aparecer en la pantalla. La exclusión de Entrega con Remisión tiene fundamento regulatorio-sanitario; la de Factura por Adelantado tiene fundamento fiscal-aduanero de México (el CFDI de venta de primera mano de un controlado exige el dato del pedimento, inexistente al facturar por adelantado).
+
+**Criterio A3 — Composición regionalizada del panel de Información de Facturación**
+- **Dado** que el ESAC visualiza el panel de Información de Facturación de un pedido en Tramitar Pedido,
+- **Cuando** el sistema muestra el panel según la Región del cliente,
+- **Entonces** para clientes México deberá mostrar Uso CFDI y Método de Pago (catálogos SAT); para clientes Perú deberá mostrar Tipo de Operación (catálogo 51 SUNAT) y Condición de Pago Contado/Crédito SUNAT en su lugar; en ambas regiones deberá mostrar los campos comunes (Razón Social, RFC/RUC, Moneda, Quién Factura, Condiciones de Pago comerciales y Comentarios) y NO deberá mostrar Forma de Pago ni correo de envío.
 
 ### Sección B — Folios y generación de la proforma
 
@@ -133,11 +144,11 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 - **Cuando** el ESAC decide no continuar (cancela la previsualización),
 - **Entonces** el sistema deberá permitir volver al pedido sin enviar la proforma.
 
-> ** Pendiente definir la política del folio de proforma ya asignado: si se conserva para el reintento o se descarta. **
+> **Pendiente definir** la política del folio de proforma ya asignado: si se conserva para el reintento o se descarta.
 
 **Criterio C3 — Pantalla de datos de envío con CC editable y ESAC incluido**
 - **Dado** que el usuario llegó al paso de envío del correo,
-- **Cuando** el sistema renderiza la pantalla,
+- **Cuando** el sistema muestra la pantalla,
 - **Entonces** deberá mostrar: Para con el contacto del cliente (editable, default heredado); CC con el ESAC asignado (editable, default sugerido); Asunto generado por sistema según plantilla (no editable); Adjuntos con el PDF de la proforma (no editables); y Notas extras como campo de texto editable opcional.
 
 **Criterio C4 — Envío del correo de proforma**
@@ -148,7 +159,7 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 **Criterio C5 — Generación automática del pendiente Validar Cobro**
 - **Dado** que el correo de proforma se envió exitosamente,
 - **Cuando** se completa el envío,
-- **Entonces** el sistema deberá generar automáticamente un pendiente en el módulo Validar Cobro asociado al pedido tramitado y la proforma emitida.
+- **Entonces** el sistema deberá generar automáticamente un pendiente en el módulo Validar Cobro asociado al folio del pedido y la proforma emitida.
 
 ### Sección D — Cancelación
 
@@ -163,7 +174,8 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 
 - Variante prepago con sustancias controladas del módulo Tramitar Pedido. El módulo de Tramitar Pedido en este flujo es responsable de generar la proforma, gestionar la previsualización y envío al cliente, y disparar el pendiente en Validar Cobro. Lo que ocurre tras Validar Cobro (factura anticipo, timbrado, Confirmación, FEE, transferencia a Legacy en caso de México) está fuera del scope de este requisito y se cubre en requisitos del módulo Validar Cobro.
 - Cubre tres requisitos del cliente: tramitación de pedidos prepago en México y Perú; generación y envío automático de proforma para prepago sin Factura por Adelantado; y cadena de pendientes tras la generación de la proforma.
-- La presencia de sustancias controladas determina dos efectos en el módulo: no se renderizan las opciones de Factura por Adelantado ni Entrega con Remisión; y la factura que se emita posteriormente en Validar Cobro será del tipo factura anticipo (no factura normal) por falta de datos de pedimento y aduana.
+- La presencia de sustancias controladas determina dos efectos en el módulo: no se muestran las opciones de Factura por Adelantado ni Entrega con Remisión; y la factura que se emita posteriormente en Validar Cobro será del tipo factura anticipo (no factura normal) por falta de datos de pedimento y aduana. La no visualización de Factura por Adelantado con controlados tiene fundamento fiscal-aduanero de México (el pedimento aún no existe al facturar por adelantado), no regulatorio-sanitario.
+- El avance de un pedido con controlados de Región Perú hacia tramitación/facturación se asume como riesgo operativo (no se restringe por código); ver Riesgo 3.
 - El foliador de la proforma es lineal global a PQF2 (un solo contador para todas las proformas del sistema). El folio del pedido interno conserva la mecánica actual del sistema.
 - El asunto del correo de proforma se compone como "Proforma" más el folio del pedido interno.
 - El flujo de envío del correo de proforma requiere dos pasos secuenciales en la UI: primero previsualizar y aceptar el PDF; después confirmar los datos de envío del correo.
