@@ -1,7 +1,7 @@
 # Impacto en BD - Diseno y Generacion PDF Proforma Mexico
 **Requisito:** R16A-RE-FU-016
 **Base de Datos:** ProquifaDotNet
-**Version:** 2.5
+**Version:** 3.0 (rev. 2026-07-21 — OBS-TC: tpProformaPedido.TipoCambio, nota coordinador)
 
 ---
 
@@ -22,6 +22,7 @@ Logos se resuelven por Prefijo en DocumentBuilder (repositorio o base64), no en 
 | 3   | CREATE VIEW dbo.vtpProformaPedido                               | Vista nueva  | Alta      |
 | 4   | ClienteDatosBancarios (RE-FU-006)                               | Prerequisito | Alta      |
 | 5   | EmpresaDatosBancarios.IdRegion (RE-FU-001)                      | Prerequisito | Alta      |
+| 6   | ALTER TABLE tpProformaPedido ADD TipoCambio decimal(18,4) NULL  | ALTER        | Alta      |
 
 > tpProformaPedido.Folio/Serie/Uuid son de la **factura CFDI**, no de la proforma.
 > Se requiere campo **FolioProforma** nuevo para el foliador PRF global.
@@ -51,9 +52,13 @@ Logos se resuelven por Prefijo en DocumentBuilder (repositorio o base64), no en 
     -- 1. Nuevo campo para folio de proforma
     ALTER TABLE dbo.tpProformaPedido
         ADD FolioProforma varchar(80) NULL;
-    -- 1. Nuevo campo para folio de proforma
     ALTER TABLE dbo.tpProformaPedido
         ADD ConsecutivoProforma int DEFAULT(0);
+
+    -- 6. Tipo de cambio a nivel del documento (OBS-TC — nota coordinador 2026-07-21)
+    --    Se setea al momento de generar la proforma (no heredar tpPedido.TipoCambioFacturacion que siempre = 1)
+    ALTER TABLE dbo.tpProformaPedido
+        ADD TipoCambio decimal(18,4) NULL;
 
     -- 2. Foliador global (ajustar START WITH al MAX consecutivo existente + 1)
     CREATE SEQUENCE dbo.SeqFolioProforma
@@ -230,7 +235,7 @@ Logos se resuelven por Prefijo en DocumentBuilder (repositorio o base64), no en 
 | Descripcion producto | Producto + MarcaFamilia | Catalogo + Descripcion + Marca |
 | Pago - Montos | tpProformaPedido | MontoTotal + calculo IVA |
 | Pago - Moneda | DatosFacturacionCliente.IdCatMoneda | catMoneda.ClaveMoneda |
-| Pago - Tipo cambio | tpPedido | TipoCambioFacturacion |
+| Pago - Tipo cambio | tpProformaPedido | **TipoCambio** (NUEVO — seteado al generar la proforma). ~~tpPedido.TipoCambioFacturacion~~ no usar: siempre = 1 (OBS-TC) |
 | Pago - Condiciones | catCondicionesDePago | CondicionesDePago texto |
 | Bancarios - Cuentas | EmpresaDatosBancarios + DatosBancarios | Banco, Cuenta, CLABE, Sucursal |
 | Bancarios - REF.CLIENTE | ClienteDatosBancarios (RE-FU-006) | CodigoValidador |
@@ -244,8 +249,8 @@ Logos se resuelven por Prefijo en DocumentBuilder (repositorio o base64), no en 
 
 | Tabla | Rol |
 |-------|-----|
-| tpPedido | FolioPedidoInterno, IdEmpresa, IdRegion, TipoCambio, IdArchivo |
-| tpProformaPedido | FolioProforma, MontoTotal, ReferenciaPago |
+| tpPedido | FolioPedidoInterno, IdEmpresa, IdRegion, IdArchivo (**no leer TipoCambioFacturacion** — OBS-TC) |
+| tpProformaPedido | FolioProforma, MontoTotal, ReferenciaPago, **TipoCambio** (NUEVO) |
 | tpPedidoProformaPedido | Vinculacion pedido-proforma |
 | tpProformaPartidaPedido | Partidas: IdProducto, Piezas, PrecioUnitario |
 | tpPartidaPedido | Datos adicionales partida |
@@ -279,6 +284,28 @@ Logos se resuelven por Prefijo en DocumentBuilder (repositorio o base64), no en 
 | 6 | Cuentas siempre MN+DLS | Negocio | Confirmar si puede variar |
 | 7 | PUE siempre en Prepago | Fiscal | Confirmar con equipo contable |
 | 8 | Prefijo PRF en BD o solo render | Tecnico | Recomendacion: solo render |
+| 9 | **OBS-TC** — `tpPedido.TipoCambioFacturacion` siempre = 1 (incorrecto) | Diseño/Bug | Ver nota abajo |
+
+---
+
+## OBS-TC — Tipo de Cambio en Documentos Generados
+
+> **Nota del coordinador (2026-07-21):** `tpPedido.TipoCambioFacturacion` actualmente siempre se setea en 1, lo cual es incorrecto. Además, el TC no necesariamente pertenece al nivel de pedido: la Proforma y la Factura por Adelantado tienen su propio TC, y éste debe setearse al momento de generar cada documento para garantizar trazabilidad. El TC del documento debe ser el mismo que el utilizado en el cálculo del PDF.
+
+**Decisión de diseño:**
+
+El TC se setea **a nivel de documento** (no de pedido), al momento de generación:
+
+| Documento | Tabla | Campo | Momento de set |
+|-----------|-------|-------|----------------|
+| Proforma (MEX/PER) | `tpProformaPedido` | `TipoCambio` decimal(18,4) **NUEVO** | Al generar el PDF (primer envío exitoso) |
+| FAA Crédito (RE-FU-012) | `fccFactura` | `TipoCambio` decimal NULL | Al activar la FAA |
+| FAA Prepago (RE-FU-015) | `fccFactura` | `TipoCambio` decimal(18,4) | Al activar la FAA |
+
+**Sobre `tpPedido.TipoCambioFacturacion`:**
+- Campo existente, actualmente siempre = 1 (bug legacy).
+- Para Proforma y FAA: **no leer este campo para el PDF**; usar el campo `TipoCambio` del documento correspondiente.
+- Si en el futuro se necesita el TC del pedido para otros fines, deberá setearse correctamente en el momento de tramitación — ese análisis está fuera del alcance de RE-FU-016.
 
 ---
 

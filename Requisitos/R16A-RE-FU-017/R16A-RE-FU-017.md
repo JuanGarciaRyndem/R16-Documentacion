@@ -16,7 +16,7 @@
 
 El sistema debe generar un PDF de Proforma al tramitar un pedido Prepago sin Factura por Adelantado para clientes con Región Perú, con un diseño estandarizado equivalente al de la Proforma México pero adaptado a la normativa fiscal SUNAT. Dado que la única empresa emisora del grupo operando en Perú es Golocaer S.A.C., el branding del documento es único. El PDF se genera bajo demanda durante el flujo previo al envío al cliente y, al confirmarse el envío, se persiste como artefacto histórico inmutable accesible desde el módulo Validar Cobro.
 
-> **⚠️ Precondición (OBS-032)** — La generación de Proforma Perú está condicionada a que la **facturación / timbrado Perú** esté habilitada productivamente (resolución de las brechas SUNAT B1–B5 y el módulo de timbrado peruano). Mientras la facturación Perú no esté habilitada, no se genera Proforma Perú ni pendientes asociados en Tramitar Pedido/Factura por Adelantado, para evitar ruido operativo. Esta dependencia debe respetarse en el ruteo del flujo previo a invocar este requisito.
+> **~~⚠️ Precondición (OBS-032)~~** ~~La generación de Proforma Perú está condicionada a que la facturación / timbrado Perú esté habilitada productivamente. Mientras la facturación Perú no esté habilitada, no se genera Proforma Perú.~~ **[Actualizado — Decisión "Quitar Perú" 2026-07-17]** El cliente canceló Facturación y Timbrado de Perú; esto **no reduce el alcance de RE-FU-017**. La Proforma Perú se genera íntegra (generación, foliado, persistencia, consulta histórica). Lo que cambia es el estado final: la Proforma Perú nunca transiciona a `Facturada` — cierra en `CompletadaSinFactura`, responsabilidad de RE-FU-029. OBS-032 ya **no es bloqueante** para este requisito.
 
 ---
 
@@ -40,14 +40,16 @@ El sistema debe generar un PDF de Proforma al tramitar un pedido Prepago sin Fac
 - Otras empresas del grupo PROQUIFA. Solo Golocaer S.A.C. opera actualmente en Perú; las cuatro empresas del grupo México (Golocaer S.A. de C.V., Mungen S.A. de C.V., Proquifa S.A. de C.V., Proveedora Quimico Farmaceutica S.A. de C.V.) no emiten proformas para clientes Perú.
 - Régimen de Detracciones SUNAT (SPOT). ** Bajo análisis preliminar, los productos típicos de PROQUIFA NO están en los anexos sujetos a detracción de la R.S. 183-2004/SUNAT. La aplicabilidad final debe confirmarse con asesor contable peruano antes de habilitar el módulo productivamente. **
 - Régimen de Percepciones SUNAT del IGV. ** Bajo análisis preliminar, Golocaer S.A.C. NO está designada por SUNAT como Agente de Percepción y sus productos no están en el Apéndice 1 de la Ley N° 29173. La aplicabilidad final debe confirmarse con asesor contable peruano antes de habilitar el módulo productivamente. **
-- Generación de Proforma Perú mientras la facturación / timbrado Perú no esté habilitada productivamente (OBS-032). En ese estado, los pedidos Prepago de clientes Perú no disparan Proforma ni pendientes en Tramitar Pedido / Factura por Adelantado, evitando ruido operativo. La habilitación de este requisito está gobernada por las brechas B1–B5 y la disponibilidad del timbrado SUNAT.
+- ~~Generación de Proforma Perú mientras la facturación / timbrado Perú no esté habilitada productivamente (OBS-032).~~ **[Anulado — Decisión "Quitar Perú" 2026-07-17]** OBS-032 ya no bloquea este requisito. La Proforma Perú se genera sin precondición de timbrado.
 
 ---
 
 ## Reglas de Negocio
 
-Regla 0 — Precondición: facturación Perú habilitada (OBS-032)
-La generación de Proforma Perú depende de que la facturación Perú (timbrado SUNAT y catálogos asociados) esté habilitada productivamente. Mientras esa precondición no se cumpla, ningún flujo del sistema invoca este requisito y no se generan Proformas Perú ni pendientes derivados. Esto evita ruido operativo (proformas o pendientes Perú sin proceso fiscal de cierre) y se alinea con el ajuste solicitado por el cliente.
+~~Regla 0 — Precondición: facturación Perú habilitada (OBS-032)~~ **[Anulada — Decisión "Quitar Perú" 2026-07-17]**
+~~La generación de Proforma Perú depende de que la facturación Perú (timbrado SUNAT y catálogos asociados) esté habilitada productivamente. Mientras esa precondición no se cumpla, ningún flujo del sistema invoca este requisito y no se generan Proformas Perú ni pendientes derivados.~~
+
+> **Decisión "Quitar Perú" (2026-07-17):** El cliente canceló Facturación y Timbrado de Perú. La Proforma Perú se genera sin bloqueante. El flujo cierra en `CompletadaSinFactura` (RE-FU-029); nunca transiciona a `Facturada`.
 
 Regla 1 — Generación únicamente en pedidos Prepago sin Factura por Adelantado para clientes Perú
 Cumplida la Regla 0, el sistema genera el PDF de Proforma con el diseño estandarizado para Perú únicamente cuando el pedido es en modalidad Prepago sin Factura por Adelantado y el cliente tiene Región = Perú. Los pedidos Crédito (con o sin Factura por Adelantado) y los pedidos Prepago con Factura por Adelantado no generan Proforma.
@@ -119,7 +121,7 @@ Entonces deberá mostrar un texto que indique el carácter informativo del docum
 Criterio A3 — Título "Proforma"
 Dado que el sistema renderiza la cabecera,
 Cuando incluye el título del documento,
-Entonces deberá mostrar el texto "Proforma". ** Pendiente confirmar si en Perú el título canónico comercial es "Proforma" o "Factura Proforma" — ambos términos se usan indistintamente en la práctica peruana. **
+Entonces deberá mostrar el texto **"Proforma"**. **[Resuelto — DUDA-041]** El cliente confirmó que el título canónico es "Proforma".
 
 Criterio A4 — Folio con prefijo PRF
 Dado que el sistema renderiza la cabecera,
@@ -138,7 +140,7 @@ SECCIÓN B — IDENTIFICACIÓN DEL CLIENTE
 Criterio B1 — Identificación del cliente
 Dado que el sistema renderiza la sección Cliente,
 Cuando incluye el identificador del cliente,
-Entonces deberá mostrar el Alias del cliente desde el Catálogo de Clientes. ** Pendiente confirmar si el dato fuente correcto es Alias o Razón Social. **
+Entonces deberá mostrar la **Razón Social** del cliente desde el Catálogo de Clientes. **[Resuelto — DIS-SOL v1.1]** El dato fuente confirmado es Razón Social, igual que en RE-FU-016.
 
 ═══════════════════════════════════════════════════════════════
 SECCIÓN C — TABLA DE PARTIDAS
@@ -166,10 +168,9 @@ Criterio D2 — Monto del Gran Total expresado en letra
 Dado que el sistema renderiza la conversión a letras del Gran Total,
 Cuando incluye la leyenda monetaria,
 Entonces deberá mostrar el monto en palabras según la moneda:
-- Si moneda = soles peruanos: "(XXX SOLES XX/100)".
+- Si moneda = soles peruanos: "(XXX **SOLES** XX/100)". **[Resuelto — DUDA-042]** La nomenclatura oficial desde 2015 es "SOLES"; no usar "NUEVOS SOLES".
 - Si moneda = dólares: "(XXX DOLARES XX/100)".
 - Otras monedas: nomenclatura correspondiente.
-** Pendiente confirmar la nomenclatura exacta esperada para SUNAT (algunas implementaciones usan "SOLES" otras "NUEVOS SOLES" pese a que la moneda oficial desde 2015 es solo "SOLES"). **
 
 Criterio D3 — Tipo de Cambio (cuando aplica)
 Dado que la moneda de facturación del cliente NO es soles peruanos,
@@ -184,7 +185,7 @@ Entonces deberá mostrar las condiciones de pago aplicables al cliente (ejemplo:
 Criterio D5 — Leyenda de pago
 Dado que el sistema renderiza el final de la sección de pago,
 Cuando incluye la leyenda de pago,
-Entonces ** pendiente definir la leyenda equivalente bajo normativa SUNAT. La normativa peruana clasifica las operaciones como Contado o Crédito sin el concepto "Pago en una sola exhibición" propio del SAT mexicano. Propuesta: omitir esta leyenda o reemplazarla con "OPERACIÓN AL CONTADO" cuando aplique. Pendiente confirmar. **
+Entonces deberá mostrar la clasificación **"Contado"** o **"Crédito"** según la normativa peruana. **[Resuelto — DUDA-043, confirmado por Armando 2026-07-17]** La leyenda mexicana "Pago en una sola exhibición" no aplica a Perú. La leyenda "Contado"/"Crédito" queda como **texto fijo en la plantilla** `GOLPERU_PER_PRO` del DocumentBuilder — no es un campo dinámico del DTO (el escenario real Perú es Prepago, por lo que el valor sería siempre "Contado").
 
 ═══════════════════════════════════════════════════════════════
 SECCIÓN E — DATOS BANCARIOS
@@ -193,7 +194,7 @@ SECCIÓN E — DATOS BANCARIOS
 Criterio E1 — Cuentas bancarias de Golocaer S.A.C. Perú
 Dado que el sistema renderiza la sección de datos bancarios,
 Cuando arma el contenido,
-Entonces deberá mostrar las cuentas bancarias de Golocaer S.A.C. Perú. ** El modelo bancario Perú no está definido: pendiente confirmar (a) cuántas cuentas se muestran, (b) en qué monedas (solo PEN, o PEN + USD), (c) en qué bancos peruanos opera Golocaer S.A.C. (BCP, BBVA Continental, Interbank, Scotiabank Perú u otros), (d) si se muestran siempre las cuentas independientemente de la moneda del pedido (análogo a México) o solo la cuenta de la moneda aplicable. Brecha mayor del proyecto. **
+Entonces deberá mostrar las **dos cuentas activas más recientes** de Golocaer S.A.C. Perú. **[Resuelto — DUDA-118/036, alineado con RE-FU-016]** Se muestran siempre las dos cuentas activas más recientes, independientemente de la moneda del pedido (mismo criterio que México). Las cuentas se obtienen de `EmpresaDatosBancarios` filtradas por `IdRegion = PER`; los datos concretos (bancos, monedas, CCI) se capturan como DML en la brecha B1.
 Los campos por cuenta esperados son: Moneda, Banca, Sucursal, Cuenta, CCI (Código de Cuenta Interbancario de 20 dígitos, en lugar de CLABE) y REF. CLIENTE.
 
 Criterio E2 — Referencia bancaria del cliente (REF. CLIENTE) **[Resuelto — Duda FU-006/FU-017]**
@@ -322,8 +323,9 @@ BRECHAS PENDIENTES DE RESOLUCIÓN ANTES DE HABILITAR PERÚ
 
 Las siguientes brechas se documentan formalmente y deben resolverse antes de habilitar la generación de Proformas para clientes Perú en producción:
 
-B1 — Modelo de cuentas bancarias de Golocaer S.A.C. Perú
-No se conocen los bancos peruanos donde Golocaer opera, ni la cantidad de cuentas que se muestran en la Proforma, ni las monedas (PEN únicamente o PEN + USD), ni el formato del CCI de 20 dígitos. Pendiente capturar y configurar.
+~~B1 — Modelo de cuentas bancarias de Golocaer S.A.C. Perú~~ **[Parcialmente resuelto — DUDA-118/036]**
+~~No se conocen los bancos peruanos donde Golocaer opera, ni la cantidad de cuentas que se muestran en la Proforma, ni las monedas (PEN únicamente o PEN + USD), ni el formato del CCI de 20 dígitos. Pendiente capturar y configurar.~~
+El criterio de visualización está resuelto: se muestran las **dos cuentas activas más recientes** (mismo criterio que RE-FU-016 México). La brecha pendiente restante es de **datos (DML)**: insertar los registros reales en `EmpresaDatosBancarios` + `DatosBancarios` para los bancos peruanos de Golocaer S.A.C. (BCP, BBVA Continental u otros). Ver RE-FU-017_BD.md brecha B1.
 
 ~~B2 — Modelo de Referencia Bancaria Perú (Código Validador)~~ **[Resuelto — Duda FU-006/FU-017]**
 ~~La lógica para construir la REF. CLIENTE que permite identificar pagos del cliente en cuentas peruanas no está definida. La lógica México (Banamex 7 segmentos / no-Banamex nombre directo) es exclusiva del Legacy mexicano y no replica al contexto peruano. Pendiente definir mecanismo de identificación de pagos por banco peruano.~~
@@ -344,16 +346,18 @@ ISO 9001 o equivalente, métodos de pago aceptados (medios peruanos), y cualquie
 B7 — Catálogos farmacéuticos aplicables a Perú
 Lista definitiva de logos del pie inferior aplicables a Golocaer S.A.C. Perú. Confirmados como aplicables: USP, EDQM, Microbiologics. NO aplica: FEUM. Otros logos (APACOR, CHATA Biosystems, Pharmaffiliates) pendientes de confirmar.
 
-B8 — Título canónico del documento en Perú
-Confirmar si el título es "Proforma" o "Factura Proforma" (ambos términos se usan indistintamente en la práctica comercial peruana).
+~~B8 — Título canónico del documento en Perú~~ **[Resuelto — DUDA-041]**
+~~Confirmar si el título es "Proforma" o "Factura Proforma" (ambos términos se usan indistintamente en la práctica comercial peruana).~~
+El título confirmado es **"Proforma"**. Ver Criterio A3.
 
-B9 — Nomenclatura del monto en letra para soles peruanos
-Confirmar si la nomenclatura aceptada es "SOLES" (oficial desde 2015) o "NUEVOS SOLES" (denominación previa que aún aparece en algunas implementaciones).
+~~B9 — Nomenclatura del monto en letra para soles peruanos~~ **[Resuelto — DUDA-042]**
+~~Confirmar si la nomenclatura aceptada es "SOLES" (oficial desde 2015) o "NUEVOS SOLES" (denominación previa que aún aparece en algunas implementaciones).~~
+La nomenclatura correcta es **"SOLES"** (oficial desde 2015). No usar "NUEVOS SOLES". Ver Criterio D2.
 
 B10 — Tipo de cambio aplicado en Perú
 Confirmar si para Perú aplica el tipo de cambio SUNAT publicado (compra/venta) o un tipo de cambio interno corporativo.
 
-Mientras estas brechas no se resuelvan, el cliente Perú no puede recibir Proforma productiva con el formato adaptado. Se recomienda al cliente programar sesión específica para resolución integral del modelo Perú. La precondición operativa de OBS-032 (no generar Proforma Perú mientras la facturación Perú no esté habilitada) sigue vigente hasta el cierre de B1–B5 + módulo de timbrado SUNAT.
+Mientras las brechas abiertas no se resuelvan, el cliente Perú no puede recibir Proforma productiva con el formato adaptado. Se recomienda programar sesión específica para resolución integral del modelo Perú. **[Actualizado — Decisión "Quitar Perú" 2026-07-17]** ~~La precondición operativa de OBS-032 (no generar Proforma Perú mientras la facturación Perú no esté habilitada) sigue vigente hasta el cierre de B1–B5 + módulo de timbrado SUNAT.~~ OBS-032 ya no bloquea este requisito: la Proforma Perú procede íntegramente y el ciclo de vida cierra en `CompletadaSinFactura` (ver RE-FU-029). Las brechas B3–B7 y B10 permanecen abiertas (datos / validación legal); B1 permanece abierta solo en su componente de datos DML. Las brechas B2, B8 y B9 están resueltas.
 
 
 ---
@@ -364,3 +368,5 @@ Mientras estas brechas no se resuelvan, el cliente Perú no puede recibir Profor
 | --- | ---------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | 2026-06-10 | OBS-032     | Revisado inicialmente en contexto de OBS-032: la corrección principal se aplicó en FU-018 (listado FxA). Sin cambios de contenido en este archivo en esa primera pasada. |
 | 2   | 2026-06-25 | OBS-032     | Incorporación explícita de la precondición OBS-032 en el cuerpo del requisito: se agrega nota de precondición en "Requisito Funcional", nueva viñeta en Alcance / No aplica a, y Regla 0 — la generación de Proforma Perú depende de que la facturación / timbrado Perú esté habilitada productivamente; mientras no lo esté, no se generan Proformas Perú ni pendientes asociados, evitando ruido operativo. Renumeración de brechas a secuencia continua B1–B10. |
+| 3   | 2026-07-17 | Duda FU-006/FU-017 | Resolución referencia bancaria Perú (B2): Perú no tiene mecanismo de Código Validador; REF. CLIENTE usa Razón Social por default (mismo camino que bancos no-Banamex, RE-FU-006 Regla 6-PER). Criterio E2 y Brecha B2 actualizados. |
+| 4   | 2026-07-21 | DIS-SOL v1.2 / Decisión "Quitar Perú" 2026-07-17 | Actualización integral tras validación del Diseño de Solución v1.2: (1) OBS-032 anulada como bloqueante — la Proforma Perú procede íntegramente; ciclo cierra en `CompletadaSinFactura` (RE-FU-029). Regla 0 y precondición en Requisito Funcional marcadas como anuladas. (2) Criterio A3: título "Proforma" confirmado (DUDA-041). (3) Criterio B1: dato fuente confirmado como Razón Social (DIS-SOL v1.1). (4) Criterio D2: nomenclatura "SOLES" confirmada (DUDA-042). (5) Criterio D5: leyenda Contado/Crédito como texto fijo en plantilla GOLPERU_PER_PRO, no campo DTO (DUDA-043). (6) Criterio E1: se muestran las dos cuentas activas más recientes (DUDA-118/036). (7) Brechas B8 y B9 cerradas (DUDA-041, DUDA-042). (8) Brecha B1 parcialmente resuelta en criterio de visualización; DML pendiente. |

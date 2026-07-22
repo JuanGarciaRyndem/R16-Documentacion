@@ -44,15 +44,16 @@ Aplica a FAA (RE-FU-019) y a Validar Cobro. Solo Region MEX.
 
 ## Impacto en BD
 
-| #   | Cambio                                                                                                                                                                                                 | Tipo | Prioridad |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- | --------- |
-| 1   | ALTER TABLE Producto ADD ClaveProdServSAT varchar(10) NULL                                                                                                                                             | DDL  | Alta      |
-| 2   | ALTER TABLE catUnidad ADD ClaveSAT varchar(10) NULL                                                                                                                                                    | DDL  | Alta      |
-| 3   | CREATE TABLE catClaveProdServSAT + INSERT catalogo c_ClaveProdServ SAT (claves relevantes PROQUIFA)                                                                                                    | DDL + DML | Media     |
-| 4   | ALTER TABLE CFDIGenerada ADD Exportacion varchar(2) NULL                                                                                                                                               | DDL  | Alta      |
-| 5   | ALTER TABLE CFDIGenerada ADD snapshot Emisor/Receptor (RazonSocialEmisor, RegimenFiscal, LugarExpedicion, RazonSocialReceptor, RegimenFiscalReceptor, CodigoPostalReceptor, CondicionesPago, Subtotal) | DDL  | Alta      |
-| 6   | ALTER TABLE CFDIGenerada ADD IdArchivoPdf uniqueidentifier NULL, FechaCertificacionSat datetime2(7) NULL (+ FK a Archivo)                                                                              | DDL  | Alta      |
+| #   | Cambio                                                                                                                                                                                                 | Tipo      | Prioridad | Estado      |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------- | --------- | ----------- |
+| 1   | ALTER TABLE Producto ADD ClaveProdServSAT varchar(10) NULL                                                                                                                                             | DDL       | Alta      | ⏸ En espera |
+| 2   | ALTER TABLE catUnidad ADD ClaveSAT varchar(10) NULL                                                                                                                                                    | DDL       | Alta      | ⏸ En espera |
+| 3   | CREATE TABLE catClaveProdServSAT + INSERT catalogo c_ClaveProdServ SAT (claves relevantes PROQUIFA)                                                                                                    | DDL + DML | Media     | ⏸ En espera |
+| 4   | ALTER TABLE CFDIGenerada ADD Exportacion varchar(2) NULL                                                                                                                                               | DDL       | Alta      | Pendiente   |
+| 5   | ALTER TABLE CFDIGenerada ADD snapshot Emisor/Receptor (RazonSocialEmisor, RegimenFiscal, LugarExpedicion, RazonSocialReceptor, RegimenFiscalReceptor, CodigoPostalReceptor, CondicionesPago, Subtotal) | DDL       | Alta      | Pendiente   |
+| 6   | ALTER TABLE CFDIGenerada ADD IdArchivoPdf uniqueidentifier NULL, FechaCertificacionSat datetime2(7) NULL (+ FK a Archivo)                                                                              | DDL       | Alta      | Pendiente   |
 
+> **⏸ En espera (ítems 1, 2, 3):** `Producto.ClaveProdServSAT`, `catUnidad.ClaveSAT` y `catClaveProdServSAT` están pausados pendiente de definición/confirmación externa. Los ítems 4–6 sobre `CFDIGenerada` pueden ejecutarse independientemente.
 > **ClaveProdServSAT** no existe en Producto — obligatorio para concepto del CFDI 4.0.
 > **catUnidad.Clave** existe pero no es la clave SAT (c_ClaveUnidad) — agregar ClaveSAT.
 > **CFDIGenerada** no tiene campo Exportacion — campo obligatorio CFDI 4.0.
@@ -328,33 +329,34 @@ por requisitos previos) + columnas nuevas agregadas por este requisito (marcadas
 
 ## Orden de Ejecucion de Scripts
 
-| Paso | Script | Prerequisito |
-|------|--------|--------------|
-| 1 | ALTER TABLE CFDIGenerada ADD Exportacion | CFDIGenerada debe existir (RE-FU-019) |
-| 2 | ALTER TABLE CFDIGenerada ADD snapshot Emisor/Receptor + CondicionesPago + Subtotal | CFDIGenerada debe existir (RE-FU-019) |
-| 3 | ALTER TABLE CFDIGenerada ADD IdArchivoPdf + FechaCertificacionSat (+ FK a Archivo) | CFDIGenerada debe existir (RE-FU-019) |
-| 4 | ALTER TABLE catUnidad ADD ClaveSAT | Ninguno |
-| 5 | CREATE TABLE catClaveProdServSAT | Ninguno |
-| 6 | ALTER TABLE Producto ADD ClaveProdServSAT + FK | Paso 5 |
-| 7 | INSERT catClaveProdServSAT (codigos SAT relevantes) | Paso 5 |
-| 8 | UPDATE catUnidad SET ClaveSAT (mapeo claves SAT) | Paso 4 |
+| Paso | Script                                                                             | Prerequisito                          |
+| ---- | ---------------------------------------------------------------------------------- | ------------------------------------- |
+| 1    | ALTER TABLE CFDIGenerada ADD Exportacion                                           | CFDIGenerada debe existir (RE-FU-019) |
+| 2    | ALTER TABLE CFDIGenerada ADD snapshot Emisor/Receptor + CondicionesPago + Subtotal | CFDIGenerada debe existir (RE-FU-019) |
+| 3    | ALTER TABLE CFDIGenerada ADD IdArchivoPdf + FechaCertificacionSat (+ FK a Archivo) | CFDIGenerada debe existir (RE-FU-019) |
+| 4    | ALTER TABLE catUnidad ADD ClaveSAT                                                 | Ninguno                               |
+| 5    | CREATE TABLE catClaveProdServSAT                                                   | Ninguno                               |
+| 6    | ALTER TABLE Producto ADD ClaveProdServSAT + FK                                     | Paso 5                                |
+| 7    | INSERT catClaveProdServSAT (codigos SAT relevantes)                                | Paso 5                                |
+| 8    | UPDATE catUnidad SET ClaveSAT (mapeo claves SAT)                                   | Paso 4                                |
 
 ---
 
 ## Gaps y Pendientes
 
-| #   | Gap                                                                   | Tipo        | Accion                              |
-| --- | --------------------------------------------------------------------- | ----------- | ----------------------------------- |
-| 1   | ClaveProdServSAT en Producto                                          | DDL + Datos | ALTER + poblar SAT                  |
-| 2   | ClaveSAT en catUnidad                                                 | DDL + Datos | ALTER + mapear a c_ClaveUnidad      |
-| 3   | Exportacion en CFDIGenerada (CFDI 4.0)                                | DDL         | ALTER - default '01'                |
-| 4   | Snapshot Emisor/Receptor + CondicionesPago + Subtotal en CFDIGenerada | DDL         | ALTER (ver script 2)                |
-| 5   | IdArchivoPdf + FechaCertificacionSat en CFDIGenerada                  | DDL         | ALTER + FK a Archivo (ver script 3) |
-| 6   | Pedimento aduanal en partidas                                         | Negocio     | Confirmar origen del dato           |
-| 7   | Lote del producto al facturar FAA                                     | Negocio     | FAA = antes del surtido             |
-| 8   | Referencia bancaria en Factura                                        | Negocio     | Misma logica Proforma o diferente   |
-| 9   | Almacenamiento PDF (BLOB vs snapshot)                                 | Tecnico     | Consistente con RE-FU-016           |
-| 10  | Factura Anticipo estructura                                           | Negocio     | Confirmar con asesor comercial      |
+| #   | Gap                                                                   | Tipo        | Accion                              | Estado      |
+| --- | --------------------------------------------------------------------- | ----------- | ----------------------------------- | ----------- |
+| 1   | ClaveProdServSAT en Producto                                          | DDL + Datos | ALTER + poblar SAT                  | ⏸ En espera |
+| 2   | ClaveSAT en catUnidad                                                 | DDL + Datos | ALTER + mapear a c_ClaveUnidad      | ⏸ En espera |
+| 3   | catClaveProdServSAT CREATE + INSERT catálogo                          | DDL + DML   | CREATE TABLE + INSERT claves SAT    | ⏸ En espera |
+| 4   | Exportacion en CFDIGenerada (CFDI 4.0)                                | DDL         | ALTER - default '01'                | Pendiente   |
+| 5   | Snapshot Emisor/Receptor + CondicionesPago + Subtotal en CFDIGenerada | DDL         | ALTER (ver script 2)                | Pendiente   |
+| 6   | IdArchivoPdf + FechaCertificacionSat en CFDIGenerada                  | DDL         | ALTER + FK a Archivo (ver script 3) | Pendiente   |
+| 7   | Pedimento aduanal en partidas                                         | Negocio     | Confirmar origen del dato           | Pendiente   |
+| 8   | Lote del producto al facturar FAA                                     | Negocio     | FAA = antes del surtido             | Pendiente   |
+| 9   | Referencia bancaria en Factura                                        | Negocio     | Misma logica Proforma o diferente   | Pendiente   |
+| 10  | Almacenamiento PDF (BLOB vs snapshot)                                 | Tecnico     | Consistente con RE-FU-016           | Pendiente   |
+| 11  | Factura Anticipo estructura                                           | Negocio     | Confirmar con asesor comercial      | Pendiente   |
 
 ---
 

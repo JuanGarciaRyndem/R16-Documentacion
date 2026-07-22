@@ -115,7 +115,7 @@ paralelo). Ver `R16A-RE-FU-015_BD.md`, seccion "Migracion de tpProformaAdelanto"
 | IdCatMoneda | uniqueidentifier | Moneda de la factura (MXN / USD) |
 | IdCFDIGenerada | uniqueidentifier NULL | NULL hasta que Finanzas emita la factura PPD (FK a `CFDIGenerada`) |
 | Enviada | bit | 0 hasta enviar la factura final |
-| TipoCambio | decimal NULL | Tipo de cambio al momento de emisión, si aplica |
+| TipoCambio | decimal NULL | Tipo de cambio al momento de generación de la FAA — seteado independientemente al activar la FAA. **No heredar `tpPedido.TipoCambioFacturacion`** (siempre = 1, bug legacy — OBS-TC, ver RE-FU-016_BD.md). |
 | IdCliente | uniqueidentifier | Cliente del pedido |
 | IdEmpresa | uniqueidentifier | Empresa que factura |
 | FolioPedidoInterno | varchar | ← `tpPedido.FolioPedidoInterno` (reemplaza `NumeroOrdenDeCompra` como referencia) |

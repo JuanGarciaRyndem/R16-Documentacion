@@ -1,7 +1,7 @@
 # Impacto en BD - Diseno y Generacion PDF Proforma Peru
 **Requisito:** R16A-RE-FU-017
 **Base de Datos:** ProquifaDotNet
-**Version:** 2.0 (rev. 2026-06-25 tras OBS-032 + alineacion RE-FU-006 actualizado)
+**Version:** 3.0 (rev. 2026-07-21 — DIS-SOL v1.2 + Decisión "Quitar Perú" + catMoneda.Leyenda DDL + B2 resuelto)
 
 ---
 
@@ -12,10 +12,11 @@ Normativa SUNAT: RUC, IGV 18%, CCI, moneda PEN.
 PDF se genera bajo demanda, se persiste en Minio via tabla Archivo tras envio exitoso.
 Logos se resuelven por Prefijo en DocumentBuilder, no en BD.
 
-> **Precondicion OBS-032** — Mientras la facturacion / timbrado Peru no este habilitada productivamente
-> (brechas B1-B5 + modulo timbrado SUNAT sin resolver), este flujo NO se ejecuta. No se persiste PDF, no se
-> consume folio del SEQUENCE global, y no se generan pendientes para clientes Peru. Esta condicion debe
-> validarse antes de invocar el endpoint de generacion en Finanzas. Ver R16A-RE-FU-017.md (Regla 0).
+> ~~**Precondicion OBS-032**~~ **[Anulada — Decisión "Quitar Perú" 2026-07-17]** ~~Mientras la facturacion / timbrado Peru no este habilitada productivamente~~
+> ~~(brechas B1-B5 + modulo timbrado SUNAT sin resolver), este flujo NO se ejecuta. No se persiste PDF, no se~~
+> ~~consume folio del SEQUENCE global, y no se generan pendientes para clientes Peru. Esta condicion debe~~
+> ~~validarse antes de invocar el endpoint de generacion en Finanzas. Ver R16A-RE-FU-017.md (Regla 0).~~
+> La Proforma Perú procede íntegramente. El ciclo de vida cierra en `catEstadoProforma.CompletadaSinFactura` (RE-FU-029). Ver RE-FU-017.md Regla 0 y nota de Requisito Funcional.
 
 > **Nota — RE-FU-006 actualizado (OBS-013/014):** Mexico ya persiste `ClienteDatosBancarios.ReferenciaVigente`
 > y casa snapshot a `tpProformaPedido.ReferenciaPago`. El modelo Peru debera adoptar el MISMO patron cuando
@@ -30,13 +31,14 @@ Logos se resuelven por Prefijo en DocumentBuilder, no en BD.
 | --- | ---------------------------------------------------------------------------------- | ---------- | -------------- |
 | 1   | Mismos objetos de RE-FU-016 (FolioProforma + SeqFolioProforma + vtpProformaPedido) | Compartido | Alta           |
 | 2   | INSERT cuentas bancarias Golocaer SAC Peru en EmpresaDatosBancarios                | DML        | Alta (BRECHA)  |
-| 3   | Definir modelo REF.CLIENTE Peru en ClienteDatosBancarios (RE-FU-006)               | Logica     | Alta (BRECHA)  |
+| 3   | ~~Definir modelo REF.CLIENTE Peru en ClienteDatosBancarios (RE-FU-006)~~ **[Resuelto — Duda FU-006/FU-017]** Usa Razón Social por default (mismo camino que no-Banamex). Sin cambio DDL adicional. | Cerrado | Resuelto |
 | 4   | Capturar datos legales Golocaer SAC (direccion Peru) en Empresa                    | DML        | Media (BRECHA) |
+| 5   | **ALTER TABLE catMoneda ADD Leyenda varchar(50) NULL** — fuente de `nombreMoneda` en `AmountInWordsService` (DIS-SOL RT-P06) | DDL | Alta |
 
 > Reutiliza la misma infraestructura BD que RE-FU-016 (Proforma Mexico).
 > El foliador es GLOBAL (un solo consecutivo compartido MEX + PER).
-> No se requieren ALTER TABLE adicionales a los de RE-FU-016.
-> Las BRECHAS son de DATOS (DML), no de ESTRUCTURA (DDL).
+> **Cambio DDL nuevo (RE-FU-017):** `ALTER TABLE catMoneda ADD Leyenda varchar(50) NULL` — requerido por `AmountInWordsService` para obtener el nombre de la moneda en letra sin hardcoding (DIS-SOL RT-P06).
+> Las BRECHAS de DATOS (DML) abiertas son: B1 (cuentas bancarias GOLPERU) y B3 (datos legales Golocaer S.A.C.).
 
 ---
 
@@ -116,7 +118,7 @@ Logos se resuelven por Prefijo en DocumentBuilder, no en BD.
 | Empresa emisora | GOL/MUN/PRO/PQF (4) | GOLPERU (1) |
 | Sello NEEC | SI | NO (exclusivo Mexico) |
 | Logo FEUM | SI | NO (exclusivo Mexico) |
-| REF.CLIENTE | CodigoValidador definido | **NO DEFINIDO (BRECHA)** |
+| REF.CLIENTE | CodigoValidador (Banamex) / Razón Social (no-Banamex) | **Razón Social** por default — [Resuelto, Duda FU-006/FU-017] |
 
 ---
 
@@ -127,14 +129,14 @@ Logos se resuelven por Prefijo en DocumentBuilder, no en BD.
 | Cabecera - Logo/Color | Empresa (GOLPERU) | Prefijo -> DocumentBuilder | Logo unico GOLPERU |
 | Cabecera - Folio | tpProformaPedido | FolioProforma | Mismo foliador global |
 | Cabecera - Disclaimer | Constante | Texto SUNAT | Diferente texto |
-| Cliente | Cliente + DatosFacturacionCliente | Alias/RazonSocial | Igual |
+| Cliente | Cliente + DatosFacturacionCliente | **RazonSocial** (confirmado DIS-SOL v1.1) | Igual |
 | Partidas | tpProformaPartidaPedido | IdProducto, Piezas, PU | Igual |
 | Pago - Montos | tpProformaPedido | MontoTotal + IGV 18% | Tasa diferente |
-| Pago - Moneda | DatosFacturacionCliente.IdCatMoneda | catMoneda (PEN/USD) | PEN vs MXN |
-| Pago - Tipo cambio | tpPedido | TipoCambioFacturacion | TC SUNAT vs TC DOF |
+| Pago - Moneda | DatosFacturacionCliente.IdCatMoneda | catMoneda (PEN/USD) + **catMoneda.Leyenda** (nombreMoneda en letra) | PEN vs MXN — Leyenda nueva (DDL #5) |
+| Pago - Tipo cambio | tpProformaPedido | **TipoCambio** (NUEVO — seteado al generar la proforma, OBS-TC). ~~tpPedido.TipoCambioFacturacion~~ no usar: siempre = 1 | TC SUNAT vs TC DOF — ver B10 |
 | Pago - Condiciones | catCondicionesDePago | CondicionesDePago | Igual |
 | Bancarios - Cuentas | EmpresaDatosBancarios + DatosBancarios | Banco, Cuenta, **CCI** | CCI vs CLABE |
-| Bancarios - REF.CLIENTE | ClienteDatosBancarios? | **NO DEFINIDO** | BRECHA B2 |
+| Bancarios - REF.CLIENTE | DatosFacturacionCliente.RazonSocial | **Razón Social** del cliente | [Resuelto — Duda FU-006/FU-017] Mismo camino que no-Banamex |
 | Facturacion | DatosFacturacionCliente | **RUC**, RazonSocial, Dir | RUC vs RFC |
 | Entrega | tpPedido + DireccionCliente | Folio, Dir, Contacto | Igual |
 | Pie | Empresa (GOLPERU) | RazonSocial legal Peru | Solo GOLPERU |
@@ -145,7 +147,7 @@ Logos se resuelven por Prefijo en DocumentBuilder, no en BD.
 
 | Tabla | Rol |
 |-------|-----|
-| tpPedido | FolioPedidoInterno, IdEmpresa, IdRegion=PER, TipoCambio |
+| tpPedido | FolioPedidoInterno, IdEmpresa, IdRegion=PER (**no leer TipoCambioFacturacion** — OBS-TC) |
 | tpProformaPedido | FolioProforma, MontoTotal, ReferenciaPago |
 | tpPedidoProformaPedido | Vinculacion pedido-proforma |
 | tpProformaPartidaPedido | Partidas |
@@ -158,7 +160,7 @@ Logos se resuelven por Prefijo en DocumentBuilder, no en BD.
 | EmpresaDatosBancarios | Cuentas GOLPERU PER **(SIN DATOS)** |
 | DatosBancarios | NumeroDeCuenta, CCI (campo Clabe), Sucursal |
 | catBanco | Nombre banco peruano |
-| catMoneda | ClaveMoneda (PEN/USD) |
+| catMoneda | ClaveMoneda (PEN/USD), **Leyenda** (nombre en letra para AmountInWordsService — columna nueva DDL #5) |
 | catCondicionesDePago | CondicionesDePago texto |
 | Region | Filtro PER |
 | Archivo | FileKey, FileBucket |
@@ -172,8 +174,8 @@ Logos se resuelven por Prefijo en DocumentBuilder, no en BD.
 
 | # | Brecha | Impacto | Accion |
 |---|--------|---------|--------|
-| B1 | 0 cuentas bancarias GOLPERU en BD | PDF sin seccion bancaria | INSERT EmpresaDatosBancarios + DatosBancarios para bancos peruanos |
-| B2 | REF.CLIENTE Peru no definida | PDF sin referencia de pago | Definir logica de identificacion de pagos para bancos peruanos. Cuando se defina, adoptar patron RE-FU-006 actualizado: persistir en `ClienteDatosBancarios.ReferenciaVigente` y casar al PDF (no reconstruccion dinamica). |
+| B1 | 0 cuentas bancarias GOLPERU en BD — **criterio de visualización resuelto** (2 cuentas activas más recientes, DUDA-118/036) | PDF sin datos bancarios reales | INSERT EmpresaDatosBancarios + DatosBancarios para bancos peruanos de Golocaer (BCP, BBVA Continental u otros). **Brecha DML abierta.** |
+| ~~B2~~ | ~~REF.CLIENTE Peru no definida~~ **[Resuelto — Duda FU-006/FU-017]** | ~~PDF sin referencia de pago~~ | Perú usa Razón Social por default (mismo camino que no-Banamex, RE-FU-006 Regla 6-PER). No requiere columna DDL adicional. **Cerrado.** |
 | B3 | Direccion legal y datos de contacto GOLPERU no capturados | Pie del PDF incompleto | Recopilar y UPDATE Empresa (GOLPERU): direccion legal Peru + telefonos + web + correo Peru |
 | B4 | Disclaimer SUNAT no validado legalmente | Riesgo legal | Validar con asesor contable peruano |
 | B5 | Detracciones/Percepciones no confirmadas | Posible omision regulatoria | Confirmar con asesor contable peruano. **Bloquea habilitacion productiva de Peru (OBS-032).** |
@@ -181,7 +183,7 @@ Logos se resuelven por Prefijo en DocumentBuilder, no en BD.
 | B7 | Logos farmaceuticos Peru no definidos | Pie del PDF incompleto | Confirmar lista (USP, EDQM, Microbiologics) |
 | B8 | Titulo: Proforma vs Factura Proforma | Ambiguedad documento | Confirmar con cliente |
 | B9 | Nomenclatura: SOLES vs NUEVOS SOLES | Texto en letra incorrecto | Confirmar (SOLES es oficial desde 2015) |
-| B10 | TC SUNAT compra/venta vs interno | Monto puede variar | Confirmar con finanzas |
+| B10 — [Parcialmente resuelto — OBS-TC 2026-07-21] | ~~TC SUNAT compra/venta vs interno~~ **Dónde persiste:** resuelto — `tpProformaPedido.TipoCambio` (nuevo). **Pendiente de negocio:** confirmar si el valor proviene del TC SUNAT publicado (compra/venta) o TC interno corporativo — eso determina cómo se obtiene, no dónde se guarda. Ver RE-FU-016_BD.md OBS-TC. | Monto puede variar si fuente TC incorrecta | Confirmar con finanzas (solo el origen del valor) |
 
 ---
 
@@ -210,9 +212,10 @@ Logos se resuelven por Prefijo en DocumentBuilder, no en BD.
 | R16A-RE-FU-016       | Comparte FolioProforma, SeqFolioProforma, vtpProformaPedido, patron Archivo                                                                             |
 | R16A-RE-FU-001       | EmpresaDatosBancarios.IdRegion (filtrar cuentas PER)                                                                                                    |
 | R16A-RE-FU-006       | ClienteDatosBancarios - logica REF.CLIENTE Peru (BRECHA B2). Adoptar el patron actualizado (ReferenciaVigente persistida + casado al PDF, OBS-013/014). |
-| R16A-RE-FU-013       | Flujo Prepago con controlados (mismo PDF Peru) — bloqueado por OBS-032 hasta timbrado Peru                                                              |
-| R16A-RE-FU-014       | Flujo Prepago sin controlados sin FAA (dispara este PDF) — bloqueado por OBS-032 hasta timbrado Peru                                                    |
-| Modulo Timbrado Peru | **Precondicion bloqueante (OBS-032)**: mientras no este habilitado, este requisito no se ejecuta productivamente                                        |
+| R16A-RE-FU-013       | Flujo Prepago con controlados (mismo PDF Peru) — ~~bloqueado por OBS-032~~ **[OBS-032 anulada — Decisión "Quitar Perú" 2026-07-17]**                    |
+| R16A-RE-FU-014       | Flujo Prepago sin controlados sin FAA (dispara este PDF) — ~~bloqueado por OBS-032~~ **[OBS-032 anulada — Decisión "Quitar Perú" 2026-07-17]**          |
+| R16A-RE-FU-029       | Responsable del cierre de ciclo en `catEstadoProforma.CompletadaSinFactura` para Perú (sin timbrado)                                                    |
+| ~~Modulo Timbrado Peru~~ | ~~**Precondicion bloqueante (OBS-032)**~~ **[Anulada — Decisión "Quitar Perú" 2026-07-17]** Ya no bloquea la Proforma Perú                         |
 
 ---
 

@@ -143,7 +143,7 @@ INSERT INTO [dbo].[catFacturaEstado] (Clave, Descripcion, Orden, EsTerminal) VAL
 | FolioPedidoInterno                                      | varchar            | ← `tpPedido.FolioPedidoInterno`                                          |
 | IdCatCondicionesDePago                                  | uniqueidentifier   | FK, ← pedido                                                             |
 | IdCatMoneda                                             | uniqueidentifier   | FK, moneda de facturación (los montos se expresan en esta moneda, RT-09) |
-| TipoCambio                                              | decimal(18,4) NULL | TC facturación↔tramitación, solo si difieren (NULL/1 si coinciden)       |
+| TipoCambio                                              | decimal(18,4) NULL | TC al momento de generación de la FAA — seteado independientemente al activar la FAA. **No heredar `tpPedido.TipoCambioFacturacion`** (siempre = 1, bug legacy — OBS-TC, ver RE-FU-016_BD.md). ~~TC facturación↔tramitación, solo si difieren (NULL/1 si coinciden)~~ — descripción anterior incorrecta: el valor siempre debe reflejar el TC real vigente al momento de generación. |
 | FactorConversionUSD                                     | decimal(18,6)      | Heredado de `tpPedido` — para monto en USD en reportes                   |
 | SubTotal                                                | decimal(18,2)      | —                                                                        |
 | IVA                                                     | decimal(18,2)      | Impuestos federales                                                      |

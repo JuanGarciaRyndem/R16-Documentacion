@@ -3,7 +3,7 @@
 **Aplicativos:** ProquifaDotNet (.NET Framework 4.8) + ProquifaDotNet.Finanzas (.NET Core 10) + DocumentBuilder
 **Modulo:** L05.TramitarPedido + Proforma (Finanzas) + DocumentBuilder
 **Impacto:** Generacion de PDF de Proforma Peru con adaptacion regional (IGV, RUC, CCI, PEN) + template unico GOLPERU + reutilizacion infraestructura RE-FU-016
-**Version:** 2.0 (rev. 2026-06-25 tras OBS-032 + alineacion RE-FU-006 actualizado)
+**Version:** 3.0 (rev. 2026-07-21 — DIS-SOL v1.2 + Decisión "Quitar Perú" + B2/B8/B9 resueltos + catMoneda.Leyenda DDL)
 
 ---
 
@@ -13,9 +13,9 @@ Este requisito implementa la **generacion del PDF de Proforma** para pedidos Pre
 
 **Diferencia principal vs RE-FU-016:** 1 sola empresa emisora (GOLPERU), normativa SUNAT (IGV 18%, RUC, CCI, PEN), 1 solo template HTML, foliador global compartido.
 
-> **Precondicion OBS-032 — gating en el caller** — Toda la cadena de back (ApiCallerFinanzas en ProquifaDotNet → endpoint Finanzas → DocumentBuilder → Minio) NO se ejecuta para pedidos Region=PER mientras la facturacion / timbrado Peru no este habilitada productivamente. El gating se aplica en el caller (ProquifaDotNet) antes de invocar Finanzas, no dentro de Finanzas, para evitar consumir folio del SEQUENCE global ni generar pendientes. Ver `R16A-RE-FU-017.md` Regla 0.
+> ~~**Precondicion OBS-032 — gating en el caller**~~ **[Anulada — Decisión "Quitar Perú" 2026-07-17]** ~~Toda la cadena de back NO se ejecuta para pedidos Region=PER mientras la facturacion / timbrado Peru no este habilitada productivamente.~~ La Proforma Perú procede íntegramente. El ciclo de vida cierra en `catEstadoProforma.CompletadaSinFactura` (RE-FU-029). Los GAP-08 y GAP-08b (gating OBS-032) quedan **anulados**. Ver `R16A-RE-FU-017.md` Regla 0.
 
-> **Alineacion con RE-FU-006 actualizado (OBS-013/014):** la referencia bancaria ya NO se reconstruye dinamicamente. El patron Mexico es: armar referencia al CREATE/UPDATE de la asignacion cliente-cuenta, persistir en `ClienteDatosBancarios.ReferenciaVigente`, y casar snapshot a `tpProformaPedido.ReferenciaPago` al generar el PDF (inmutable). Cuando se resuelva la BRECHA B2 (REF.CLIENTE Peru), Peru debera adoptar el mismo patron: el ProformaModelBuilder LEE `ReferenciaVigente` (no recalcula) y la copia al DTO.
+> **Alineacion con RE-FU-006 actualizado (OBS-013/014) + [Resuelto — Duda FU-006/FU-017]:** la referencia bancaria ya NO se reconstruye dinamicamente. ~~Cuando se resuelva la BRECHA B2 (REF.CLIENTE Peru), Peru debera adoptar el mismo patron.~~ B2 resuelta: Peru usa **Razón Social** por default (mismo camino que bancos no-Banamex). El `ProformaModelBuilder` LEE la Razón Social del cliente directamente — no requiere `ClienteDatosBancarios.ReferenciaVigente` para este campo.
 
 Involucra los mismos **3 repositorios/soluciones**:
 
@@ -54,7 +54,7 @@ Involucra los mismos **3 repositorios/soluciones**:
 | MontoALetrasConverter | SI - mismo servicio | Agregar soporte PEN (SOLES XX/100) |
 | Template HTML | NO - nuevo template | Crear GOLPERU_PER_PRO (1 empresa, 3 archivos) |
 | TemplateKey | NO - nuevo key | GOLPERU_PER_PRO |
-| Codigo Validador (REF.CLIENTE) | NO - logica diferente | BRECHA: logica Peru no definida |
+| Codigo Validador (REF.CLIENTE) | NO - logica diferente | **[Resuelto — Duda FU-006/FU-017]** Razón Social por default (sin CodigoValidador) |
 | Disclaimer legal | NO - texto diferente | Texto SUNAT (vs texto SAT Mexico) |
 
 ---
@@ -70,10 +70,10 @@ El BO ProformaModelBuilder (creado en RE-FU-016) debe incorporar logica condicio
 | pago.impuestoLabel | etiqueta | IVA | IGV |
 | pago.monedaLocal | clave | MXN (M.N.) | PEN (S/.) |
 | pago.granTotalEnLetra | sufijo | PESOS XX/100 M.N. | SOLES XX/100 |
-| pago.leyendaExhibicion | texto | PAGO EN UNA SOLA EXHIBICION | OPERACION AL CONTADO (pendiente confirmar) |
-| datosBancarios.cuentas | estructura | 2 cuentas (MN + DLS) CLABE | N cuentas (PEN + USD) CCI |
+| pago.leyendaExhibicion | texto | PAGO EN UNA SOLA EXHIBICION | **[Resuelto — DUDA-043]** Texto fijo "Contado"/"Crédito" en plantilla `GOLPERU_PER_PRO` — **no es campo DTO**; el escenario Perú Prepago siempre es "Contado" |
+| datosBancarios.cuentas | estructura | 2 cuentas (MN + DLS) CLABE | **[Resuelto — DUDA-118/036]** 2 cuentas activas más recientes (PEN/USD) con CCI, mismo criterio que MEX |
 | datosBancarios.labelInterbancario | etiqueta | CLABE | CCI |
-| datosBancarios.refCliente | logica | CodigoValidador (Banamex/otros) | BRECHA - no definida |
+| datosBancarios.refCliente | logica | CodigoValidador (Banamex/otros) | **[Resuelto — Duda FU-006/FU-017]** Razón Social del cliente (mismo camino que no-Banamex, RE-FU-006 Regla 6-PER) |
 | facturacion.labelIdFiscal | etiqueta | RFC | RUC |
 | facturacion.direccion | formato | Colonia/Ciudad/Estado | Distrito/Provincia/Departamento |
 | entrega.direccion | formato | Formato MEX | Formato PER (distrito/provincia/depto) |
@@ -94,9 +94,9 @@ Misma estructura que Mexico, con valores adaptados:
 | pago.impuestoPorcentaje | 18% (en vez de 16%) |
 | pago.moneda | S/. para PEN (en vez de $ M.N.) |
 | pago.granTotalEnLetra | SOLES XX/100 (en vez de PESOS XX/100 M.N.) |
-| pago.leyendaExhibicion | OPERACION AL CONTADO (pendiente confirmar) |
+| pago.leyendaExhibicion | **[Resuelto — DUDA-043]** Texto fijo en plantilla `GOLPERU_PER_PRO`; no se envía como campo del DTO |
 | datosBancarios.label | CCI de 20 digitos (en vez de CLABE 18 digitos) |
-| datosBancarios.refCliente | BRECHA - logica Peru no definida |
+| datosBancarios.refCliente | **[Resuelto — Duda FU-006/FU-017]** Razón Social del cliente |
 | facturacion.labelIdFiscal | RUC (en vez de RFC) |
 | facturacion.direccion | Distrito/Provincia/Departamento |
 | templateKey | GOLPERU_PER_PRO (1 unico template) |
@@ -106,14 +106,15 @@ Misma estructura que Mexico, con valores adaptados:
 
 ## Impacto en BD (segun R16A-RE-FU-017_BD.md v1.0)
 
-**No hay cambios DDL (estructura).** Solo DML (datos):
+~~**No hay cambios DDL (estructura).** Solo DML (datos).~~ **[Actualizado — DIS-SOL v1.2 RT-P06]** Hay 1 cambio DDL nuevo:
 
 | # | Cambio | Tipo | Origen |
 |---|--------|------|--------|
 | 1 | Reutiliza FolioProforma + SeqFolioProforma + vtpProformaPedido | Compartido RE-FU-016 | Ya creado |
-| 2 | INSERT cuentas bancarias GOLPERU en EmpresaDatosBancarios + DatosBancarios | DML (BRECHA B1) | Datos no existen |
-| 3 | Definir modelo REF.CLIENTE Peru | Logica (BRECHA B2) | No definido |
+| 2 | INSERT cuentas bancarias GOLPERU en EmpresaDatosBancarios + DatosBancarios | DML (BRECHA B1 — DML pendiente) | Datos no existen |
+| 3 | ~~Definir modelo REF.CLIENTE Peru~~ **[Resuelto — Duda FU-006/FU-017]** Razón Social por default | Cerrado | Resuelto |
 | 4 | UPDATE Empresa GOLPERU con direccion legal Peru | DML (BRECHA B3) | Dato no capturado |
+| 5 | **ALTER TABLE catMoneda ADD Leyenda varchar(50) NULL** | DDL nuevo | `AmountInWordsService` — RT-P06 DIS-SOL |
 
 ### Campos reutilizados con doble semantica
 
@@ -134,20 +135,20 @@ Misma estructura que Mexico, con valores adaptados:
 |---|-----|--------|----------|
 | GAP-01 | Logica condicional Region en ProformaModelBuilder | Agregar IF Region=PER para: tasa impuesto, label, moneda, disclaimer, formato direccion | Medio |
 | GAP-02 | Soporte PEN en MontoALetrasConverter | Agregar caso moneda PEN: SOLES XX/100 | Bajo |
-| GAP-03 | Logica REF.CLIENTE Peru (BRECHA) | Implementar cuando se defina (banco peruano no usa CodigoValidador) | Medio |
+| ~~GAP-03~~ | ~~Logica REF.CLIENTE Peru (BRECHA)~~ **[Resuelto — Duda FU-006/FU-017]** | `ProformaModelBuilder` lee `DatosFacturacionCliente.RazonSocial` directamente para el campo `refCliente` — mismo camino que no-Banamex | ~~Medio~~ Bajo |
 | GAP-04 | Determinacion TemplateKey Peru | Si Region=PER -> templateKey = GOLPERU_PER_PRO (no usar Empresa.Prefijo + _MEX_PRO) | Bajo |
 | GAP-05 | Consulta cuentas bancarias filtro Region PER | EmpresaDatosBancarios WHERE IdEmpresa=GOLPERU AND IdRegion=PER | Bajo |
 | GAP-06 | Sellos/certificaciones Peru (sin NEEC, sin FEUM) | Condicional en DTO footer por Region | Bajo |
-| GAP-07 | Leyenda exhibicion Peru | Texto OPERACION AL CONTADO (u omitir) segun Region | Bajo |
+| ~~GAP-07~~ | ~~Leyenda exhibicion Peru~~ **[Resuelto — DUDA-043]** | Texto fijo "Contado"/"Crédito" en plantilla `GOLPERU_PER_PRO` — no es campo DTO; el DocumentBuilder lo renderiza directamente | ~~Bajo~~ N/A |
 
 ### En ProquifaDotNet (Venta Interna)
 
 | # | Gap | Accion | Esfuerzo |
 |---|-----|--------|----------|
-| GAP-08 | Ampliar condicion en flujo tramitacion con **gating por OBS-032** | ApiCallerFinanzas ya llama para MEX; agregar `OR (Region=PER AND FeatureFlag.TimbradoPeruHabilitado = true)`. Mientras la facturacion Peru no este habilitada, NO se invoca el endpoint de Finanzas para pedidos Peru (precondicion OBS-032). | Bajo |
-| GAP-08b | Configurar FeatureFlag/setting `TimbradoPeruHabilitado` | Definir mecanismo (appSettings, BD de configuracion, IdentityServer claim) para alternar gating Peru sin redeploy cuando se resuelvan las brechas B1-B5 + modulo timbrado | Bajo |
+| ~~GAP-08~~ | ~~Ampliar condicion con gating por OBS-032~~ **[Anulado — Decisión "Quitar Perú" 2026-07-17]** | ~~ApiCallerFinanzas agregar guard OBS-032~~ La Proforma Perú procede sin gating. `ApiCallerFinanzas` simplemente amplía la condición para `Region=PER` sin feature flag. | ~~Bajo~~ Anulado |
+| ~~GAP-08b~~ | ~~Configurar FeatureFlag TimbradoPeruHabilitado~~ **[Anulado — OBS-032 anulada]** | ~~Definir mecanismo para alternar gating Peru~~ Ya no requerido. | Anulado |
 
-> Nota: El ApiCallerFinanzas creado en RE-FU-016 (GAP-11) ya existe. Aqui se amplia la condicion de Region **con la guarda OBS-032**: el caller debe verificar el flag de Peru habilitado antes de delegar a Finanzas.
+> Nota: El ApiCallerFinanzas creado en RE-FU-016 (GAP-11) ya existe. Solo se amplía la condición para incluir `Region=PER` — sin guard de OBS-032.
 
 ### En DocumentBuilder (Servicio externo)
 
@@ -173,19 +174,19 @@ Misma estructura que Mexico, con valores adaptados:
 
 ## Brechas Criticas (Bloqueantes)
 
-> Numeracion alineada con `R16A-RE-FU-017.md` B1-B10 (OBS-032 / 2026-06-25). La precondicion OBS-032 implica que **todas las brechas B1-B5** son bloqueantes para activar el gating descrito en GAP-08; B6-B10 se pueden resolver en paralelo pero no son condicion de habilitacion.
+> Numeracion alineada con `R16A-RE-FU-017.md` B1-B10. **[Actualizado — Decisión "Quitar Perú" 2026-07-17]** ~~La precondicion OBS-032 implica que todas las brechas B1-B5 son bloqueantes para activar el gating en GAP-08.~~ OBS-032 anulada; GAP-08/08b anulados. Las brechas B3–B7 y B10 siguen abiertas (datos/validación legal). B2, B8 y B9 cerradas.
 
 | # | Brecha | Impacto en Back | Estado |
 |---|--------|----------------|--------|
 | B1 | 0 cuentas bancarias GOLPERU Peru en BD | ProformaModelBuilder no puede armar seccion datosBancarios | Bloqueante OBS-032 |
-| B2 | REF.CLIENTE Peru no definida | Campo refCliente queda vacio o con placeholder. Cuando se defina, **adoptar patron RE-FU-006**: persistir en `ClienteDatosBancarios.ReferenciaVigente` y leer (no recalcular) en `ProformaModelBuilder`. | Bloqueante OBS-032 |
+| ~~B2~~ | ~~REF.CLIENTE Peru no definida~~ **[Resuelto — Duda FU-006/FU-017]** | `ProformaModelBuilder` lee `DatosFacturacionCliente.RazonSocial` para el campo `refCliente`. Sin lógica adicional. | Cerrado |
 | B3 | Direccion legal y contacto GOLPERU Peru no capturados | Footer del PDF incompleto | Bloqueante OBS-032 |
 | B4 | Disclaimer SUNAT no validado legalmente | Riesgo legal en texto del PDF | Bloqueante OBS-032 |
 | B5 | Detracciones/Percepciones SUNAT no confirmadas | Posible omision regulatoria que invalide CPE posterior | Bloqueante OBS-032 |
 | B6 | Certificaciones GOLPERU Peru desconocidas | Footer incompleto | Media - no bloquea gating |
 | B7 | Logos farmaceuticos Peru no definidos | Footer incompleto | Baja - puede resolverse con assets existentes |
-| B8 | Titulo: Proforma vs Factura Proforma | Ambiguedad en cabecera | Baja - decision UI |
-| B9 | Nomenclatura SOLES vs NUEVOS SOLES | Texto en letra | Baja - MontoALetrasConverter |
+| ~~B8~~ | ~~Titulo: Proforma vs Factura Proforma~~ **[Resuelto — DUDA-041]** | Template `GOLPERU_PER_PRO` usa título **"Proforma"** | Cerrado |
+| ~~B9~~ | ~~Nomenclatura SOLES vs NUEVOS SOLES~~ **[Resuelto — DUDA-042]** | `MontoALetrasConverter` usa **"SOLES"** (oficial desde 2015) | Cerrado |
 | B10 | TC SUNAT vs TC interno | Calculo en `ProformaModelBuilder` | Media - finanzas |
 
 ---
@@ -202,15 +203,15 @@ Misma estructura que Mexico, con valores adaptados:
 
 ### Variante visual Peru
 
-| Aspecto | Valor |
-|---------|-------|
-| Logo | Logo GOLPERU Peru (operacion SAC) |
-| Color | Color institucional GOLPERU Peru (pendiente confirmar si es mismo naranja que GOL Mexico) |
-| Sellos pie | USP + EDQM + Microbiologics (sin NEEC, sin FEUM) |
-| Datos bancarios | CCI 20 digitos (en vez de CLABE) |
-| ID fiscal | RUC (en vez de RFC) |
-| Impuesto | IGV 18% (en vez de IVA 16%) |
-| Moneda local | S/. PEN (en vez de $ MXN) |
+| Aspecto         | Valor                                                                                     |
+| --------------- | ----------------------------------------------------------------------------------------- |
+| Logo            | Logo GOLPERU Peru (operacion SAC)                                                         |
+| Color           | Color institucional GOLPERU Peru (pendiente confirmar si es mismo naranja que GOL Mexico) |
+| Sellos pie      | USP + EDQM + Microbiologics (sin NEEC, sin FEUM)                                          |
+| Datos bancarios | CCI 20 digitos (en vez de CLABE)                                                          |
+| ID fiscal       | RUC (en vez de RFC)                                                                       |
+| Impuesto        | IGV 18% (en vez de IVA 16%)                                                               |
+| Moneda local    | S/. PEN (en vez de $ MXN)                                                                 |
 
 ---
 
@@ -221,8 +222,9 @@ Misma estructura que Mexico, con valores adaptados:
 | R16A-RE-FU-016 | Prerequisito: toda la infraestructura Proforma (Finanzas, DocumentBuilder endpoint, foliador, Minio, flujo transaccional) |
 | R16A-RE-FU-006 | ClienteDatosBancarios - logica REF.CLIENTE Peru (BRECHA B2). El modelo actualizado (OBS-013/014) persiste `ReferenciaVigente`; Peru debera seguir el mismo patron cuando B2 cierre. |
 | R16A-RE-FU-001 | EmpresaDatosBancarios.IdRegion (filtrar cuentas Peru) |
-| R16A-RE-FU-018 | El listado de FxA tambien aplica OBS-032 (no listar pedidos Peru pendientes si timbrado Peru no esta habilitado). Coordinar el feature flag con esta misma fuente. |
-| Modulo Timbrado Peru | **Precondicion bloqueante (OBS-032)**: hasta que este modulo + brechas B1-B5 esten resueltas, el gating en GAP-08 mantiene el flujo desactivado para Peru. |
+| R16A-RE-FU-018 | ~~El listado de FxA tambien aplica OBS-032~~ **[OBS-032 anulada — Decisión "Quitar Perú" 2026-07-17]** |
+| R16A-RE-FU-029 | Cierre del ciclo de vida Proforma Perú en `catEstadoProforma.CompletadaSinFactura` (sin timbrado) |
+| ~~Modulo Timbrado Peru~~ | ~~**Precondicion bloqueante (OBS-032)**~~ **[Anulada — Decisión "Quitar Perú" 2026-07-17]** Ya no bloquea la Proforma Perú |
 
 ---
 
@@ -230,11 +232,11 @@ Misma estructura que Mexico, con valores adaptados:
 
 | Repositorio | Cantidad | Detalle |
 |-------------|----------|---------|
-| ProquifaDotNet.Finanzas | 7 (GAP-01 a GAP-07) | Adaptaciones regionales en logica existente |
-| ProquifaDotNet | 2 (GAP-08, GAP-08b) | Ampliar condicion Region en flujo tramitacion + FeatureFlag TimbradoPeruHabilitado (OBS-032) |
-| DocumentBuilder | 5 (GAP-09 a GAP-13) | 1 template nuevo + registro BD + logos |
+| ProquifaDotNet.Finanzas | 7 (GAP-01 a GAP-07) — **GAP-03 y GAP-07 cerrados** | Adaptaciones regionales; GAP-03 (B2) y GAP-07 (leyenda exhibicion) resueltos |
+| ~~ProquifaDotNet~~ | ~~2 (GAP-08, GAP-08b)~~ **Anulados (OBS-032 anulada)** | ApiCallerFinanzas solo amplía condición `Region=PER` sin gating; feature flag no requerido |
+| DocumentBuilder | 5 (GAP-09 a GAP-13) | 1 template nuevo `GOLPERU_PER_PRO` + registro BD + logos |
 | Datos (DML) | 3 (GAP-14 a GAP-16) | Scripts INSERT/UPDATE para datos Peru |
-| **Total** | **17 gaps** | Mayoria bajo/medio - reutiliza RE-FU-016. GAP-08/08b implementan el gating OBS-032. |
+| **Total activo** | **~13 gaps** | GAP-03, GAP-07, GAP-08, GAP-08b cerrados/anulados. Reutiliza RE-FU-016. |
 
 ---
 

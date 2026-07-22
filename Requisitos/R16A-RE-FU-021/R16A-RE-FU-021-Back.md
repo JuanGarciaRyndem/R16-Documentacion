@@ -2,7 +2,7 @@
 **Requisito:** Diseño y generación de Documentos: Factura México
 **Aplicativos:** ProquifaDotNet (.NET Framework 4.8) + ProquifaDotNet.Finanzas (.NET Core 10) + DocumentBuilder
 **Módulo:** Factura — PDF CFDI 4.0 México
-**Impacto:** Scripts BD ProquifaDotNet (ALTER x3 + CREATE x1) + Plantillas DocumentBuilder x4 (GOL/MUN/PRO/PQF\_MEX\_FAC) + MexicoInvoicePdfMappingService + PersistMexicoInvoicePdfService
+**Impacto:** Plantillas DocumentBuilder x4 (GOL/MUN/PRO/PQF\_MEX\_FAC) + MexicoInvoicePdfMappingService + PersistMexicoInvoicePdfService
 
 ---
 
@@ -352,104 +352,6 @@ var pdfBytes = await _documentBuilder.GenerarAsync(templateKey, model);
 
 ---
 
-## Parte C — Scripts de Base de Datos (ProquifaDotNet)
-
-### Orden de ejecución de scripts
-
-| Paso | Script                                                             | Tipo | BD             | Dependencia | Estado                                                                               |
-| ---- | ------------------------------------------------------------------ | ---- | -------------- | ----------- | ------------------------------------------------------------------------------------ |
-| 1    | `CREATE TABLE catClaveProdServSAT`                                 | DDL  | ProquifaDotNet | Ninguna     | **BLOQUEANTE para paso 2**                                                           |
-| 2    | `INSERT catClaveProdServSAT` catálogo c_ClaveProdServ SAT          | DML  | ProquifaDotNet | Paso 1      | Requiere catálogo SAT                                                                |
-| 3    | `ALTER TABLE Producto ADD ClaveProdServSAT varchar(10)`            | DDL  | ProquifaDotNet | Paso 1      | **BLOQUEANTE para partidas PDF**                                                     |
-| 4    | `ALTER TABLE Producto ADD IdCatClaveProdServSAT FK`                | DDL  | ProquifaDotNet | Paso 1      | **BLOQUEANTE para partidas PDF**                                                     |
-| 5    | `ALTER TABLE catUnidad ADD ClaveSAT varchar(10)`                   | DDL  | ProquifaDotNet | Ninguna     | Independiente                                                                        |
-| 6    | `UPDATE catUnidad SET ClaveSAT` mapeo c_ClaveUnidad SAT            | DML  | ProquifaDotNet | Paso 5      | Requiere mapeo manual                                                                |
-| 7    | `ALTER TABLE CFDIGenerada ADD Exportacion varchar(2)`              | DDL  | ProquifaDotNet | Ninguna     | Independiente                                                                        |
-| 8    | `UPDATE CFDIGenerada SET Exportacion = '01'`                       | DML  | ProquifaDotNet | Paso 7      | Registros existentes                                                                 |
-| 9    | `ALTER TABLE CFDIGenerada ADD IdArchivoPdf, FechaCertificacionSat` | DDL  | ProquifaDotNet | Ninguna     | Complementa la extensión de RE-FU-018 (Parte 3) — columnas propias de este requisito |
-
-### Scripts DDL y DML
-
-#### 1. CREATE TABLE catClaveProdServSAT — BLOQUEANTE
-
-```sql
--- Ejecutar en ProquifaDotNet — BLOQUEANTE para Producto
-CREATE TABLE [dbo].[catClaveProdServSAT](
-    [IdCatClaveProdServSAT] uniqueidentifier NOT NULL
-        CONSTRAINT [DF_catClaveProdServSAT_Id] DEFAULT (NEWID()),
-    [Clave]       varchar(10)  NOT NULL,
-    [Descripcion] varchar(300) NOT NULL,
-    [Activo]      bit          NOT NULL
-        CONSTRAINT [DF_catClaveProdServSAT_Activo] DEFAULT (1),
-    CONSTRAINT [PK_catClaveProdServSAT]       PRIMARY KEY CLUSTERED ([IdCatClaveProdServSAT]),
-    CONSTRAINT [UQ_catClaveProdServSAT_Clave] UNIQUE ([Clave])
-);
-GO
-```
-
-#### 2. ALTER TABLE Producto (ClaveProdServSAT + FK) — BLOQUEANTE
-
-```sql
--- Ejecutar en ProquifaDotNet — campo varchar directo
-ALTER TABLE dbo.Producto
-    ADD ClaveProdServSAT varchar(10) NULL;
-GO
-
--- FK hacia catClaveProdServSAT
-ALTER TABLE dbo.Producto
-    ADD IdCatClaveProdServSAT uniqueidentifier NULL
-        CONSTRAINT [FK_Producto_ClaveProdServSAT]
-            FOREIGN KEY REFERENCES dbo.catClaveProdServSAT([IdCatClaveProdServSAT]);
-GO
-```
-
-#### 3. ALTER TABLE catUnidad (ClaveSAT)
-
-```sql
--- Ejecutar en ProquifaDotNet
--- catUnidad.Clave (varchar 150) NO es la clave SAT del catálogo c_ClaveUnidad
--- Se agrega ClaveSAT independiente para no alterar el comportamiento actual de Clave
-ALTER TABLE dbo.catUnidad
-    ADD ClaveSAT varchar(10) NULL;
-GO
--- Ejemplos de mapeo a poblar: KGM - Kilogramo, H87 - Pieza, LTR - Litro, E48 - Unidad de servicio
-```
-
-#### 4. ALTER TABLE CFDIGenerada (Exportacion)
-
-```sql
--- Ejecutar en ProquifaDotNet
--- Campo obligatorio CFDI 4.0 — '01' = No aplica para operaciones nacionales México
-ALTER TABLE dbo.CFDIGenerada
-    ADD Exportacion varchar(2) NULL;
-GO
-
--- Poblar registros existentes con valor por defecto
-UPDATE dbo.CFDIGenerada
-    SET Exportacion = '01'
-WHERE Exportacion IS NULL;
-GO
-```
-
-#### 5. ALTER TABLE CFDIGenerada (IdArchivoPdf + FechaCertificacionSat)
-
-```sql
--- Ejecutar en ProquifaDotNet
--- IdArchivoPdf: FK -> Archivo, mismo patron que IdArchivoXml (RE-FU-018 Parte 3)
--- FechaCertificacionSat: fecha en que el PAC certifico el CFDI (puede diferir de FechaEmision)
-ALTER TABLE dbo.CFDIGenerada
-    ADD IdArchivoPdf uniqueidentifier NULL,
-        FechaCertificacionSat datetime2(7) NULL;
-GO
-
-ALTER TABLE dbo.CFDIGenerada
-    ADD CONSTRAINT [FK_CFDIGenerada_ArchivoPdf]
-        FOREIGN KEY (IdArchivoPdf) REFERENCES dbo.Archivo([IdArchivo]);
-GO
-```
-
----
-
 ## Gaps de Desarrollo
 
 ### En DocumentBuilder
@@ -471,16 +373,6 @@ GO
 | GAP-08 | Extender `AdvanceInvoiceGenerateService` (RE-FU-019 T13) pasos 10-11 | Reemplazar placeholder con llamada real a `PersistMexicoInvoicePdfService` | Bajo | Abierto |
 | GAP-09 | Extender `AdvanceInvoicePreviewService` (RE-FU-019 T15) | Reemplazar template placeholder con resolución dinámica `GOL/MUN/PRO/PQF_MEX_FAC` | Bajo | Abierto |
 | GAP-10 | Integrar `PersistMexicoInvoicePdfService` en flujo Validar Cobro — paso "Genera Factura Normal PPD" | Invocar `PersistirAsync` tras timbrado exitoso antes de transicionar a "Pendiente en Validar Pago" | Bajo | Abierto |
-
-### En Base de Datos (ProquifaDotNet)
-
-| # | Gap | Acción | BD | Esfuerzo | Estado |
-|---|-----|--------|----|----------|--------|
-| GAP-11 | `CREATE TABLE catClaveProdServSAT` + INSERT catálogo c_ClaveProdServ SAT | DDL + DML | ProquifaDotNet | Medio | **BLOQUEANTE** |
-| GAP-12 | `ALTER TABLE Producto ADD ClaveProdServSAT` + `ALTER TABLE Producto ADD IdCatClaveProdServSAT FK` | DDL | ProquifaDotNet | Bajo | **BLOQUEANTE** |
-| GAP-13 | `ALTER TABLE catUnidad ADD ClaveSAT` + UPDATE mapeo c_ClaveUnidad SAT | DDL + DML | ProquifaDotNet | Bajo | Abierto |
-| GAP-14 | `ALTER TABLE CFDIGenerada ADD Exportacion` + UPDATE '01' registros existentes | DDL + DML | ProquifaDotNet | Bajo | Abierto |
-| GAP-15 | `ALTER TABLE CFDIGenerada ADD IdArchivoPdf, FechaCertificacionSat` | DDL | ProquifaDotNet | Bajo | Abierto |
 
 ---
 
