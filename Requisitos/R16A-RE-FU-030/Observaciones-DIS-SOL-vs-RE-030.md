@@ -62,23 +62,51 @@ Sin embargo, presenta **3 desviaciones críticas** respecto al requisito literal
 1. **Opción A (recomendada, alinea con el requisito):** cambiar `RelatedDocuments` a un único objeto `RelatedDocumentCp` (no lista), agregar `RuleFor(x => x.RelatedDocuments).Must(l => l.Count == 1)`, borrar los ejemplos de payload con múltiples DR, retirar el caso de prueba "9 DRs" de `MUN_MEX_CP`.
 2. **Opción B:** documentar por escrito que el endpoint DocumentBuilder acepta N DR "por compatibilidad con CFDIs históricos 3.3" (ver también Observación 4.1), pero el orquestador de Finanzas garantiza que siempre envía uno solo. Esto exige quitar el caso "9 DRs" de las pruebas obligatorias.
 
-### 3.2 — Serie y Folio omitidos del XML firmado
+### 3.2 — Serie y Folio: tabla foliadora faltante y omisión del XML firmado
 
-**Referencia del requisito:** Criterio B2 — *"deberá incluir Serie='P', Folio consecutivo por empresa, Fecha del timbrado y LugarExpedicion"*.
+**Referencia del requisito:** Regla 12 y Criterio B2 — *"Foliado consecutivo continuo por empresa emisora, Serie 'P' propuesta. El UUID lo asigna el SAT. Esquema del foliador con serie 'P' pendiente de validar."*
 
-**Lo que el DIS-SOL propone:** *"La cabecera **no incluye `Serie`/`Folio`**. El SAT no los exige — son atributos opcionales del esquema CFDI 4.0, y el UUID (obligatorio) lo asigna el SAT independientemente de ellos. El folio interno de negocio (Serie 'P') se asigna en Finanzas, después de recibir esta respuesta exitosa (…) — así se garantiza que ningún intento fallido de timbrado queme un folio."*
+#### 3.2.1 — Tabla foliadora `fccFolioDocumentoFiscalCobro` no definida en el DIS-SOL
 
-**Problema:** la decisión técnica de mover el folio a Finanzas para evitar huecos es correcta (resuelve P12), pero al omitirlos del XML **firmado y timbrado** se contradice el Criterio B2 literalmente. El folio termina viviendo solo en `CFDIGenerada`, no en el XML certificado que se entrega al cliente ni en el archivo XML que se envía por correo (Criterio J1) y se persiste en MinIO 5 años.
+El DIS-SOL hace referencia a una tabla `EmpresaFolio` (en el mecanismo de rollback del folio) pero no define su estructura ni aclara si es la misma tabla que gestiona el foliado de otros documentos fiscales. Se propone una tabla propia para el foliado del CP:
 
-**Consecuencia práctica:** el cliente recibe un XML sin `Serie`/`Folio` en la cabecera del CFDI — el UUID no lo suple para trazabilidad interna del cliente ni para conciliación contable, y el PDF representativo mostraría un folio que el XML no lleva.
+**Tabla propuesta: `dbo.fccFolioDocumentoFiscalCobro`**
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| `IdFccFolioDocumentoFiscalCobro` | uniqueidentifier PK | Identificador |
+| `IdEmpresa` | uniqueidentifier FK → Empresa | Empresa emisora (GOL / MUN / PRO / PQF) |
+| `Serie` | varchar(10) NOT NULL | Serie del folio — `'P'` para CDP |
+| `UltimoFolio` | int NOT NULL DEFAULT 0 | Último folio consumido exitosamente |
+| `FechaActualizacion` | datetime2(7) NOT NULL | Timestamp del último `UPDATE` |
+
+**Sobre el foliado por empresa:** el foliado por empresa es **correcto y necesario** para CFDI. Cada empresa emisora tiene su propio RFC, y el SAT valida la unicidad de Serie + Folio dentro del mismo RFC emisor. GOL con P-000001 y MUN con P-000001 son folios distintos a efectos fiscales porque pertenecen a distintos emisores. Desde el punto de vista del negocio, el PDF y el XML siempre incluyen la Razón Social y RFC del emisor, por lo que no hay ambigüedad operativa. El foliado por empresa es el patrón correcto.
+
+**Índice recomendado:**
+
+```sql
+-- Garantía de una sola fila por empresa+serie (restricción de unicidad)
+CREATE UNIQUE INDEX UQ_fccFolioDocumentoFiscalCobro_EmpresaSerie
+    ON dbo.fccFolioDocumentoFiscalCobro (IdEmpresa, Serie);
+```
+
+**Acción requerida:** agregar la definición de `fccFolioDocumentoFiscalCobro` al Impacto en BD del DIS-SOL, junto con el `INSERT` inicial de los 4 registros (uno por empresa: GOL, MUN, PRO, PQF) con `UltimoFolio = 0`. Reemplazar las referencias a `EmpresaFolio` por `fccFolioDocumentoFiscalCobro`.
+
+#### 3.2.2 — Serie y Folio omitidos del XML firmado
+
+**Lo que el DIS-SOL propone:** *"La cabecera **no incluye `Serie`/`Folio`**. El SAT no los exige — son atributos opcionales del esquema CFDI 4.0, y el UUID (obligatorio) lo asigna el SAT independientemente de ellos. El folio interno de negocio (Serie 'P') se asigna en Finanzas, después de recibir esta respuesta exitosa — así se garantiza que ningún intento fallido de timbrado queme un folio."*
+
+**Problema:** la decisión técnica de asignar el folio después del timbrado para evitar huecos es razonable, pero al omitirlos del XML **firmado y timbrado** se contradice el Criterio B2 literalmente. El folio termina viviendo solo en `CFDIGenerada`, no en el XML certificado que se entrega al cliente ni en el archivo XML que se persiste en MinIO 5 años.
+
+**Consecuencia práctica:** el cliente recibe un XML sin `Serie`/`Folio` en la cabecera — el UUID no lo suple para trazabilidad interna ni conciliación contable, y el PDF mostraría un folio que el XML no lleva.
 
 **Acción requerida:** ampliar el diseño para **incluir Serie y Folio en el XML antes de firmar**, sin renunciar a "cero huecos". Alternativas:
-1. **Reservar folio, firmar con folio incluido, si falla el timbrado revertir el consumo del folio** (rollback del `UPDATE EmpresaFolio`) — esto exige transacción distribuida entre Finanzas y Timbrado, o un mecanismo de compensación.
-2. **Timbrar dos veces al PAC (rechazable):** primera invocación para probar sintaxis, segunda con folio real. Descartable por costo/tiempo.
-3. **Re-firma post-timbrado:** el PAC firma un XML sin folio; Finanzas inyecta `Serie`/`Folio` en el XML devuelto y lo re-persiste. **Rompe el sello digital del SAT** — descartable.
-4. **Reserva y reciclado:** consumir folio antes de timbrar; si falla, marcar la fila como "folio hueco reciclable" en `EmpresaFolio` y la siguiente petición exitosa lo reusa. Rompe el requisito de "cero huecos" solo transitoriamente.
+1. **Reservar folio, firmar con folio incluido, si falla el timbrado revertir el consumo del folio** (`UPDATE fccFolioDocumentoFiscalCobro` con rollback) — exige transacción compensatoria entre Finanzas y Timbrado.
+2. **Reserva y reciclado:** consumir folio antes de timbrar; si falla, marcar la fila en `fccFolioDocumentoFiscalCobro` como "folio hueco reciclable" y reutilizarlo en el siguiente intento exitoso. Rompe "cero huecos" solo transitoriamente.
+3. **Re-firma post-timbrado:** descartar — rompe el sello digital del SAT.
+4. **Doble invocación al PAC:** descartar — costo y tiempo.
 
-**Recomendación:** validar con PMO y con el fisco si la interpretación de "Folio del comprobante" del Criterio B2 se satisface con `Folio` como atributo interno de negocio no reflejado en el XML SAT (interpretación del DIS-SOL) o si debe estar dentro del XML certificado (interpretación literal del criterio). El requisito, tal como está escrito, apunta a la segunda.
+**Recomendación:** validar con PMO si la interpretación del Criterio B2 se satisface con `Folio` como atributo interno no reflejado en el XML SAT (interpretación del DIS-SOL), o si debe estar dentro del XML certificado (interpretación literal). El criterio, tal como está escrito, apunta a la segunda.
 
 ### 3.3 — Destinatario "analista de Cuentas por Cobrar" no queda garantizado
 
@@ -127,7 +155,7 @@ Sin embargo, presenta **3 desviaciones críticas** respecto al requisito literal
 
 **Referencia del requisito:** Notas Adicionales / Pendientes — *"Política formal de reintento ante fallo de timbrado PAC (transversal con Factura por Adelantado, Notas de Crédito y Validar Cobro)"* → dejado como brecha transversal, no definida en este requisito.
 
-**Lo que el DIS-SOL propone:** mecanismo completo — nueva tabla `ValorConfiguracion`, columnas de checkpoint (`IdPeticionCP`, `NumeroReintento`, `FechaUltimoReintento`), 4 nuevas claves en `catDocumentoFiscalCobroEstado`, `PaymentComplementRetryMessage`, `PaymentComplementRetryWorker`, proyecto Worker nuevo, cliente `IRabbitMQClient` con método `ConsumeAsync` inexistente en el template base (P16), estrategia de backoff pendiente.
+**Lo que el DIS-SOL propone:** mecanismo completo — tabla `ValorConfiguracion` (ver Obs. 4.3 — ya existe como `VariableConfiguracion`), columnas de checkpoint (`IdPeticionCP`, `NumeroReintento`, `FechaUltimoReintento`), 4 nuevas claves en `catDocumentoFiscalCobroEstado`, `PaymentComplementRetryMessage`, `PaymentComplementRetryWorker`, proyecto Worker nuevo, cliente `IRabbitMQClient` con método `ConsumeAsync` inexistente en el template base (P16), estrategia de backoff pendiente.
 
 **Análisis:** técnicamente sólido, pero es un mecanismo **transversal** que el requisito RE-030 no debería definir en solitario. Riesgo real: cuando el requisito de Notas de Crédito o Factura por Adelantado defina su propio reintento, hay probabilidad alta de divergencia (nombres de tablas, granularidad del contador, política de backoff, número máximo de reintentos, ubicación del `IValorConfiguracionRepository`, etc.).
 
@@ -135,13 +163,18 @@ Sin embargo, presenta **3 desviaciones críticas** respecto al requisito literal
 1. **Extraer el diseño de reintento a un requisito/documento transversal propio** (ej. R16A-RE-FU-XXX — Política de Reintento de Timbrado) y en RE-030 solo referenciarlo, no definirlo. Recomendado.
 2. Mantenerlo aquí, pero marcarlo explícitamente como *"diseño de referencia, sujeto a re-armado cuando se defina el requisito transversal"* — y coordinar con los dueños de RE-Notas de Crédito y RE-Factura Anticipo antes de codear.
 
-### 4.3 — Nueva tabla `ValorConfiguracion` genérica
+### 4.3 — `ValorConfiguracion` ya existe como `VariableConfiguracion`
 
-**Contexto:** el DIS-SOL crea `dbo.ValorConfiguracion` en ProquifaDotNet para almacenar `MAX_REINTENTOS_TIMBRADO=5`.
+**Contexto:** el DIS-SOL propone `CREATE TABLE dbo.ValorConfiguracion` en ProquifaDotNet para almacenar `MAX_REINTENTOS_TIMBRADO=5`.
 
-**Análisis:** es una tabla genérica de "system settings" — no exclusiva de CP. Su creación aquí implica que otros módulos van a reusarla, lo cual es probable pero **no está aprobado**. Similar al punto 4.2: es una decisión transversal que no debería vivir en el requisito de CP.
+**Hallazgo:** la tabla **ya existe** en ProquifaDotNet con el nombre `dbo.VariableConfiguracion`. El DIS-SOL usa un nombre incorrecto y plantea crearla como si fuera nueva.
 
-**Acción requerida:** confirmar con arquitectura si `ValorConfiguracion` corresponde a un requisito de plataforma/infra, o si RE-030 puede legítimamente crearla en solitario.
+**Problema:** si se ejecuta el script tal como está en el DIS-SOL se creará una tabla duplicada (`ValorConfiguracion`) paralela a la existente (`VariableConfiguracion`), con riesgo de inconsistencia de datos de configuración entre módulos.
+
+**Acción requerida:**
+1. Eliminar el `CREATE TABLE dbo.ValorConfiguracion` del DIS-SOL.
+2. Reemplazar todas las referencias a `ValorConfiguracion` y a `IValorConfiguracionRepository` en el diseño por `VariableConfiguracion` y `IVariableConfiguracionRepository` (nombre consistente con la tabla existente).
+3. Insertar la clave `MAX_REINTENTOS_TIMBRADO=5` en la tabla existente `dbo.VariableConfiguracion` mediante un `INSERT` (o `MERGE` para idempotencia), no un `CREATE TABLE`.
 
 ---
 
@@ -245,7 +278,7 @@ Esta sección evalúa el DIS-SOL contra las reglas del proyecto que aplican a to
 
 | Aplicativo | Naturaleza | Idioma esperado |
 |---|---|---|
-| Base de datos `ProquifaDotNet` (ALTER TABLE `fccDocumentoFiscalCobro`, INSERT en catálogos, CREATE TABLE `ValorConfiguracion`) | BD existente | Español ✓ |
+| Base de datos `ProquifaDotNet` (ALTER TABLE `fccDocumentoFiscalCobro`, INSERT en catálogos, INSERT en `VariableConfiguracion` — tabla existente, **no** CREATE TABLE `ValorConfiguracion`) | BD existente | Español ✓ |
 | Base de datos `DocumentBuilder` (INSERT en `DocumentTemplate`) | BD existente | Español (aunque el sistema mismo es inglés — se respeta el esquema histórico) |
 | `ProquifaDotNet.Finanzas` | **Solución nueva** (creada en RE-016) | **Inglés total, incluyendo comentarios** |
 | `ProquifaDotNet.Timbrado` | **Solución nueva** (creada en RE-018) | **Inglés total, incluyendo comentarios** |
@@ -253,21 +286,21 @@ Esta sección evalúa el DIS-SOL contra las reglas del proyecto que aplican a to
 
 **Cumplimiento observado en el DIS-SOL:**
 
-| Área | Estado | Detalle |
-|---|---|---|
-| Nombres de clases | ✓ Inglés | `PaymentComplementCalculationService`, `GeneratePaymentComplementService`, `PersistPaymentComplementPdfService`, `PaymentComplementPdfMappingService` |
-| Nombres de métodos | ✓ Inglés | `CalculateInstallmentNumber`, `MapAsync`, `GeneratePdfAsync`, `UploadFilesAsync`, `AssignFolioAndPersistCfdiAsync` |
-| DTOs | ✓ Inglés | `StampPaymentComplementRequestDto`, `PaymentComplementModel`, `IssuerCp`, `ReceiverCp` |
-| Namespaces | ✓ Inglés | `Proquifa.Finanzas.Application.Services.PaymentComplement` |
-| Rutas de endpoints | ✓ Inglés | `POST /api/v1/paymentComplement/report`, `POST /api/v1/paymentComplement/stamp` |
-| Excepción tipada | ✓ Inglés | `PaymentComplementStampException` |
-| Enum `FaseGeneracionCp` (**nueva solución**) | ✗ **Español** | Debería ser `StampingPhase` con valores `Stamped`, `FolioAssigned`, `PdfGenerated`, `FilesUploaded`. Ruta actual: `Proquifa.Finanzas.Domain/Enums/FaseGeneracionCp.cs` |
-| Método `MarcarFalloDefinitivoAsync` (Worker) | ✗ **Español** | Debería ser `MarkDefinitiveFailureAsync` |
-| Propiedad `Escenario` en `PaymentComplementRetryMessage` | ✗ **Español** | Debería ser `Scenario` (valores `"B"` y `"D"` OK como literales) |
-| Nombres de eventos de Bitácora: `GenerarComplementoPago`, `ComplementoPagoFalloDefinitivo` | ✗ **Español** | Deberían ser `GeneratePaymentComplement`, `PaymentComplementDefinitiveFailure` |
-| Nombre de cola RabbitMQ `paymentComplementQueue` | ✓ Inglés | |
-| Nombre de archivo del Worker `PaymentComplementRetryWorker.cs` | ✓ Inglés | |
-| Comentarios inline (`//` y `///`) | ✗ **Mezclados** | XML docs (`/// <summary>`) en inglés; comentarios `//` mayoritariamente en español. Ejemplos de comentarios que deben traducirse: |
+| Área                                                                                       | Estado          | Detalle                                                                                                                                                                |
+| ------------------------------------------------------------------------------------------ | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Nombres de clases                                                                          | ✓ Inglés        | `PaymentComplementCalculationService`, `GeneratePaymentComplementService`, `PersistPaymentComplementPdfService`, `PaymentComplementPdfMappingService`                  |
+| Nombres de métodos                                                                         | ✓ Inglés        | `CalculateInstallmentNumber`, `MapAsync`, `GeneratePdfAsync`, `UploadFilesAsync`, `AssignFolioAndPersistCfdiAsync`                                                     |
+| DTOs                                                                                       | ✓ Inglés        | `StampPaymentComplementRequestDto`, `PaymentComplementModel`, `IssuerCp`, `ReceiverCp`                                                                                 |
+| Namespaces                                                                                 | ✓ Inglés        | `Proquifa.Finanzas.Application.Services.PaymentComplement`                                                                                                             |
+| Rutas de endpoints                                                                         | ✓ Inglés        | `POST /api/v1/paymentComplement/report`, `POST /api/v1/paymentComplement/stamp`                                                                                        |
+| Excepción tipada                                                                           | ✓ Inglés        | `PaymentComplementStampException`                                                                                                                                      |
+| Enum `FaseGeneracionCp` (**nueva solución**)                                               | ✗ **Español (nombre)** | Renombrar a `StampingPhase` — los valores del enum pueden quedar en español: `Timbrado`, `FolioAsignado`, `PdfGenerado`, `ArchivosSubidos`. Ruta actual: `Proquifa.Finanzas.Domain/Enums/FaseGeneracionCp.cs` |
+| Método `MarcarFalloDefinitivoAsync` (Worker)                                               | ✗ **Español**   | Debería ser `MarkDefinitiveFailureAsync`                                                                                                                               |
+| Propiedad `Escenario` en `PaymentComplementRetryMessage`                                   | ✗ **Español**   | Debería ser `Scenario` (valores `"B"` y `"D"` OK como literales)                                                                                                       |
+| Nombres de eventos de Bitácora: `GenerarComplementoPago`, `ComplementoPagoFalloDefinitivo` | ✗ **Español**   | Deberían ser `GeneratePaymentComplement`, `PaymentComplementDefinitiveFailure`                                                                                         |
+| Nombre de cola RabbitMQ `paymentComplementQueue`                                           | ✓ Inglés        |                                                                                                                                                                        |
+| Nombre de archivo del Worker `PaymentComplementRetryWorker.cs`                             | ✓ Inglés        |                                                                                                                                                                        |
+| Comentarios inline (`//` y `///`)                                                          | ✗ **Mezclados** | XML docs (`/// <summary>`) en inglés; comentarios `//` mayoritariamente en español. Ejemplos de comentarios que deben traducirse:                                      |
 
 **Comentarios en español detectados en `Proquifa.Finanzas.Application.Services.PaymentComplement.*` que deben pasarse a inglés:**
 - `// Snapshot fiscal + resultado del PAC — necesarios para el paso de folio, aún no persistidos en BD`
@@ -283,7 +316,7 @@ Esta sección evalúa el DIS-SOL contra las reglas del proyecto que aplican a to
 - Muchos otros — hay que hacer una pasada completa.
 
 **Acción requerida:**
-1. Renombrar `FaseGeneracionCp` → `StampingPhase` (y sus valores), `MarcarFalloDefinitivoAsync` → `MarkDefinitiveFailureAsync`, `Escenario` → `Scenario`.
+1. Renombrar `FaseGeneracionCp` → `StampingPhase` (solo el nombre de la clase — los valores del enum pueden quedar en español: `Timbrado`, `FolioAsignado`, `PdfGenerado`, `ArchivosSubidos`); `MarcarFalloDefinitivoAsync` → `MarkDefinitiveFailureAsync`; `Escenario` → `Scenario`.
 2. Renombrar eventos de Bitácora General a inglés: `GenerarComplementoPago` → `GeneratePaymentComplement`, `ComplementoPagoFalloDefinitivo` → `PaymentComplementDefinitiveFailure`.
 3. Hacer pasada completa de todos los comentarios `//` en los archivos nuevos bajo `Proquifa.Finanzas.*` y `Proquifa.Timbrado.*` y traducirlos a inglés.
 4. Verificar en tiempo de code review que no se filtren comentarios en español antes del merge.
@@ -334,10 +367,10 @@ Esta sección evalúa el DIS-SOL contra las reglas del proyecto que aplican a to
 
 **Endpoints nuevos propuestos en el DIS-SOL:**
 
-| Endpoint | Método | Cumple |
-|---|---|---|
-| `api/v1/paymentComplement/report` | POST | ✓ (singular, inglés, `api/v1/`, subrecurso `report`) |
-| `api/v1/paymentComplement/stamp` | POST | ✓ (singular, inglés, `api/v1/`, subrecurso `stamp`) |
+| Endpoint                          | Método | Cumple                                               |
+| --------------------------------- | ------ | ---------------------------------------------------- |
+| `api/v1/paymentComplement/report` | POST   | ✓ (singular, inglés, `api/v1/`, subrecurso `report`) |
+| `api/v1/paymentComplement/stamp`  | POST   | ✓ (singular, inglés, `api/v1/`, subrecurso `stamp`)  |
 
 **Endpoints referenciados de requisitos previos que NO cumplen la convención:**
 - `POST /api/timbrado/timbrar-faa` (RE-019) — falta `v1/`, verbo en español (`timbrar`), no sigue `{resource}/{subresource}`.
@@ -353,35 +386,36 @@ Esta sección evalúa el DIS-SOL contra las reglas del proyecto que aplican a to
 
 Estos ya están listados en la sección "Pendientes y Brechas" del DIS-SOL; se enumeran aquí solo para verificación cruzada.
 
-| # DIS-SOL | Pendiente | Estado |
-|---|---|---|
-| P1 | Hora en `FechaPago` (12:00:00 vs real) | Provisional 12:00:00 con TODO en código |
-| P2 | Formato de Serie "P" | Propuesta `P{folio:00000000}` |
-| P3 | Soporte tasas IVA distintas a 16% | Solo 16% |
-| P4 | Plantilla del correo (PMO #31) | Bloqueado |
-| P5 | Política de reintento | Diseñado (ver Obs. 4.2) |
-| P6 | Propagación de `idCliente` | Anotado |
-| P7 | `ConsumeNextFolioAsync` acepta `serie` | Cambio de firma pendiente |
-| P8 | `ConversorDivisas` cross-framework | Reimplementación en Finanzas |
-| P9 | Origen de datos `DigitalSealCp` | No mapeado |
-| P11 | Reintento de NC (transversal) | Coordinar |
-| P13 | `IMinioStorageService` vs legacy `SubirArchivo` | Confirmar |
-| P14 | Endpoint de conversión desde Logística | Confirmar |
-| P15 | Tabla dedicada para NumParcialidad vs COUNT+UPDLOCK | Evaluar |
-| P16 | `ConsumeAsync` no existe en template RabbitMQ base | Bloqueado |
-| P17 | Bitácora General (Regla 8) | Bloqueado |
+| # DIS-SOL | Pendiente                                           | Estado                                  |
+| --------- | --------------------------------------------------- | --------------------------------------- |
+| P1        | Hora en `FechaPago` (12:00:00 vs real)              | Provisional 12:00:00 con TODO en código |
+| P2        | Formato de Serie "P"                                | Propuesta `P{folio:00000000}`           |
+| P3        | Soporte tasas IVA distintas a 16%                   | Solo 16%                                |
+| P4        | Plantilla del correo (PMO #31)                      | Bloqueado                               |
+| P5        | Política de reintento                               | Diseñado (ver Obs. 4.2)                 |
+| P6        | Propagación de `idCliente`                          | Anotado                                 |
+| P7        | `ConsumeNextFolioAsync` acepta `serie`              | Cambio de firma pendiente               |
+| P8        | `ConversorDivisas` cross-framework                  | Reimplementación en Finanzas            |
+| P9        | Origen de datos `DigitalSealCp`                     | No mapeado                              |
+| P11       | Reintento de NC (transversal)                       | Coordinar                               |
+| P13       | `IMinioStorageService` vs legacy `SubirArchivo`     | Confirmar                               |
+| P14       | Endpoint de conversión desde Logística              | Confirmar                               |
+| P15       | Tabla dedicada para NumParcialidad vs COUNT+UPDLOCK | Evaluar                                 |
+| P16       | `ConsumeAsync` no existe en template RabbitMQ base  | Bloqueado                               |
+| P17       | Bitácora General (Regla 8)                          | Bloqueado                               |
 
 **Pendientes nuevos que esta revisión propone añadir:**
 
 | # | Descripción | Origen |
 |---|---|---|
 | P18 | Analista de Cuentas por Cobrar en CC del correo | Obs. 3.3 (Criterio J2) |
-| P19 | Interpretación del Criterio B2 sobre Serie/Folio en XML certificado | Obs. 3.2 |
+| P19a | Definir tabla `fccFolioDocumentoFiscalCobro` (1 fila por empresa+serie), INSERT inicial GOL/MUN/PRO/PQF con Serie='P', UltimoFolio=0; reemplazar `EmpresaFolio` en el DIS-SOL | Obs. 3.2.1 |
+| P19b | Interpretación del Criterio B2 — confirmar si Serie/Folio deben ir dentro del XML certificado o solo en `CFDIGenerada` como atributo de negocio | Obs. 3.2.2 |
 | P20 | Confirmación del PAC (TurboPac vs SAP) | Obs. 3.4 |
 | P21 | Alcance de CFDI 3.3 en RE-030 | Obs. 4.1 |
-| P22 | Ownership de `ValorConfiguracion` (transversal vs RE-030) | Obs. 4.3 |
+| P22 | `ValorConfiguracion` ya existe como `VariableConfiguracion` — eliminar CREATE TABLE, usar tabla existente e insertar `MAX_REINTENTOS_TIMBRADO=5` con MERGE | Obs. 4.3 |
 | P23 | Eliminar `vfccDocumentoFiscalCobro` v3.0 y consumir DbSets directos con LINQ | Obs. 7.1 (regla de vistas) |
-| P24 | Traducir a inglés: enum `FaseGeneracionCp`, `MarcarFalloDefinitivoAsync`, `Escenario`, eventos de Bitácora, y comentarios `//` de todos los archivos nuevos | Obs. 7.2 (nueva solución = 100% inglés) |
+| P24 | Renombrar a inglés: clase `FaseGeneracionCp` → `StampingPhase` (valores del enum pueden quedar en español), `MarcarFalloDefinitivoAsync` → `MarkDefinitiveFailureAsync`, `Escenario` → `Scenario`, eventos de Bitácora, y comentarios `//` de todos los archivos nuevos | Obs. 7.2 (nueva solución = 100% inglés) |
 | P25 | Documentar explícitamente que el envío del correo del CP pasa por el Aplicativo Nuevo Envío de Correo | Obs. 7.3 |
 | P26 | Ampliar Bitácora General a las 5-7 transiciones de fase, no solo al finalizado y al fallo definitivo | Obs. 7.4 |
 

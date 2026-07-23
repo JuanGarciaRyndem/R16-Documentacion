@@ -128,13 +128,13 @@ Fuente: `R16A-NO-FU-001.md` líneas 205-254, 402-583.
 
 ## Resumen de Endpoints
 
-| Endpoint | Tipo envío | Req. |
-|---|---|---|
-| `POST /api/v1/mail/send` | Basado en `CorreoEnviado` existente | NO-FU-001 |
-| `POST /api/v1/mail/simple` | Ad-hoc con plantilla interna | NO-FU-001 |
-| `POST /api/v1/mail/html` | HTML explícito + adjuntos MinIO | NO-FU-001 |
-| `POST /api/v1/mail/template` | Plantilla nativa Brevo | NO-FU-001 |
-| **Total API SendInBlue** | | **4** |
+| Endpoint                     | Tipo envío                          | Req.      |
+| ---------------------------- | ----------------------------------- | --------- |
+| `POST /api/v1/mail/send`     | Basado en `CorreoEnviado` existente | NO-FU-001 |
+| `POST /api/v1/mail/simple`   | Ad-hoc con plantilla interna        | NO-FU-001 |
+| `POST /api/v1/mail/html`     | HTML explícito + adjuntos MinIO     | NO-FU-001 |
+| `POST /api/v1/mail/template` | Plantilla nativa Brevo              | NO-FU-001 |
+| **Total API SendInBlue**     |                                     | **4**     |
 
 ---
 

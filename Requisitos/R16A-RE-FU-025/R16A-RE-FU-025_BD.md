@@ -79,11 +79,11 @@ Sin Complemento de Pago posterior — vinculacion cobro/factura es solo operativ
     Validacion en BD:
     EmpresaDatosBancarios WHERE Empresa.Prefijo='GOLPERU' AND Activo=1 = 0 registros
 
-| Dato faltante | Tabla | Accion |
-|---------------|-------|--------|
-| Banco(s) peruano(s) de Golocaer SAC | catBanco | INSERT si no existe |
-| Cuentas bancarias GOLPERU | EmpresaDatosBancarios + DatosBancarios | INSERT |
-| Moneda PEN en cuentas | catMoneda | Verificar si PEN ya existe |
+| Dato faltante                       | Tabla                                  | Accion                     |
+| ----------------------------------- | -------------------------------------- | -------------------------- |
+| Banco(s) peruano(s) de Golocaer SAC | catBanco                               | INSERT si no existe        |
+| Cuentas bancarias GOLPERU           | EmpresaDatosBancarios + DatosBancarios | INSERT                     |
+| Moneda PEN en cuentas               | catMoneda                              | Verificar si PEN ya existe |
 
 **Estructura a poblar:**
 
