@@ -5,430 +5,286 @@
 | **Requisito** | R16A-RE-FU-005 |
 | **Base de Datos** | ProquifaDotNet |
 | **Servidor** | RYNL010 |
-| **Versión** | 1.2 — Estrategia IdRegion en catálogos existentes (confirmada con BD) |
+| **Versión** | 2.0 — Cancelación timbrado Perú: se elimina regionalización; se consolidan Forma de Pago, Uso de CFDI y Método de Pago en `DatosFacturacionCliente` |
 | **Generado por** | GitHub Copilot in SSMS |
-| **Última actualización** | Incluye IdRegion en catálogos, registros PE, banderas tributarias |
 
 ---
 
 ## Resumen Ejecutivo
 
-Captura y mantenimiento de la configuración de cobros y facturación del cliente en la sección **Cobros** del Catálogo de Clientes. Los campos y catálogos varían por Región (México/Perú). Los valores son configuración default consumida por los módulos **Factura por Adelantado** y **Validar Cobro**.
+Captura y mantenimiento de la configuración de cobros y facturación del cliente en la sección **Cobros** del Catálogo de Clientes. Los tres campos obligatorios (Forma de Pago, Uso de CFDI, Método de Pago) se almacenan en `DatosFacturacionCliente` y son consumidos por los módulos de Factura por Adelantado y Validar Cobro.
 
-**Estrategia de BD aprobada:** Agregar `IdRegion` (FK→Region) a los catálogos existentes en lugar de crear tablas nuevas. Los registros Perú se insertan en las mismas tablas.
-
----
-
-## Estado por Región
-
-| Aspecto | México (MEX) | Perú (PER) |
-|---|---|---|
-| Estado en R16 | Preexistente — se mantiene | **NUEVO en R16** |
-| Cómo paga (medio) | `catMedioDePago` (IdRegion=MEX) | No aplica — SUNAT no lo exige |
-| Cuándo paga (temporal) | `catMetodoDePagoCFDI` PUE/PPD (IdRegion=MEX) | `catMetodoDePagoCFDI` Contado/Crédito (IdRegion=PER) |
-| Tipo de documento fiscal | `catUsoCFDI` G01/G03/S01 (IdRegion=MEX) | `catUsoCFDI` Factura/Boleta/Recibo (IdRegion=PER) |
-| Bandera Agente de Retención IGV | No aplica | Campo nuevo en `DatosFacturacionCliente` — ⚠️ pendiente confirmar |
-| Bandera Sujeto a Detracción | No aplica | Campo nuevo en `DatosFacturacionCliente` — ⚠️ pendiente confirmar |
+Con la cancelación del timbrado para Perú, se elimina la estrategia de regionalización (`IdRegion` en catálogos, registros PE, banderas tributarias) y los catálogos quedan exclusivamente para México.
 
 ---
 
 ## Modelo de Datos
 
 ```
-Cliente  (IdRegion → Region)
+Cliente
+└── DatosFacturacionCliente
+        ├── FK IdCatMedioDePago      → catMedioDePago      (Forma de Pago — NUEVO R16)
+        ├── FK IdCatUsoCFDI          → catUsoCFDI          (Uso de CFDI — existente)
+        └── FK IdCatMetodoDePagoCFDI → catMetodoDePagoCFDI (Método de Pago — existente)
+
+Cliente
 └── FK IdConfiguracionPagos
         ConfiguracionPagos
-        ├── FK IdCatMedioDePago       → catMedioDePago      (filtrar WHERE IdRegion = MEX)
-        └── FK IdCatCondicionesDePago → catCondicionesDePago (plazos en días)
-└── DatosFacturacionCliente
-        ├── FK IdCatMetodoDePagoCFDI  → catMetodoDePagoCFDI (MX: PUE/PPD | PE: Contado/Crédito)
-        ├── FK IdCatUsoCFDI           → catUsoCFDI          (MX: G01/G03   | PE: Factura/Boleta)
-        ├── [NUEVO R16] AgenteRetencionIGV  bit          (PE — pendiente confirmar)
-        ├── [NUEVO R16] SujetoDetraccion    bit          (PE — pendiente confirmar)
-        └── [NUEVO R16] TasaDetraccion      decimal(5,2) (PE — solo cuando SujetoDetraccion = 1)
-
-Catálogos con IdRegion agregado (ALTER TABLE pendiente ejecutar):
-├── catMetodoDePagoCFDI.IdRegion → Region  [MEX: PUE/PPD existentes | PER: CONT/CRED nuevos]
-├── catUsoCFDI.IdRegion          → Region  [MEX: G01/G03/S01 exist. | PER: 01/03/08 nuevos]
-└── catMedioDePago.IdRegion      → Region  [solo MEX — sin registros PER]
+        ├── FK IdCatCondicionesDePago → catCondicionesDePago (plazos en días — sin cambios)
+        └── IdCatMedioDePago (existente en ConfiguracionPagos — ver Pendiente P2)
 ```
 
 ---
 
 ## Entidades Afectadas
+![[Pasted image 20260723102226.png]]
 
-| Entidad | Tipo | Región | Cambio R16 | Observación |
-|---|---|---|---|---|
-| `catMedioDePago` | Catálogo | Solo MX | Existente + IdRegion | SUNAT no exige medio de pago |
-| `catMetodoDePagoCFDI` | Catálogo | MX + PE | Existente + IdRegion + INSERTs PE | MX: PUE/PPD / PE: Contado/Crédito |
-| `catUsoCFDI` | Catálogo | MX + PE | Existente + IdRegion + INSERTs PE | MX: G01/G03/S01 / PE: Factura/Boleta/Recibo |
-| `DatosFacturacionCliente` | Tabla | MX + PE | Existente + 3 campos nuevos PE | AgenteRetencionIGV, SujetoDetraccion, TasaDetraccion |
-| `vDatosFacturacionCliente` | Vista | MX | Existente — requiere revisión | Revisar si expone campos nuevos PE tras ALTER |
+| Entidad | Tipo | Cambio R16 | Observación |
+|---|---|---|---|
+| `catMedioDePago` | Catálogo | Claves SAT pendientes — ⏸ En espera Excel | `ClaveFormaDePago` incompleta en 4 registros |
+| `catMetodoDePagoCFDI` | Catálogo | Sin cambios estructurales | PUE/PPD — solo México |
+| `catUsoCFDI` | Catálogo | Sin cambios estructurales | G01/G03/S01 etc. — solo México |
+| `DatosFacturacionCliente` | Tabla | Agregar `IdCatMedioDePago` (FK) | Centraliza los tres campos de Cobros |
+| `ConfiguracionPagos` | Tabla | Sin cambios estructurales | Mantiene condiciones de crédito y línea |
 
 ---
 
-## 1. catMedioDePago (Forma de Pago — Solo México)
+## 1. catMedioDePago — Forma de Pago
 
-**Propósito:** Medio de pago. SUNAT no lo exige en el comprobante, por lo que **no aplica a Perú**.
-**Cambio R16:** Agregar `IdRegion`. Todos los registros existentes → MEX. Sin registros PE.
+**Propósito:** Medio o forma de pago. Clave SAT del catálogo c_FormaPago, requerida para el CFDI.
+**Cambio R16:** Sin cambios estructurales. Pendiente completar `ClaveFormaDePago` en 4 registros — ⏸ En espera Excel Proquifa.
 
 | Columna | Tipo | Longitud | Nulo | Descripción |
 |---|---|---|---|---|
 | `IdCatMedioDePago` | uniqueidentifier | 16 | NO | PK |
 | `MedioDePago` | nvarchar | 200 | NO | Descripción del medio |
-| `ClaveFormaDePago` | varchar | 2 | SÍ | Clave SAT c_FormaPago (nullable) |
+| `ClaveFormaDePago` | varchar | 2 | SÍ | Clave SAT c_FormaPago — nullable |
 | `Clave` | varchar | 150 | NO | Clave interna del sistema |
 | `RequiereNumeroDeCuenta` | bit | 1 | NO | Requiere captura de número de cuenta |
 | `ObligatorioEnCliente` | bit | 1 | SÍ | Obligatorio en catálogo cliente |
 | `Activo` | bit | 1 | NO | Default: 1 |
-| `IdRegion` ✨ | uniqueidentifier | 16 | SÍ | **NUEVO R16** — FK Región (solo MEX) |
 
-**Catálogo actual en BD (12 registros — todos serán asignados a MEX):**
+**Registros activos:**
 
-| Descripción | Clave SAT | Activo | Observación |
-|---|---|---|---|
-| Aba | *(vacío)* | ✅ Sí | ⚠️ Sin clave SAT — pendiente mapeo |
-| Cheque | 02 | ✅ Sí | ✅ OK |
-| Depósito bancario | 31 | ✅ Sí | ✅ OK |
-| Efectivo | 01 | ✅ Sí | ✅ OK |
-| NA | *(vacío)* | ✅ Sí | ⚠️ Sin clave SAT — pendiente mapeo |
-| —NINGUNO— | *(vacío)* | ✅ Sí | ⚠️ Sin clave SAT — pendiente mapeo |
-| Otros | 99 | ✅ Sí | ✅ OK |
-| Swift | *(vacío)* | ✅ Sí | ⚠️ Sin clave SAT — pendiente mapeo |
-| Tarjeta | 04 | ✅ Sí | ✅ OK |
-| Transferencia | 03 | ✅ Sí | ✅ OK |
-| Transferencia Clabe | 03 | ❌ No (inactivo) | Inactivo |
-| Transferencia Cuenta | 03 | ❌ No (inactivo) | Inactivo |
-
-> **⚠️ Pendiente** — Aba, NA, NINGUNO y Swift no tienen `ClaveFormaDePago`. Verificar si el XML CFDI exige la clave SAT y si se requiere mapeo para timbrado. Ver `R16A-RE-FU-005_Equivalencias_Cobros_MX_PE.xlsx`.
-
----
-
-## 2. catMetodoDePagoCFDI (Método de Pago MX / Condición de Pago PE)
-
-**Propósito:** Dimensión temporal del pago. Reutilizado para MX y PE con `IdRegion`.
-**Cambio R16:** Agregar `IdRegion` + insertar 2 registros PE (Contado/Crédito SUNAT).
-
-| Columna                 | Tipo             | Longitud | Nulo | Descripción                                     |
-| ----------------------- | ---------------- | -------- | ---- | ----------------------------------------------- |
-| `IdCatMetodoDePagoCFDI` | uniqueidentifier | 16       | NO   | PK                                              |
-| `MetodoDePagoCFDI`      | nvarchar         | 100      | NO   | Descripción                                     |
-| `ClaveMetodoDePagoCFDI` | nvarchar         | 6        | NO   | Clave SAT (MX: PUE/PPD) o SUNAT (PE: CONT/CRED) |
-| `Clave`                 | varchar          | 150      | NO   | Clave interna                                   |
-| `Activo`                | bit              | 1        | NO   | Default: 1                                      |
-| `IdRegion` ✨            | uniqueidentifier | 16       | SÍ   | **NUEVO R16** — FK Región                       |
-
-**Registros actuales y nuevos:**
-
-| Clave | Descripción                      | Región | Estado      |
-| ----- | -------------------------------- | ------ | ----------- |
-| PPD   | Pago en parcialidades o diferido | MEX    | ✅ Existente |
-| PUE   | Pago en una sola exhibición      | MEX    | ✅ Existente |
-| CONT  | Contado (R.S. N° 193-2020/SUNAT) | PER    | ✨ NUEVO R16 |
-| CRED  | Crédito (R.S. N° 193-2020/SUNAT) | PER    | ✨ NUEVO R16 |
-
-**Equivalencia conceptual MX↔PE:**
-
-| México (SAT) | Perú (SUNAT) | Dimensión |
+| Descripción | `ClaveFormaDePago` SAT | Observación |
 |---|---|---|
-| PUE — Pago en una exhibición | Contado | Pago inmediato |
-| PPD — Pago diferido/parcialidades | Crédito | Pago diferido |
-
-> **⚠️ Pendiente** — Confirmar denominación final del campo en pantalla para Perú.
-> No renderizar campos MEX para clientes PER y viceversa.
+| Aba | *(vacío)* | ⏸ Pendiente Excel Proquifa |
+| Cheque | 02 | ✅ OK |
+| Depósito bancario | 31 | ✅ OK |
+| Efectivo | 01 | ✅ OK |
+| NA | *(vacío)* | ⏸ Pendiente Excel Proquifa |
+| —NINGUNO— | *(vacío)* | ⏸ Pendiente Excel Proquifa |
+| Otros | 99 | ✅ OK |
+| Swift | *(vacío)* | ⏸ Pendiente Excel Proquifa |
+| Tarjeta | 04 | ✅ OK |
+| Transferencia | 03 | ✅ OK |
 
 ---
 
-## 3. catUsoCFDI (Uso de CFDI MX / Tipo de Comprobante PE)
+## 2. catMetodoDePagoCFDI — Método de Pago
 
-**Propósito:** Tipo de documento fiscal. Reutilizado para MX y PE con `IdRegion`.
-**Cambio R16:** Agregar `IdRegion` + insertar 3 registros PE (Factura/Boleta/Recibo SUNAT).
-**⚠️ Importante:** Uso CFDI (MX) y Tipo Comprobante (PE) son conceptos **distintos** — no mezclar.
+**Propósito:** Dimensión temporal del pago. Clave SAT del catálogo c_MetodoPago.
+**Cambio R16:** Sin cambios estructurales ni de registros.
+
+| Columna | Tipo | Longitud | Nulo | Descripción |
+|---|---|---|---|---|
+| `IdCatMetodoDePagoCFDI` | uniqueidentifier | 16 | NO | PK |
+| `MetodoDePagoCFDI` | nvarchar | 100 | NO | Descripción |
+| `ClaveMetodoDePagoCFDI` | nvarchar | 6 | NO | Clave SAT c_MetodoPago |
+| `Clave` | varchar | 150 | NO | Clave interna |
+| `Activo` | bit | 1 | NO | Default: 1 |
+
+**Registros:**
+
+| Clave SAT | Descripción | Estado |
+|---|---|---|
+| PUE | Pago en una sola exhibición | ✅ Existente |
+| PPD | Pago en parcialidades o diferido | ✅ Existente |
+
+---
+
+## 3. catUsoCFDI — Uso de CFDI
+
+**Propósito:** Uso o tipo del comprobante fiscal. Clave SAT del catálogo c_UsoCFDI.
+**Cambio R16:** Sin cambios estructurales ni de registros.
 
 | Columna | Tipo | Longitud | Nulo | Descripción |
 |---|---|---|---|---|
 | `IdCatUsoCFDI` | uniqueidentifier | 16 | NO | PK |
-| `ClaveUso` | nvarchar | 6 | NO | Clave SAT c_UsoCFDI (MX) o código SUNAT (PE) |
+| `ClaveUso` | nvarchar | 6 | NO | Clave SAT c_UsoCFDI |
 | `Uso` | nvarchar | 300 | NO | Descripción |
 | `Clave` | varchar | 150 | NO | Clave interna |
 | `Activo` | bit | 1 | NO | Default: 1 |
-| `IdRegion` ✨ | uniqueidentifier | 16 | SÍ | **NUEVO R16** — FK Región |
 
-**Registros actuales y nuevos:**
+**Registros activos relevantes:**
 
-| Clave | Descripción                               | Región | Estado      |
-| ----- | ----------------------------------------- | ------ | ----------- |
-| G01   | Adquisición de mercancías                 | MEX    | ✅ Existente |
-| G02   | Devoluciones, descuentos o bonificaciones | MEX    | ✅ Existente |
-| G03   | Gastos en general                         | MEX    | ✅ Existente |
-| N/A   | N/A (valor interno)                       | MEX    | ✅ Existente |
-| P01   | Por definir                               | MEX    | ✅ Existente |
-| S01   | Sin efectos fiscales                      | MEX    | ✅ Existente |
-| 01    | Factura electrónica                       | PER    | ✨ NUEVO R16 |
-| 03    | Boleta de venta electrónica               | PER    | ✨ NUEVO R16 |
-| 08    | Recibo por Honorarios electrónico         | PER    | ✨ NUEVO R16 |
+| Clave SAT | Descripción                               | Estado      |
+| --------- | ----------------------------------------- | ----------- |
+| G01       | Adquisición de mercancías                 | ✅ Existente |
+| G02       | Devoluciones, descuentos o bonificaciones | ✅ Existente |
+| G03       | Gastos en general                         | ✅ Existente |
+| S01       | Sin efectos fiscales                      | ✅ Existente |
+| P01       | Por definir                               | ✅ Existente |
 
 ---
 
-## 4. ConfiguracionPagos (sin cambios en R16)
+## 4. DatosFacturacionCliente — campos de Cobros
 
-**Propósito:** Configuración de cobros default del cliente.
-**Vínculo:** `Cliente.IdConfiguracionPagos` → `ConfiguracionPagos`
+**Propósito:** Almacena los tres campos de Cobros del cliente: Forma de Pago, Uso de CFDI y Método de Pago. Son la configuración default consumida por Factura por Adelantado y Validar Cobro.
+
+**Cambio R16:** Agregar `IdCatMedioDePago` para centralizar los tres campos en este objeto.
+
+| Columna                 | Tipo             | Nulo | Estado        | Descripción                                 |
+| ----------------------- | ---------------- | ---- | ------------- | ------------------------------------------- |
+| `IdCatMedioDePago` ✨    | uniqueidentifier | SÍ   | **NUEVO R16** | FK → `catMedioDePago` (Forma de Pago)       |
+| `IdCatUsoCFDI`          | uniqueidentifier | SÍ   | ✅ Existente   | FK → `catUsoCFDI` (Uso de CFDI)             |
+| `IdCatMetodoDePagoCFDI` | uniqueidentifier | SÍ   | ✅ Existente   | FK → `catMetodoDePagoCFDI` (Método de Pago) |
+
+> Los tres campos son NULLABLE en BD pero **obligatorios en la capa de negocio** — el BO valida que estén capturados antes de persistir y retorna error si alguno está vacío.
+
+---
+
+## 5. ConfiguracionPagos — sin cambios estructurales
+
+**Propósito:** Condiciones de crédito y línea de crédito del cliente.
+**Cambio R16:** Sin cambios. `IdCatMedioDePago` se agrega a `DatosFacturacionCliente` como campo de Cobros sin retirar el existente en `ConfiguracionPagos` hasta confirmar (ver Pendiente P2).
 
 | Columna | Tipo | Nulo | Descripción |
 |---|---|---|---|
 | `IdConfiguracionPagos` | uniqueidentifier | NO | PK |
 | `IdCatCondicionesDePago` | uniqueidentifier | SÍ | FK — plazos de crédito en días |
-| `IdCatMedioDePago` | uniqueidentifier | SÍ | FK — `catMedioDePago` (Forma de Pago MX) |
+| `IdCatMedioDePago` | uniqueidentifier | SÍ | FK — Forma de Pago (ver Pendiente P2) |
 | `LineaCredito` | decimal | SÍ | Monto de línea de crédito |
 | `LimiteLineaCredito` | decimal | SÍ | Límite de línea de crédito |
-| `PorcentajeSobregiroLineaCredito` | decimal | SÍ | Porcentaje de sobregiro |
-| `NumeroDeCuenta` | varchar(20) | SÍ | Número de cuenta asociada |
-| `MontoDeCredito` | decimal | SÍ | Monto de crédito autorizado |
-| `FechaRegistro` | datetime | NO | Default: GETDATE() |
-| `FechaUltimaActualizacion` | datetime | NO | Default: GETDATE() |
 | `Activo` | bit | NO | Default: 1 |
 
 ---
 
-## 5. catCondicionesDePago (sin cambios en R16)
+## Catálogos SAT de Referencia — Validación con Excel Proquifa ⏸ En espera
 
-**Propósito:** Plazos de crédito en días.
+> Estos son los valores oficiales del SAT (Anexo 20 CFDI 4.0). Al recibir el Excel de Proquifa, cada registro de la BD debe cruzarse contra estas tablas para verificar que las claves asignadas existan y estén vigentes.
 
-> **⚠️ Nota crítica:** Este catálogo define plazos de crédito en días. **NO es la Condición de Pago SUNAT** (Contado/Crédito) — ese concepto va en `catMetodoDePagoCFDI` con `IdRegion = PER`.
+### c_FormaPago — referencia para `catMedioDePago.ClaveFormaDePago`
 
-| Descripción | Sin Crédito | Días | Activo |
-|---|---|---|---|
-| 8 DÍAS | No | 8 | ✅ Sí |
-| 15 DÍAS | No | 15 | ✅ Sí |
-| 21 DÍAS | No | 21 | ✅ Sí |
-| 30 DÍAS | No | 30 | ✅ Sí |
-| 45 DÍAS | No | 45 | ✅ Sí |
-| 60 DÍAS | No | 60 | ✅ Sí |
-| 90 DÍAS | No | 90 | ✅ Sí |
-| PAGO CONTRA ENTREGA | Sí | 0 | ✅ Sí |
-| PREPAGO 100% | Sí | 0 | ✅ Sí |
-| ANTICIPO 50% | No | 0 | ❌ No (inactivo) |
+| Clave SAT | Descripción SAT                     |
+| --------- | ----------------------------------- |
+| 01        | Efectivo                            |
+| 02        | Cheque nominativo                   |
+| 03        | Transferencia electrónica de fondos |
+| 04        | Tarjeta de crédito                  |
+| 05        | Monedero electrónico                |
+| 06        | Dinero electrónico                  |
+| 08        | Vales de despensa                   |
+| 12        | Dación en pago                      |
+| 13        | Pago por subrogación                |
+| 14        | Pago por consignación               |
+| 15        | Condonación                         |
+| 17        | Compensación                        |
+| 23        | Novación                            |
+| 24        | Confusión                           |
+| 25        | Remisión de deuda                   |
+| 26        | Prescripción o caducidad            |
+| 28        | A satisfacción del acreedor         |
+| 29        | Tarjeta de débito                   |
+| 30        | Tarjeta de servicios                |
+| 31        | Aplicación de anticipos             |
+| 99        | Por definir                         |
+
+**Validación a ejecutar:** cruzar cada `ClaveFormaDePago` activa en `catMedioDePago` contra esta tabla. Si no existe → corregir o inactivar. Claves vacías (Aba, NA, NINGUNO, Swift) → asignar la clave correspondiente según el Excel de Proquifa.
+
+### c_MetodoPago — referencia para `catMetodoDePagoCFDI.ClaveMetodoDePagoCFDI`
+
+| Clave SAT | Descripción SAT |
+|---|---|
+| PUE | Pago en una sola exhibición |
+| PPD | Pago en parcialidades o diferido |
+
+**Validación a ejecutar:** `catMetodoDePagoCFDI` solo debe contener PUE y PPD. Si hay otros valores → revisar con cliente.
+
+### c_UsoCFDI — referencia para `catUsoCFDI.ClaveUso`
+
+| Clave SAT | Descripción SAT                                                                      |
+| --------- | ------------------------------------------------------------------------------------ |
+| G01       | Adquisición de mercancias                                                            |
+| G02       | Devoluciones, descuentos o bonificaciones                                            |
+| G03       | Gastos en general                                                                    |
+| I01       | Construcciones                                                                       |
+| I02       | Mobilario y equipo de oficina por inversiones                                        |
+| I03       | Equipo de transporte                                                                 |
+| I04       | Equipo de computo y accesorios                                                       |
+| I05       | Dados, troqueles, moldes, matrices y herramental                                     |
+| I06       | Comunicaciones telefónicas                                                           |
+| I07       | Comunicaciones satelitales                                                           |
+| I08       | Otra maquinaria y equipo                                                             |
+| D01       | Honorarios médicos, dentales y gastos hospitalarios                                  |
+| D02       | Gastos médicos por incapacidad o discapacidad                                        |
+| D03       | Gastos funerales                                                                     |
+| D04       | Donativos                                                                            |
+| D05       | Intereses reales efectivamente pagados por créditos hipotecarios (casa habitación)   |
+| D06       | Aportaciones voluntarias al SAR                                                      |
+| D07       | Primas por seguros de gastos médicos                                                 |
+| D08       | Gastos de transportación escolar obligatoria                                         |
+| D09       | Depósitos en cuentas para el ahorro, primas que tengan como base planes de pensiones |
+| D10       | Pagos por servicios educativos (colegiaturas)                                        |
+| S01       | Sin efectos fiscales                                                                 |
+| CP01      | Pagos                                                                                |
+| CN01      | Nómina                                                                               |
+
+**Validación a ejecutar:** cruzar cada `ClaveUso` activa en `catUsoCFDI` contra esta tabla. Registros como `N/A` o `P01` (por definir) que no correspondan a una clave SAT válida → revisar con cliente si se inactivan o se mapean.
 
 ---
 
-## 6. DatosFacturacionCliente (campos de Cobros — con cambios R16)
+## Script de Cambio Estructural R16
 
-**Propósito:** Almacena Uso CFDI, Método de Pago (MX) y nuevas banderas tributarias (PE).
-**Cambio R16:** Agregar 3 columnas para Perú (tras confirmar aplicabilidad con cliente).
-
-| Columna | Tipo | Nulo | Estado | Descripción |
-|---|---|---|---|---|
-| `IdCatUsoCFDI` | uniqueidentifier | SÍ | ✅ Existente | FK — `catUsoCFDI` (MX: G01/G03 / PE: Factura/Boleta) |
-| `IdCatMetodoDePagoCFDI` | uniqueidentifier | SÍ | ✅ Existente | FK — `catMetodoDePagoCFDI` (MX: PUE/PPD / PE: Cont/Cred) |
-| `AgenteRetencionIGV` ✨ | bit | SÍ | ✨ NUEVO R16 | Bandera PE: Agente de Retención IGV SUNAT (default 0 = No) |
-| `SujetoDetraccion` ✨ | bit | SÍ | ✨ NUEVO R16 | Bandera PE: Sujeto a Detracción SPOT SUNAT (default 0 = No) |
-| `TasaDetraccion` ✨ | decimal(5,2) | SÍ | ✨ NUEVO R16 | Tasa % de detracción. Solo cuando `SujetoDetraccion = 1` |
-
-> `IdCatUsoCFDI` e `IdCatMetodoDePagoCFDI` son NULLABLE en BD pero **obligatorios en UI** por Región.
-> **⚠️ Pendiente** — `AgenteRetencionIGV` y `SujetoDetraccion`: NO agregar hasta confirmar aplicabilidad con el cliente.
-
----
-
-## Scripts de Cambios Estructurales R16
-
-### Paso 1 — Agregar IdRegion a catálogos (ejecutar primero)
+### Agregar Forma de Pago a `DatosFacturacionCliente`
 
 ```sql
-DECLARE @IdMexico uniqueidentifier = '60390fda-7773-4ba1-8120-cb874f3a3a53'; -- MEX
-
-ALTER TABLE dbo.catMetodoDePagoCFDI
-    ADD IdRegion uniqueidentifier NULL
-        CONSTRAINT FK_catMetodoDePagoCFDI_Region
-        FOREIGN KEY REFERENCES dbo.Region(IdRegion);
-
-ALTER TABLE dbo.catUsoCFDI
-    ADD IdRegion uniqueidentifier NULL
-        CONSTRAINT FK_catUsoCFDI_Region
-        FOREIGN KEY REFERENCES dbo.Region(IdRegion);
-
-ALTER TABLE dbo.catMedioDePago
-    ADD IdRegion uniqueidentifier NULL
-        CONSTRAINT FK_catMedioDePago_Region
-        FOREIGN KEY REFERENCES dbo.Region(IdRegion);
-
--- Asignar México a todos los registros existentes
-UPDATE dbo.catMetodoDePagoCFDI SET IdRegion = @IdMexico WHERE IdRegion IS NULL;
-UPDATE dbo.catUsoCFDI          SET IdRegion = @IdMexico WHERE IdRegion IS NULL;
-UPDATE dbo.catMedioDePago      SET IdRegion = @IdMexico WHERE IdRegion IS NULL;
-```
-
-### Paso 2 — Insertar registros Perú
-
-```sql
-DECLARE @IdPeru uniqueidentifier = '8278ecd0-c337-4484-b008-5b5e65b0dfaf'; -- PER
-
--- Condición de Pago SUNAT (R.S. N° 193-2020/SUNAT)
-INSERT INTO dbo.catMetodoDePagoCFDI (MetodoDePagoCFDI, ClaveMetodoDePagoCFDI, Activo, Clave, IdRegion)
-VALUES
-    ('Contado', 'CONT', 1, 'contado', @IdPeru),
-    ('Credito', 'CRED', 1, 'credito', @IdPeru);
-
--- Tipo de Comprobante SUNAT
-INSERT INTO dbo.catUsoCFDI (Uso, ClaveUso, Activo, Clave, IdRegion)
-VALUES
-    ('Factura electrónica',               '01', 1, 'facturasunat', @IdPeru),
-    ('Boleta de venta electrónica',        '03', 1, 'boletasunat',  @IdPeru),
-    ('Recibo por Honorarios electrónico',  '08', 1, 'recibosunat',  @IdPeru);
-```
-
-### Paso 3 — Agregar banderas tributarias Perú a DatosFacturacionCliente
-
-> **⚠️ EJECUTAR SOLO DESPUÉS DE CONFIRMAR APLICABILIDAD CON EL CLIENTE**
-
-```sql
+-- Ejecutar en ProquifaDotNet
+-- Created by GitHub Copilot in SSMS - review carefully before executing
 ALTER TABLE dbo.DatosFacturacionCliente
-    ADD AgenteRetencionIGV bit          NULL,
-        SujetoDetraccion   bit          NULL,
-        TasaDetraccion     decimal(5,2) NULL;
+    ADD IdCatMedioDePago uniqueidentifier NULL
+        CONSTRAINT FK_DatosFacturacionCliente_MedioDePago
+            FOREIGN KEY REFERENCES dbo.catMedioDePago(IdCatMedioDePago);
+GO
 ```
 
----
-
-## Mapeo de Campos por Región
-
-| Concepto | Tabla | Campo MX | Campo PE | Estrategia |
-|---|---|---|---|---|
-| Cómo paga (medio) | `ConfiguracionPagos` | `IdCatMedioDePago` (MEX) | No aplica | Sin registros PE en `catMedioDePago` |
-| Cuándo paga (temporal) | `DatosFacturacionCliente` | `IdCatMetodoDePagoCFDI` PUE/PPD | `IdCatMetodoDePagoCFDI` CONT/CRED | Misma FK filtrada por `IdRegion` |
-| Tipo de documento | `DatosFacturacionCliente` | `IdCatUsoCFDI` G01/G03/S01 | `IdCatUsoCFDI` 01/03/08 | Misma FK filtrada por `IdRegion` |
-| Agente Retención IGV | `DatosFacturacionCliente` | No aplica | `AgenteRetencionIGV` (bit) | Campo nuevo — ⚠️ pendiente confirmar |
-| Sujeto a Detracción | `DatosFacturacionCliente` | No aplica | `SujetoDetraccion` (bit) + `TasaDetraccion` | Campo nuevo — ⚠️ pendiente confirmar |
-
----
-
-## Consultas SQL Principales
-
-### Configuración de cobros — cliente México
+### Completar claves SAT en `catMedioDePago` ⏸ En espera Excel Proquifa
 
 ```sql
-DECLARE @IdCliente UNIQUEIDENTIFIER;
-
-SELECT
-    md.MedioDePago           AS FormaDePago,
-    md.ClaveFormaDePago      AS ClaveFormaPagoSAT,
-    mp.ClaveMetodoDePagoCFDI AS MetodoPago,
-    mp.MetodoDePagoCFDI,
-    uc.ClaveUso,
-    uc.Uso                   AS UsoCFDI,
-    cp.CondicionesDePago,
-    cp.Dias                  AS DiasCredito
-FROM dbo.Cliente c
-INNER JOIN dbo.Region r                  ON c.IdRegion = r.IdRegion
-LEFT  JOIN dbo.ConfiguracionPagos cfg    ON c.IdConfiguracionPagos = cfg.IdConfiguracionPagos
-LEFT  JOIN dbo.catMedioDePago md         ON cfg.IdCatMedioDePago = md.IdCatMedioDePago
-LEFT  JOIN dbo.catCondicionesDePago cp   ON cfg.IdCatCondicionesDePago = cp.IdCatCondicionesDePago
-LEFT  JOIN dbo.DatosFacturacionCliente dfc ON c.IdCliente = dfc.IdCliente AND dfc.Activo = 1
-LEFT  JOIN dbo.catMetodoDePagoCFDI mp   ON dfc.IdCatMetodoDePagoCFDI = mp.IdCatMetodoDePagoCFDI
-LEFT  JOIN dbo.catUsoCFDI uc             ON dfc.IdCatUsoCFDI = uc.IdCatUsoCFDI
-WHERE c.IdCliente = @IdCliente
-  AND r.ClaveISO  = 'MEX';
-```
-
-### Configuración de cobros — cliente Perú
-
-```sql
-DECLARE @IdCliente UNIQUEIDENTIFIER;
-
-SELECT
-    mp.ClaveMetodoDePagoCFDI AS CondicionPago,
-    mp.MetodoDePagoCFDI      AS DescripcionCondicion,
-    uc.ClaveUso              AS CodigoTipoComprobante,
-    uc.Uso                   AS TipoComprobante,
-    dfc.AgenteRetencionIGV,
-    dfc.SujetoDetraccion,
-    dfc.TasaDetraccion
-FROM dbo.Cliente c
-INNER JOIN dbo.Region r                    ON c.IdRegion = r.IdRegion
-LEFT  JOIN dbo.DatosFacturacionCliente dfc ON c.IdCliente = dfc.IdCliente AND dfc.Activo = 1
-LEFT  JOIN dbo.catMetodoDePagoCFDI mp      ON dfc.IdCatMetodoDePagoCFDI = mp.IdCatMetodoDePagoCFDI
-LEFT  JOIN dbo.catUsoCFDI uc               ON dfc.IdCatUsoCFDI = uc.IdCatUsoCFDI
-WHERE c.IdCliente = @IdCliente
-  AND r.ClaveISO  = 'PER';
-```
-
-### Selector de catálogo por Región del cliente
-
-```sql
--- Método de Pago (MX) o Condición de Pago (PE) según la región del cliente
-DECLARE @IdCliente UNIQUEIDENTIFIER;
-
-SELECT mp.IdCatMetodoDePagoCFDI, mp.ClaveMetodoDePagoCFDI, mp.MetodoDePagoCFDI
-FROM dbo.catMetodoDePagoCFDI mp
-INNER JOIN dbo.Cliente c ON mp.IdRegion = c.IdRegion
-WHERE c.IdCliente = @IdCliente
-  AND mp.Activo   = 1
-ORDER BY mp.MetodoDePagoCFDI;
-
--- Uso de CFDI (MX) o Tipo de Comprobante (PE) según la región del cliente
-SELECT uc.IdCatUsoCFDI, uc.ClaveUso, uc.Uso
-FROM dbo.catUsoCFDI uc
-INNER JOIN dbo.Cliente c ON uc.IdRegion = c.IdRegion
-WHERE c.IdCliente = @IdCliente
-  AND uc.Activo   = 1
-ORDER BY uc.ClaveUso;
-```
-
-### Clientes con cobros incompletos por Región
-
-```sql
-SELECT
-    c.IdCliente,
-    c.Nombre,
-    r.ClaveISO AS Region,
-    CASE WHEN r.ClaveISO = 'MEX' AND cfg.IdCatMedioDePago IS NULL
-         THEN 'Sin Forma de Pago' ELSE 'OK' END AS FormaDePago,
-    CASE WHEN dfc.IdCatMetodoDePagoCFDI IS NULL
-         THEN 'Sin Método/Condición Pago' ELSE 'OK' END AS MetodoPago,
-    CASE WHEN dfc.IdCatUsoCFDI IS NULL
-         THEN 'Sin UsoCFDI/TipoComprobante' ELSE 'OK' END AS UsoCFDI
-FROM dbo.Cliente c
-INNER JOIN dbo.Region r                    ON c.IdRegion = r.IdRegion
-LEFT  JOIN dbo.ConfiguracionPagos cfg      ON c.IdConfiguracionPagos = cfg.IdConfiguracionPagos
-LEFT  JOIN dbo.DatosFacturacionCliente dfc ON c.IdCliente = dfc.IdCliente AND dfc.Activo = 1
-WHERE (cfg.IdCatMedioDePago IS NULL AND r.ClaveISO = 'MEX')
-   OR dfc.IdCatMetodoDePagoCFDI IS NULL
-   OR dfc.IdCatUsoCFDI IS NULL;
+-- EJECUTAR SOLO TRAS RECIBIR Y CONFIRMAR EL EXCEL DE PROQUIFA
+-- UPDATE dbo.catMedioDePago SET ClaveFormaDePago = 'XX' WHERE Clave = 'Aba';
+-- UPDATE dbo.catMedioDePago SET ClaveFormaDePago = 'XX' WHERE Clave = 'NA';
+-- UPDATE dbo.catMedioDePago SET ClaveFormaDePago = 'XX' WHERE Clave = 'NINGUNO';
+-- UPDATE dbo.catMedioDePago SET ClaveFormaDePago = 'XX' WHERE Clave = 'Swift';
 ```
 
 ---
 
 ## Módulos Consumidores
 
-| Módulo | Campos Consumidos MX | Campos Consumidos PE |
-|---|---|---|
-| Factura por Adelantado | `IdCatMedioDePago`, `IdCatMetodoDePagoCFDI` (PUE/PPD), `IdCatUsoCFDI` (G01/G03) | `IdCatMetodoDePagoCFDI` (CONT/CRED), `IdCatUsoCFDI` (01/03/08), `AgenteRetencionIGV`, `SujetoDetraccion` |
-| Validar Cobro | `IdCatMedioDePago`, `IdCatMetodoDePagoCFDI`, `IdCatUsoCFDI` | `IdCatMetodoDePagoCFDI`, `IdCatUsoCFDI`, `AgenteRetencionIGV`, `SujetoDetraccion` |
+| Módulo | Campos Consumidos |
+|---|---|
+| Factura por Adelantado | `IdCatMedioDePago`, `IdCatMetodoDePagoCFDI` (PUE/PPD), `IdCatUsoCFDI` |
+| Validar Cobro | `IdCatMedioDePago`, `IdCatMetodoDePagoCFDI`, `IdCatUsoCFDI` |
 
 ---
 
 ## Gaps y Acciones Pendientes
 
-| # | Gap | Descripción | Acción | Prioridad |
-|---|---|---|---|---|
-| 1 | IdRegion ausente en catálogos | `catMetodoDePagoCFDI`, `catUsoCFDI`, `catMedioDePago` sin `IdRegion` | Ejecutar Paso 1 | Alta |
-| 2 | Registros PE ausentes | `catMetodoDePagoCFDI` sin CONT/CRED; `catUsoCFDI` sin 01/03/08 | Ejecutar Paso 2 | Alta |
-| 3 | Campos PE en DatosFacturacionCliente | `AgenteRetencionIGV`, `SujetoDetraccion`, `TasaDetraccion` no existen | Ejecutar Paso 3 tras confirmar | Media |
-| 4 | Clave SAT incompleta en catMedioDePago | Aba, NA, NINGUNO, Swift sin `ClaveFormaDePago` | Confirmar si afecta timbrado | Media |
-| 5 | Aplicabilidad banderas PE sin confirmar | `AgenteRetencionIGV` y `SujetoDetraccion` pendientes | Confirmar con cliente | Media |
-| 6 | `vDatosFacturacionCliente` | Vista puede requerir ajuste para campos PE nuevos | Revisar tras ALTER TABLE Paso 3 | Baja |
+| # | Gap | Descripción | Estado |
+|---|---|---|---|
+| 1 | `IdCatMedioDePago` ausente en `DatosFacturacionCliente` | Forma de Pago no está en el objeto de Cobros | Pendiente — ejecutar script |
+| 2 | Claves SAT incompletas en `catMedioDePago` | Aba, NA, NINGUNO, Swift sin `ClaveFormaDePago` | ⏸ En espera Excel Proquifa |
 
 ---
 
-## Brechas Reconocidas — Facturación Electrónica Perú (Fuera de Alcance R16)
+## Pendientes / Decisiones abiertas
 
-| # | Brecha | Descripción |
+| # | Pendiente | Responsable |
 |---|---|---|
-| 1 | Datos SUNAT en catálogo de productos | Código SUNAT, unidad de medida SUNAT, tipo de afectación IGV por línea — no existen |
-| 2 | Guía de Remisión Electrónica (GRE) | Requerida por SUNAT para despacho físico — PROQUIFA despacha mercancía |
-| 3 | Tipo de Operación SUNAT (Catálogo 51) | Campo obligatorio en XML UBL 2.1 por factura |
-| 4 | Agente de Percepción IGV del emisor | Condición de PROQUIFA Perú — pendiente confirmar si aplica |
-| 5 | Infraestructura emisión electrónica | Certificado digital, OSE/SEE-SOL, CDR, Resúmenes Diarios, Comunicaciones de Baja |
+| P1 | Excel de equivalencias SAT de Proquifa — necesario para completar claves SAT en `catMedioDePago` | Proquifa / Funcional |
+| P2 | Confirmar si el `IdCatMedioDePago` existente en `ConfiguracionPagos` se retira o se mantiene tras agregar el FK en `DatosFacturacionCliente` | TechLead |
+| P3 | Confirmar clave SAT c_FormaPago específica para Aba, NA, NINGUNO y Swift | Funcional / Cliente |
 
 ---
 
@@ -436,24 +292,7 @@ WHERE (cfg.IdCatMedioDePago IS NULL AND r.ClaveISO = 'MEX')
 
 | Regla | Descripción | Implementación en BD |
 |---|---|---|
-| Regla 1 | Campos como configuración default | `DatosFacturacionCliente` y `ConfiguracionPagos` |
-| Regla 2 | Catálogos diferenciados por Región | `IdRegion` en `catMetodoDePagoCFDI` y `catUsoCFDI` |
-| Regla 3 | Condición de Pago PE = dimensión temporal | `catMetodoDePagoCFDI` IdRegion=PER (CONT/CRED) |
-| Regla 4 | Método de Pago solo México | `catMetodoDePagoCFDI` IdRegion=MEX (PUE/PPD) |
-| Regla 5 | Forma de Pago solo México | `catMedioDePago` sin registros PE |
-| Regla 6 | UsoCFDI y TipoComprobante son distintos | Misma tabla `catUsoCFDI` diferenciada por `IdRegion` |
-| Regla 7 | Agente de Retención IGV | `DatosFacturacionCliente.AgenteRetencionIGV` (bit) — pendiente |
-| Regla 8 | Sujeto a Detracción | `DatosFacturacionCliente.SujetoDetraccion` + `TasaDetraccion` — pendiente |
-| Regla 9 | Edición sin restricción de rol | Sin control de rol en BD — acceso por cartera |
-
----
-
-## Riesgos
-
-| # | Riesgo | Mitigación |
-|---|---|---|
-| 1 | Confusión nomenclatura MX/PE | Documentar equivalencias — ver archivo Equivalencias |
-| 2 | Catálogos desactualizados SAT/SUNAT | Mantenimiento periódico de registros en BD |
-| 3 | Brechas facturación electrónica Perú | Gestionar como pendientes formales del proyecto |
-| 4 | Retenciones/Detracciones mal calculadas | Confirmar aplicabilidad con cliente antes de implementar |
-| 5 | Productos sujetos a Detracción no identificados | Requiere campo Detracción en catálogo de productos |
+| R1 | Tres campos de Cobros en `DatosFacturacionCliente` | FK a `catMedioDePago`, `catUsoCFDI`, `catMetodoDePagoCFDI` |
+| R2 | Campos obligatorios al guardar cliente | Validación en BO — los tres deben estar capturados |
+| R3 | Registros SAT validados | Claves SAT correctas en catálogos — ⏸ En espera Excel |
+| R4 | Sin restricción de rol | Sin control de rol en BD |
