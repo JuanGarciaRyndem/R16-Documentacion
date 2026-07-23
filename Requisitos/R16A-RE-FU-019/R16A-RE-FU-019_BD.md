@@ -1,7 +1,7 @@
 # Impacto en BD - Factura por Adelantado: Detalle Mexico
 **Requisito:** R16A-RE-FU-019
-**Bases de Datos:** ProquifaDotNet (lectura/escritura) + ProquifaDotNetTimbrado (escritura)
-**Version:** 3.0 - EmpresaFolio + migracion a fccFactura/vfccFactura (RE-FU-015) + correccion arquitectura CFDI (Finanzas, no Timbrado) + catalogos fiscales SAT (catImpuestoSat, catTipoFactorSat, catObjetoImpuestoSat, PerfilFiscal) + campos CFDIGenerada (IdCatMetodoDePagoCFDI FK, IdCatFormaPagoSAT FK, Exportacion)
+**Bases de Datos:** ProquifaDotNet (lectura/escritura)
+**Version:** 3.1 - EmpresaFolio corregida: IdEmpresa FK (no EmpresaClave), columnas de auditoría estándar, UPDLOCK atómico como mecanismo único de folio (sin integración Legacy consecutivo)
 
 ---
 
@@ -92,7 +92,7 @@ timbrado en R16A-RE-FU-018 (Parte 3) via `ALTER TABLE` posteriores.
 | RFCEmisor             | varchar(13)      | NO   | -                | RFC de la empresa emisora                                    |
 | RFCReceptor           | varchar(50)      | NO   | -                | RFC/RUC del cliente receptor                                 |
 | Serie                 | varchar(25)      | SI   | -                | Serie del CFDI                                               |
-| Folio                 | varchar(40)      | SI   | -                | Folio del CFDI (consumido de tabla legacy `consecutivo`)     |
+| Folio                 | varchar(40)      | SI   | -                | Folio del CFDI (consecutivo formateado, consumido de `EmpresaFolio` con UPDLOCK atómico) |
 | FechaEmision          | datetime2(7)     | SI   | -                | Fecha de emisión (timbrado)                                  |
 | UUID                  | varchar(36)      | SI   | -                | UUID asignado por el PAC al timbrar                          |
 | Total                 | decimal(18,2)    | SI   | -                | Monto total del CFDI (usado por vfccFactura)                 |
@@ -107,6 +107,11 @@ timbrado en R16A-RE-FU-018 (Parte 3) via `ALTER TABLE` posteriores.
 ---
 
 ## CREATE TABLE catFormaPagoSAT (ProquifaDotNet — Finanzas)
+
+> **⏸ Pendiente** — Esta tabla queda en espera junto con `PerfilFiscal`, `catImpuestoSat`, `catTipoFactorSat` y `catObjetoImpuestoSat` (ver sección PerfilFiscal). No ejecutar hasta resolver ese bloque.
+>
+> **⚠️ Pendiente revisar adicionalmente — ¿es la misma que `catMedioDePago`?**
+> `catMedioDePago` es una tabla existente en ProquifaDotNet que almacena las formas de pago del sistema (con campo `ClaveFormaDePago` que debería mapear al catálogo c_FormaPago SAT). `catFormaPagoSAT` sería un catálogo nuevo con las mismas 22 claves SAT. Antes de crear esta tabla confirmar si `catMedioDePago` ya cubre este rol o si ambas deben coexistir (una para la operación comercial, otra como catálogo SAT de referencia para el CFDI). Si son equivalentes, la FK de `CFDIGenerada.IdCatFormaPagoSAT` podría apuntar directamente a `catMedioDePago` y esta tabla no sería necesaria.
 
 Catálogo c_FormaPago del SAT. Seed con las 22 claves vigentes. Requerido como prerequisito de `CFDIGenerada` (FK `IdCatFormaPagoSAT`). La clave `99` (Por definir) se usa en FAA; las demás claves son utilizadas en facturas PUE y Complementos de Pago (RE-FU-030).
 
@@ -166,6 +171,8 @@ GO
 
 ## CREATE TABLE catImpuestoSat (ProquifaDotNet — Finanzas)
 
+> **⏸ Pendiente** — En espera junto con `PerfilFiscal`, `catTipoFactorSat`, `catObjetoImpuestoSat` y `catFormaPagoSAT`. No ejecutar hasta resolver el bloque de PerfilFiscal (GAP-7 / GAP-8).
+
 Catálogo c_Impuesto del SAT. Seed inicial con los 3 valores vigentes.
 ```sql
     -- Ejecutar sobre ProquifaDotNet
@@ -192,6 +199,8 @@ Catálogo c_Impuesto del SAT. Seed inicial con los 3 valores vigentes.
 ---
 
 ## CREATE TABLE catTipoFactorSat (ProquifaDotNet — Finanzas)
+
+> **⏸ Pendiente** — En espera junto con `PerfilFiscal`, `catImpuestoSat`, `catObjetoImpuestoSat` y `catFormaPagoSAT`. No ejecutar hasta resolver el bloque de PerfilFiscal (GAP-7 / GAP-8).
 
 Catálogo c_TipoFactor del SAT. Seed inicial con los 3 valores vigentes.
 ```sql
@@ -220,6 +229,8 @@ Catálogo c_TipoFactor del SAT. Seed inicial con los 3 valores vigentes.
 
 ## CREATE TABLE catObjetoImpuestoSat (ProquifaDotNet — Finanzas)
 
+> **⏸ Pendiente** — En espera junto con `PerfilFiscal`, `catImpuestoSat`, `catTipoFactorSat` y `catFormaPagoSAT`. No ejecutar hasta resolver el bloque de PerfilFiscal (GAP-7 / GAP-8).
+
 Catálogo c_ObjetoImp del SAT. Seed inicial con los 4 valores vigentes.
 ```sql
     -- Ejecutar sobre ProquifaDotNet
@@ -247,6 +258,8 @@ Catálogo c_ObjetoImp del SAT. Seed inicial con los 4 valores vigentes.
 ---
 
 ## CREATE TABLE PerfilFiscal (ProquifaDotNet — Finanzas)
+
+> **⏸ Pendiente** — La creación de `PerfilFiscal` y sus catálogos dependientes (`catImpuestoSat`, `catTipoFactorSat`, `catObjetoImpuestoSat`) queda en espera hasta confirmar el nivel de configuración (Producto / Familia / Producto→Familia con precedencia) para `ClaveProdServ`, `ClaveUnidad` e `IdPerfilFiscal`. Ver GAP-7 y GAP-8. No ejecutar scripts hasta resolver ese punto.
 
 Catálogo de negocio de 3-4 filas que traduce la tasa de IVA de un producto a las claves técnicas exigidas por el XML del CFDI (nodo `Impuestos/Traslados`). Lo administra PROQUIFA. Ver sección "Datos del producto — ClaveProdServ, ClaveUnidad y PerfilFiscal" para el modelo conceptual completo.
 ```sql
@@ -315,6 +328,8 @@ Catálogo de negocio de 3-4 filas que traduce la tasa de IVA de un producto a la
 
 ## Datos del producto — ClaveProdServ, ClaveUnidad y PerfilFiscal
 
+> **⏸ Pendiente** — Toda esta sección (Modelo conceptual, Datos del emisor y Jerarquía de resolución) queda en espera hasta confirmar con PROQUIFA el nivel de configuración de cada campo (GAP-7). No crear FKs ni lógica de resolución hasta tener esa definición.
+
 ### Modelo conceptual
 
 Al construir cada concepto del CFDI se necesitan 3 valores que no los captura el usuario al facturar — se resuelven de la configuración del producto:
@@ -374,14 +389,17 @@ Esto permite definir "toda la Familia X tributa al 16%" una sola vez y solo capt
 ---
 
 ## CREATE TABLE EmpresaFolio (ProquifaDotNet — propiedad Finanzas, movida de ProquifaDotNetTimbrado el 07/07/2026)
+
+Foliador por empresa/serie. `UltimoFolio` es el **consecutivo** — el entero que se incrementa al timbrar. `CFDIGenerada.Folio` almacena el **folio formateado** resultante (varchar, ej. `A002374`). La fuente de verdad es PQF2/Finanzas — sin integración con tabla legacy.
+
 ```sql
-    -- Created by GitHub Copilot in SSMS - review carefully before executing
-    -- Ejecutar en ProquifaDotNetTimbrado
+    -- Ejecutar en ProquifaDotNet
     CREATE TABLE [dbo].[EmpresaFolio](
         [IdEmpresaFolio] uniqueidentifier NOT NULL
             CONSTRAINT [DF_EmpresaFolio_Id] DEFAULT (NEWID()),
-        [EmpresaClave] varchar(10) NOT NULL,
-        [EmpresaNombre] varchar(200) NOT NULL,
+        [IdEmpresa] uniqueidentifier NOT NULL
+            CONSTRAINT [FK_EmpresaFolio_Empresa]
+                FOREIGN KEY REFERENCES [dbo].[Empresa]([IdEmpresa]),
         [Serie] varchar(25) NULL,
         [UltimoFolio] int NOT NULL
             CONSTRAINT [DF_EmpresaFolio_UltimoFolio] DEFAULT (0),
@@ -389,49 +407,56 @@ Esto permite definir "toda la Familia X tributa al 16%" una sola vez y solo capt
             CONSTRAINT [DF_EmpresaFolio_Formato] DEFAULT ('{folio}'),
         [LongitudMaxima] int NOT NULL
             CONSTRAINT [DF_EmpresaFolio_Longitud] DEFAULT (6),
-        [CreatedAt] datetime2(7) NOT NULL
-            CONSTRAINT [DF_EmpresaFolio_CreatedAt] DEFAULT (SYSUTCDATETIME()),
-        [UpdatedAt] datetime2(7) NOT NULL
-            CONSTRAINT [DF_EmpresaFolio_UpdatedAt] DEFAULT (SYSUTCDATETIME()),
-        [IsActive] bit NOT NULL
-            CONSTRAINT [DF_EmpresaFolio_IsActive] DEFAULT (1),
+        [Activo] bit NOT NULL
+            CONSTRAINT [DF_EmpresaFolio_Activo] DEFAULT (1),
+        [FechaRegistro] datetime2(7) NOT NULL
+            CONSTRAINT [DF_EmpresaFolio_FechaRegistro] DEFAULT (SYSUTCDATETIME()),
+        [FechaUltimaActualizacion] datetime2(7) NOT NULL
+            CONSTRAINT [DF_EmpresaFolio_FechaActualizacion] DEFAULT (SYSUTCDATETIME()),
         CONSTRAINT [PK_EmpresaFolio] PRIMARY KEY CLUSTERED ([IdEmpresaFolio]),
-        CONSTRAINT [UQ_EmpresaFolio_Clave] UNIQUE ([EmpresaClave])
+        CONSTRAINT [UQ_EmpresaFolio_EmpresaSerie] UNIQUE ([IdEmpresa], [Serie])
     );
     GO
 
-    INSERT INTO [dbo].[EmpresaFolio] ([EmpresaClave], [EmpresaNombre], [UltimoFolio])
-    VALUES
-        ('GOL', 'Golocaer S.A. de C.V.', 0),
-        ('MUN', 'Mungen S.A. de C.V.', 0),
-        ('PRO', 'Proquifa S.A. de C.V.', 0),
-        ('PQF', 'Proveedora Quimico Farmaceutica S.A. de C.V.', 0);
-    -- Ajustar UltimoFolio al MAX existente en produccion
+    -- Serie NULL = factura (serie por empresa); 'P' = CDP; 'P2' = NC
+    INSERT INTO [dbo].[EmpresaFolio] ([IdEmpresa], [Serie], [UltimoFolio])
+    SELECT e.[IdEmpresa], NULL, 0
+    FROM   [dbo].[Empresa] e
+    WHERE  e.[Prefijo] IN ('GOL', 'MUN', 'PRO', 'PQF');
+    -- Ajustar UltimoFolio al valor actual en producción antes del go-live (ver Gap-1)
 ```
-### Consumo del folio — Integración con tabla legacy `consecutivo`
 
-> **Actualización (13/07/2026 — integración legacy):** el folio de la Factura México se obtiene de la tabla legacy `consecutivo`, no mediante un UPDATE directo a `EmpresaFolio`. El proceso es de dos pasos atómicos dentro de una transacción:
+| Columna | Tipo | Nulo | Default | Descripción |
+|---|---|---|---|---|
+| IdEmpresaFolio | uniqueidentifier | NO | NEWID() | PK |
+| IdEmpresa | uniqueidentifier | NO | — | FK → `Empresa` — empresa emisora |
+| Serie | varchar(25) | SÍ | — | Serie del foliador: NULL = factura, `'P'` = CDP, `'P2'` = NC, `'F001'` = GOLPERU |
+| UltimoFolio | int | NO | 0 | **Consecutivo** — último entero asignado; se incrementa con UPDLOCK atómico |
+| FormatoFolio | varchar(50) | NO | `'{folio}'` | Patrón de formato del folio presentado (ej. `'A{folio:D6}'`) |
+| LongitudMaxima | int | NO | 6 | Longitud máxima del campo folio en caracteres |
+| Activo | bit | NO | 1 | Borrado lógico |
+| FechaRegistro | datetime2(7) | NO | SYSUTCDATETIME() | Fecha de alta del registro |
+| FechaUltimaActualizacion | datetime2(7) | NO | SYSUTCDATETIME() | Última actualización del consecutivo |
+
+### Consumo del folio — UPDLOCK atómico (EmpresaFolioRepository)
+
+`EmpresaFolio` **es** el foliador de PQF2/Finanzas. El consecutivo se incrementa y lee en una sola instrucción atómica, sin dependencia de Legacy:
 
 ```sql
-    -- Paso 1: Leer folio actual (fuente de verdad = tabla legacy consecutivo)
-    SELECT @NuevoFolio = [valor_consecutivo]
-    FROM   [dbo].[consecutivo]  -- ** pendiente confirmar nombre exacto de columna y clave de empresa **
-    WHERE  [empresa] = @EmpresaClave;
-
-    -- Paso 2: Incrementar en 1 para la siguiente factura
-    UPDATE [dbo].[consecutivo]
-    SET    [valor_consecutivo] = [valor_consecutivo] + 1
-    WHERE  [empresa] = @EmpresaClave;
-    
+    -- EmpresaFolioRepository.ConsumeNextFolioAsync — ejecutar en ProquifaDotNet
+    UPDATE [dbo].[EmpresaFolio]
+    SET    [UltimoFolio]              = [UltimoFolio] + 1,
+           [FechaUltimaActualizacion] = SYSUTCDATETIME()
+    OUTPUT inserted.[UltimoFolio]        -- nuevo consecutivo asignado
+    WHERE  [IdEmpresa] = @IdEmpresa
+      AND  ([Serie] = @Serie OR ([Serie] IS NULL AND @Serie IS NULL));
 ```
 
-> Los dos pasos deben ejecutarse dentro de una transacción con aislamiento suficiente para evitar duplicados bajo concurrencia.
+> El `OUTPUT inserted.UltimoFolio` devuelve el consecutivo ya incrementado — es el valor que se formatea y se persiste en `CFDIGenerada.Folio`.
 >
-> `EmpresaFolio.UltimoFolio` debe inicializarse al valor actual de `consecutivo` en producción antes del go-live y mantenerse en sincronía como referencia de auditoría interna de PQF2.
+> El folio se consume **solo al timbrar exitosamente** — sin huecos por errores de PAC.
 >
-> El folio se consume SOLO al timbrar exitosamente (sin huecos por errores PAC).
->
-> ** Pendiente: confirmar nombre exacto de tabla (`consecutivo`), columnas y clave de empresa en la BD legacy. **
+> `UltimoFolio` debe inicializarse al valor de producción vigente antes del go-live (ver Gap-1).
 
 ---
 
@@ -442,8 +467,8 @@ Esto permite definir "toda la Familia X tributa al 16%" una sola vez y solo capt
 
     2. TIMBRAR (al confirmar previsualizacion) -- CfdiController (ProquifaDotNet.Finanzas)
        ProquifaDotNet.Timbrado (servicio tecnico, POST /api/v1/stamp/invoice):
-         SELECT folio de tabla legacy [consecutivo] + UPDATE consecutivo+1 (integración legacy, ver sección "Consumo del folio")
-         Arma el CFDI con ese folio -> llama PAC -> recibe UUID
+         UPDATE EmpresaFolio SET UltimoFolio = UltimoFolio + 1 OUTPUT inserted.UltimoFolio (UPDLOCK atómico, EmpresaFolioRepository, ProquifaDotNet)
+         Arma el CFDI con ese consecutivo formateado como folio -> llama PAC -> recibe UUID
          INSERT StampingLog (ProquifaDotNetTimbrado, auditoria tecnica de la llamada)
          Regresa a Finanzas: UUID, Serie, Folio, XML, FechaEmision (sin persistir el CFDI como negocio)
        ProquifaDotNet.Finanzas (CfdiService, tras respuesta exitosa de Timbrado):
@@ -496,12 +521,12 @@ Esto permite definir "toda la Familia X tributa al 16%" una sola vez y solo capt
 
 | # | Gap | Tipo | Accion |
 |---|-----|------|--------|
-| 1 | UltimoFolio inicial por empresa | Tecnico | Inicializar EmpresaFolio.UltimoFolio al valor actual de consecutivo legacy en producción |
+| 1 | UltimoFolio inicial por empresa | Técnico | Inicializar `EmpresaFolio.UltimoFolio` al valor de producción vigente (Mungen 2374, Golocaer 7156, Proquifa 20913, Proveedora QF 143103) antes del go-live |
 | 2 | Lote del producto al timbrar FAA | Negocio | No disponible - confirmar |
 | 3 | Politica ante caida del PAC | Tecnico | Definir reintento/encolamiento |
 | ~~4~~ | ~~Rol operativo~~ | Negocio | **[Resuelto — Duda 047]** Rol: **Gestor de Cobranza**. Puesto de trabajo: **Analista de Cuentas por Pagar**. |
 | 5 | Alias vs RazonSocial | Negocio | Confirmar dato fuente |
-| 6 | Estructura tabla legacy `consecutivo` | Tecnico | Confirmar nombre exacto de tabla, columnas (valor y clave empresa) y BD donde reside — fuente del folio para Factura México (ver `Analisis/Foliados-Documentos.md`, sección Factura) |
+| ~~6~~ | ~~Estructura tabla legacy `consecutivo`~~ | — | **[Resuelto]** El folio de Factura México proviene de `EmpresaFolio` (PQF2/Finanzas) con UPDLOCK atómico — sin dependencia de Legacy. Ver `Analisis/Foliados-Documentos.md`, sección Factura. |
 | 7 | Nivel de configuración ClaveProdServ/ClaveUnidad/PerfilFiscal | Negocio/Técnico | Confirmar si cada campo se configura a nivel Producto, Familia, o con precedencia Producto→Familia — y si los 3 campos comparten el mismo nivel o cada uno puede tener el suyo (ver sección "Datos del producto") |
 | 8 | IEPS — confirmar si algún producto lo requiere | Negocio | Solo agregar la 4ª fila de PerfilFiscal (IEPS) si PROQUIFA confirma que algún producto lo requiere; no crear sin esa confirmación |
 

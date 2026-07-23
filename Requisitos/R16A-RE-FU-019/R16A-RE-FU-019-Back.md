@@ -40,23 +40,22 @@ Ampliar la solución Timbrado (creada en RE-FU-018) para soportar el manejo de f
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
 | IdEmpresaFolio | uniqueidentifier | PK |
-| EmpresaClave | varchar(10) | GOL, MUN, PRO, PQF — UNIQUE |
-| EmpresaNombre | varchar(200) | Razón social legal |
-| Serie | varchar(25) | Serie CFDI (nullable) |
-| UltimoFolio | int | Consecutivo actual |
-| FormatoFolio | varchar(50) | Template del folio (default: '{folio}') |
-| LongitudMaxima | int | Max chars del folio (default: 6) |
-| CreatedAt | datetime2(7) | Fecha creación |
-| UpdatedAt | datetime2(7) | Última actualización |
-| IsActive | bit | Activo |
+| IdEmpresa | uniqueidentifier | FK → `Empresa` |
+| Serie | varchar(25) | Serie CFDI (nullable): NULL = factura, `'P'` = CDP, `'P2'` = NC |
+| UltimoFolio | int | **Consecutivo** — último entero asignado |
+| FormatoFolio | varchar(50) | Patrón de formato del folio (default: `'{folio}'`) |
+| LongitudMaxima | int | Longitud máxima del folio (default: 6) |
+| Activo | bit | Borrado lógico |
+| FechaRegistro | datetime2(7) | Fecha de alta |
+| FechaUltimaActualizacion | datetime2(7) | Última actualización del consecutivo |
 
 #### Domain — Interface IEmpresaFolioRepository
 
 ```csharp
 public interface IEmpresaFolioRepository : IGenericRepository<EmpresaFolio>
 {
-    Task<EmpresaFolio> GetByClaveAsync(string empresaClave);
-    Task<int> ConsumeNextFolioAsync(string empresaClave); // UPDATE atómico con UPDLOCK
+    Task<EmpresaFolio> GetByEmpresaAsync(Guid idEmpresa, string serie);
+    Task<int> ConsumeNextFolioAsync(Guid idEmpresa, string serie); // UPDATE con UPDLOCK — retorna consecutivo incrementado
 }
 ```
 
@@ -64,8 +63,8 @@ public interface IEmpresaFolioRepository : IGenericRepository<EmpresaFolio>
 
 | Método | Descripción |
 |--------|-------------|
-| GetNextFolioAsync(string empresaClave) | Lee folio actual de tabla legacy `consecutivo` (Paso 1) + incrementa `consecutivo` en 1 (Paso 2) dentro de una transacción — retorna folio formateado (varchar 6) |
-| GetByClaveAsync(string empresaClave) | Obtener datos de empresa para el CFDI |
+| `GetNextFolioAsync(Guid idEmpresa, string serie)` | `UPDATE EmpresaFolio SET UltimoFolio = UltimoFolio + 1 OUTPUT inserted.UltimoFolio` con UPDLOCK atómico — retorna consecutivo formateado como folio (varchar) |
+| `GetByEmpresaAsync(Guid idEmpresa, string serie)` | Obtener registro del foliador para auditoría |
 
 #### Application — StampingService (Ampliación)
 
@@ -88,13 +87,15 @@ Ampliar `StampingService` para soportar el request de Factura por Adelantado:
 ```csharp
 public class EmpresaFolioRepository : GenericRepository<EmpresaFolio>, IEmpresaFolioRepository
 {
-    public async Task<int> ConsumeNextFolioAsync(string empresaClave)
+    public async Task<int> ConsumeNextFolioAsync(Guid idEmpresa, string serie)
     {
-        // Integración legacy: leer folio de tabla [consecutivo] + incrementar en 1
-        // Paso 1: SELECT @folio = valor FROM [consecutivo] WHERE empresa = @empresaClave
-        // Paso 2: UPDATE [consecutivo] SET valor = valor + 1 WHERE empresa = @empresaClave
-        // ** Pendiente confirmar nombre exacto de tabla, columnas y BD legacy **
-        // Ejecutar dentro de una transacción para garantizar atomicidad
+        // UPDATE atómico con UPDLOCK — sin dependencia de tabla legacy
+        // UPDATE EmpresaFolio
+        // SET    UltimoFolio = UltimoFolio + 1,
+        //        FechaUltimaActualizacion = SYSUTCDATETIME()
+        // OUTPUT inserted.UltimoFolio
+        // WHERE  IdEmpresa = @idEmpresa
+        //   AND  (Serie = @serie OR (Serie IS NULL AND @serie IS NULL))
     }
 }
 ```
@@ -331,6 +332,8 @@ ORDER BY FechaTramitacion DESC
 ### Componentes Nuevos en Finanzas
 
 #### Application — Catálogos Fiscales SAT (nuevos — Guía Técnica)
+
+> **⏸ Pendiente** — Los catálogos fiscales SAT (`catImpuestoSat`, `catTipoFactorSat`, `catObjetoImpuestoSat`, `PerfilFiscal`) y toda la lógica de resolución de `ClaveProdServ`, `ClaveUnidad` y `PerfilFiscal` por producto/familia quedan en espera. No implementar interfaces, servicios ni DbSets de esta sección hasta confirmar el nivel de configuración (GAP-7 / GAP-8 en RE-019_BD.md).
 
 Los catálogos `catImpuestoSat`, `catTipoFactorSat`, `catObjetoImpuestoSat` y la tabla `PerfilFiscal` se agregan en este requisito. Finanzas los consume al construir el XML del CFDI (nodo `Conceptos/Impuestos`).
 
