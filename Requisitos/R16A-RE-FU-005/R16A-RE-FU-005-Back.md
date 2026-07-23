@@ -126,19 +126,92 @@ private void ValidarCamposCobros(DatosFacturacionCliente dfc)
 
 **Impacto:** Regla R3 — Los registros existentes en los tres catálogos deben tener claves SAT correctas para que el timbrado CFDI no sea rechazado por el PAC.
 
-**Estado:** En espera del Excel de equivalencias que enviará Proquifa. No ejecutar hasta recibirlo y confirmarlo.
+**Estado:** ⏸ En espera del Excel de equivalencias que enviará Proquifa. No ejecutar actualizaciones hasta recibirlo y confirmarlo.
 
-Registros con clave SAT incompleta conocida:
+**Proceso de validación a realizar:**
 
-| Tabla | Registro | Campo | Estado |
-|-------|----------|-------|--------|
-| `catMedioDePago` | Aba | `ClaveFormaDePago` vacío | ⏸ Pendiente Excel |
-| `catMedioDePago` | NA | `ClaveFormaDePago` vacío | ⏸ Pendiente Excel |
-| `catMedioDePago` | —NINGUNO— | `ClaveFormaDePago` vacío | ⏸ Pendiente Excel |
-| `catMedioDePago` | Swift | `ClaveFormaDePago` vacío | ⏸ Pendiente Excel |
+| Catálogo BD | Campo a validar | Catálogo SAT de referencia | Acción al detectar diferencia |
+|---|---|---|---|
+| `catMedioDePago` | `ClaveFormaDePago` | c_FormaPago (ver tabla abajo) | Asignar clave correcta o inactivar registro |
+| `catMetodoDePagoCFDI` | `ClaveMetodoDePagoCFDI` | c_MetodoPago: solo PUE / PPD | Revisar con cliente si hay claves distintas |
+| `catUsoCFDI` | `ClaveUso` | c_UsoCFDI (ver tabla abajo) | Corregir clave o inactivar si no existe en SAT |
+
+**Registros conocidos con clave SAT incompleta:**
+
+| Tabla | Registro | Campo vacío | Estado |
+|-------|----------|-------------|--------|
+| `catMedioDePago` | Aba | `ClaveFormaDePago` | ⏸ Pendiente Excel Proquifa |
+| `catMedioDePago` | NA | `ClaveFormaDePago` | ⏸ Pendiente Excel Proquifa |
+| `catMedioDePago` | —NINGUNO— | `ClaveFormaDePago` | ⏸ Pendiente Excel Proquifa |
+| `catMedioDePago` | Swift | `ClaveFormaDePago` | ⏸ Pendiente Excel Proquifa |
+
+**Catálogos SAT de referencia (Anexo 20 CFDI 4.0):**
+
+*c_FormaPago — valores válidos para `catMedioDePago.ClaveFormaDePago`:*
+
+| Clave | Descripción |
+|---|---|
+| 01 | Efectivo |
+| 02 | Cheque nominativo |
+| 03 | Transferencia electrónica de fondos |
+| 04 | Tarjeta de crédito |
+| 05 | Monedero electrónico |
+| 06 | Dinero electrónico |
+| 08 | Vales de despensa |
+| 12 | Dación en pago |
+| 13 | Pago por subrogación |
+| 14 | Pago por consignación |
+| 15 | Condonación |
+| 17 | Compensación |
+| 23 | Novación |
+| 24 | Confusión |
+| 25 | Remisión de deuda |
+| 26 | Prescripción o caducidad |
+| 28 | A satisfacción del acreedor |
+| 29 | Tarjeta de débito |
+| 30 | Tarjeta de servicios |
+| 31 | Aplicación de anticipos |
+| 99 | Por definir |
+
+*c_MetodoPago — valores válidos para `catMetodoDePagoCFDI.ClaveMetodoDePagoCFDI`:*
+
+| Clave | Descripción |
+|---|---|
+| PUE | Pago en una sola exhibición |
+| PPD | Pago en parcialidades o diferido |
+
+*c_UsoCFDI — valores válidos para `catUsoCFDI.ClaveUso`:*
+
+| Clave | Descripción |
+|---|---|
+| G01 | Adquisición de mercancias |
+| G02 | Devoluciones, descuentos o bonificaciones |
+| G03 | Gastos en general |
+| I01 | Construcciones |
+| I02 | Mobilario y equipo de oficina por inversiones |
+| I03 | Equipo de transporte |
+| I04 | Equipo de computo y accesorios |
+| I05 | Dados, troqueles, moldes, matrices y herramental |
+| I06 | Comunicaciones telefónicas |
+| I07 | Comunicaciones satelitales |
+| I08 | Otra maquinaria y equipo |
+| D01 | Honorarios médicos, dentales y gastos hospitalarios |
+| D02 | Gastos médicos por incapacidad o discapacidad |
+| D03 | Gastos funerales |
+| D04 | Donativos |
+| D05 | Intereses reales efectivamente pagados por créditos hipotecarios (casa habitación) |
+| D06 | Aportaciones voluntarias al SAR |
+| D07 | Primas por seguros de gastos médicos |
+| D08 | Gastos de transportación escolar obligatoria |
+| D09 | Depósitos en cuentas para el ahorro, primas que tengan como base planes de pensiones |
+| D10 | Pagos por servicios educativos (colegiaturas) |
+| S01 | Sin efectos fiscales |
+| CP01 | Pagos |
+| CN01 | Nómina |
 
 ```sql
--- Ejecutar tras recibir y confirmar el Excel de Proquifa con las claves SAT
+-- Ejecutar SOLO tras recibir y confirmar el Excel de Proquifa
+-- Cruzar cada registro contra los catálogos SAT de referencia y asignar la clave correcta
 -- UPDATE dbo.catMedioDePago SET ClaveFormaDePago = 'XX' WHERE Clave = 'Aba';
 -- UPDATE dbo.catMedioDePago SET ClaveFormaDePago = 'XX' WHERE Clave = 'NA';
 -- UPDATE dbo.catMedioDePago SET ClaveFormaDePago = 'XX' WHERE Clave = 'NINGUNO';
