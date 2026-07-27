@@ -24,28 +24,28 @@ La NC aplica exclusivamente a **clientes prepago** y a **facturas vigentes con a
 
 ### Distribución de responsabilidades
 
-| Capa                     | Aplicativo                   | Responsabilidad                                                                                     |
-| ------------------------ | ---------------------------- | --------------------------------------------------------------------------------------------------- |
-| BD — ALTER tabla         | ProquifaDotNet               | `fccNotaCredito`: ADD 13 columnas R16                                                               |
-| BD — ALTER tabla         | ProquifaDotNet               | `fccNotaCreditoPartida`: ADD 6 columnas R16                                                         |
-| BD — DML catálogo        | ProquifaDotNet               | `catUsoCFDI`: INSERT G02 si no existe                                                               |
-| BD — DML catálogo        | ProquifaDotNet               | `catTipoCFDI`: INSERT NOTA_CREDITO (prereq RE-028)                                                  |
-| BD — DML foliador        | ProquifaDotNet (Finanzas)    | `EmpresaFolio`: INSERT 4 filas Serie "P2" (GOL, MUN, PRO, PQF)                                     |
-| BD — DML templates       | DocumentBuilder              | `DocumentTemplate`: INSERT 4 templates PDF NC México                                                |
-| BD — DML bucket          | ProquifaDotNet               | `RegionConfiguracionMinioBucket`: INSERT bucket NC MEX si no existe                                 |
-| Wizard Paso 1            | ProquifaDotNet.Finanzas      | Búsqueda y listado de facturas vigentes prepago del cliente (máx. 5 años)                           |
-| Wizard Paso 2            | ProquifaDotNet.Finanzas      | Captura de modalidad, motivo, partidas/monto, cancelación condicional de factura                    |
-| Previsualización PDF     | ProquifaDotNet.Finanzas      | `CreditNoteMexicoPdfMappingService.MapearPreviewAsync()` — sin sello, sin UUID                              |
-| Wizard Paso 3            | ProquifaDotNet.Finanzas      | Confirmación, resumen, previsualización PDF, acción Timbrar                                         |
-| Construcción XML CFDI E  | ProquifaDotNet.Finanzas      | Armado del `CreditNoteMexicoRequest`: CFDI 4.0 TipoDocumento=E, conceptos, impuestos               |
-| Timbrado NC              | ProquifaDotNet.Timbrado      | Generación CFDI E + PAC TurboPac + `INSERT CFDIGenerada` + `UPDATE EmpresaFolio` Serie P2           |
-| Cancelación factura      | ProquifaDotNet.Timbrado      | Llamada condicional al PAC para cancelar la factura origen ante el SAT                              |
-| Persistencia post-timbre | ProquifaDotNet.Finanzas      | `PersistMexicoCreditNotePdfService`: DocumentBuilder → MinIO → `INSERT Archivo` → `UPDATE fccNotaCredito` |
-| Correo automático        | ProquifaDotNet.Finanzas      | Envío con PDF + XML adjuntos al timbrar (Para = contacto; CC = ESAC + CxC)                         |
-| Acoplamiento Validar Cobro | ProquifaDotNet.Finanzas    | NCs VIGENTE quedan disponibles en Paso 2 de Validar Cobro vía query sobre `fccNotaCredito`          |
-| ETL Legacy               | SSIS                         | Transferencia de NC timbrada a PCconnect                                                            |
-| Comunicación             | Finanzas → Timbrado          | Llamada API por NC a timbrar (mismo patrón que Factura)                                             |
-| Comunicación             | Finanzas → ProquifaDotNet    | Lecturas: `CFDIGenerada`, `DatosFacturacionCliente`, `Empresa`, `fccNotaCredito`                    |
+| Capa                       | Aplicativo                | Responsabilidad                                                                                           |
+| -------------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------- |
+| BD — ALTER tabla           | ProquifaDotNet            | `fccNotaCredito`: ADD 13 columnas R16                                                                     |
+| BD — ALTER tabla           | ProquifaDotNet            | `fccNotaCreditoPartida`: ADD 6 columnas R16                                                               |
+| BD — DML catálogo          | ProquifaDotNet            | `catUsoCFDI`: INSERT G02 si no existe                                                                     |
+| BD — DML catálogo          | ProquifaDotNet            | `catTipoCFDI`: INSERT NOTA_CREDITO (prereq RE-028)                                                        |
+| BD — DML foliador          | ProquifaDotNet (Finanzas) | `EmpresaFolio`: INSERT 4 filas Serie "P2" (GOL, MUN, PRO, PQF)                                            |
+| BD — DML templates         | DocumentBuilder           | `DocumentTemplate`: INSERT 4 templates PDF NC México                                                      |
+| BD — DML bucket            | ProquifaDotNet            | `RegionConfiguracionMinioBucket`: INSERT bucket NC MEX si no existe                                       |
+| Wizard Paso 1              | ProquifaDotNet.Finanzas   | Búsqueda y listado de facturas vigentes prepago del cliente (máx. 5 años)                                 |
+| Wizard Paso 2              | ProquifaDotNet.Finanzas   | Captura de modalidad, motivo, partidas/monto, cancelación condicional de factura                          |
+| Previsualización PDF       | ProquifaDotNet.Finanzas   | `CreditNoteMexicoPdfMappingService.MapearPreviewAsync()` — sin sello, sin UUID                            |
+| Wizard Paso 3              | ProquifaDotNet.Finanzas   | Confirmación, resumen, previsualización PDF, acción Timbrar                                               |
+| Construcción XML CFDI E    | ProquifaDotNet.Finanzas   | Armado del `CreditNoteMexicoRequest`: CFDI 4.0 TipoDocumento=E, conceptos, impuestos                      |
+| Timbrado NC                | ProquifaDotNet.Timbrado   | Generación CFDI E + PAC TurboPac + `INSERT CFDIGenerada` + `UPDATE EmpresaFolio` Serie P2                 |
+| Cancelación factura        | ProquifaDotNet.Timbrado   | Llamada condicional al PAC para cancelar la factura origen ante el SAT                                    |
+| Persistencia post-timbre   | ProquifaDotNet.Finanzas   | `PersistMexicoCreditNotePdfService`: DocumentBuilder → MinIO → `INSERT Archivo` → `UPDATE fccNotaCredito` |
+| Correo automático          | ProquifaDotNet.Finanzas   | Envío con PDF + XML adjuntos al timbrar (Para = contacto; CC = ESAC + CxC)                                |
+| Acoplamiento Validar Cobro | ProquifaDotNet.Finanzas   | NCs VIGENTE quedan disponibles en Paso 2 de Validar Cobro vía query sobre `fccNotaCredito`                |
+| ETL Legacy                 | SSIS                      | Transferencia de NC timbrada a PCconnect                                                                  |
+| Comunicación               | Finanzas → Timbrado       | Llamada API por NC a timbrar (mismo patrón que Factura)                                                   |
+| Comunicación               | Finanzas → ProquifaDotNet | Lecturas: `CFDIGenerada`, `DatosFacturacionCliente`, `Empresa`, `fccNotaCredito`                          |
 
 ### Infraestructura reutilizada
 
@@ -421,6 +421,267 @@ Fecha, Cobrador, Folio NC (acción → PDF), XML (descarga), Emisor, Monto+Moned
 **Manejo de errores (Regla 16 / Criterio J5):**
 - Si PAC retorna error: no se persiste la NC, se retorna el error a Finanzas con detalle del PAC.
 - Finanzas muestra mensaje al usuario con posibilidad de reintentar.
+
+### C1.1 — Contrato `CreditNoteMexicoRequest` / `CreditNoteMexicoResponse`
+
+Contrato del endpoint `POST /api/v1/stamp/credit-note`. Todos los campos del XML se calculan en Finanzas antes del timbrado (sección B4); Timbrado solo resuelve el folio (UPDLOCK sobre `EmpresaFolio`, Serie "P2", empresa resuelta por el RFC del emisor) y la fecha de emisión al momento de timbrar.
+
+**El request no lleva IDs de negocio** (`IdFccNotaCredito`, `IdEmpresa`, `IdCliente`, Id de la factura origen): contiene únicamente los datos necesarios para timbrar. La vinculación de la NC con `fccNotaCredito` y con la factura origen la conserva Finanzas, que al recibir el response ejecuta la persistencia post-timbrado (sección B6, paso 4).
+
+```csharp
+namespace ProquifaDotNet.Timbrado.Application.DTOs.CreditNote
+{
+    /// <summary>
+    /// Solicitud de timbrado de Nota de Crédito México (CFDI 4.0, TipoDeComprobante = E).
+    /// Armada por Finanzas (RE-032, sección B4) con todos los campos calculados pre-timbrado.
+    /// </summary>
+    public class CreditNoteMexicoRequest
+    {
+        /// <summary>Modalidad de captura: POR_PARTIDAS | MANUAL — determina las validaciones de conceptos.</summary>
+        public required string CaptureMode { get; set; }
+
+        // ── Comprobante (CFDI 4.0) ────────────────────────────────────────
+        /// <summary>Serie del foliador de NC. Fijo "P2" (pendiente P3 — validar con PMO).</summary>
+        public string Series { get; set; } = "P2";
+
+        /// <summary>Fijo "E" — Egreso (Regla 6). Atributo TipoDeComprobante.</summary>
+        public string VoucherType { get; set; } = "E";
+
+        /// <summary>Fijo "PUE" — inmutable (Regla 6). Atributo MetodoPago.</summary>
+        public string PaymentMethod { get; set; } = "PUE";
+
+        /// <summary>Heredada de CFDIGenerada.FormaPago de la factura origen pagada (típicamente "03").
+        /// Modalidad manual: pendiente P4. Atributo FormaPago.</summary>
+        public required string PaymentForm { get; set; }
+
+        /// <summary>Heredada de CFDIGenerada.Moneda de la factura origen.</summary>
+        public required string Currency { get; set; }
+
+        /// <summary>TC del día del timbrado. Null si Currency = MXN. Atributo TipoCambio.</summary>
+        public decimal? ExchangeRate { get; set; }
+
+        /// <summary>Código postal de expedición de la empresa emisora. Atributo LugarExpedicion.</summary>
+        public required string ExpeditionPlace { get; set; }
+
+        // ── Emisor / Receptor ─────────────────────────────────────────────
+        public required CreditNoteIssuer Issuer { get; set; }
+        public required CreditNoteReceiver Receiver { get; set; }
+
+        // ── CFDI Relacionado (factura origen) ─────────────────────────────
+        public required CreditNoteRelatedCfdi RelatedCfdi { get; set; }
+
+        // ── Conceptos ─────────────────────────────────────────────────────
+        /// <summary>Por partidas: un elemento por partida con CantidadNC > 0.
+        /// Manual: un único elemento (ClaveProdServ 84111506 / ClaveUnidad ACT — pendiente P5).</summary>
+        public required List<CreditNoteConcept> Concepts { get; set; }
+
+        // ── Totales ───────────────────────────────────────────────────────
+        public required decimal Subtotal { get; set; }
+        public required decimal TotalTransferredTaxes { get; set; }
+        public required decimal Total { get; set; }
+    }
+
+    public class CreditNoteIssuer
+    {
+        /// <summary>RFC de la empresa emisora (Empresa.RFC).</summary>
+        public required string Rfc { get; set; }
+        /// <summary>Razón social de la emisora.</summary>
+        public required string BusinessName { get; set; }
+        /// <summary>Empresa.RegimenFiscal de la emisora.</summary>
+        public required string TaxRegime { get; set; }
+    }
+
+    public class CreditNoteReceiver
+    {
+        /// <summary>RFC del receptor (DatosFacturacionCliente.RFC).</summary>
+        public required string Rfc { get; set; }
+        /// <summary>Razón social del receptor.</summary>
+        public required string BusinessName { get; set; }
+        /// <summary>DatosFacturacionCliente.RegimenFiscal — RegimenFiscalReceptor.</summary>
+        public required string TaxRegime { get; set; }
+        /// <summary>DatosFacturacionCliente.CodigoPostal — DomicilioFiscalReceptor.</summary>
+        public required string FiscalAddressZipCode { get; set; }
+        /// <summary>Fijo "G02" — Devoluciones, descuentos o bonificaciones (Criterio D4/H2).</summary>
+        public string CfdiUse { get; set; } = "G02";
+    }
+
+    public class CreditNoteRelatedCfdi
+    {
+        /// <summary>Fijo "01" — Nota de crédito de los documentos relacionados (Criterio D5).</summary>
+        public string RelationType { get; set; } = "01";
+        /// <summary>UUID SAT de la factura origen (CFDI.UUID).</summary>
+        public required string Uuid { get; set; }
+    }
+
+    public class CreditNoteConcept
+    {
+        /// <summary>ClaveProdServ — heredada del CFDIGeneradaConcepto origen; manual: 84111506 (pendiente P5).</summary>
+        public required string ProductServiceKey { get; set; }
+        /// <summary>ClaveUnidad — heredada del concepto origen; manual: "ACT" (pendiente P5).</summary>
+        public required string UnitKey { get; set; }
+        /// <summary>NoIdentificacion — código interno del producto. Null en modalidad manual.</summary>
+        public string? IdentificationNumber { get; set; }
+        /// <summary>Heredada del concepto origen; manual: ConceptoManual capturado (materialidad fiscal).</summary>
+        public required string Description { get; set; }
+        /// <summary>Por partidas: CantidadNC capturada. Manual: 1.</summary>
+        public required decimal Quantity { get; set; }
+        /// <summary>Por partidas: heredado de la factura origen. Manual: Subtotal capturado. Atributo ValorUnitario.</summary>
+        public required decimal UnitValue { get; set; }
+        /// <summary>Quantity × UnitValue. Atributo Importe.</summary>
+        public required decimal Amount { get; set; }
+        /// <summary>Clave SAT c_ObjetoImp (típicamente "02" — Sí objeto de impuesto).</summary>
+        public required string TaxObject { get; set; }
+        /// <summary>Impuestos trasladados recalculados sobre el importe de la NC (Criterio E5).</summary>
+        public required List<CreditNoteConceptTax> TransferredTaxes { get; set; }
+    }
+
+    public class CreditNoteConceptTax
+    {
+        /// <summary>Base gravable del traslado (importe del concepto).</summary>
+        public required decimal Base { get; set; }
+        /// <summary>Clave SAT c_Impuesto — "002" (IVA).</summary>
+        public string Tax { get; set; } = "002";
+        /// <summary>Tasa | Exento (según perfil fiscal del producto). Atributo TipoFactor.</summary>
+        public required string FactorType { get; set; }
+        /// <summary>0.160000 / 0.000000. Null si FactorType = Exento. Atributo TasaOCuota.</summary>
+        public decimal? RateOrQuota { get; set; }
+        /// <summary>Base × RateOrQuota. Null si Exento.</summary>
+        public decimal? Amount { get; set; }
+    }
+
+    /// <summary>
+    /// Respuesta del timbrado exitoso (sección B6, paso 2).
+    /// </summary>
+    public class CreditNoteMexicoResponse
+    {
+        /// <summary>Id del CFDIGenerada recién insertado (TipoDocumento=E).</summary>
+        public required Guid CfdiGeneratedId { get; set; }
+        /// <summary>Id del registro CFDI con el timbre.</summary>
+        public required Guid CfdiId { get; set; }
+        /// <summary>UUID SAT de la NC.</summary>
+        public required string Uuid { get; set; }
+        /// <summary>Serie asignada ("P2").</summary>
+        public required string Series { get; set; }
+        /// <summary>Folio asignado por el foliador (EmpresaFolio, UPDLOCK).</summary>
+        public required string Folio { get; set; }
+        /// <summary>Fecha de emisión/timbrado.</summary>
+        public required DateTime StampedAt { get; set; }
+        /// <summary>XML CFDI timbrado completo con TimbreFiscalDigital.</summary>
+        public required string Xml { get; set; }
+    }
+}
+```
+
+**Mapeo request → XML CFDI 4.0 (TipoDocumento E):**
+
+| Propiedad del request | Nodo/atributo CFDI 4.0 | Origen del dato en Finanzas |
+| --- | --- | --- |
+| `Series` | `cfdi:Comprobante@Serie` | Fijo "P2" (pendiente P3) |
+| — (asignado por Timbrado) | `@Folio` | `EmpresaFolio` UPDLOCK (Serie P2 + empresa resuelta por `Issuer.Rfc`) |
+| `VoucherType` | `@TipoDeComprobante` | Fijo "E" (Regla 6) |
+| `PaymentMethod` | `@MetodoPago` | Fijo "PUE" (Regla 6) |
+| `PaymentForm` | `@FormaPago` | `CFDIGenerada.FormaPago` factura origen (pendiente P4 en manual) |
+| `Currency` / `ExchangeRate` | `@Moneda` / `@TipoCambio` | `CFDIGenerada.Moneda`; TC del día (null si MXN) |
+| `ExpeditionPlace` | `@LugarExpedicion` | CP de la empresa emisora |
+| `Issuer.*` | `cfdi:Emisor` | `Empresa` (RFC, Razón Social, RegimenFiscal) |
+| `Receiver.*` | `cfdi:Receptor` | `DatosFacturacionCliente` (RFC, Razón Social, RegimenFiscal, CP); UsoCFDI fijo "G02" |
+| `RelatedCfdi.*` | `cfdi:CfdiRelacionados@TipoRelacion="01"` + `cfdi:CfdiRelacionado@UUID` | `CFDI.UUID` de la factura origen |
+| `Concepts[]` | `cfdi:Conceptos/cfdi:Concepto` | Herencia del `CFDIGeneradaConcepto` origen o concepto manual |
+| `Concepts[].TransferredTaxes[]` | `cfdi:Concepto/cfdi:Impuestos/cfdi:Traslados` | Recalculados sobre el importe NC (Criterio E5) |
+| `Subtotal` / `Total` / `TotalTransferredTaxes` | `@SubTotal` / `@Total` / `cfdi:Impuestos@TotalImpuestosTrasladados` | Calculados en el Paso 2 del wizard |
+
+**Ejemplo JSON — modalidad por partidas:**
+
+```json
+{
+  "captureMode": "POR_PARTIDAS",
+  "series": "P2",
+  "voucherType": "E",
+  "paymentMethod": "PUE",
+  "paymentForm": "03",
+  "currency": "MXN",
+  "exchangeRate": null,
+  "expeditionPlace": "64000",
+  "issuer": {
+    "rfc": "GOL980101AAA",
+    "businessName": "Golocaer S.A. de C.V.",
+    "taxRegime": "601"
+  },
+  "receiver": {
+    "rfc": "CLI010203XYZ",
+    "businessName": "Cliente Ejemplo S.A. de C.V.",
+    "taxRegime": "601",
+    "fiscalAddressZipCode": "06600",
+    "cfdiUse": "G02"
+  },
+  "relatedCfdi": {
+    "relationType": "01",
+    "uuid": "AAAA1111-BBBB-2222-CCCC-333344445555"
+  },
+  "concepts": [
+    {
+      "productServiceKey": "41116105",
+      "unitKey": "H87",
+      "identificationNumber": "REA-00123",
+      "description": "Reactivo químico XYZ 500 ml",
+      "quantity": 2.0,
+      "unitValue": 1000.00,
+      "amount": 2000.00,
+      "taxObject": "02",
+      "transferredTaxes": [
+        {
+          "base": 2000.00,
+          "tax": "002",
+          "factorType": "Tasa",
+          "rateOrQuota": 0.160000,
+          "amount": 320.00
+        }
+      ]
+    }
+  ],
+  "subtotal": 2000.00,
+  "totalTransferredTaxes": 320.00,
+  "total": 2320.00
+}
+```
+
+**Ejemplo JSON — modalidad manual (solo diferencias):**
+
+```json
+{
+  "captureMode": "MANUAL",
+  "concepts": [
+    {
+      "productServiceKey": "84111506",
+      "unitKey": "ACT",
+      "identificationNumber": null,
+      "description": "Descuento por acuerdo comercial sobre factura A-1234 (materialidad fiscal capturada por el usuario)",
+      "quantity": 1,
+      "unitValue": 862.07,
+      "amount": 862.07,
+      "taxObject": "02",
+      "transferredTaxes": [
+        { "base": 862.07, "tax": "002", "factorType": "Tasa", "rateOrQuota": 0.160000, "amount": 137.93 }
+      ]
+    }
+  ],
+  "subtotal": 862.07,
+  "totalTransferredTaxes": 137.93,
+  "total": 1000.00
+}
+```
+
+**Validaciones en Timbrado (pre-PAC):**
+
+- `CaptureMode` ∈ { POR_PARTIDAS, MANUAL }; MANUAL exige exactamente 1 concepto.
+- `VoucherType` = "E" y `PaymentMethod` = "PUE" — rechazar cualquier otro valor (Regla 6).
+- `RelatedCfdi.Uuid` con formato UUID SAT válido y `RelationType` = "01".
+- `Currency` ≠ MXN ⇒ `ExchangeRate` obligatorio; MXN ⇒ `ExchangeRate` null.
+- Consistencia aritmética: Σ `Concepts[].Amount` = `Subtotal`; Σ traslados = `TotalTransferredTaxes`; `Subtotal + TotalTransferredTaxes = Total` (tolerancia de redondeo SAT).
+- `FactorType` = "Exento" ⇒ `RateOrQuota` y `Amount` del traslado en null (consistente con el perfil fiscal RE-FU-000).
+- Error del PAC ⇒ no se persiste nada y se retorna el detalle a Finanzas (Regla 16 / Criterio J5).
+
+**Pendientes que afectan este contrato:** P3 (`Series`/`Folio`), P4 (`PaymentForm` en manual), P5 (`ProductServiceKey`/`UnitKey` default en manual).
 
 ### C2 — Endpoint: Cancelar CFDI (`POST /api/v1/stamp/cancel` — cancelación condicional de factura origen)
 

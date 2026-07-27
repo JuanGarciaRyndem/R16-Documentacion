@@ -1,6 +1,8 @@
 # Propuesta — PerfilFiscal multi-país (México + Perú)
 
-**Estado:** propuesta arquitectónica, no decisión tomada. Se levanta a partir de la conversación de revisión del `PerfilFiscal` actual (diseño 100% SAT/México) y el análisis paralelo de facturación Perú que ya vive en `Guia_Tecnica_Facturacion_Peru.md`.
+**Estado:** CERRADO — decisión tomada: se integran las 2 entidades en una sola tabla `PerfilFiscal` (IVA + IGV) separada por `IdRegion`, con catálogos de apoyo neutrales por región y Perú como catálogo cerrado (no atributo por producto). Ver el diseño final en `Diseño_PerfilFiscal_Unificado_MX_PE.md` — sustituye la recomendación de la sección 3 (Opción B).
+
+**Contexto original de la propuesta:** propuesta arquitectónica, no decisión tomada. Se levanta a partir de la conversación de revisión del `PerfilFiscal` actual (diseño 100% SAT/México) y el análisis paralelo de facturación Perú que ya vive en `Guia_Tecnica_Facturacion_Peru.md`.
 
 **Documentos base a leer antes de este:**
 - `../Guia_Tecnica_Perfil_Fiscal_IVA_MX.md` — diseño actual del `PerfilFiscal` mexicano (catálogos SAT `SatImpuesto`, `SatTipoFactor`, `SatObjetoImp` + `PerfilFiscal`).

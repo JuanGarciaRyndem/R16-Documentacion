@@ -54,15 +54,15 @@ Cliente
 **Propósito:** Medio o forma de pago. Clave SAT del catálogo c_FormaPago, requerida para el CFDI.
 **Cambio R16:** Sin cambios estructurales. Pendiente completar `ClaveFormaDePago` en 4 registros — ⏸ En espera Excel Proquifa.
 
-| Columna | Tipo | Longitud | Nulo | Descripción |
-|---|---|---|---|---|
-| `IdCatMedioDePago` | uniqueidentifier | 16 | NO | PK |
-| `MedioDePago` | nvarchar | 200 | NO | Descripción del medio |
-| `ClaveFormaDePago` | varchar | 2 | SÍ | Clave SAT c_FormaPago — nullable |
-| `Clave` | varchar | 150 | NO | Clave interna del sistema |
-| `RequiereNumeroDeCuenta` | bit | 1 | NO | Requiere captura de número de cuenta |
-| `ObligatorioEnCliente` | bit | 1 | SÍ | Obligatorio en catálogo cliente |
-| `Activo` | bit | 1 | NO | Default: 1 |
+| Columna                  | Tipo             | Longitud | Nulo | Descripción                          |
+| ------------------------ | ---------------- | -------- | ---- | ------------------------------------ |
+| `IdCatMedioDePago`       | uniqueidentifier | 16       | NO   | PK                                   |
+| `MedioDePago`            | nvarchar         | 200      | NO   | Descripción del medio                |
+| `ClaveFormaDePago`       | varchar          | 2        | SÍ   | Clave SAT c_FormaPago — nullable     |
+| `Clave`                  | varchar          | 150      | NO   | Clave interna del sistema            |
+| `RequiereNumeroDeCuenta` | bit              | 1        | NO   | Requiere captura de número de cuenta |
+| `ObligatorioEnCliente`   | bit              | 1        | SÍ   | Obligatorio en catálogo cliente      |
+| `Activo`                 | bit              | 1        | NO   | Default: 1                           |
 
 **Registros activos:**
 

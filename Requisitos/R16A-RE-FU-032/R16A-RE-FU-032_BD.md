@@ -91,21 +91,21 @@ módulo R16 de Notas de Crédito México.
 
 **Columnas nuevas a agregar (RE-032):**
 
-| Columna                        | Tipo              | Nulable | Descripción                                                                 |
-| ------------------------------ | ----------------- | ------- | --------------------------------------------------------------------------- |
-| `IdEmpresa`                    | uniqueidentifier  | No      | FK `Empresa` — empresa emisora (GOL, MUN, PRO, PQF)                        |
-| `IdCliente`                    | uniqueidentifier  | No      | FK `Cliente` — cliente receptor de la NC                                   |
-| `Serie`                        | varchar(10)       | Sí      | Serie del foliador interno. Valor: 'P2' (⚠️ pendiente validar con PMO)    |
-| `Modalidad`                    | varchar(20)       | No      | 'POR_PARTIDAS' o 'MANUAL'                                                  |
-| `Motivo`                       | varchar(50)       | Sí      | Clave del motivo principal. Ej: 'DEVOLUCION', 'DESCUENTO_BONIFICACION'     |
-| `Estado`                       | varchar(20)       | No      | 'VIGENTE' \| 'CANCELADA'. Default 'VIGENTE'                                |
-| `CancelarFacturaOrigen`        | bit               | No      | 1 si el usuario solicitó cancelar la factura origen ante el SAT. Default 0 |
-| `ClaveMotivosCancelacion`      | varchar(4)        | Sí      | Clave SAT c_MotivoCancelacion ('01','02','03','04'). Null si no cancela     |
-| `IdCFDIGeneradaFacturaOrigen`  | uniqueidentifier  | No      | FK `CFDIGenerada` — factura PPD que originó esta NC                        |
-| `ConceptoManual`               | nvarchar(500)     | Sí      | Descripción de la materialidad fiscal. Solo modalidad MANUAL               |
-| `ObservacionesManual`          | nvarchar(500)     | Sí      | Campo opcional de observaciones adicionales. Solo modalidad MANUAL         |
-| `IdArchivoXml`                 | uniqueidentifier  | Sí      | FK `Archivo` — XML timbrado de la NC. Null hasta timbrado exitoso          |
-| `IdArchivoPdf`                 | uniqueidentifier  | Sí      | FK `Archivo` — PDF representativo de la NC. Null hasta generación          |
+| Columna                       | Tipo             | Nulable | Descripción                                                                |
+| ----------------------------- | ---------------- | ------- | -------------------------------------------------------------------------- |
+| `IdEmpresa`                   | uniqueidentifier | No      | FK `Empresa` — empresa emisora (GOL, MUN, PRO, PQF)                        |
+| `IdCliente`                   | uniqueidentifier | No      | FK `Cliente` — cliente receptor de la NC                                   |
+| `Serie`                       | varchar(10)      | Sí      | Serie del foliador interno. Valor: 'P2' (⚠️ pendiente validar con PMO)     |
+| `Modalidad`                   | varchar(20)      | No      | 'POR_PARTIDAS' o 'MANUAL'                                                  |
+| `Motivo`                      | varchar(50)      | Sí      | Clave del motivo principal. Ej: 'DEVOLUCION', 'DESCUENTO_BONIFICACION'     |
+| `Estado`                      | varchar(20)      | No      | 'VIGENTE' \| 'CANCELADA'. Default 'VIGENTE'                                |
+| `CancelarFacturaOrigen`       | bit              | No      | 1 si el usuario solicitó cancelar la factura origen ante el SAT. Default 0 |
+| `ClaveMotivosCancelacion`     | varchar(4)       | Sí      | Clave SAT c_MotivoCancelacion ('01','02','03','04'). Null si no cancela    |
+| `IdCFDIGeneradaFacturaOrigen` | uniqueidentifier | No      | FK `CFDIGenerada` — factura PPD que originó esta NC                        |
+| `ConceptoManual`              | nvarchar(500)    | Sí      | Descripción de la materialidad fiscal. Solo modalidad MANUAL               |
+| `ObservacionesManual`         | nvarchar(500)    | Sí      | Campo opcional de observaciones adicionales. Solo modalidad MANUAL         |
+| `IdArchivoXml`                | uniqueidentifier | Sí      | FK `Archivo` — XML timbrado de la NC. Null hasta timbrado exitoso          |
+| `IdArchivoPdf`                | uniqueidentifier | Sí      | FK `Archivo` — PDF representativo de la NC. Null hasta generación          |
 
 **Relaciones:**
 
@@ -145,14 +145,14 @@ por partidas de R16 con trazabilidad al concepto original de la factura.
 
 **Columnas nuevas a agregar (RE-032):**
 
-| Columna                         | Tipo             | Nulable | Descripción                                                                 |
-| ------------------------------- | ---------------- | ------- | --------------------------------------------------------------------------- |
-| `IdCFDIGeneradaConceptoOrigen`  | uniqueidentifier | Sí      | FK `CFDIGeneradaConcepto` — concepto de la factura origen que se devuelve   |
-| `CantidadNC`                    | decimal(18,6)    | Sí      | Cantidad a devolver (0, parcial o igual a cant. facturada). Decimal para MXN |
-| `Importe`                       | decimal(18,6)    | Sí      | CantidadNC × ValorUnitario. En moneda de la factura origen                  |
-| `Subtotal`                      | decimal(18,6)    | Sí      | Subtotal de la línea (sin IVA)                                              |
-| `IVA`                           | decimal(18,6)    | Sí      | IVA calculado sobre el Subtotal de la línea                                 |
-| `Total`                         | decimal(18,6)    | Sí      | Subtotal + IVA de la línea                                                  |
+| Columna                        | Tipo             | Nulable | Descripción                                                                  |
+| ------------------------------ | ---------------- | ------- | ---------------------------------------------------------------------------- |
+| `IdCFDIGeneradaConceptoOrigen` | uniqueidentifier | Sí      | FK `CFDIGeneradaConcepto` — concepto de la factura origen que se devuelve    |
+| `CantidadNC`                   | decimal(18,6)    | Sí      | Cantidad a devolver (0, parcial o igual a cant. facturada). Decimal para MXN |
+| `Importe`                      | decimal(18,6)    | Sí      | CantidadNC × ValorUnitario. En moneda de la factura origen                   |
+| `Subtotal`                     | decimal(18,6)    | Sí      | Subtotal de la línea (sin IVA)                                               |
+| `IVA`                          | decimal(18,6)    | Sí      | IVA calculado sobre el Subtotal de la línea                                  |
+| `Total`                        | decimal(18,6)    | Sí      | Subtotal + IVA de la línea                                                   |
 
 **Relaciones nuevas:**
 
@@ -168,16 +168,16 @@ por partidas de R16 con trazabilidad al concepto original de la factura.
 
 Se inserta una fila por cada NC timbrada con los siguientes valores fijos:
 
-| Campo          | Valor en NC                                            |
-| -------------- | ------------------------------------------------------ |
-| `TipoDocumento`| `'E'` — Egreso                                        |
-| `MetodoDePago` | `'PUE'` — fijo e inmutable (Regla 6 del requisito)    |
-| `UsoCFDI`      | `'G02'` — default (Devoluciones, descuentos o bonif.) |
-| `FormaPago`    | Heredada de la factura origen pagada (típicamente '03') |
-| `Moneda`       | Heredada de la factura origen (MXN / USD / EUR)        |
-| `TipoDeCambio` | TC del día del timbrado (null si MXN)                  |
-| `Serie`        | 'P2' (⚠️ pendiente confirmar con PMO)                 |
-| `Folio`        | Consecutivo del foliador `EmpresaFolio` Serie 'P2'     |
+| Campo           | Valor en NC                                             |
+| --------------- | ------------------------------------------------------- |
+| `TipoDocumento` | `'E'` — Egreso                                          |
+| `MetodoDePago`  | `'PUE'` — fijo e inmutable (Regla 6 del requisito)      |
+| `UsoCFDI`       | `'G02'` — default (Devoluciones, descuentos o bonif.)   |
+| `FormaPago`     | Heredada de la factura origen pagada (típicamente '03') |
+| `Moneda`        | Heredada de la factura origen (MXN / USD / EUR)         |
+| `TipoDeCambio`  | TC del día del timbrado (null si MXN)                   |
+| `Serie`         | 'P2' (⚠️ pendiente confirmar con PMO)                   |
+| `Folio`         | Consecutivo del foliador `EmpresaFolio` Serie 'P2'      |
 
 #### CFDIGeneradaRelacionado (sin ALTER)
 
@@ -438,23 +438,23 @@ Cobros).
 
 ### Datos de cabecera NC a transferir
 
-| Campo ProquifaDotNet                           | Descripción                                             |
-| ---------------------------------------------- | ------------------------------------------------------- |
-| `fccNotaCredito.IdFCCNotaCredito`              | Identificador interno (referencia cruzada)              |
-| `fccNotaCredito.Serie` + `Folio`               | Folio interno de la NC (Serie P2 + número)              |
-| `CFDI.UUID` (vía `IdCFDI`)                     | UUID SAT del CFDI de la NC                              |
-| `CFDIGenerada.RFCEmisor`                       | RFC de la empresa emisora                               |
-| `CFDIGenerada.RFCReceptor`                     | RFC del receptor (cliente)                              |
-| `CFDIGenerada.FechaEmision`                    | Fecha de emisión y timbrado                             |
-| `CFDIGenerada.Subtotal` / `Total`              | Importes de la NC                                       |
-| `CFDIGenerada.Moneda` + `TipoDeCambio`         | Moneda y tipo de cambio                                 |
-| `fccNotaCredito.Estado`                        | Estado: VIGENTE / CANCELADA                             |
-| `fccNotaCredito.Modalidad`                     | Modalidad: POR_PARTIDAS / MANUAL                        |
-| `fccNotaCredito.Motivo`                        | Motivo de la NC                                         |
-| `CFDIGeneradaRelacionado.UUID`                 | UUID de la factura origen relacionada                   |
-| `fccNotaCredito.CancelarFacturaOrigen`         | Indicador de cancelación de factura origen              |
-| `fccNotaCredito.ClaveMotivosCancelacion`       | Motivo de cancelación SAT (si aplica)                   |
-| `Archivo.FileKey` (IdArchivoPdf / IdArchivoXml)| Rutas MinIO del PDF y XML                               |
+| Campo ProquifaDotNet                            | Descripción                                |
+| ----------------------------------------------- | ------------------------------------------ |
+| `fccNotaCredito.IdFCCNotaCredito`               | Identificador interno (referencia cruzada) |
+| `fccNotaCredito.Serie` + `Folio`                | Folio interno de la NC (Serie P2 + número) |
+| `CFDI.UUID` (vía `IdCFDI`)                      | UUID SAT del CFDI de la NC                 |
+| `CFDIGenerada.RFCEmisor`                        | RFC de la empresa emisora                  |
+| `CFDIGenerada.RFCReceptor`                      | RFC del receptor (cliente)                 |
+| `CFDIGenerada.FechaEmision`                     | Fecha de emisión y timbrado                |
+| `CFDIGenerada.Subtotal` / `Total`               | Importes de la NC                          |
+| `CFDIGenerada.Moneda` + `TipoDeCambio`          | Moneda y tipo de cambio                    |
+| `fccNotaCredito.Estado`                         | Estado: VIGENTE / CANCELADA                |
+| `fccNotaCredito.Modalidad`                      | Modalidad: POR_PARTIDAS / MANUAL           |
+| `fccNotaCredito.Motivo`                         | Motivo de la NC                            |
+| `CFDIGeneradaRelacionado.UUID`                  | UUID de la factura origen relacionada      |
+| `fccNotaCredito.CancelarFacturaOrigen`          | Indicador de cancelación de factura origen |
+| `fccNotaCredito.ClaveMotivosCancelacion`        | Motivo de cancelación SAT (si aplica)      |
+| `Archivo.FileKey` (IdArchivoPdf / IdArchivoXml) | Rutas MinIO del PDF y XML                  |
 
 ### Datos de partidas NC a transferir (modalidad por partidas)
 

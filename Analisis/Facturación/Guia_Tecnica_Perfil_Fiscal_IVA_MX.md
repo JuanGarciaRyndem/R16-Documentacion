@@ -92,11 +92,11 @@ CREATE TABLE PerfilFiscal (
 );
 ```
 
-| `PerfilFiscalId` | Nombre | `TasaOCuota` | `SatTipoFactorCode` | `SatObjetoImpCode` | Fundamento |
-|---|---|---|---|---|---|
-| 1 | IVA General 16% | 0.160000 | Tasa | 02 | Art. 1 LIVA |
-| 2 | IVA Tasa 0% | 0.000000 | Tasa | 02 | Art. 2-A LIVA |
-| 3 | Exento | NULL | Exento | 02 | Art. 9 LIVA |
+| `PerfilFiscalId` | Nombre          | `TasaOCuota` | `SatTipoFactorCode` | `SatObjetoImpCode` | Fundamento    |
+| ---------------- | --------------- | ------------ | ------------------- | ------------------ | ------------- |
+| 1                | IVA General 16% | 0.160000     | Tasa                | 02                 | Art. 1 LIVA   |
+| 2                | IVA Tasa 0%     | 0.000000     | Tasa                | 02                 | Art. 2-A LIVA |
+| 3                | Exento          | NULL         | Exento              | 02                 | Art. 9 LIVA   |
 
 Una cuarta fila (IEPS) se agrega únicamente si el cliente confirma que algún producto lo requiere.
 
