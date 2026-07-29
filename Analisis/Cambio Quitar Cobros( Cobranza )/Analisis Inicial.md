@@ -170,7 +170,7 @@ Sin embargo, la **referencia bancaria construida con el Código Validador sigue 
 ![Flujo entradas y salidas](/Analisis/Cambio%20Quitar%20Cobros(%20Cobranza%20)/Imagenes/flujo_entradas_salidas_cobros.png)
 
 ### Componentes o Módulos que se quitan
-![[flujo_cobros_whiteboard_digital.png]]
+![Diagrama de cobros](Imagenes/flujo_cobros_whiteboard_digital.png)
 
 ### Flujo nuevo con Aplicativo Externo de Cobranza
 ![[flujo_cobros_aplicativo_externo.png]]
