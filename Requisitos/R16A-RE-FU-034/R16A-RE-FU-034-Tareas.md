@@ -12,8 +12,8 @@
 | 2  | CREATE-PDF        | Template HTML Mungen NC México: MUN\_MEX\_NC (H/B/F)                        | Back  | DocumentBuilder         |
 | 3  | CREATE-PDF        | Template HTML Proquifa NC México: PRO\_MEX\_NC (H/B/F)                      | Back  | DocumentBuilder         |
 | 4  | CREATE-PDF        | Template HTML Proveedora Quimico Farmaceutica NC México: PQF\_MEX\_NC (H/B/F) | Back | DocumentBuilder         |
-| 5  | ALG-COMPLX-LOGIC  | Implementar NCMexicoXmlBuilder — generación XML CFDI tipo E                  | Back  | ProquifaDotNet.Finanzas |
-| 6  | IMP-EXIST-SERVICE | Implementar NCMexicoPdfMappingService — Preview y PostTimbrado               | Back  | ProquifaDotNet.Finanzas |
+| 5  | ALG-COMPLX-LOGIC  | Implementar NCXmlBuilder — generación XML CFDI tipo E                  | Back  | ProquifaDotNet.Finanzas |
+| 6  | IMP-EXIST-SERVICE | Implementar NCPdfMappingService — Preview y PostTimbrado               | Back  | ProquifaDotNet.Finanzas |
 
 ---
 
@@ -174,14 +174,14 @@ Diseñar e implementar los 3 archivos HTML del template NC México para Proveedo
 
 ## TAREA 5
 
-**[ RE-FU-034 ] [ALG-COMPLX-LOGIC] Implementar NCMexicoXmlBuilder — generación XML CFDI tipo E**
+**[ RE-FU-034 ] [ALG-COMPLX-LOGIC] Implementar NCXmlBuilder — generación XML CFDI tipo E**
 
 **Aplicativos:** ProquifaDotNet.Finanzas
 
-**Módulos:** Application — Services — NC — Mexico — NCMexicoXmlBuilder
+**Módulos:** Application — Services — NC — Mexico — NCXmlBuilder
 
 **Consideraciones previas:**
-- Patrón base: `FacturaMexicoXmlBuilder` (RE-021). Reutilizar la misma estructura pero adaptada a TipoDeComprobante=E.
+- Patrón base: `FacturaXmlBuilder` (RE-021). Reutilizar la misma estructura pero adaptada a TipoDeComprobante=E.
 - **Diferencias clave vs Factura:** TipoDeComprobante=E, CfdiRelacionados obligatorio (TipoRelacion=01), MetodoPago=PUE fijo, FormaPago heredado, UsoCFDI=G02 default, Conceptos heredados de la factura origen o manual.
 - ⚠️ **Pendiente P2 (UsoCFDI):** avanzar con G02; el valor puede ajustarse cuando se confirme.
 - ⚠️ **Pendiente P3 (Descuento):** implementar sin campo Descuento en el comprobante root (basado en B-128); ajustar si el asesor fiscal confirma que debe poblarse.
@@ -190,7 +190,7 @@ Diseñar e implementar los 3 archivos HTML del template NC México para Proveedo
 - Prerrequisito funcional: RE-032 T7 (endpoint timbrado NC en Timbrado) debe estar disponible para la integración end-to-end.
 
 **Objetivo general:**
-Implementar `NCMexicoXmlBuilder` que recibe el `NCMexicoDto` y genera el `XDocument` CFDI 4.0 tipo E conforme al mapa de campos documentado en R16A-RE-FU-034-Back.md, validado contra el ejemplo real B-128.
+Implementar `NCXmlBuilder` que recibe el `NCDto` y genera el `XDocument` CFDI 4.0 tipo E conforme al mapa de campos documentado en R16A-RE-FU-034-Back.md, validado contra el ejemplo real B-128.
 
 **Objetivos específicos:**
 - Implementar el comprobante root con todos los atributos CFDI 4.0 (Version, TipoDeComprobante=E, Exportacion, Serie, Folio, Fecha, LugarExpedicion, Moneda, TipoCambio, MetodoPago=PUE, FormaPago, SubTotal, Total).
@@ -205,10 +205,10 @@ Implementar `NCMexicoXmlBuilder` que recibe el `NCMexicoDto` y genera el `XDocum
 - Validar el XML generado contra el XSD oficial del SAT para CFDI 4.0 tipo E.
 
 **Resultado esperado:**
-`NCMexicoXmlBuilder` genera un XML CFDI 4.0 tipo E válido que TurboPac puede timbrar exitosamente. El XML generado con los datos del ejemplo B-128 produce SubTotal=48.00, Total=55.68, IVA=7.68, Moneda=USD, TipoCambio=19.17.
+`NCXmlBuilder` genera un XML CFDI 4.0 tipo E válido que TurboPac puede timbrar exitosamente. El XML generado con los datos del ejemplo B-128 produce SubTotal=48.00, Total=55.68, IVA=7.68, Moneda=USD, TipoCambio=19.17.
 
 **Entregables:**
-- Clase `NCMexicoXmlBuilder` en `ProquifaDotNet.Finanzas.Application.Services.NC.Mexico`
+- Clase `NCXmlBuilder` en `ProquifaDotNet.Finanzas.Application.Services.NC.Mexico`
 - Pruebas unitarias con el dataset del ejemplo B-128 (ambas modalidades: por partidas y manual)
 - Validación contra XSD SAT CFDI 4.0
 
@@ -228,7 +228,7 @@ Ver sección **Parte A** de `R16A-RE-FU-034-Back.md` — mapa completo de campos
 
 **Recursos:**
 - `R16A-RE-FU-034-Back.md` — Parte A: Mapa de campos CFDI 4.0 tipo E
-- `FacturaMexicoXmlBuilder` — patrón base
+- `FacturaXmlBuilder` — patrón base
 - XSD SAT CFDI 4.0 (Apéndice 5 Anexo 20)
 - Ejemplo B-128 entregado por el cliente
 
@@ -236,22 +236,22 @@ Ver sección **Parte A** de `R16A-RE-FU-034-Back.md` — mapa completo de campos
 
 ## TAREA 6
 
-**[ RE-FU-034 ] [IMP-EXIST-SERVICE] Implementar NCMexicoPdfMappingService — Preview y PostTimbrado**
+**[ RE-FU-034 ] [IMP-EXIST-SERVICE] Implementar NCPdfMappingService — Preview y PostTimbrado**
 
 **Aplicativos:** ProquifaDotNet.Finanzas
 
-**Módulos:** Application — Services — NC — Mexico — NCMexicoPdfMappingService
+**Módulos:** Application — Services — NC — Mexico — NCPdfMappingService
 
 **Consideraciones previas:**
-- Patrón base: `MexicoInvoicePdfMappingService` (RE-021). Misma separación Preview / PostTimbrado.
+- Patrón base: `InvoicePdfMappingService` (RE-021). Misma separación Preview / PostTimbrado.
 - Prerrequisito: T1–T4 (templates HTML) deben estar registrados en `DocumentTemplate` para validar el renderizado end-to-end.
 - Prerrequisito: RE-032 T6 (DML `DocumentTemplate`) debe estar ejecutado.
 - El modo Preview no incluye UUID, sellos ni QR; el modo PostTimbrado sí los incluye.
 - El QR SAT codifica: `https://verificacfdi.facturaelectronica.sat.gob.mx/default.aspx?id={UUID}&re={RFCEmisor}&rr={RFCReceptor}&tt={Total}&fe={últimos8SelloCFD}`.
-- `PersistirNCMexicoPdfService` usa el mismo patrón que `PersistMexicoInvoicePdfService` — rutas MinIO: `notas-credito-mex/notas_credito/{anio}/{mes}/{UUID}.pdf`.
+- `PersistirNCPdfService` usa el mismo patrón que `PersistInvoicePdfService` — rutas MinIO: `notas-credito-mex/notas_credito/{anio}/{mes}/{UUID}.pdf`.
 
 **Objetivo general:**
-Implementar `NCMexicoPdfMappingService` que mapea el `NCMexicoVm` al `NCMexicoPdfModel` y lo pasa a DocumentBuilder para generar el PDF, en modo Preview (wizard Paso 2) y PostTimbrado (confirmación exitosa).
+Implementar `NCPdfMappingService` que mapea el `NCVm` al `NCPdfModel` y lo pasa a DocumentBuilder para generar el PDF, en modo Preview (wizard Paso 2) y PostTimbrado (confirmación exitosa).
 
 **Objetivos específicos:**
 - Implementar mapeo de todos los campos requeridos por las secciones J1–J12 del requisito RE-034.
@@ -262,7 +262,7 @@ Implementar `NCMexicoPdfMappingService` que mapea el `NCMexicoVm` al `NCMexicoPd
 - Implementar mapeo condicional de conceptos: tabla de partidas (modalidad por partidas) o concepto único (modalidad manual).
 - Implementar mapeo de totales: SubTotal, IVA, Total, Total en letra.
 - Implementar selección del template correcto según empresa emisora (GOL/MUN/PRO/PQF).
-- Implementar `PersistirNCMexicoPdfService` para guardar el PDF en MinIO bajo `notas-credito-mex/notas_credito/{anio}/{mes}/{UUID}.pdf`.
+- Implementar `PersistirNCPdfService` para guardar el PDF en MinIO bajo `notas-credito-mex/notas_credito/{anio}/{mes}/{UUID}.pdf`.
 
 **Resultado esperado:**
 - El wizard muestra un PDF Preview correcto en el Paso 2 antes de timbrar.
@@ -270,8 +270,8 @@ Implementar `NCMexicoPdfMappingService` que mapea el `NCMexicoVm` al `NCMexicoPd
 - El PDF generado con datos del ejemplo B-128 (Proquifa, USD, TC 19.17) es visualmente correcto.
 
 **Entregables:**
-- Clase `NCMexicoPdfMappingService`
-- Clase `PersistirNCMexicoPdfService`
+- Clase `NCPdfMappingService`
+- Clase `PersistirNCPdfService`
 - Pruebas unitarias: modo Preview y PostTimbrado con dataset del ejemplo B-128
 - PDF de prueba generado en ambos modos
 
@@ -288,6 +288,6 @@ Ver sección **Parte B** y **Parte D** de `R16A-RE-FU-034-Back.md`.
 
 **Recursos:**
 - `R16A-RE-FU-034-Back.md` — Partes B y D
-- `MexicoInvoicePdfMappingService` — patrón base
-- `PersistMexicoInvoicePdfService` — patrón base para MinIO
+- `InvoicePdfMappingService` — patrón base
+- `PersistInvoicePdfService` — patrón base para MinIO
 - Templates `GOL/MUN/PRO/PQF_MEX_NC` (entregables de T1–T4)

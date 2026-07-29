@@ -2,7 +2,7 @@
 **Requisito:** Diseño y generación de Documentos: Factura México
 **Aplicativos:** ProquifaDotNet (.NET Framework 4.8) + ProquifaDotNet.Finanzas (.NET Core 10) + DocumentBuilder
 **Módulo:** Factura — PDF CFDI 4.0 México
-**Impacto:** Plantillas DocumentBuilder x4 (GOL/MUN/PRO/PQF\_MEX\_FAC) + MexicoInvoicePdfMappingService + PersistMexicoInvoicePdfService
+**Impacto:** Plantillas DocumentBuilder x4 (GOL/MUN/PRO/PQF\_MEX\_FAC) + InvoicePdfMappingService + PersistInvoicePdfService
 
 ---
 
@@ -16,15 +16,15 @@ Es el complemento definitivo de los placeholders dejados en RE-FU-019:
 
 | Placeholder RE-FU-019 | Implementación definitiva en RE-FU-021 |
 |-----------------------|----------------------------------------|
-| T13 — pasos 10-11: almacenar PDF+XML en Minio, INSERT Archivo x2 — "PDF real en requisito independiente" | T10 — `PersistMexicoInvoicePdfService` |
-| T15 — preview PDF con "template placeholder — definir en requisito independiente" | T9 — `MexicoInvoicePdfMappingService` + T5-T8 templates DocumentBuilder |
+| T13 — pasos 10-11: almacenar PDF+XML en Minio, INSERT Archivo x2 — "PDF real en requisito independiente" | T10 — `PersistInvoicePdfService` |
+| T15 — preview PDF con "template placeholder — definir en requisito independiente" | T9 — `InvoicePdfMappingService` + T5-T8 templates DocumentBuilder |
 
 ### Infraestructura reutilizada de RE-FU-018/019
 
 | Componente                                 | Origen                                   | Reutilización                                                                                            |
 | ------------------------------------------ | ---------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `StampingService.StampAdvanceInvoiceAsync` | RE-FU-018/019                            | Sin cambios — ya genera el XML timbrado (vía Timbrado) y Finanzas obtiene `TimbreFiscalDigital`          |
-| `AdvanceInvoiceGenerateService`            | RE-FU-019                                | Extender con llamada a `PersistMexicoInvoicePdfService` (pasos 10-11 placeholder)                      |
+| `AdvanceInvoiceGenerateService`            | RE-FU-019                                | Extender con llamada a `PersistInvoicePdfService` (pasos 10-11 placeholder)                      |
 | `AdvanceInvoicePreviewService`             | RE-FU-019                                | Extender con template real `GOL/MUN/PRO/PQF_MEX_FAC` (reemplaza placeholder)                             |
 | `ApiCallerStamping`                        | RE-FU-018/019                            | Sin cambios — ya llama a `POST /api/v1/stamp/invoice` (servicio técnico de Timbrado)                             |
 | Tabla `CFDIGenerada`                       | RE-FU-019 (base) + RE-FU-018 (extensión) | Se agregan aquí `IdArchivoPdf` y `FechaCertificacionSat` (Parte C); `IdArchivoXml` ya existe para el XML |
@@ -214,7 +214,7 @@ public class FacturaPdfRetencionModel
 }
 ```
 
-#### Application — MexicoInvoicePdfMappingService
+#### Application — InvoicePdfMappingService
 
 Servicio que consolida todos los datos del CFDI 4.0 en un `InvoicePdfModel`, listo para ser consumido por DocumentBuilder.
 
@@ -239,7 +239,7 @@ Servicio que consolida todos los datos del CFDI 4.0 en un `InvoicePdfModel`, lis
 **Interfaz propuesta:**
 
 ```csharp
-public interface IMexicoInvoicePdfMappingService
+public interface IInvoicePdfMappingService
 {
     // PDF definitivo — incluye TimbreFiscalDigital del PAC
     Task<InvoicePdfModel> MapearAsync(Guid idCFDI, string xmlTimbradoPac);
@@ -296,7 +296,7 @@ WHERE pp.IdPedido = @IdPedido
 ORDER BY pp.NumeroPartida
 ```
 
-#### Application — PersistMexicoInvoicePdfService
+#### Application — PersistInvoicePdfService
 
 Servicio transaccional que, tras el timbrado exitoso del PAC, genera el PDF definitivo y lo persiste en Minio.
 
@@ -312,7 +312,7 @@ Servicio transaccional que, tras el timbrado exitoso del PAC, genera el PDF defi
 **Flujo interno:**
 
 ```
-1. Invocar MexicoInvoicePdfMappingService.MapearAsync(IdCFDI, xmlTimbrado)
+1. Invocar InvoicePdfMappingService.MapearAsync(IdCFDI, xmlTimbrado)
    → InvoicePdfModel con TimbreFiscalDigital completo
 2. Resolver TemplateKey según EmpresaClave del modelo
 3. Invocar DocumentBuilder → generar PDF en bytes
@@ -330,7 +330,7 @@ Servicio transaccional que, tras el timbrado exitoso del PAC, genera el PDF defi
 ```csharp
 // Extender el flujo de AdvanceInvoiceGenerateService con la implementación real:
 // Paso 10 (reemplaza placeholder): persistir PDF definitivo
-await _persistirFacturaMexicoPdfService.PersistirAsync(idCFDIGenerada, response.XmlTimbrado);
+await _persistirFacturaPdfService.PersistirAsync(idCFDIGenerada, response.XmlTimbrado);
 // Paso 11 (sin cambios): INSERT Archivo XML — patrón existente
 ```
 
@@ -368,11 +368,11 @@ var pdfBytes = await _documentBuilder.GenerarAsync(templateKey, model);
 | # | Gap | Acción | Esfuerzo | Estado |
 |---|-----|--------|----------|--------|
 | GAP-05 | `InvoicePdfModel` + `InvoicePdfLineItemModel` (Domain) | Nuevos modelos con todas las secciones A-H del PDF | Bajo | Abierto |
-| GAP-06 | `IMexicoInvoicePdfMappingService` + `MexicoInvoicePdfMappingService` (Application) | Consolidar datos de múltiples tablas + parsear TimbreFiscalDigital + generar QR | Alto | Abierto |
-| GAP-07 | `PersistMexicoInvoicePdfService` (Application) | Generar PDF → persistir Minio → INSERT Archivo → UPDATE CFDIGenerada.IdArchivoPdf → reintentos sin re-timbrado | Medio | Abierto |
-| GAP-08 | Extender `AdvanceInvoiceGenerateService` (RE-FU-019 T13) pasos 10-11 | Reemplazar placeholder con llamada real a `PersistMexicoInvoicePdfService` | Bajo | Abierto |
+| GAP-06 | `IInvoicePdfMappingService` + `InvoicePdfMappingService` (Application) | Consolidar datos de múltiples tablas + parsear TimbreFiscalDigital + generar QR | Alto | Abierto |
+| GAP-07 | `PersistInvoicePdfService` (Application) | Generar PDF → persistir Minio → INSERT Archivo → UPDATE CFDIGenerada.IdArchivoPdf → reintentos sin re-timbrado | Medio | Abierto |
+| GAP-08 | Extender `AdvanceInvoiceGenerateService` (RE-FU-019 T13) pasos 10-11 | Reemplazar placeholder con llamada real a `PersistInvoicePdfService` | Bajo | Abierto |
 | GAP-09 | Extender `AdvanceInvoicePreviewService` (RE-FU-019 T15) | Reemplazar template placeholder con resolución dinámica `GOL/MUN/PRO/PQF_MEX_FAC` | Bajo | Abierto |
-| GAP-10 | Integrar `PersistMexicoInvoicePdfService` en flujo Validar Cobro — paso "Genera Factura Normal PPD" | Invocar `PersistirAsync` tras timbrado exitoso antes de transicionar a "Pendiente en Validar Pago" | Bajo | Abierto |
+| GAP-10 | Integrar `PersistInvoicePdfService` en flujo Validar Cobro — paso "Genera Factura Normal PPD" | Invocar `PersistirAsync` tras timbrado exitoso antes de transicionar a "Pendiente en Validar Pago" | Bajo | Abierto |
 
 ---
 
@@ -383,9 +383,9 @@ var pdfBytes = await _documentBuilder.GenerarAsync(templateKey, model);
              |                                     |                          |                  |
   (timbrado exitoso PAC — pasos 10-11 RE-FU-019 T13)                        |                  |
              |                                     |                          |                  |
-  1. PersistMexicoInvoicePdfService.PersistirAsync(IdCFDIGenerada, xmlPAC) |                  |
+  1. PersistInvoicePdfService.PersistirAsync(IdCFDIGenerada, xmlPAC) |                  |
              |                                     |                          |                  |
-  2. MexicoInvoicePdfMappingService.MapearAsync    |                          |                  |
+  2. InvoicePdfMappingService.MapearAsync    |                          |                  |
              |---GET CFDIGenerada / Partidas / Bancarios --------------------->|                  |
              |<---datos fiscales ----------------------------------------------                  |
              | 3. Parsear TimbreFiscalDigital del XML PAC                    |                  |

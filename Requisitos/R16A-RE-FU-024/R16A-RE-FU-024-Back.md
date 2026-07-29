@@ -63,7 +63,7 @@ ALTER TABLE dbo.fccPagoCliente
 
 -- 2. Timestamp de captura inicial del cobro
 ALTER TABLE dbo.fccPagoCliente
-    ADD FechaConfirmacion datetime2 NULL;
+    ADD FechaConfirmacion datetime NULL;
 
 -- 3. Trazabilidad: quién capturó el cobro inicialmente
 ALTER TABLE dbo.fccPagoCliente
@@ -92,7 +92,7 @@ ALTER TABLE dbo.fccPagoCliente
 
 -- 7. Trazabilidad del bloqueo por timbrado
 ALTER TABLE dbo.fccPagoCliente
-    ADD FechaBloqueoTimbrado datetime2 NULL;
+    ADD FechaBloqueoTimbrado datetime NULL;
 ```
 
 > **Motivo de IdCatMoneda:** La pantalla del Paso 1 muestra "Moneda*" como combo desplegable
@@ -138,10 +138,10 @@ CREATE TABLE [dbo].[fccInconsistenciaCobro](
     [Comentario]                   varchar(500) NULL,
     [IdUsuarioRegistro]            uniqueidentifier NOT NULL,
     [Activo]                       bit NOT NULL CONSTRAINT [DF_fccInconsistenciaCobro_Activo] DEFAULT (1),
-    [FechaRegistro]                datetime2(7) NOT NULL
-        CONSTRAINT [DF_fccInconsistenciaCobro_FechaReg] DEFAULT (SYSUTCDATETIME()),
-    [FechaUltimaActualizacion]     datetime2(7) NOT NULL
-        CONSTRAINT [DF_fccInconsistenciaCobro_FechaUpd] DEFAULT (SYSUTCDATETIME()),
+    [FechaRegistro]                datetime NOT NULL
+        CONSTRAINT [DF_fccInconsistenciaCobro_FechaReg] DEFAULT (GETDATE()),
+    [FechaUltimaActualizacion]     datetime NOT NULL
+        CONSTRAINT [DF_fccInconsistenciaCobro_FechaUpd] DEFAULT (GETDATE()),
     CONSTRAINT [PK_fccInconsistenciaCobro]
         PRIMARY KEY CLUSTERED ([IdFCCInconsistenciaCobro]),
     CONSTRAINT [FK_fccInconsistenciaCobro_PagoCliente]
@@ -230,7 +230,7 @@ CREATE SEQUENCE dbo.SeqFolioCobro
 UPDATE dbo.fccPagoCliente
 SET Folio                 = @FolioGenerado,
     Confirmado            = 1,
-    FechaConfirmacion     = SYSUTCDATETIME(),
+    FechaConfirmacion     = GETDATE(),
     IdUsuarioConfirmacion = @IdUsuarioActivo,
     IdCatMoneda           = @IdCatMoneda
 WHERE IdFCCPagoCliente    = @Id
@@ -304,7 +304,7 @@ WHERE IdFCCPagoCliente    = @Id
 **Flujo en Finanzas:**
 1. Cargar el cobro y verificar `Confirmado=1`
 2. Verificar `BloqueadoPorTimbrado=0` (si está bloqueado, retornar `409 Conflict — Cobro inmutable por timbrado`)
-3. Si el usuario cambia `IdCatMoneda` o `FechaPago`, **recalcular TC** vía B6 (`MexicoExchangeRateService`)
+3. Si el usuario cambia `IdCatMoneda` o `FechaPago`, **recalcular TC** vía B6 (`ExchangeRateService`)
 4. Validar comprobante seleccionado (sigue siendo obligatorio) y campos obligatorios
 5. NO regenerar `Folio` (el folio se mantiene)
 6. Persistir cambios vía UPDATE en ProquifaDotNet
@@ -323,7 +323,7 @@ SET Monto                    = @Monto,
     TipoDeCambio             = @TipoCambioRecalculado,
     IdArchivo                = @IdArchivoComprobante,
     Notas                    = @Notas,
-    FechaUltimaActualizacion = SYSUTCDATETIME()
+    FechaUltimaActualizacion = GETDATE()
 WHERE IdFCCPagoCliente       = @Id
   AND Confirmado             = 1
   AND BloqueadoPorTimbrado   = 0;  -- guardia: solo editable si NO timbrado
@@ -351,7 +351,7 @@ WHERE IdFCCPagoCliente       = @Id
 -- Para todas las fccPagoCliente aplicadas al documento timbrado @IdDocumento
 UPDATE pc
 SET pc.BloqueadoPorTimbrado = 1,
-    pc.FechaBloqueoTimbrado = SYSUTCDATETIME()
+    pc.FechaBloqueoTimbrado = GETDATE()
 FROM dbo.fccPagoCliente pc
 INNER JOIN <tabla_aplicacion_paso2> ap ON ap.IdFCCPagoCliente = pc.IdFCCPagoCliente
 WHERE ap.IdDocumento           = @IdDocumentoTimbrado

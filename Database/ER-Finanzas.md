@@ -17,37 +17,54 @@ Tablas físicas en ProquifaDotNet gestionadas por la solución ProquifaDotNet.Fi
 
 ```mermaid
 erDiagram
-    catImpuestoSat {
-        uniqueidentifier IdCatImpuestoSat PK
+    %% catImpuesto / catTipoFactorSat / catObjetoImpuestoSat / PerfilFiscal / FamiliaRegion
+    %% viven en ProquifaDotNet — acceso Finanzas via Scaffold (R16A-RE-Cambio-PerfilFiscal)
+    catImpuesto {
+        uniqueidentifier IdCatImpuesto PK
         varchar Clave
         varchar Descripcion
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     catTipoFactorSat {
         uniqueidentifier IdCatTipoFactorSat PK
         varchar Clave
         varchar Descripcion
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     catObjetoImpuestoSat {
         uniqueidentifier IdCatObjetoImpuestoSat PK
         varchar Clave
         varchar Descripcion
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     PerfilFiscal {
         uniqueidentifier IdPerfilFiscal PK
-        nvarchar Nombre
-        uniqueidentifier IdCatImpuestoSat FK
+        uniqueidentifier IdRegion FK
+        uniqueidentifier IdCatImpuesto FK
         uniqueidentifier IdCatTipoFactorSat FK
         decimal TasaOCuota
         uniqueidentifier IdCatObjetoImpuestoSat FK
         nvarchar Fundamento
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
+    }
+    FamiliaRegion {
+        uniqueidentifier IdFamiliaRegion PK
+        uniqueidentifier IdFamilia FK
+        uniqueidentifier IdRegion FK
+        uniqueidentifier IdPerfilFiscal FK
+        varchar ClaveProdServSat
+        varchar ClaveUnidadSat
+        bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     catTipoCFDI {
         uniqueidentifier IdCatTipoCFDI PK
@@ -56,21 +73,24 @@ erDiagram
         varchar TipoDocumentoSAT
         uniqueidentifier IdRegion FK
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     catTipoDocumentoFiscal {
         uniqueidentifier IdCatTipoDocumentoFiscal PK
         varchar Clave
         varchar Descripcion
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     catDocumentoFiscalCobroEstado {
         uniqueidentifier IdCatDocumentoFiscalCobroEstado PK
         varchar Clave
         varchar Descripcion
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     catFacturaEstado {
         uniqueidentifier IdCatFacturaEstado PK
@@ -79,28 +99,32 @@ erDiagram
         int Orden
         bit EsTerminal
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     catFormaPagoSAT {
         uniqueidentifier IdCatFormaPagoSAT PK
         varchar Clave
         varchar Descripcion
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     catTipoOperacionSUNAT {
         uniqueidentifier IdCatTipoOperacionSUNAT PK
         varchar Clave
         varchar Descripcion
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     catMotivoCancelacionSAT {
         uniqueidentifier IdCatMotivoCancelacionSAT PK
         varchar Clave
         varchar Descripcion
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     catMotivoCreditoSUNAT09 {
         uniqueidentifier IdCatMotivoCreditoSUNAT09 PK
@@ -108,13 +132,16 @@ erDiagram
         varchar Descripcion
         varchar Modalidad
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     catTipoInconsistenciaCobro {
         uniqueidentifier IdCatTipoInconsistenciaCobro PK
         varchar TipoInconsistencia
         bit AplicaMarkPendienteCancelacion
         bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     EmpresaFolio {
         uniqueidentifier IdEmpresaFolio PK
@@ -124,8 +151,8 @@ erDiagram
         varchar FormatoFolio
         int LongitudMaxima
         bit Activo
-        datetime2 FechaRegistro
-        datetime2 FechaUltimaActualizacion
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     CFDIGenerada {
         uniqueidentifier IdCFDIGenerada PK
@@ -133,8 +160,8 @@ erDiagram
         varchar RFCReceptor
         varchar Serie
         varchar Folio
-        datetime2 FechaEmision
-        datetime2 FechaCertificacionSat
+        datetime FechaEmision
+        datetime FechaCertificacionSat
         uniqueidentifier IdCatTipoCFDI FK
         uniqueidentifier IdCFDIRelacionado FK
         varchar UUID
@@ -146,7 +173,8 @@ erDiagram
         uniqueidentifier IdArchivoXml FK
         uniqueidentifier IdArchivoPdf FK
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     CFDIGeneradaConcepto {
         uniqueidentifier IdCFDIGeneradaConcepto PK
@@ -156,23 +184,26 @@ erDiagram
         decimal Cantidad
         decimal ValorUnitario
         decimal Importe
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     CFDIGeneradaRelacionado {
         uniqueidentifier IdCFDIGeneradaRelacionado PK
         uniqueidentifier IdCFDIGenerada FK
         varchar UUID
         varchar ClaveTipoRelacion
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     CFDICancelacion {
         uniqueidentifier IdCFDICancelacion PK
         uniqueidentifier IdCFDIGenerada FK
         varchar ClaveMotivo
         varchar UUID
-        datetime2 FechaSolicitud
+        datetime FechaSolicitud
         varchar EstadoCancelacion
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     tpProformaPedido {
         uniqueidentifier IdTPProformaPedido PK
@@ -233,7 +264,8 @@ erDiagram
         varchar Descripcion
         int Orden
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     fccFolioPagoCliente {
         uniqueidentifier IdFCCFolioPagoCliente PK
@@ -278,7 +310,7 @@ erDiagram
         varchar Serie
         uniqueidentifier IdArchivo FK
         bit Confirmado
-        datetime2 FechaConfirmacion
+        datetime FechaConfirmacion
         uniqueidentifier IdUsuarioConfirmacion FK
         varchar Notas
         bit Activo
@@ -292,7 +324,9 @@ erDiagram
         decimal Monto
         decimal MontoPendienteAnterior
         int NumeroDeParcialidad
-        datetime2 FechaAplicacion
+        datetime FechaAplicacion
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     fccFactura {
         uniqueidentifier IdFccFactura PK
@@ -301,7 +335,7 @@ erDiagram
         uniqueidentifier IdCatFacturaEstado FK
         bit EsFacturaPorAdelantado
         bit Enviada
-        datetime2 FechaEnvio
+        datetime FechaEnvio
         uniqueidentifier IdCliente FK
         uniqueidentifier IdEmpresa FK
         varchar FolioPedidoInterno
@@ -309,7 +343,8 @@ erDiagram
         uniqueidentifier IdCatMoneda FK
         uniqueidentifier IdCFDIGenerada FK
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     fccFacturaPartida {
         uniqueidentifier IdFccFacturaPartida PK
@@ -318,7 +353,8 @@ erDiagram
         decimal Cantidad
         decimal ValorUnitario
         decimal Importe
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     fccFacturaReferenciaBancaria {
         uniqueidentifier IdFccFacturaReferenciaBancaria PK
@@ -327,7 +363,8 @@ erDiagram
         varchar Banco
         varchar NumeroCuenta
         varchar Clabe
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     fccPagoFacturaAdelanto {
         uniqueidentifier IdFCCPagoFacturaAdelanto PK
@@ -337,6 +374,8 @@ erDiagram
         uniqueidentifier IdCFDIGenerada FK
         decimal Monto
         int NumeroParcialidad
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     fccDocumentoFiscalCobro {
         uniqueidentifier IdFCCDocumentoFiscalCobro PK
@@ -350,7 +389,7 @@ erDiagram
         uniqueidentifier IdCFDIGeneradaComplemento FK
         uniqueidentifier IdCatTipoOperacionSUNAT FK
         uniqueidentifier IdCatCondicionesDePago FK
-        datetime2 FechaPagoCP
+        datetime FechaPagoCP
         uniqueidentifier IdCatFormaPagoSAT FK
         decimal TipoCambioP_CP
         int NumParcialidad
@@ -358,18 +397,20 @@ erDiagram
         decimal ImpPagado
         decimal ImpSaldoInsoluto
         decimal EquivalenciaDR
-        datetime2 FechaGeneracion
-        datetime2 FechaEnvio
+        datetime FechaGeneracion
+        datetime FechaEnvio
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     fccConfirmacionPedido {
         uniqueidentifier IdFCCConfirmacionPedido PK
         uniqueidentifier IdTPProformaPedido FK
         uniqueidentifier IdUsuario FK
-        datetime2 FechaConfirmacion
+        datetime FechaConfirmacion
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     fccSaldoFavorCliente {
         uniqueidentifier IdFCCSaldoFavorCliente PK
@@ -384,7 +425,8 @@ erDiagram
         uniqueidentifier IdFCCPagoFacturaPedido FK
         varchar Observaciones
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     fccInconsistenciaCobro {
         uniqueidentifier IdFCCInconsistenciaCobro PK
@@ -392,7 +434,8 @@ erDiagram
         uniqueidentifier IdCatTipoInconsistenciaCobro FK
         varchar Notas
         uniqueidentifier IdUsuario FK
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     fccNotaCredito {
         uniqueidentifier IdFCCNotaCredito PK
@@ -418,7 +461,8 @@ erDiagram
         decimal TipoCambioOrigen
         uniqueidentifier IdFCCPagoCliente FK
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     fccNotaCreditoPartida {
         uniqueidentifier IdFCCNotaCreditoPartida PK
@@ -429,16 +473,19 @@ erDiagram
         decimal Subtotal
         decimal IVA
         decimal Total
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     fccFechaEstimadaPagoHistorial {
         uniqueidentifier IdFccFechaEstimadaPagoHistorial PK
         uniqueidentifier IdTpProformaPedido FK
-        datetime2 FechaEstimadaPagoAnterior
-        datetime2 FechaEstimadaPagaNueva
-        datetime2 FechaCambio
+        datetime FechaEstimadaPagoAnterior
+        datetime FechaEstimadaPagaNueva
+        datetime FechaCambio
         uniqueidentifier IdUsuarioCambio FK
         varchar Motivo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
     catTipoCFDI ||--o{ CFDIGenerada : "clasifica"
     CFDIGenerada ||--o{ CFDIGeneradaConcepto : "tiene"
@@ -477,9 +524,10 @@ erDiagram
     fccNotaCredito ||--o{ fccNotaCreditoPartida : "tiene"
     catMotivoCancelacionSAT ||--o{ fccNotaCredito : "motivo cancelacion"
     CFDIGeneradaConcepto ||--o{ fccNotaCreditoPartida : "concepto origen"
-    catImpuestoSat ||--o{ PerfilFiscal : "clasifica impuesto"
-    catTipoFactorSat ||--o{ PerfilFiscal : "clasifica factor"
-    catObjetoImpuestoSat ||--o{ PerfilFiscal : "clasifica objeto impuesto"
+    catImpuesto ||--o{ PerfilFiscal : "impuesto"
+    catTipoFactorSat ||--o{ PerfilFiscal : "tipo factor"
+    catObjetoImpuestoSat ||--o{ PerfilFiscal : "objeto impuesto (MX)"
+    PerfilFiscal ||--o{ FamiliaRegion : "perfil aplicado"
     PerfilFiscal ||--o{ CFDIGeneradaConcepto : "aplica perfil fiscal"
     catFormaPagoSAT ||--o{ CFDIGenerada : "forma de pago CFDI"
     catMetodoDePagoCFDI ||--o{ CFDIGenerada : "método de pago CFDI"
@@ -526,15 +574,20 @@ erDiagram
 | 29  | `tpProformaPedido`              | Existente + ALTER R16 — **movida a Finanzas (07/07/2026)** | RE-016 (ALTER: FolioProforma, ConsecutivoProforma), RE-023 (usa FechaPromesaPagoMonitoreoCobros), RE-026/027 (usa MontoPendiente), RE-028/029 (usa Controlados, IdCFDIGenerada) | Proforma/Confirmación de Pedido — antes vía API ProquifaDotNet, ahora lectura/escritura directa vía Scaffold                                  |
 | 30  | `tpProformaPartidaPedido`       | Existente — **movida a Finanzas (08/07/2026)**             | RE-013/014 (INSERT al tramitar), RE-016 (partidas del PDF proforma), RE-028 (partidas de la factura desde proforma)                                                             | Detalle 1:N de partidas de la proforma — mismo tratamiento que su cabecera: Scaffold directo                                                  |
 | 31  | `catCobroEstatus`               | ✨ Nueva R16 (definida en RE-002)                           | RE-002 (crea), RE-008 (FK en fccPagoCliente), RE-026                                                                                                                            | Catálogo de estatus del ciclo de vida del cobro: BORRADOR → CAPTURADO → ASOCIADO / SALDO_A_FAVOR → COMPLETADO; CON_INCONSISTENCIA / CANCELADO |
-| 32  | `catImpuestoSat`                | ✨ Nueva R16                                                | RE-019 (Guía Técnica — agrega catálogo c_Impuesto SAT)                                                                                                                          | Catálogo c_Impuesto SAT: IVA, ISR, IEPS                                                                                                       |
-| 33  | `catTipoFactorSat`              | ✨ Nueva R16                                                | RE-019 (Guía Técnica — agrega catálogo c_TipoFactor SAT)                                                                                                                        | Catálogo c_TipoFactor SAT: Tasa, Cuota, Exento                                                                                                |
-| 34  | `catObjetoImpuestoSat`          | ✨ Nueva R16                                                | RE-019 (Guía Técnica — agrega catálogo c_ObjetoImp SAT)                                                                                                                         | Catálogo c_ObjetoImp SAT: 01-No objeto, 02-Sí objeto, 03-Sí objeto no obligado, 04-Sí objeto IVA crédito IEPS                                 |
-| 35  | `PerfilFiscal`                  | ✨ Nueva R16                                                | RE-019 (Guía Técnica — configuración fiscal por producto/concepto)                                                                                                              | Perfil fiscal: combinación catImpuestoSat × catTipoFactorSat × TasaOCuota × catObjetoImpuestoSat aplicada a conceptos del CFDI                |
+
+
+> **Nota (R16A-RE-Cambio-PerfilFiscal):** Las tablas `catImpuesto`, `catTipoFactorSat`, `catObjetoImpuestoSat`, `PerfilFiscal` y `FamiliaRegion` **viven en ProquifaDotNet** (no son tablas propias de Finanzas). Finanzas las accede via Scaffold EF Core. Ver Sección 2.
 
 ### 2. Tablas existentes de ProquifaDotNet consumidas vía Scaffold (lectura / escritura puntual)
 
 | Tabla                                                                    | Acceso    | Requisito(s)                    | Uso                                                                                                                                                                                                          |
 | ------------------------------------------------------------------------ | --------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `catImpuesto`                                                            | Lectura   | RE-019 (Guía Técnica), RE-Cambio-PerfilFiscal | Catálogo c_Impuesto SAT: IVA, ISR, IEPS (renombrado de `catImpuestoSat`) |
+| `catTipoFactorSat`                                                       | Lectura   | RE-019 (Guía Técnica), RE-Cambio-PerfilFiscal | Catálogo c_TipoFactor SAT: Tasa, Cuota, Exento |
+| `catObjetoImpuestoSat`                                                   | Lectura   | RE-019 (Guía Técnica), RE-Cambio-PerfilFiscal | Catálogo c_ObjetoImp SAT: 01-No objeto, 02-Sí objeto, 03-Sí objeto no obligado, 04-Sí objeto IVA crédito IEPS |
+| `PerfilFiscal`                                                           | Lectura   | RE-019 (Guía Técnica), RE-Cambio-PerfilFiscal | Perfil fiscal: combinación catImpuesto × catTipoFactorSat × TasaOCuota × catObjetoImpuestoSat × IdRegion |
+| `FamiliaRegion`                                                          | Lectura   | RE-Cambio-PerfilFiscal          | Junction: Familia ↔ Region ↔ PerfilFiscal + ClaveProdServSat + ClaveUnidadSat |
+| `Familia`                                                                | Lectura   | RE-019, RE-Cambio-PerfilFiscal  | Familia de productos (para resolución de ClaveProdServSat/ClaveUnidadSat via FamiliaRegion) |
 | `Empresa`                                                                | Lectura   | RE-016, 019-022, 028-033        | Datos del emisor: `RFC`, `RazonSocial`, `Alias`, `Prefijo`, `IdCatRegimenFiscal` (→ `catRegimenFiscal.RegimenFiscal`), `IdDireccion` (→ `Direccion.CodigoPostal` = `LugarExpedicion`) + FK de `EmpresaFolio` |
 | `Cliente`                                                                | Lectura   | RE-018+, 023-029                | Razón social, clave; joins de listados                                                                                                                                                                       |
 | `DatosFacturacionCliente`                                                | Lectura   | RE-004, 012, 015, 019           | Snapshot fiscal del receptor al crear FAA/factura                                                                                                                                                            |
@@ -559,33 +612,35 @@ erDiagram
 
 > Una tabla por entidad: Columna, Tipo de Dato, Índice (PK/FK/UK) y Descripción. Tipos y llaves conforme al diagrama ER; el DDL completo vive en el `_BD.md` del requisito indicado en cada descripción.
 
-### Tabla: `catImpuestoSat`
+### Tabla: `catImpuesto`
 
-Catálogo c_Impuesto del SAT (IVA, ISR, IEPS). Detalle: RE-019_BD (Guía Técnica).
+Catálogo c_Impuesto del SAT (IVA, ISR, IEPS). Renombrado de `catImpuestoSat` en R16A-RE-Cambio-PerfilFiscal. Tabla en ProquifaDotNet; Finanzas accede via Scaffold. Detalle: RE-019_BD (Guía Técnica).
 
-| Columna             | Tipo de Dato     | Índice | Descripción                  |
-| ------------------- | ---------------- | ------ | ---------------------------- |
-| `IdCatImpuestoSat`  | uniqueidentifier | PK     | Identificador único (PK)     |
-| `Clave`             | varchar          | —      | Clave SAT (ej. `001` IVA, `002` ISR, `003` IEPS) |
-| `Descripcion`       | varchar          | —      | Descripción legible          |
-| `Activo`            | bit              | —      | Borrado lógico (1 = vigente) |
-| `FechaRegistro`     | datetime2        | —      | Fecha de alta del registro   |
+| Columna                    | Tipo de Dato     | Índice | Descripción                  |
+| -------------------------- | ---------------- | ------ | ---------------------------- |
+| `IdCatImpuesto`            | uniqueidentifier | PK     | Identificador único (PK)     |
+| `Clave`                    | varchar          | —      | Clave SAT (ej. `001` IVA, `002` ISR, `003` IEPS) |
+| `Descripcion`              | varchar          | —      | Descripción legible          |
+| `Activo`                   | bit              | —      | Borrado lógico (1 = vigente) |
+| `FechaRegistro`            | datetime         | —      | Fecha de alta del registro   |
+| `FechaUltimaActualizacion` | datetime         | —      | Fecha de última modificación |
 
 ### Tabla: `catTipoFactorSat`
 
-Catálogo c_TipoFactor del SAT (Tasa, Cuota, Exento). Detalle: RE-019_BD (Guía Técnica).
+Catálogo c_TipoFactor del SAT (Tasa, Cuota, Exento). Tabla en ProquifaDotNet; Finanzas accede via Scaffold. Detalle: RE-019_BD (Guía Técnica).
 
-| Columna               | Tipo de Dato     | Índice | Descripción                  |
-| --------------------- | ---------------- | ------ | ---------------------------- |
-| `IdCatTipoFactorSat`  | uniqueidentifier | PK     | Identificador único (PK)     |
-| `Clave`               | varchar          | —      | Clave SAT (`Tasa`, `Cuota`, `Exento`) |
-| `Descripcion`         | varchar          | —      | Descripción legible          |
-| `Activo`              | bit              | —      | Borrado lógico (1 = vigente) |
-| `FechaRegistro`       | datetime2        | —      | Fecha de alta del registro   |
+| Columna                    | Tipo de Dato     | Índice | Descripción                  |
+| -------------------------- | ---------------- | ------ | ---------------------------- |
+| `IdCatTipoFactorSat`       | uniqueidentifier | PK     | Identificador único (PK)     |
+| `Clave`                    | varchar          | —      | Clave SAT (`Tasa`, `Cuota`, `Exento`) |
+| `Descripcion`              | varchar          | —      | Descripción legible          |
+| `Activo`                   | bit              | —      | Borrado lógico (1 = vigente) |
+| `FechaRegistro`            | datetime         | —      | Fecha de alta del registro   |
+| `FechaUltimaActualizacion` | datetime         | —      | Fecha de última modificación |
 
 ### Tabla: `catObjetoImpuestoSat`
 
-Catálogo c_ObjetoImp del SAT (01-04). Detalle: RE-019_BD (Guía Técnica).
+Catálogo c_ObjetoImp del SAT (01-04). Tabla en ProquifaDotNet; Finanzas accede via Scaffold. Detalle: RE-019_BD (Guía Técnica).
 
 | Columna                    | Tipo de Dato     | Índice | Descripción                  |
 | -------------------------- | ---------------- | ------ | ---------------------------- |
@@ -593,23 +648,41 @@ Catálogo c_ObjetoImp del SAT (01-04). Detalle: RE-019_BD (Guía Técnica).
 | `Clave`                    | varchar          | —      | Clave SAT (`01` No objeto, `02` Sí objeto, `03` Sí objeto no obligado, `04` Sí objeto IVA crédito IEPS) |
 | `Descripcion`              | varchar          | —      | Descripción legible          |
 | `Activo`                   | bit              | —      | Borrado lógico (1 = vigente) |
-| `FechaRegistro`            | datetime2        | —      | Fecha de alta del registro   |
+| `FechaRegistro`            | datetime         | —      | Fecha de alta del registro   |
+| `FechaUltimaActualizacion` | datetime         | —      | Fecha de última modificación |
 
 ### Tabla: `PerfilFiscal`
 
-Perfil fiscal reutilizable: combinación de catálogos SAT que define cómo se grava un concepto del CFDI (impuesto × factor × tasa × objeto de impuesto). Se asigna a `CFDIGeneradaConcepto` al construir el XML. Catálogo de negocio de 3-4 filas administrado por PROQUIFA. Detalle: RE-019_BD (Guía Técnica).
+Perfil fiscal reutilizable: combinación de catálogos SAT + región que define cómo se grava un concepto del CFDI (impuesto × factor × tasa × objeto de impuesto). Discriminado por `IdRegion` (MX/PE). Tabla en ProquifaDotNet; Finanzas accede via Scaffold. Detalle: RE-019_BD y R16A-RE-Cambio-PerfilFiscal_BD.
 
-| Columna                    | Tipo de Dato     | Índice | Descripción                                                      |
-| -------------------------- | ---------------- | ------ | ---------------------------------------------------------------- |
-| `IdPerfilFiscal`           | uniqueidentifier | PK     | Identificador único (PK)                                         |
-| `Nombre`                   | nvarchar         | —      | Nombre descriptivo (ej. `IVA General 16%`, `IVA Tasa 0%`, `Exento`) |
-| `IdCatImpuestoSat`         | uniqueidentifier | FK     | FK → `catImpuestoSat` — tipo de impuesto (IVA/ISR/IEPS)         |
-| `IdCatTipoFactorSat`       | uniqueidentifier | FK     | FK → `catTipoFactorSat` — factor (Tasa/Cuota/Exento)            |
-| `TasaOCuota`               | decimal(6,6)     | —      | Tasa o cuota (`0.160000` para 16%); **NULL cuando TipoFactor = Exento** |
-| `IdCatObjetoImpuestoSat`   | uniqueidentifier | FK     | FK → `catObjetoImpuestoSat` — objeto del impuesto (01-04)       |
+| Columna                    | Tipo de Dato     | Índice | Descripción                                                                                              |
+| -------------------------- | ---------------- | ------ | -------------------------------------------------------------------------------------------------------- |
+| `IdPerfilFiscal`           | uniqueidentifier | PK     | Identificador único (PK)                                                                                 |
+| `IdRegion`                 | uniqueidentifier | FK     | FK → `Region` — discriminador MX/PE (NOT NULL)                                                           |
+| `IdCatImpuesto`            | uniqueidentifier | FK     | FK → `catImpuesto` — tipo de impuesto (IVA/ISR/IEPS; NOT NULL)                                          |
+| `IdCatTipoFactorSat`       | uniqueidentifier | FK     | FK → `catTipoFactorSat` — factor (Tasa/Cuota/Exento)                                                    |
+| `TasaOCuota`               | decimal(6,6)     | —      | Tasa o cuota (`0.160000` para 16%); **NULL cuando TipoFactor = Exento**                                  |
+| `IdCatObjetoImpuestoSat`   | uniqueidentifier | FK     | FK → `catObjetoImpuestoSat` — objeto del impuesto (01-04); solo MX                                      |
 | `Fundamento`               | nvarchar         | —      | Referencia legal informativa (ej. `Art. 1 LIVA`, `Art. 2-A LIVA`, `Art. 9 LIVA`) — no afecta el cálculo |
-| `Activo`                   | bit              | —      | Borrado lógico (1 = vigente)                                     |
-| `FechaRegistro`            | datetime2        | —      | Fecha de alta del registro                                       |
+| `Activo`                   | bit              | —      | Borrado lógico (1 = vigente)                                                                             |
+| `FechaRegistro`            | datetime         | —      | Fecha de alta del registro                                                                               |
+| `FechaUltimaActualizacion` | datetime         | —      | Fecha de última modificación                                                                             |
+
+### Tabla: `FamiliaRegion`
+
+Junction que asocia una Familia de productos a una Región con su PerfilFiscal correspondiente, `ClaveProdServSat` y `ClaveUnidadSat` por región. Tabla en ProquifaDotNet; Finanzas accede via Scaffold. Detalle: R16A-RE-Cambio-PerfilFiscal_BD.
+
+| Columna                    | Tipo de Dato     | Índice | Descripción                                                  |
+| -------------------------- | ---------------- | ------ | ------------------------------------------------------------ |
+| `IdFamiliaRegion`          | uniqueidentifier | PK     | Identificador único (PK)                                     |
+| `IdFamilia`                | uniqueidentifier | FK     | FK → `Familia`                                               |
+| `IdRegion`                 | uniqueidentifier | FK     | FK → `Region` — discriminador MX/PE                          |
+| `IdPerfilFiscal`           | uniqueidentifier | FK     | FK → `PerfilFiscal` — perfil fiscal aplicable en esta región |
+| `ClaveProdServSat`         | varchar          | —      | Clave c_ClaveProdServ SAT para esta familia en esta región   |
+| `ClaveUnidadSat`           | varchar          | —      | Clave c_ClaveUnidad SAT para esta familia en esta región     |
+| `Activo`                   | bit              | —      | Borrado lógico (1 = vigente)                                 |
+| `FechaRegistro`            | datetime         | —      | Fecha de alta del registro                                   |
+| `FechaUltimaActualizacion` | datetime         | —      | Fecha de última modificación                                 |
 
 ### Tabla: `catTipoCFDI`
 
@@ -746,8 +819,8 @@ Foliador por empresa/serie; consumo UPDLOCK atómico al timbrar. Movida de Proqu
 | `FormatoFolio`             | varchar          | —      | Formato de presentación del folio                                       |
 | `LongitudMaxima`           | int              | —      | Longitud máxima del folio (varchar 6 en factura)                        |
 | `Activo`                   | bit              | —      | Borrado lógico (1 = vigente)                                            |
-| `FechaRegistro`            | datetime2        | —      | Fecha de alta del registro                                              |
-| `FechaUltimaActualizacion` | datetime2        | —      | Fecha de última actualización                                           |
+| `FechaRegistro`            | datetime        | —      | Fecha de alta del registro                                              |
+| `FechaUltimaActualizacion` | datetime        | —      | Fecha de última actualización                                           |
 
 ### Tabla: `CFDIGenerada`
 
@@ -760,8 +833,8 @@ Registro central de negocio de todo CFDI/CPE timbrado — single source of truth
 | `RFCReceptor`              | varchar          | —      | RFC del cliente receptor                                                            |
 | `Serie`                    | varchar          | —      | Serie del documento                                                                 |
 | `Folio`                    | varchar          | —      | Folio consecutivo                                                                   |
-| `FechaEmision`             | datetime2        | —      | Fecha de emisión del CFDI                                                           |
-| `FechaCertificacionSat`    | datetime2        | —      | Fecha de certificación (timbrado) por el PAC/SAT (RE-021)                           |
+| `FechaEmision`             | datetime        | —      | Fecha de emisión del CFDI                                                           |
+| `FechaCertificacionSat`    | datetime        | —      | Fecha de certificación (timbrado) por el PAC/SAT (RE-021)                           |
 | `IdCatTipoCFDI`            | uniqueidentifier | FK     | FK → `catTipoCFDI`                                                                  |
 | `IdCFDIRelacionado`        | uniqueidentifier | FK     | FK → `CFDIGenerada`                                                                 |
 | `UUID`                     | varchar          | —      | Folio fiscal (UUID) asignado por SAT                                                |
@@ -950,7 +1023,7 @@ Cobro capturado en Validar Cobro Paso 1 (folio COB-mmddaa-#; inmutable al confir
 | `Serie` | varchar | — | Serie del comprobante fiscal |
 | `IdArchivo` | uniqueidentifier | FK | FK → `Archivo` — comprobante de pago seleccionado del correo |
 | `Confirmado` | bit | — | 0 = borrador / 1 = confirmado e inmutable (ALTER RE-023, RE-024) |
-| `FechaConfirmacion` | datetime2 | — | Timestamp de confirmación del cobro (ALTER RE-023) |
+| `FechaConfirmacion` | datetime | — | Timestamp de confirmación del cobro (ALTER RE-023) |
 | `IdUsuarioConfirmacion` | uniqueidentifier | FK | FK → `Usuario` — quién confirmó el cobro (ALTER RE-023) |
 | `Notas` | varchar | — | Notas capturadas por el usuario (ALTER RE-023) |
 | `Activo` | bit | — | 1 = vigente / **0 = inconsistencia** (cierra el pendiente del Buzón) |
@@ -969,7 +1042,9 @@ Asociación N:N cobro ↔ proforma (Paso 2). Detalle: RE-026_BD.
 | `Monto` | decimal | — | Monto de la operación |
 | `MontoPendienteAnterior` | decimal | — | Saldo pendiente de la proforma antes de aplicar este cobro |
 | `NumeroDeParcialidad` | int | — | Número de parcialidad aplicada |
-| `FechaAplicacion` | datetime2 | — | Fecha de aplicación del cobro al documento |
+| `FechaAplicacion` | datetime | — | Fecha de aplicación del cobro al documento |
+| `FechaRegistro` | datetime | — | Fecha de alta del registro |
+| `FechaUltimaActualizacion` | datetime | — | Fecha de última modificación |
 
 ### Tabla: `fccFactura`
 
@@ -983,15 +1058,16 @@ Cabecera única FAA + factura final (EsFacturaPorAdelantado); reemplaza tpProfor
 | `IdCatFacturaEstado`     | uniqueidentifier | FK     | FK → `catFacturaEstado`                        |
 | `EsFacturaPorAdelantado` | bit              | —      | 1 = FAA, 0 = factura final (RT-10)             |
 | `Enviada`                | bit              | —      | 1 = enviada al cliente con PDF+XML             |
-| `FechaEnvio`             | datetime2        | —      | Fecha y hora (UTC) del envío al cliente (v2.1) |
+| `FechaEnvio`             | datetime        | —      | Fecha y hora (UTC) del envío al cliente (v2.1) |
 | `IdCliente`              | uniqueidentifier | FK     | FK → `Cliente`                                 |
 | `IdEmpresa`              | uniqueidentifier | FK     | FK → `Empresa`                                 |
 | `FolioPedidoInterno`     | varchar          | —      | Folio interno del pedido                       |
 | `MontoTotal`             | decimal          | —      | Monto total                                    |
 | `IdCatMoneda`            | uniqueidentifier | FK     | FK → `catMoneda`                               |
-| `IdCFDIGenerada`         | uniqueidentifier | FK     | FK → `CFDIGenerada`                            |
-| `Activo`                 | bit              | —      | Borrado lógico (1 = vigente)                   |
-| `FechaRegistro`          | datetime2        | —      | Fecha de alta del registro                     |
+| `IdCFDIGenerada`           | uniqueidentifier | FK     | FK → `CFDIGenerada`                            |
+| `Activo`                   | bit              | —      | Borrado lógico (1 = vigente)                   |
+| `FechaRegistro`            | datetime         | —      | Fecha de alta del registro                     |
+| `FechaUltimaActualizacion` | datetime         | —      | Fecha de última modificación                   |
 
 ### Tabla: `fccFacturaPartida`
 
@@ -1005,7 +1081,8 @@ Partidas snapshot del pedido (1:N de fccFactura). Detalle: RE-015_BD.
 | `Cantidad` | decimal | — | Cantidad de la partida |
 | `ValorUnitario` | decimal | — | Valor unitario |
 | `Importe` | decimal | — | Importe de la partida |
-| `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
+| `FechaRegistro` | datetime | — | Fecha de alta del registro |
+| `FechaUltimaActualizacion` | datetime | — | Fecha de última modificación |
 
 ### Tabla: `fccFacturaReferenciaBancaria`
 
@@ -1019,7 +1096,8 @@ Cuentas M.N./DLS + referencia del cliente (Código Validador RE-006). Detalle: R
 | `Banco` | varchar | — | Banco (de catBanco) |
 | `NumeroCuenta` | varchar | — | Número de cuenta |
 | `Clabe` | varchar | — | CLABE interbancaria |
-| `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
+| `FechaRegistro` | datetime | — | Fecha de alta del registro |
+| `FechaUltimaActualizacion` | datetime | — | Fecha de última modificación |
 
 ### Tabla: `fccPagoFacturaAdelanto`
 
@@ -1034,6 +1112,8 @@ Asociación N:N cobro ↔ Factura por Adelantado. Detalle: RE-026_BD.
 | `IdCFDIGenerada` | uniqueidentifier | FK | FK → `CFDIGenerada` |
 | `Monto` | decimal | — | Monto de la operación |
 | `NumeroParcialidad` | int | — | Número de parcialidad aplicada |
+| `FechaRegistro` | datetime | — | Fecha de alta del registro |
+| `FechaUltimaActualizacion` | datetime | — | Fecha de última modificación |
 
 ### Tabla: `fccDocumentoFiscalCobro`
 
@@ -1052,7 +1132,7 @@ Línea de documento fiscal a emitir por cobro — snapshot CFDI 4.0 / Pagos20 (V
 | `IdCFDIGeneradaComplemento`       | uniqueidentifier | FK     | FK → `CFDIGenerada`                                |
 | `IdCatTipoOperacionSUNAT`         | uniqueidentifier | FK     | FK → `catTipoOperacionSUNAT`                       |
 | `IdCatCondicionesDePago`          | uniqueidentifier | FK     | FK → `catCondicionesDePago`                        |
-| `FechaPagoCP`                     | datetime2        | —      | Fecha de pago del Complemento (nodo Pagos)         |
+| `FechaPagoCP`                     | datetime        | —      | Fecha de pago del Complemento (nodo Pagos)         |
 | `IdCatFormaPagoSAT`               | uniqueidentifier | FK     | FK → `catFormaPagoSAT`                             |
 | `TipoCambioP_CP`                  | decimal          | —      | Tipo de cambio P del Complemento de Pago           |
 | `NumParcialidad`                  | int              | —      | Parcialidad del DoctoRelacionado (UPDLOCK, RE-030) |
@@ -1060,10 +1140,11 @@ Línea de documento fiscal a emitir por cobro — snapshot CFDI 4.0 / Pagos20 (V
 | `ImpPagado`                       | decimal          | —      | Importe pagado del DoctoRelacionado                |
 | `ImpSaldoInsoluto`                | decimal          | —      | Saldo insoluto del DoctoRelacionado                |
 | `EquivalenciaDR`                  | decimal          | —      | EquivalenciaDR multi-divisa (Pagos20)              |
-| `FechaGeneracion`                 | datetime2        | —      | Fecha de timbrado exitoso de la línea              |
-| `FechaEnvio`                      | datetime2        | —      | Fecha de envío de la línea al cliente              |
+| `FechaGeneracion`                 | datetime        | —      | Fecha de timbrado exitoso de la línea              |
+| `FechaEnvio`                      | datetime        | —      | Fecha de envío de la línea al cliente              |
 | `Activo`                          | bit              | —      | Borrado lógico (1 = vigente)                       |
-| `FechaRegistro`                   | datetime2        | —      | Fecha de alta del registro                         |
+| `FechaRegistro`                   | datetime         | —      | Fecha de alta del registro                         |
+| `FechaUltimaActualizacion`        | datetime         | —      | Fecha de última modificación                       |
 
 ### Tabla: `fccConfirmacionPedido`
 
@@ -1074,9 +1155,10 @@ Confirmación de pedido del Paso 3. Detalle: RE-028_BD.
 | `IdFCCConfirmacionPedido` | uniqueidentifier | PK | Identificador único (PK) |
 | `IdTPProformaPedido` | uniqueidentifier | FK | FK → `tpProformaPedido` |
 | `IdUsuario` | uniqueidentifier | FK | FK → `Usuario` |
-| `FechaConfirmacion` | datetime2 | — | Fecha de confirmación del pedido |
+| `FechaConfirmacion` | datetime | — | Fecha de confirmación del pedido |
 | `Activo` | bit | — | Borrado lógico (1 = vigente) |
-| `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
+| `FechaRegistro` | datetime | — | Fecha de alta del registro |
+| `FechaUltimaActualizacion` | datetime | — | Fecha de última modificación |
 
 ### Tabla: `fccSaldoFavorCliente`
 
@@ -1096,7 +1178,8 @@ Saldo a favor / tolerancia ≤100 MXN — Estado de Cuenta del cliente. Detalle:
 | `IdFCCPagoFacturaPedido` | uniqueidentifier | FK | FK → `fccPagoFacturaPedido` |
 | `Observaciones` | varchar | — | Observaciones del operador |
 | `Activo` | bit | — | Borrado lógico (1 = vigente) |
-| `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
+| `FechaRegistro` | datetime | — | Fecha de alta del registro |
+| `FechaUltimaActualizacion` | datetime | — | Fecha de última modificación |
 
 ### Tabla: `fccInconsistenciaCobro`
 
@@ -1109,7 +1192,8 @@ Inconsistencias marcadas sobre un cobro (Pasos 1 y 2). Detalle: RE-024/026_BD.
 | `IdCatTipoInconsistenciaCobro` | uniqueidentifier | FK | FK → `catTipoInconsistenciaCobro` |
 | `Notas` | varchar | — | Notas capturadas por el usuario |
 | `IdUsuario` | uniqueidentifier | FK | FK → `Usuario` |
-| `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
+| `FechaRegistro` | datetime | — | Fecha de alta del registro |
+| `FechaUltimaActualizacion` | datetime | — | Fecha de última modificación |
 
 ### Tabla: `fccNotaCredito`
 
@@ -1140,7 +1224,8 @@ Notas de Crédito (México CFDI E / Perú CPE 07); vínculo a cobro y factura or
 | `TipoCambioOrigen` | decimal | — | TC de la factura origen (aplicación multi-divisa) |
 | `IdFCCPagoCliente` | uniqueidentifier | FK | FK → `fccPagoCliente` |
 | `Activo` | bit | — | Borrado lógico (1 = vigente) |
-| `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
+| `FechaRegistro` | datetime | — | Fecha de alta del registro |
+| `FechaUltimaActualizacion` | datetime | — | Fecha de última modificación |
 
 ### Tabla: `fccNotaCreditoPartida`
 
@@ -1156,7 +1241,8 @@ Detalle por partidas de la Nota de Crédito. Detalle: RE-032_BD.
 | `Subtotal` | decimal | — | Subtotal de la partida NC |
 | `IVA` | decimal | — | IVA de la partida NC |
 | `Total` | decimal | — | Total de la partida NC |
-| `FechaRegistro` | datetime2 | — | Fecha de alta del registro |
+| `FechaRegistro` | datetime | — | Fecha de alta del registro |
+| `FechaUltimaActualizacion` | datetime | — | Fecha de última modificación |
 
 ### Tabla: `fccFechaEstimadaPagoHistorial`
 
@@ -1166,11 +1252,13 @@ Historial de cambios de la fecha estimada de pago (Gestionar Cobranza). Detalle:
 |---------|--------------|--------|-------------|
 | `IdFccFechaEstimadaPagoHistorial` | uniqueidentifier | PK | Identificador único (PK) |
 | `IdTpProformaPedido` | uniqueidentifier | FK | FK → `tpProformaPedido` |
-| `FechaEstimadaPagoAnterior` | datetime2 | — | Fecha estimada anterior |
-| `FechaEstimadaPagaNueva` | datetime2 | — | Fecha estimada nueva |
-| `FechaCambio` | datetime2 | — | Fecha del cambio |
+| `FechaEstimadaPagoAnterior` | datetime | — | Fecha estimada anterior |
+| `FechaEstimadaPagaNueva` | datetime | — | Fecha estimada nueva |
+| `FechaCambio` | datetime | — | Fecha del cambio |
 | `IdUsuarioCambio` | uniqueidentifier | FK | FK → `Usuario` |
 | `Motivo` | varchar | — | Motivo del cambio |
+| `FechaRegistro` | datetime | — | Fecha de alta del registro |
+| `FechaUltimaActualizacion` | datetime | — | Fecha de última modificación |
 
 ---
 
@@ -1215,10 +1303,12 @@ dotnet ef dbcontext scaffold \
   --table catTipoOperacionSUNAT \
   --table catMotivoCancelacionSAT \
   --table catMotivoCreditoSUNAT09 \
-  --table catImpuestoSat \
+  --table catImpuesto \
   --table catTipoFactorSat \
   --table catObjetoImpuestoSat \
   --table PerfilFiscal \
+  --table FamiliaRegion \
+  --table Familia \
   --table tpProformaPedido \
   --table tpProformaPartidaPedido \
   --table Empresa \
@@ -1245,7 +1335,7 @@ dotnet ef dbcontext scaffold \
 
 **Notas del comando:**
 
-- **Conexión:** cadena estándar del proyecto (`RYNL010` / `ProquifaDotNet`, Integrated Security). En ambientes DEV/QA sustituir el `Data Source` por el servidor correspondiente (ej. `WIN-R14-DEV\DEV_R17_APPS`) sin alterar el resto de la cadena.
+- **Conexión:** cadena estándar del proyecto (`RYNL010` / `ProquifaDotNet`, Integrated Security). En ambientes DEV/QA sustituir el `Data Source` por el servidor correspondiente (ej. `WIN-R17-DEV\DEV_R17_APPS`) sin alterar el resto de la cadena.
 - **Vistas** (`vfccFactura`, `vfccDocumentoFiscalCobro`, `vUsuarioCartera`): el scaffold las genera como entidades sin llave (keyless, `[Keyless]`/`HasNoKey()`) — solo lectura.
 - `--no-onconfiguring`: la cadena de conexión se inyecta por DI desde `appsettings.json`, no se incrusta en el contexto.
 - `--data-annotations` + `--no-pluralize`: nombres de entidad 1:1 con la tabla (regla 1 — las columnas de BD conservan su nomenclatura en español; solo el código nuevo se escribe en inglés, regla 6).

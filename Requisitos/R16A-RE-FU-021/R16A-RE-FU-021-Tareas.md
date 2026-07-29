@@ -418,11 +418,11 @@ Implementar el servicio que consolida todos los datos necesarios del CFDI 4.0 en
 - Resolver branding (logo, colores, certificaciones) según `EmpresaClave` del pedido (GOL/MUN/PRO/PQF).
 
 **Resultado esperado:**
-Servicio `MexicoInvoicePdfMappingService` (o equivalente) que recibe el `IdCFDI` y retorna un modelo `InvoicePdfModel` completamente poblado, listo para ser pasado al generador de DocumentBuilder (Tareas 5–8) tanto para previsualización (sin datos de timbrado) como para el PDF definitivo (con `TimbreFiscalDigital` completo).
+Servicio `InvoicePdfMappingService` (o equivalente) que recibe el `IdCFDI` y retorna un modelo `InvoicePdfModel` completamente poblado, listo para ser pasado al generador de DocumentBuilder (Tareas 5–8) tanto para previsualización (sin datos de timbrado) como para el PDF definitivo (con `TimbreFiscalDigital` completo).
 
 **Entregables:**
 - Clase `InvoicePdfModel` con todas las secciones del PDF
-- Servicio `MexicoInvoicePdfMappingService`
+- Servicio `InvoicePdfMappingService`
 - Prueba unitaria con datos de los 4 CFDIs reales de referencia (Mungen 2374, Golocaer 7156, Proquifa 20913, Proveedora 143103)
 
 **Criterios de aceptación:**
@@ -466,8 +466,8 @@ Ver sección *"Fuentes de Datos para el PDF"* en `R16A-RE-FU-021_BD.md`. Ver cri
 Implementar el servicio que, tras el timbrado exitoso del PAC, genera el PDF definitivo de la Factura CFDI 4.0 (con `TimbreFiscalDigital` completo) y lo persiste en Minio vía la tabla `Archivo`, referenciado desde la tabla `CFDIGenerada` (propiedad de ProquifaDotNet.Finanzas, en la base de datos ProquifaDotNet).
 
 **Objetivos específicos:**
-- Invocar `MexicoInvoicePdfMappingService` (Tarea 5) con el `IdCFDI` y el XML timbrado del PAC para obtener el `InvoicePdfModel` definitivo.
-- Invocar `GenerateMexicoInvoicePdfService` (Tarea 6) para generar el PDF en bytes.
+- Invocar `InvoicePdfMappingService` (Tarea 5) con el `IdCFDI` y el XML timbrado del PAC para obtener el `InvoicePdfModel` definitivo.
+- Invocar `GenerateInvoicePdfService` (Tarea 6) para generar el PDF en bytes.
 - `INSERT Archivo` (PDF, `FileBucket='facturas'`, `IdRegion='MEX'`) en ProquifaDotNet.Finanzas.
 - Actualizar `CFDIGenerada.IdArchivoPdf` directamente en BD (vía EF Core), sin llamada API, ya que `CFDIGenerada` es propiedad de ProquifaDotNet.Finanzas.
 - Garantizar atomicidad: si la persistencia en Minio falla, reintentar sin re-timbrar. Registrar en log con Serilog el resultado (módulo, `IdCFDI`, fecha, resultado).
@@ -476,7 +476,7 @@ Implementar el servicio que, tras el timbrado exitoso del PAC, genera el PDF def
 PDF de la Factura CFDI 4.0 persistido en Minio como artefacto fiscal inmutable, referenciado desde la tabla `CFDIGenerada`, disponible para consultas y envíos posteriores sin regeneración.
 
 **Entregables:**
-- Servicio `PersistMexicoInvoicePdfService` (o equivalente)
+- Servicio `PersistInvoicePdfService` (o equivalente)
 - Manejo de reintentos de persistencia sin re-timbrado
 - Registro en log con Serilog (módulo, `IdCFDI`, fecha, resultado)
 
@@ -507,17 +507,17 @@ Ver criterios J1–J2, Regla 5 en `R16A-RE-FU-021.md`, y sección *"Persistencia
 
 **Consideraciones previas:**
 - La Tarea 13 de RE-FU-019 (`AdvanceInvoiceGenerateService`) dejó los pasos 10-11 del flujo como placeholder: "almacenar PDF+XML en Minio — PDF real se define en requisito independiente".
-- Esta tarea implementa esos pasos con la lógica real: invocar `PersistMexicoInvoicePdfService` (Tarea 10) tras el timbrado exitoso del PAC.
+- Esta tarea implementa esos pasos con la lógica real: invocar `PersistInvoicePdfService` (Tarea 10) tras el timbrado exitoso del PAC.
 - Aplica únicamente a facturas de región México (GOL/MUN/PRO/PQF). El flujo Perú (RE-FU-020) tiene su propio branch.
-- Depende de la Tarea 10 (`PersistMexicoInvoicePdfService`) que debe estar disponible antes de integrar.
+- Depende de la Tarea 10 (`PersistInvoicePdfService`) que debe estar disponible antes de integrar.
 - No se modifica la lógica de timbrado ni los pasos 1-9 del flujo existente; solo se reemplazan los pasos 10-11 placeholder.
 
 **Objetivo general:**
-Reemplazar los pasos 10-11 placeholder de `AdvanceInvoiceGenerateService` (RE-FU-019 T13) con la llamada real a `PersistMexicoInvoicePdfService`, completando el flujo de generación de la Factura por Adelantado México con la persistencia del PDF definitivo CFDI 4.0 en Minio.
+Reemplazar los pasos 10-11 placeholder de `AdvanceInvoiceGenerateService` (RE-FU-019 T13) con la llamada real a `PersistInvoicePdfService`, completando el flujo de generación de la Factura por Adelantado México con la persistencia del PDF definitivo CFDI 4.0 en Minio.
 
 **Objetivos específicos:**
-- Inyectar `IPersistMexicoInvoicePdfService` en `AdvanceInvoiceGenerateService`.
-- Reemplazar el paso 10 placeholder con: `await _persistirFacturaMexicoPdfService.PersistirAsync(idCFDI, response.XmlTimbrado)`.
+- Inyectar `IPersistInvoicePdfService` en `AdvanceInvoiceGenerateService`.
+- Reemplazar el paso 10 placeholder con: `await _persistirFacturaPdfService.PersistirAsync(idCFDI, response.XmlTimbrado)`.
 - Verificar que el paso 11 (INSERT Archivo XML — patrón existente) permanece sin cambios.
 - Validar que si `PersistirAsync` falla, el error se maneja sin re-timbrar ante el PAC.
 - Registrar en Serilog el resultado de la persistencia dentro del flujo de generación.
@@ -555,7 +555,7 @@ Ver sección "Integración con RE-FU-019 — T13 pasos 10-11" en `R16A-RE-FU-021
 **Consideraciones previas:**
 - La Tarea 15 de RE-FU-019 (`AdvanceInvoicePreviewService`) dejó la resolución del template como placeholder: "template placeholder — definir en requisito independiente".
 - Esta tarea reemplaza ese placeholder con la resolución dinámica del `TemplateKey` de DocumentBuilder según la empresa emisora del pedido (GOL/MUN/PRO/PQF).
-- Depende de las Tareas 5-8 (templates `GOL/MUN/PRO/PQF_MEX_FAC` registrados en DocumentBuilder) y de la Tarea 9 (`MexicoInvoicePdfMappingService.MapearPreviewAsync` disponible).
+- Depende de las Tareas 5-8 (templates `GOL/MUN/PRO/PQF_MEX_FAC` registrados en DocumentBuilder) y de la Tarea 9 (`InvoicePdfMappingService.MapearPreviewAsync` disponible).
 - El preview usa el modelo sin `TimbreFiscalDigital` (campos de Sección H en null): UUID, sellos, QR y cadena original no están presentes hasta el timbrado real.
 - Aplica únicamente a facturas de región México. El flujo Perú (RE-FU-020) tiene su propio branch de preview.
 
@@ -563,7 +563,7 @@ Ver sección "Integración con RE-FU-019 — T13 pasos 10-11" en `R16A-RE-FU-021
 Reemplazar el template placeholder de `AdvanceInvoicePreviewService` (RE-FU-019 T15) con la resolución dinámica del `TemplateKey` de DocumentBuilder según la `EmpresaClave` del pedido, completando el flujo de previsualización del PDF de la Factura por Adelantado México con las plantillas reales CFDI 4.0.
 
 **Objetivos específicos:**
-- Inyectar `IMexicoInvoicePdfMappingService` en `AdvanceInvoicePreviewService`.
+- Inyectar `IInvoicePdfMappingService` en `AdvanceInvoicePreviewService`.
 - Invocar `MapearPreviewAsync(idCFDIGenerada)` para obtener el `InvoicePdfModel` sin `TimbreFiscalDigital`.
 - Resolver el `TemplateKey` dinámicamente según `EmpresaClave`: GOL → `GOL_MEX_FAC`, MUN → `MUN_MEX_FAC`, PRO → `PRO_MEX_FAC`, PQF → `PQF_MEX_FAC`.
 - Invocar DocumentBuilder con el `TemplateKey` resuelto y el modelo para generar el PDF en bytes.
@@ -601,19 +601,19 @@ Ver sección "Integración con RE-FU-019 — T15 template" en `R16A-RE-FU-021-Ba
 
 **Consideraciones previas:**
 - El requisito RE-FU-021 es explícito en su alcance: "Facturas originadas en Validar Cobro (cobro recibido aplicado a Proforma de Prepago sin controlados)."
-- En el flujo de Validar Cobro, el paso "Genera Factura Normal PPD" es el punto de timbrado exitoso ante el PAC. Es inmediatamente después de este paso donde debe invocarse `PersistMexicoInvoicePdfService` (Tarea 10) para generar y persistir el PDF como artefacto fiscal inmutable.
+- En el flujo de Validar Cobro, el paso "Genera Factura Normal PPD" es el punto de timbrado exitoso ante el PAC. Es inmediatamente después de este paso donde debe invocarse `PersistInvoicePdfService` (Tarea 10) para generar y persistir el PDF como artefacto fiscal inmutable.
 - El flujo completo de Validar Cobro es: Genera Factura Normal PPD → Pendiente en Validar Pago → Validar Pago (Tesorería, máx 72 hrs) → ¿Pago válido? → Sí: Genera Complemento de Pago → Desbloquea Tramitar Pedido / No: Elimina pago y correo del buzón (reintenta).
 - Esta tarea cubre únicamente la integración del PDF en el paso "Genera Factura Normal PPD". La generación del Complemento de Pago pertenece a un requisito independiente (ver alcance del RE-FU-021: "Generación del Complemento de Pago: se documenta en requisito independiente del módulo Validar Cobro").
 - Aplica únicamente a facturas de región México (GOL/MUN/PRO/PQF).
-- Depende de la Tarea 10 (`PersistMexicoInvoicePdfService`) disponible antes de integrar.
+- Depende de la Tarea 10 (`PersistInvoicePdfService`) disponible antes de integrar.
 - Si la generación o persistencia del PDF falla tras el timbrado exitoso, debe reintentarse sin re-timbrar ante el PAC.
 
 **Objetivo general:**
-Integrar la llamada a `PersistMexicoInvoicePdfService` en el servicio de Validar Cobro que ejecuta el paso "Genera Factura Normal PPD", de modo que el PDF de la Factura CFDI 4.0 se genere y persista en Minio como artefacto fiscal inmutable inmediatamente después del timbrado exitoso ante el PAC, cubriendo el alcance del RE-FU-021 para facturas originadas en Validar Cobro.
+Integrar la llamada a `PersistInvoicePdfService` en el servicio de Validar Cobro que ejecuta el paso "Genera Factura Normal PPD", de modo que el PDF de la Factura CFDI 4.0 se genere y persista en Minio como artefacto fiscal inmutable inmediatamente después del timbrado exitoso ante el PAC, cubriendo el alcance del RE-FU-021 para facturas originadas en Validar Cobro.
 
 **Objetivos específicos:**
 - Identificar el servicio/comando de Validar Cobro en ProquifaDotNet.Finanzas que ejecuta el timbrado de la Factura Normal PPD.
-- Inyectar `IPersistMexicoInvoicePdfService` en dicho servicio.
+- Inyectar `IPersistInvoicePdfService` en dicho servicio.
 - Invocar `PersistirAsync(idCFDI, xmlTimbrado)` inmediatamente después del timbrado exitoso del PAC, antes de transicionar al estado "Pendiente en Validar Pago".
 - Validar que si `PersistirAsync` falla, el error se maneja sin re-timbrar ante el PAC y el flujo de Validar Cobro continúa correctamente hacia "Pendiente en Validar Pago".
 - Registrar en Serilog el resultado de la persistencia (módulo, `IdCFDI`, fecha, resultado).
@@ -622,7 +622,7 @@ Integrar la llamada a `PersistMexicoInvoicePdfService` en el servicio de Validar
 El flujo de Validar Cobro genera y persiste el PDF de la Factura CFDI 4.0 en Minio como artefacto fiscal inmutable inmediatamente tras el timbrado exitoso, de forma consistente con el comportamiento implementado para Factura por Adelantado (Tarea 11).
 
 **Entregables:**
-- Servicio de Validar Cobro (Genera Factura Normal PPD) actualizado con llamada real a `PersistMexicoInvoicePdfService`
+- Servicio de Validar Cobro (Genera Factura Normal PPD) actualizado con llamada real a `PersistInvoicePdfService`
 - Manejo de error de persistencia sin re-timbrado
 - Registro en Serilog (módulo, `IdCFDI`, fecha, resultado)
 
@@ -634,9 +634,9 @@ El flujo de Validar Cobro genera y persiste el PDF de la Factura CFDI 4.0 en Min
 - La operación queda registrada en Serilog con `IdCFDI`, fecha y resultado.
 
 **Más información de la tarea:**
-Ver sección "Alcance — Aplica a" en `R16A-RE-FU-021.md` (facturas originadas en Validar Cobro). Ver Gap 5 en el análisis de validación de tareas vs requisito. Ver Tarea 10 (`PersistMexicoInvoicePdfService`) que es la dependencia directa de esta tarea.
+Ver sección "Alcance — Aplica a" en `R16A-RE-FU-021.md` (facturas originadas en Validar Cobro). Ver Gap 5 en el análisis de validación de tareas vs requisito. Ver Tarea 10 (`PersistInvoicePdfService`) que es la dependencia directa de esta tarea.
 
 **Recursos:**
 - `R16A-RE-FU-021.md` — Alcance (facturas de Validar Cobro), Regla 1, Criterios J1–J2
-- `R16A-RE-FU-021-Back.md` — Parte B, `PersistMexicoInvoicePdfService`
+- `R16A-RE-FU-021-Back.md` — Parte B, `PersistInvoicePdfService`
 - Diagrama de flujo Validar Cobro: Genera Factura Normal PPD → Pendiente Validar Pago → Validar Pago → Pago válido? → Complemento de Pago / Elimina pago

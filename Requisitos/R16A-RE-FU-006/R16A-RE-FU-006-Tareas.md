@@ -489,7 +489,7 @@ ETL — Catálogo de Clientes → Legacy
 
 **Consideraciones previas:**
 - El ETL de Clientes a Legacy ya existe en SSIS (PCconnect). Esta tarea analiza **qué campos nuevos de R16 requieren actualización en el paquete existente**.
-- R16 agrega o modifica datos del cliente en los siguientes requisitos: RE-002 (Cobrador: `ClienteCartera.IdUsuarioCobrador`), RE-004 (Datos Fiscales: RFC/RUC, Régimen Fiscal, Tipo de Sociedad Mercantil), RE-005 (Cobros: Forma de Pago, Uso CFDI, Método de Pago, Tipo Comprobante), RE-006 (Referencia Bancaria: `ClienteDatosBancarios`). Todos estos campos se almacenan en ProquifaDotNet y deben evaluarse para su transferencia.
+- R16 agrega o modifica datos del cliente en los siguientes requisitos: RE-002 (Cobrador: `ClienteCartera.IdUsuarioCobrador`), ~~RE-004~~ (Datos Fiscales: RFC/RUC, Régimen Fiscal, Tipo de Sociedad Mercantil — **RE-004 cancelado**; la tabla `DatosFacturacionCliente` es preexistente y los datos de México ya existen), RE-005 (Cobros: Forma de Pago, Uso CFDI, Método de Pago, Tipo Comprobante), RE-006 (Referencia Bancaria: `ClienteDatosBancarios`). Todos estos campos se almacenan en ProquifaDotNet y deben evaluarse para su transferencia.
 - Coordinarse con el equipo Legacy para confirmar qué campos nuevos deben llegar y en qué tablas destino.
 - Esta tarea precede a T7 (desarrollo del paquete SSIS) y T8 (pruebas). No puede avanzar implementación sin el mapeo aprobado.
 - **Dependencias:** T1–T5 de RE-006 deben estar completadas (tabla `ClienteDatosBancarios` y BO creados) antes de poder mapear la referencia bancaria hacia Legacy.
@@ -501,7 +501,7 @@ El ETL actual de Clientes fue diseñado antes de R16. Los nuevos campos agregado
 - Identificar el paquete SSIS existente de transferencia de Clientes en PCconnect y documentar su estructura actual.
 - Mapear los campos nuevos por sección:
   - **Datos Generales (RE-002):** `ClienteCartera.IdUsuarioCobrador` → columna/tabla en Legacy.
-  - **Datos Legales / Información Fiscal (RE-004):** `DatosFacturacionCliente.RFC`/`RUC`, `IdCatRegimenFiscal`, `IdCatTipoSociedadMercantil` → columna/tabla en Legacy.
+  - **Datos Legales / Información Fiscal (preexistente — RE-004 cancelado):** `DatosFacturacionCliente.RFC`/`RUC`, `IdCatRegimenFiscal`, `IdCatTipoSociedadMercantil` → columna/tabla en Legacy. La tabla es preexistente; los datos de México ya están cargados. El ETL solo aplica para México (Perú no transfiere a Legacy).
   - **Cobros (RE-005):** `DatosFacturacionCliente.IdCatUsoCFDI`, `IdCatMetodoDePagoCFDI`, `ConfiguracionPagos.IdCatMedioDePago`, `IdCatTipoComprobante` → columna/tabla en Legacy.
   - **Referencia Bancaria (RE-006):** `ClienteDatosBancarios` (cuentas bancarias asignadas, `CodigoValidador`) → columna/tabla en Legacy.
 - **La transferencia a Legacy aplica únicamente para México. Los datos de Perú (RUC, Régimen SUNAT, cobros Perú) NO se transfieren a Legacy.**
@@ -521,16 +521,16 @@ Documento de análisis con: paquete SSIS identificado, lista completa de campos 
 
 **Criterios de aceptación:**
 - [ ] El paquete SSIS existente de Clientes está identificado y documentado.
-- [ ] Los campos de RE-002, RE-004, RE-005 y RE-006 a incluir en el ETL están mapeados columna a columna hacia Legacy (solo datos México).
+- [ ] Los campos de RE-002, RE-005 y RE-006 a incluir en el ETL están mapeados columna a columna hacia Legacy (solo datos México). Los campos fiscales de `DatosFacturacionCliente` (RE-004 cancelado) son preexistentes — confirmar si ya están mapeados en el paquete SSIS actual.
 - [ ] Confirmado que los datos de Perú no se incluyen en la transferencia a Legacy.
 - [ ] El documento de análisis está disponible y aprobado como prerequisito para Tarea 7 y Tarea 8.
 
 **Más información de la tarea:**
-Los campos a evaluar provienen de: `ClienteCartera` (RE-002), `DatosFacturacionCliente` (RE-004 y RE-005), `ConfiguracionPagos` (RE-005), `ClienteDatosBancarios` (RE-006). Ver archivos Back de cada requisito para detalle de campos.
+Los campos a evaluar provienen de: `ClienteCartera` (RE-002), `DatosFacturacionCliente` (tabla preexistente — RE-004 cancelado; y RE-005 para campos de cobros), `ConfiguracionPagos` (RE-005), `ClienteDatosBancarios` (RE-006). Ver archivos Back de cada requisito para detalle de campos.
 
 **Recursos:**
 - `R16A-RE-FU-002-Back.md` — campo `IdUsuarioCobrador` en `ClienteCartera`
-- `R16A-RE-FU-004-Back.md` — campos fiscales en `DatosFacturacionCliente`
+- `DatosFacturacionCliente` — tabla preexistente con campos fiscales (RE-004 cancelado; confirmar estado actual del mapeo SSIS para estos campos)
 - `R16A-RE-FU-005-Back.md` — campos de cobros en `DatosFacturacionCliente` y `ConfiguracionPagos`
 - `R16A-RE-FU-006-Back.md` — tabla `ClienteDatosBancarios` (Referencia Bancaria)
 - Paquete SSIS existente de Clientes en PCconnect
@@ -587,7 +587,7 @@ Ver mapeo de campos en el documento de análisis de Tarea 6. Los campos nuevos p
 **Recursos:**
 - Documento de análisis de Tarea 6 (mapeo origen → destino)
 - Paquete SSIS existente de Clientes en PCconnect
-- `R16A-RE-FU-002-Back.md`, `R16A-RE-FU-004-Back.md`, `R16A-RE-FU-005-Back.md`, `R16A-RE-FU-006-Back.md`
+- `R16A-RE-FU-002-Back.md`, `R16A-RE-FU-005-Back.md`, `R16A-RE-FU-006-Back.md` (RE-004 cancelado — tabla `DatosFacturacionCliente` preexistente)
 
 ---
 
@@ -651,4 +651,4 @@ Esta tarea cierra el ciclo ETL de Clientes para R16, integrando todos los cambio
 - Documento de análisis de Tarea 6 (mapeo de campos)
 - Paquete SSIS actualizado de Tarea 7
 - Acceso de lectura a tablas Legacy destino en ambiente QA
-- `R16A-RE-FU-002-Back.md`, `R16A-RE-FU-004-Back.md`, `R16A-RE-FU-005-Back.md`, `R16A-RE-FU-006-Back.md`
+- `R16A-RE-FU-002-Back.md`, `R16A-RE-FU-005-Back.md`, `R16A-RE-FU-006-Back.md` (RE-004 cancelado — tabla `DatosFacturacionCliente` preexistente)

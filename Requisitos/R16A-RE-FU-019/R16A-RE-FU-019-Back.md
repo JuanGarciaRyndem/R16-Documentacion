@@ -46,8 +46,8 @@ Ampliar la solución Timbrado (creada en RE-FU-018) para soportar el manejo de f
 | FormatoFolio | varchar(50) | Patrón de formato del folio (default: `'{folio}'`) |
 | LongitudMaxima | int | Longitud máxima del folio (default: 6) |
 | Activo | bit | Borrado lógico |
-| FechaRegistro | datetime2(7) | Fecha de alta |
-| FechaUltimaActualizacion | datetime2(7) | Última actualización del consecutivo |
+| FechaRegistro | datetime | Fecha de alta |
+| FechaUltimaActualizacion | datetime | Última actualización del consecutivo |
 
 #### Domain — Interface IEmpresaFolioRepository
 
@@ -92,7 +92,7 @@ public class EmpresaFolioRepository : GenericRepository<EmpresaFolio>, IEmpresaF
         // UPDATE atómico con UPDLOCK — sin dependencia de tabla legacy
         // UPDATE EmpresaFolio
         // SET    UltimoFolio = UltimoFolio + 1,
-        //        FechaUltimaActualizacion = SYSUTCDATETIME()
+        //        FechaUltimaActualizacion = GETDATE()
         // OUTPUT inserted.UltimoFolio
         // WHERE  IdEmpresa = @idEmpresa
         //   AND  (Serie = @serie OR (Serie IS NULL AND @serie IS NULL))
@@ -307,7 +307,7 @@ ORDER BY FechaTramitacion DESC
 4. Enviar correo via Brevo con adjuntos PDF+XML
 5. Si envío EXITOSO:
    a. INSERT CorreoEnviado + ArchivoCorreoEnviado (PDF, XML)
-   b. UPDATE fccFactura SET Enviada = 1, FechaEnvio = SYSUTCDATETIME(), IdCatFacturaEstado = ENVIADA
+   b. UPDATE fccFactura SET Enviada = 1, FechaEnvio = GETDATE(), IdCatFacturaEstado = ENVIADA
       (catFacturaEstado y FechaEnvio, RE-FU-015 v2.1; antes: UPDATE tpProformaAdelanto SET Enviada = 1)
    c. Ejecutar salida operativa según tipo de pedido:
       - Crédito: transferir factura a Legacy (Pendientes, Pedido, Partidas, Cobro, PDF)

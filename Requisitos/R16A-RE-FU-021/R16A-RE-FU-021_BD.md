@@ -51,7 +51,7 @@ Aplica a FAA (RE-FU-019) y a Validar Cobro. Solo Region MEX.
 | 3   | CREATE TABLE catClaveProdServSAT + INSERT catalogo c_ClaveProdServ SAT (claves relevantes PROQUIFA)                                                                                                    | DDL + DML | Media     | ⏸ En espera |
 | 4   | ALTER TABLE CFDIGenerada ADD Exportacion varchar(2) NULL                                                                                                                                               | DDL       | Alta      | Pendiente   |
 | 5   | ALTER TABLE CFDIGenerada ADD snapshot Emisor/Receptor (RazonSocialEmisor, RegimenFiscal, LugarExpedicion, RazonSocialReceptor, RegimenFiscalReceptor, CodigoPostalReceptor, CondicionesPago, Subtotal) | DDL       | Alta      | Pendiente   |
-| 6   | ALTER TABLE CFDIGenerada ADD IdArchivoPdf uniqueidentifier NULL, FechaCertificacionSat datetime2(7) NULL (+ FK a Archivo)                                                                              | DDL       | Alta      | Pendiente   |
+| 6   | ALTER TABLE CFDIGenerada ADD IdArchivoPdf uniqueidentifier NULL, FechaCertificacionSat datetime NULL (+ FK a Archivo)                                                                              | DDL       | Alta      | Pendiente   |
 
 > **⏸ En espera (ítems 1, 2, 3):** `Producto.ClaveProdServSAT`, `catUnidad.ClaveSAT` y `catClaveProdServSAT` están pausados pendiente de definición/confirmación externa. Los ítems 4–6 sobre `CFDIGenerada` pueden ejecutarse independientemente.
 > **ClaveProdServSAT** no existe en Producto — obligatorio para concepto del CFDI 4.0.
@@ -76,7 +76,7 @@ por requisitos previos) + columnas nuevas agregadas por este requisito (marcadas
 | RFCReceptor | varchar(50) | RE-FU-019 (base) | RFC/RUC del cliente receptor |
 | Serie | varchar(25) | RE-FU-019 (base) | Serie del CFDI |
 | Folio | varchar(40) | RE-FU-019 (base) | Folio por empresa emisora |
-| FechaEmision | datetime2(7) | RE-FU-019 (base) | Fecha/hora de emision |
+| FechaEmision | datetime | RE-FU-019 (base) | Fecha/hora de emision |
 | UUID | varchar(36) | RE-FU-019 (base) | Folio Fiscal SAT (36 chars) |
 | Total | decimal(18,2) | RE-FU-019 (base) | Total del CFDI |
 | IdCatTipoCFDI | uniqueidentifier | RE-FU-028 | FK -> catTipoCFDI |
@@ -88,7 +88,7 @@ por requisitos previos) + columnas nuevas agregadas por este requisito (marcadas
 | IdArchivoXml | uniqueidentifier | RE-FU-018 | FK -> Archivo (XML timbrado en Minio) |
 | Estado | varchar(30) | RE-FU-018 | Pendiente/Timbrado/Error/Cancelado |
 | MensajeError | varchar(max) | RE-FU-018 | Detalle de error de timbrado, si aplica |
-| FechaUltimaActualizacion | datetime2(7) | RE-FU-018 | Ultima actualizacion de estatus |
+| FechaUltimaActualizacion | datetime | RE-FU-018 | Ultima actualizacion de estatus |
 | **Exportacion** | **varchar(2)** | **RE-FU-021 (NUEVO)** | **'01' No aplica (campo obligatorio CFDI 4.0)** |
 | **RazonSocialEmisor** | **varchar(200)** | **RE-FU-021 (NUEVO)** | **Nombre legal del emisor (snapshot)** |
 | **RegimenFiscal** | **varchar(3)** | **RE-FU-021 (NUEVO)** | **601 General de Ley PM (snapshot)** |
@@ -99,7 +99,7 @@ por requisitos previos) + columnas nuevas agregadas por este requisito (marcadas
 | **CondicionesPago** | **varchar(80)** | **RE-FU-021 (NUEVO)** | **PREPAGO 100%, 30 DIAS, etc.** |
 | **Subtotal** | **decimal(18,2)** | **RE-FU-021 (NUEVO)** | **Suma de importes de partidas (previo a IVA)** |
 | **IdArchivoPdf** | **uniqueidentifier** | **RE-FU-021 (NUEVO)** | **FK -> Archivo (PDF de la Factura en Minio)** |
-| **FechaCertificacionSat** | **datetime2(7)** | **RE-FU-021 (NUEVO)** | **Fecha/hora de certificacion PAC** |
+| **FechaCertificacionSat** | **datetime** | **RE-FU-021 (NUEVO)** | **Fecha/hora de certificacion PAC** |
 
 > Los sellos digitales, la cadena original y el numero de serie de certificados **no se
 > persisten como columnas**: se leen directamente del `TimbreFiscalDigital` del XML
@@ -137,7 +137,7 @@ por requisitos previos) + columnas nuevas agregadas por este requisito (marcadas
     -- Created by GitHub Copilot in SSMS - review carefully before executing
     ALTER TABLE dbo.CFDIGenerada
         ADD IdArchivoPdf uniqueidentifier NULL,
-            FechaCertificacionSat datetime2(7) NULL;
+            FechaCertificacionSat datetime NULL;
     GO
     ALTER TABLE dbo.CFDIGenerada
         ADD CONSTRAINT [FK_CFDIGenerada_ArchivoPdf]

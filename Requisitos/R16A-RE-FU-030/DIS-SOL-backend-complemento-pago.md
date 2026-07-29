@@ -1394,7 +1394,7 @@ Continúa el flujo tras el retorno exitoso de Timbrado (sección anterior). Esta
 
 ### PaymentComplementPdfMappingService y PersistPaymentComplementPdfService
 
-Rutas propuestas: `Proquifa.Finanzas.Application/Services/PaymentComplement/PaymentComplementPdfMappingService.cs` y `.../PersistPaymentComplementPdfService.cs`. Patrón de referencia: `FacturaMexicoPdfMappingService` / `PersistirFacturaMexicoPdfService` (RE-021).
+Rutas propuestas: `Proquifa.Finanzas.Application/Services/PaymentComplement/PaymentComplementPdfMappingService.cs` y `.../PersistPaymentComplementPdfService.cs`. Patrón de referencia: `FacturaPdfMappingService` / `PersistirFacturaPdfService` (RE-021).
 
 ```csharp
 namespace Proquifa.Finanzas.Application.Services.PaymentComplement

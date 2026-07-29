@@ -45,12 +45,12 @@ Al confirmar el envío de cada línea, el sistema dispara automáticamente tres 
 | `tpProformaPedido.HayControlados`                   | RE-FU-013/014 | Flag que determina `FACTURA` vs `FACTURA_ANTICIPO` en la lógica condicional                                                                            |
 | `fccFactura.IdCFDIGenerada` (RE-FU-015, antes `tpProformaAdelanto.IdCFDIGenerada`) | RE-FU-015     | UUID de la FAA para `CFDIRelacionados` del Complemento de Pago                                                                                         |
 | `catFacturaEstado` + `fccFactura.IdCatFacturaEstado` | RE-FU-015 v2.1 | Estado del ciclo de vida de la factura FAA — al llegar al Paso 3 la FAA ya está en PAGADA/PAGADA_PARCIAL (transición ejecutada en el Paso 2, RE-FU-026); el Paso 3 no la modifica. Aplica solo a facturas con registro en `fccFactura` (origen FAA); las facturas emitidas desde proforma no tienen registro en `fccFactura` y su ciclo se rastrea por `EstadoLinea` + `CFDIGenerada` |
-| `DatosFacturacionCliente`                           | RE-FU-004     | RFC, Razón Social, Régimen Fiscal Receptor del CFDI 4.0                                                                                                |
+| `DatosFacturacionCliente`                           | Preexistente (RE-FU-004 cancelado) | RFC, Razón Social, Régimen Fiscal Receptor del CFDI 4.0                                                                                                |
 | `Empresa`                                           | Existente     | RFC Emisor, Régimen Fiscal Emisor, Prefijo por empresa PROQUIFA México                                                                                 |
 | Patrón timbrado PAC TurboPac                        | RE-FU-019     | Mismo flujo de timbrado y manejo de errores del PAC                                                                                                    |
 | `ApiCallerStamping` (HttpClient + Polly)            | RE-FU-019     | Cliente HTTP con retry policy hacia Timbrado — ya implementado; el Paso 3 usa `StampInvoiceAsync` (`POST /api/v1/stamp/invoice`) para Factura/Factura Anticipo y `StampPaymentComplementAsync` (`POST /api/v1/stamp/payment-complement`) para el CP en cascada                                                               |
-| `MexicoInvoicePdfMappingService`                    | RE-FU-021     | Consolida datos CFDI 4.0 en `InvoicePdfModel`; `MapearPreviewAsync` para preview, `MapearAsync` para PDF definitivo                                    |
-| `PersistMexicoInvoicePdfService`                  | RE-FU-021     | Genera PDF definitivo post-timbrado → lo sube a MinIO → INSERT `Archivo` → UPDATE `CFDI`. GAP-10 de RE-021 anticipó esta integración con Validar Cobro |
+| `InvoicePdfMappingService`                    | RE-FU-021     | Consolida datos CFDI 4.0 en `InvoicePdfModel`; `MapearPreviewAsync` para preview, `MapearAsync` para PDF definitivo                                    |
+| `PersistInvoicePdfService`                  | RE-FU-021     | Genera PDF definitivo post-timbrado → lo sube a MinIO → INSERT `Archivo` → UPDATE `CFDI`. GAP-10 de RE-021 anticipó esta integración con Validar Cobro |
 | Templates DocumentBuilder `GOL/MUN/PRO/PQF_MEX_FAC` | RE-FU-021     | Plantillas de Factura CFDI 4.0 por empresa emisora — ya implementadas, se usan en Paso 3 sin cambios                                                   |
 
 ---
@@ -135,7 +135,7 @@ ALTER TABLE dbo.CFDIGenerada ADD IdCFDIRelacionado uniqueidentifier NULL;
 
 ```sql
 -- Ejecutar solo si la columna no existe en RYNL010
-ALTER TABLE dbo.tpPedido ADD FechaEstimadaEntrega datetime2(7) NULL;
+ALTER TABLE dbo.tpPedido ADD FechaEstimadaEntrega datetime NULL;
 ```
 
 Se establece automáticamente al confirmar el envío exitoso de cada línea del Paso 3 (solo México).
@@ -186,7 +186,7 @@ Si al reingresar al Paso 3 ya existen filas en `fccDocumentoFiscalCobro` para el
 
 **Flujo:**
 1. Finanzas lee `vfccDocumentoFiscalCobro` + `fccNotaCredito` (NCs a incluir en `CFDIRelacionados`).
-2. Para líneas `FACTURA` y `FACTURA_ANTICIPO`: invoca `MexicoInvoicePdfMappingService.MapearPreviewAsync(idCFDIGenerada)` (RE-FU-021) — consolida datos fiscales en `InvoicePdfModel` sin `TimbreFiscalDigital`, resuelve `TemplateKey` dinámicamente (`GOL/MUN/PRO/PQF_MEX_FAC`) y genera PDF en memoria vía DocumentBuilder.
+2. Para líneas `FACTURA` y `FACTURA_ANTICIPO`: invoca `InvoicePdfMappingService.MapearPreviewAsync(idCFDIGenerada)` (RE-FU-021) — consolida datos fiscales en `InvoicePdfModel` sin `TimbreFiscalDigital`, resuelve `TemplateKey` dinámicamente (`GOL/MUN/PRO/PQF_MEX_FAC`) y genera PDF en memoria vía DocumentBuilder.
 3. Para líneas `COMPLEMENTO_PAGO`: la previsualización del PDF del Complemento se implementa en **R16A-RE-FU-030** (Diseño y generación: Complemento de Pago México).
 4. Retorna el PDF en memoria al frontend para mostrar en el modal de previsualización.
 5. Sin escrituras en BD.
@@ -206,14 +206,14 @@ Si al reingresar al Paso 3 ya existen filas en `fccDocumentoFiscalCobro` para el
 1. Finanzas → Timbrado: solicita timbrado de Factura PUE con datos del documento y NCs en `CFDIRelacionados`.
 2. Timbrado invoca PAC TurboPac, inserta en `CFDIGenerada` (`IdCatTipoCFDI` → `FACTURA_PUE`), actualiza `EmpresaFolio`.
 3. Retorna UUID + Folio + XML timbrado a Finanzas.
-4. Finanzas: invoca `PersistMexicoInvoicePdfService.PersistirAsync(IdCFDI, xmlTimbrado)` (RE-FU-021 GAP-10) — genera PDF definitivo con `TimbreFiscalDigital`, lo sube a MinIO, INSERT `Archivo`, UPDATE `CFDI.IdArchivoPdf`.
+4. Finanzas: invoca `PersistInvoicePdfService.PersistirAsync(IdCFDI, xmlTimbrado)` (RE-FU-021 GAP-10) — genera PDF definitivo con `TimbreFiscalDigital`, lo sube a MinIO, INSERT `Archivo`, UPDATE `CFDI.IdArchivoPdf`.
 5. Finanzas: `UPDATE fccDocumentoFiscalCobro SET EstadoLinea = GENERADO, IdCFDIGeneradaFactura = @Id, FechaGeneracion`.
 6. Finanzas: `UPDATE tpProformaPedido SET IdCFDIGenerada = @IdCFDIFactura`.
 
 **Escenario B — FACTURA PPD + Complemento en cascada (2 CFDIs):**
 1. Finanzas → Timbrado: solicita timbrado de Factura PPD.
 2. Timbrado: INSERT `CFDIGenerada` (`IdCatTipoCFDI` → `FACTURA_PPD`), llama PAC, actualiza `EmpresaFolio`. Retorna UUID + XML timbrado Factura.
-3. Finanzas: invoca `PersistMexicoInvoicePdfService.PersistirAsync(IdCFDIFactura, xmlFactura)` (RE-FU-021 GAP-10).
+3. Finanzas: invoca `PersistInvoicePdfService.PersistirAsync(IdCFDIFactura, xmlFactura)` (RE-FU-021 GAP-10).
 4. Finanzas → Timbrado: solicita inmediatamente timbrado del Complemento de Pago, referenciando el UUID de la Factura PPD.
 5. Timbrado: INSERT segundo `CFDIGenerada` (`IdCatTipoCFDI` → `COMPLEMENTO_PAGO`, `IdCFDIRelacionado` = `IdCFDIGenerada` de la Factura PPD). Retorna UUID + XML Complemento.
 6. Finanzas: la persistencia del PDF del Complemento de Pago (plantilla `*_MEX_COP`, MinIO) se implementa en **R16A-RE-FU-030** — en este requisito se depende de ese servicio.
@@ -426,7 +426,7 @@ Esta sección documenta todas las transferencias de datos y documentos que Proqu
 
 **Descripción:** Envío del archivo PDF de la Factura CFDI 4.0 generada hacia Legacy para almacenamiento y consulta desde el sistema legado.
 
-**Dependencia:** R16A-RE-FU-021 — Diseño y generación PDF Factura México (define el PDF generado por `PersistMexicoInvoicePdfService` almacenado en MinIO).
+**Dependencia:** R16A-RE-FU-021 — Diseño y generación PDF Factura México (define el PDF generado por `PersistInvoicePdfService` almacenado en MinIO).
 
 **Datos origen:**
 
@@ -469,8 +469,8 @@ Esta sección documenta todas las transferencias de datos y documentos que Proqu
 
 | Documento                          | TemplateKey               | Estado                                                        | Disparado por                                                         |
 | ---------------------------------- | ------------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------- |
-| PDF Factura México                 | `GOL/MUN/PRO/PQF_MEX_FAC` | **Existente** (RE-FU-021)                                     | `MexicoInvoicePdfMappingService` + `PersistMexicoInvoicePdfService` |
-| PDF Factura Anticipo México        | `GOL/MUN/PRO/PQF_MEX_FAC` | **Existente** (RE-FU-021, misma plantilla con datos anticipo) | `MexicoInvoicePdfMappingService` + `PersistMexicoInvoicePdfService` |
+| PDF Factura México                 | `GOL/MUN/PRO/PQF_MEX_FAC` | **Existente** (RE-FU-021)                                     | `InvoicePdfMappingService` + `PersistInvoicePdfService` |
+| PDF Factura Anticipo México        | `GOL/MUN/PRO/PQF_MEX_FAC` | **Existente** (RE-FU-021, misma plantilla con datos anticipo) | `InvoicePdfMappingService` + `PersistInvoicePdfService` |
 | PDF Complemento de Pago México     | `GOL/MUN/PRO/PQF_MEX_COP` | **Nueva — definir en RE-FU-030**                              | Ver R16A-RE-FU-030 — Diseño y generación: Complemento de Pago México  |
 | PDF Confirmación de Pedido Prepago | `GOL/MUN/PRO/PQF_MEX_CDP` | **Nueva — definir en RE-FU-028**                              | Finanzas al enviar (post-envío, solo México)                          |
 

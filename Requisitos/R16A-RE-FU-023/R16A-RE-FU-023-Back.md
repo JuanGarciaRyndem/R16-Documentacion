@@ -78,7 +78,7 @@ ALTER TABLE dbo.fccPagoCliente
     ADD Confirmado bit NOT NULL CONSTRAINT DF_fccPagoCliente_Confirmado DEFAULT (0);
 
 ALTER TABLE dbo.fccPagoCliente
-    ADD FechaConfirmacion datetime2 NULL;
+    ADD FechaConfirmacion datetime NULL;
 
 ALTER TABLE dbo.fccPagoCliente
     ADD IdUsuarioConfirmacion uniqueidentifier NULL;
@@ -102,14 +102,14 @@ ALTER TABLE dbo.fccPagoCliente
 -- ❌ PENDIENTE — ejecutar en ProquifaDotNet
 -- Trazabilidad cancelación por falta de pago
 ALTER TABLE dbo.tpPedido
-    ADD FechaCancelacionPorFaltaPago datetime2 NULL;
+    ADD FechaCancelacionPorFaltaPago datetime NULL;
 
 ALTER TABLE dbo.tpPedido
     ADD IdUsuarioCancelacion uniqueidentifier NULL;
 
 -- OBS-042: trazabilidad cancelación CFDI ante el SAT
 ALTER TABLE dbo.tpPedido
-    ADD FechaSolicitudCancelacion datetime2 NULL;
+    ADD FechaSolicitudCancelacion datetime NULL;
 
 ALTER TABLE dbo.tpPedido
     ADD EstadoCancelacionCFDI varchar(50) NULL;
@@ -243,7 +243,7 @@ Operación (por cada ítem):
   2. UPDATE tpProformaPedido SET FechaPromesaPagoMonitoreoCobros = @fechaNueva
            WHERE IdTpProformaPedido = @id
   3. INSERT fccFechaEstimadaPagoHistorial (IdTpProformaPedido, FechaEstimadaPagoAnterior,
-           FechaEstimadaPagaNueva, FechaCambio=SYSUTCDATETIME(), IdUsuarioCambio, Motivo)
+           FechaEstimadaPagaNueva, FechaCambio=GETDATE(), IdUsuarioCambio, Motivo)
 ```
 
 > **OBS-044:** El comando NO sobreescribe silenciosamente la fecha — cada cambio genera una fila en `fccFechaEstimadaPagoHistorial` con el valor anterior y el nuevo. El historial es append-only.
@@ -340,14 +340,14 @@ ya que `tpPedido` no está en el Scaffold de Finanzas y contiene los campos de t
 **Transacción en ProquifaDotNet:**
 ```sql
 UPDATE tpProformaPedido SET Cancelada = 1 WHERE IdTpPedido = @idTpPedido
-UPDATE tpPedido SET FechaCancelacionPorFaltaPago = SYSUTCDATETIME(),
+UPDATE tpPedido SET FechaCancelacionPorFaltaPago = GETDATE(),
                     IdUsuarioCancelacion = @idUsuario
     WHERE IdTpPedido = @idTpPedido
 ```
 
 > **OBS-042:** Adicionalmente, si el pedido tiene un CFDI asociado (`CFDIGenerada` con estado `Timbrada`), la cancelación del pedido debe:
 > 1. Cambiar el estado de `CFDIGenerada` a `CancelacionSolicitada` (o el estado que corresponda).
-> 2. Actualizar `tpPedido.FechaSolicitudCancelacion = SYSUTCDATETIME()` y `tpPedido.EstadoCancelacionCFDI = 'Pendiente'`.
+> 2. Actualizar `tpPedido.FechaSolicitudCancelacion = GETDATE()` y `tpPedido.EstadoCancelacionCFDI = 'Pendiente'`.
 > 3. Enviar la solicitud de cancelación al SAT vía PAC (ProquifaDotNet.Timbrado).
 > 4. Actualizar `tpPedido.EstadoCancelacionCFDI` con el resultado del SAT (`'Cancelado'`, `'Rechazado'`, etc.).
 >

@@ -78,8 +78,10 @@ CREATE TABLE [dbo].[catFormaPagoSAT](
     [Descripcion]        nvarchar(150)    NOT NULL,
     [Activo]             bit              NOT NULL
         CONSTRAINT [DF_catFormaPagoSAT_Activo]  DEFAULT (1),
-    [FechaRegistro]      datetime2(7)     NOT NULL
-        CONSTRAINT [DF_catFormaPagoSAT_FechaReg] DEFAULT (SYSUTCDATETIME()),
+    [FechaRegistro]      datetime     NOT NULL
+        CONSTRAINT [DF_catFormaPagoSAT_FechaReg] DEFAULT (GETDATE()),
+    [FechaUltimaActualizacion] datetime NOT NULL
+        CONSTRAINT [DF_catFormaPagoSAT_FechaUltimaActualizacion] DEFAULT (GETDATE()),
     CONSTRAINT [PK_catFormaPagoSAT]
         PRIMARY KEY CLUSTERED ([IdCatFormaPagoSAT]),
     CONSTRAINT [UQ_catFormaPagoSAT_Clave]
@@ -131,7 +133,8 @@ SELECT COUNT(*) AS Registros FROM dbo.catFormaPagoSAT;
 | Clave | varchar(10) NOT NULL UNIQUE | Código SAT c_FormaPago: `'01'`, `'03'`, `'04'`, etc. |
 | Descripcion | nvarchar(150) NOT NULL | Descripción legible |
 | Activo | bit NOT NULL | 1 = vigente en catálogo SAT |
-| FechaRegistro | datetime2(7) NOT NULL | Fecha de inserción |
+| FechaRegistro | datetime NOT NULL | Fecha de inserción |
+| FechaUltimaActualizacion | datetime NOT NULL | Fecha de última modificación |
 
 **Índices:**
 
@@ -195,7 +198,7 @@ sus propias columnas de RE-029).
 
 -- 1. Fecha y hora del pago (snapshot para nodo Pago del XML)
 ALTER TABLE dbo.fccDocumentoFiscalCobro
-    ADD [FechaPagoCP] datetime2(7) NULL;
+    ADD [FechaPagoCP] datetime NULL;
         -- FechaPago del nodo Pago en el XML del CP.
         -- NULL para líneas no-CP (FACTURA, FACTURA_ANTICIPO, FACTURA_CPE).
         -- ⚠️ Pendiente: confirmar si hora es 12:00:00 fija o la hora real del cobro.
@@ -277,7 +280,7 @@ ORDER BY c.column_id;
 
 | Nombre | Tipo | Descripción |
 |---|---|---|
-| FechaPagoCP | datetime2(7) NULL | Fecha/hora del cobro para el nodo Pago del XML del CP. Snapshot inmutable al timbrar. ⚠️ Hora fija 12:00:00 vs real pendiente confirmar. NULL para líneas no-CP. |
+| FechaPagoCP | datetime NULL | Fecha/hora del cobro para el nodo Pago del XML del CP. Snapshot inmutable al timbrar. ⚠️ Hora fija 12:00:00 vs real pendiente confirmar. NULL para líneas no-CP. |
 | IdCatFormaPagoSAT | uniqueidentifier FK NULL | FK a `catFormaPagoSAT`. Forma real del cobro (`FormaDePagoP`). Típicamente clave '03' Transferencia. NULL para líneas no-CP. |
 | TipoCambioP_CP | decimal(18,6) NULL | Tipo de cambio del pago vs MXN cuando MonedaP ≠ MXN. NULL si el cobro es en MXN. NULL para líneas no-CP. |
 | NumParcialidad | int NULL | Número de parcialidad del DoctoRelacionado (1 = primer CP para esta factura, 2 = segundo, etc.). NULL para líneas no-CP. |
@@ -591,7 +594,7 @@ Tras subir a MinIO, Finanzas inserta en `Archivo` y actualiza `CFDIGenerada`:
 ```sql
 -- INSERT Archivo (ruta MinIO obtenida tras upload)
 INSERT INTO dbo.Archivo (IdArchivo, Nombre, Extension, RutaArchivo, FechaRegistro)
-VALUES (NEWID(), @NombreArchivo, @Extension, @RutaMinIO, SYSUTCDATETIME());
+VALUES (NEWID(), @NombreArchivo, @Extension, @RutaMinIO, GETDATE());
 
 -- UPDATE CFDIGenerada para ligar el PDF
 UPDATE dbo.CFDIGenerada

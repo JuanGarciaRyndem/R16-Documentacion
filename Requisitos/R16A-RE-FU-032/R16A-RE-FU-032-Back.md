@@ -2,13 +2,13 @@
 **Requisito:** Notas de Crédito México (CFDI tipo E — Egreso)
 **Aplicativos:** ProquifaDotNet (.NET Framework 4.8) + ProquifaDotNet.Finanzas (.NET Core 10) + ProquifaDotNet.Timbrado (.NET Core 10) + DocumentBuilder
 **Módulo:** Notas de Crédito México — Módulo independiente (Tesorería)
-**Impacto:** Scripts BD ProquifaDotNet (2 ALTER TABLE + 2 DML catálogos) + Scripts BD ProquifaDotNet (1 DML EmpresaFolio — propiedad Finanzas) + Scripts DocumentBuilder (4 DML DocumentTemplate) + Módulo NC Finanzas: wizard 4 pasos, construcción XML CFDI E CFDI 4.0, previsualización PDF, persistencia en MinIO, envío correo + Timbrado: generación CFDI E + DocumentBuilder: 4 templates PDF NC México + ETL SSIS: transferencia NC a PCconnect (Legacy).
+**Impacto:** Scripts BD ProquifaDotNet (2 ALTER TABLE + 2 DML catálogos + 1 CREATE TABLE catálogo `catMotivoCancelacionSAT`) + Scripts BD ProquifaDotNet (1 DML EmpresaFolio — propiedad Finanzas) + Scripts DocumentBuilder (4 DML DocumentTemplate) + Módulo NC Finanzas: wizard 4 pasos, construcción XML CFDI E CFDI 4.0, previsualización PDF, persistencia en MinIO, envío correo + Timbrado: generación CFDI E + DocumentBuilder: 4 templates PDF NC México + ETL SSIS: transferencia NC a PCconnect (Legacy).
 
 ## Revisiones aplicadas
 
-| # | Cambio | Origen |
-|---|--------|--------|
-| 1 | **Criterio A5 agregado en B7:** Pantalla principal filtrada por cartera del Cobrador autenticado (JOIN `vUsuarioCartera`) | OBS-004 |
+| #   | Cambio                                                                                                                    | Origen  |
+| --- | ------------------------------------------------------------------------------------------------------------------------- | ------- |
+| 1   | **Criterio A5 agregado en B7:** Pantalla principal filtrada por cartera del Cobrador autenticado (JOIN `vUsuarioCartera`) | OBS-004 |
 
 ---
 
@@ -33,14 +33,17 @@ La NC aplica exclusivamente a **clientes prepago** y a **facturas vigentes con a
 | BD — DML foliador          | ProquifaDotNet (Finanzas) | `EmpresaFolio`: INSERT 4 filas Serie "P2" (GOL, MUN, PRO, PQF)                                            |
 | BD — DML templates         | DocumentBuilder           | `DocumentTemplate`: INSERT 4 templates PDF NC México                                                      |
 | BD — DML bucket            | ProquifaDotNet            | `RegionConfiguracionMinioBucket`: INSERT bucket NC MEX si no existe                                       |
+| BD — Tabla catálogo        | ProquifaDotNet            | `catMotivoCancelacionSAT`: CREATE TABLE + DML 4 claves c_MotivoCancelacion SAT                            |
+| BD — Tabla catálogo        | ProquifaDotNet            | `catNotaCreditoEstado`: CREATE TABLE + DML 4 estados (PENDIENTE, VIGENTE, ENVIADA, CANCELADA)             |
+| Catálogo cancelación       | ProquifaDotNet.Finanzas   | Servicio/endpoint de consulta de `catMotivoCancelacionSAT` para el combo del Paso 2 (B9)                  |
 | Wizard Paso 1              | ProquifaDotNet.Finanzas   | Búsqueda y listado de facturas vigentes prepago del cliente (máx. 5 años)                                 |
 | Wizard Paso 2              | ProquifaDotNet.Finanzas   | Captura de modalidad, motivo, partidas/monto, cancelación condicional de factura                          |
-| Previsualización PDF       | ProquifaDotNet.Finanzas   | `CreditNoteMexicoPdfMappingService.MapearPreviewAsync()` — sin sello, sin UUID                            |
+| Previsualización PDF       | ProquifaDotNet.Finanzas   | `CreditNotePdfMappingService.MapearPreviewAsync()` — sin sello, sin UUID                            |
 | Wizard Paso 3              | ProquifaDotNet.Finanzas   | Confirmación, resumen, previsualización PDF, acción Timbrar                                               |
-| Construcción XML CFDI E    | ProquifaDotNet.Finanzas   | Armado del `CreditNoteMexicoRequest`: CFDI 4.0 TipoDocumento=E, conceptos, impuestos                      |
+| Construcción XML CFDI E    | ProquifaDotNet.Finanzas   | Armado del `CreditNoteRequest`: CFDI 4.0 TipoDocumento=E, conceptos, impuestos                      |
 | Timbrado NC                | ProquifaDotNet.Timbrado   | Generación CFDI E + PAC TurboPac + `INSERT CFDIGenerada` + `UPDATE EmpresaFolio` Serie P2                 |
 | Cancelación factura        | ProquifaDotNet.Timbrado   | Llamada condicional al PAC para cancelar la factura origen ante el SAT                                    |
-| Persistencia post-timbre   | ProquifaDotNet.Finanzas   | `PersistMexicoCreditNotePdfService`: DocumentBuilder → MinIO → `INSERT Archivo` → `UPDATE fccNotaCredito` |
+| Persistencia post-timbre   | ProquifaDotNet.Finanzas   | `PersistCreditNotePdfService`: DocumentBuilder → `PQF.Catalogos.SubirArchivo` (bucket + file; ProquifaDotNet sube a MinIO e inserta `Archivo`) → `UPDATE fccNotaCredito` |
 | Correo automático          | ProquifaDotNet.Finanzas   | Envío con PDF + XML adjuntos al timbrar (Para = contacto; CC = ESAC + CxC)                                |
 | Acoplamiento Validar Cobro | ProquifaDotNet.Finanzas   | NCs VIGENTE quedan disponibles en Paso 2 de Validar Cobro vía query sobre `fccNotaCredito`                |
 | ETL Legacy                 | SSIS                      | Transferencia de NC timbrada a PCconnect                                                                  |
@@ -51,7 +54,7 @@ La NC aplica exclusivamente a **clientes prepago** y a **facturas vigentes con a
 
 | Componente                                     | Origen    | Reutilización en RE-032                                                                 |
 | ---------------------------------------------- | --------- | --------------------------------------------------------------------------------------- |
-| `fccNotaCredito` (estructura)                  | Pre-R16   | Base extendida; ciclo de estados PENDIENTE → GENERADA → ENVIADA                        |
+| `fccNotaCredito` (estructura)                  | Pre-R16   | Base extendida; ciclo de estados del catálogo `catNotaCreditoEstado`: PENDIENTE → VIGENTE (timbrada) → ENVIADA; CANCELADA terminal |
 | `fccNotaCreditoPartida` (estructura)           | Pre-R16   | Base extendida con columnas R16 de importes fiscales                                   |
 | `fccNotaCreditoPedido`                         | Pre-R16   | Registro de aplicación de NC a pedido en Validar Cobro (sin cambios)                   |
 | `CFDIGenerada`                                 | RE-019    | INSERT NC como TipoDocumento='E', MetodoDePago='PUE'                                   |
@@ -65,10 +68,10 @@ La NC aplica exclusivamente a **clientes prepago** y a **facturas vigentes con a
 | `Archivo`                                      | Pre-R16   | PDF + XML de la NC almacenados en MinIO                                                |
 | `CorreoEnviado` + `ArchivoCorreoEnviado`       | Pre-R16   | Trazabilidad del correo automático al timbrar y reenvíos                               |
 | `ApiCallerStamping` (HttpClient + Polly)       | RE-019    | Cliente HTTP con retry hacia Timbrado — se usa `StampCreditNoteAsync` (`POST /api/v1/stamp/credit-note`), método creado en RE-018                        |
-| `MexicoInvoicePdfMappingService`               | RE-021    | Patrón de referencia para `CreditNoteMexicoPdfMappingService`                                  |
-| `PersistMexicoInvoicePdfService`             | RE-021    | Patrón de referencia para `PersistMexicoCreditNotePdfService`                                |
+| `InvoicePdfMappingService`               | RE-021    | Patrón de referencia para `CreditNotePdfMappingService`                                  |
+| `PersistInvoicePdfService`             | RE-021    | Patrón de referencia para `PersistCreditNotePdfService`                                |
 | Templates `GOL/MUN/PRO/PQF_MEX_FAC`           | RE-021    | Referencia de branding para diseño de templates NC                                     |
-| `DatosFacturacionCliente`                      | RE-004    | RFC, Razón Social, RegimenFiscalReceptor del CFDI 4.0                                  |
+| `DatosFacturacionCliente`                      | Preexistente (RE-004 cancelado) | RFC, Razón Social, RegimenFiscalReceptor del CFDI 4.0                                  |
 | `Empresa`                                      | Existente | RFC Emisor, RegimenFiscal, Prefijo por empresa PROQUIFA México                         |
 | `RegionConfiguracionMinioBucket`               | Existente | Resolución del bucket 'notas_credito' (MEX) al subir PDF/XML                          |
 
@@ -87,7 +90,7 @@ Se agregan 13 columnas a la tabla existente para soportar el módulo R16:
 | `Serie`                       | varchar(10)      | Sí      | Serie "P2" ⚠️ pendiente validar con PMO                                |
 | `Modalidad`                   | varchar(20)      | No      | 'POR_PARTIDAS' \| 'MANUAL'                                              |
 | `Motivo`                      | varchar(50)      | Sí      | Clave del motivo SAT principal                                           |
-| `Estado`                      | varchar(20)      | No      | 'VIGENTE' \| 'CANCELADA' — default 'VIGENTE'                            |
+| `IdCatNotaCreditoEstado`      | uniqueidentifier | No      | FK `catNotaCreditoEstado` — default PENDIENTE (ver A8)                  |
 | `CancelarFacturaOrigen`       | bit              | No      | 1 si se solicitó cancelar la factura origen ante el SAT — default 0     |
 | `ClaveMotivosCancelacion`     | varchar(4)       | Sí      | Clave SAT c_MotivoCancelacion ('01','02','03','04'). Null si no cancela  |
 | `IdCFDIGeneradaFacturaOrigen` | uniqueidentifier | No      | FK `CFDIGenerada` — factura PPD que originó la NC                       |
@@ -151,6 +154,37 @@ Discriminador de tipo CFDI para las NCs. Prereq: RE-028 crea la tabla `catTipoCF
 
 > Ver script en `R16A-RE-FU-032_BD.md` — DML DocumentTemplate.
 
+### A7 — CREATE TABLE + DML catMotivoCancelacionSAT
+
+Catálogo oficial SAT c_MotivoCancelacion para CFDI 4.0 (claves '01'–'04'). Tabla nueva en ProquifaDotNet con PK, UNIQUE en `Clave` y seed de las 4 claves oficiales. `fccNotaCredito.ClaveMotivosCancelacion` y `CFDICancelacion.ClaveMotivo` la referencian lógicamente (sin FK formal).
+
+El catálogo se expone al frontend mediante un servicio de solo lectura en Finanzas (ver B9) — el front no hardcodea las claves.
+
+> Ver script completo y diccionario de datos en `R16A-RE-FU-032_BD.md` — catMotivoCancelacionSAT.
+
+### A8 — CREATE TABLE + DML catNotaCreditoEstado
+
+Catálogo de estados del ciclo de vida de la NC (reemplaza el dominio en texto libre de la columna `Estado`). `fccNotaCredito` lo referencia con FK formal `IdCatNotaCreditoEstado`, default PENDIENTE.
+
+| Clave | Descripción |
+| --- | --- |
+| `PENDIENTE` | NC capturada, pendiente de timbrar (Paso 2) |
+| `VIGENTE` | NC timbrada ante el SAT (vigente) |
+| `ENVIADA` | NC timbrada y correo enviado al cliente |
+| `CANCELADA` | NC cancelada ante el SAT — estado terminal |
+
+**Ciclo:** `PENDIENTE → VIGENTE (timbrada) → ENVIADA`; `CANCELADA` es terminal (desde VIGENTE o ENVIADA). Validar Cobro y el ETL SSIS consumen NCs en estado VIGENTE o ENVIADA.
+
+> Ver script completo y diccionario de datos en `R16A-RE-FU-032_BD.md` — catNotaCreditoEstado (cambio #9).
+
+### A9 — DML RegionConfiguracionMinioBucket — Bucket NC México
+
+INSERT del bucket `notas_credito` (región MEX, `BucketNombre = 'notas-credito-mex'`) en `RegionConfiguracionMinioBucket`, solo si no existe (verificación previa por query SSMS — Pendiente P2).
+
+La resolución del bucket y la subida a MinIO **no las hace Finanzas directamente**: Finanzas envía la petición a `PQF.Catalogos.SubirArchivo` (WebApi.Catalogos de ProquifaDotNet) con la clave del bucket y el archivo; ProquifaDotNet resuelve el bucket, sube a MinIO, inserta `Archivo` y retorna el `IdArchivo` (ver Parte E).
+
+> Ver script en `R16A-RE-FU-032_BD.md` — MinIO Configuración de Bucket NC México.
+
 ---
 
 ## Parte B — ProquifaDotNet.Finanzas: Módulo NC México
@@ -193,7 +227,7 @@ Discriminador de tipo CFDI para las NCs. Prereq: RE-028 crea la tabla `catTipoCF
 
 **Cancelación condicional (Regla 8):**
 - Si todas las `CantidadNC = CantidadFacturada` (totalidad) **Y** `MONTH(FechaFactura) = MONTH(GETDATE())`:
-  - Mostrar opción "Cancelar Factura Origen" con combo `c_MotivoCancelacion` SAT.
+  - Mostrar opción "Cancelar Factura Origen" con combo de motivos leído del catálogo `catMotivoCancelacionSAT` vía el endpoint de B9 (no hardcodeado en front).
 - En cualquier otro caso, no mostrar la opción.
 
 **Resultado esperado:** `fccNotaCredito` + `fccNotaCreditoPartida` en estado PENDIENTE (pre-timbrado).
@@ -219,7 +253,7 @@ Discriminador de tipo CFDI para las NCs. Prereq: RE-028 crea la tabla `catTipoCF
 
 ### B4 — Armado del XML CFDI E (CFDI 4.0)
 
-**Descripción:** Finanzas construye el `CreditNoteMexicoRequest` que enviará a Timbrado. Todos los campos del XML se calculan antes del timbrado.
+**Descripción:** Finanzas construye el `CreditNoteRequest` que enviará a Timbrado. Todos los campos del XML se calculan antes del timbrado.
 
 **Campos fijos del XML (Regla 6):**
 
@@ -265,14 +299,14 @@ Un único nodo `Concepto` con:
 **Descripción:** Antes de timbrar, Finanzas genera el PDF representativo de la NC en memoria para validación visual del usuario (Criterio I3).
 
 **Flujo:**
-1. Finanzas consolida los datos de la NC en `CreditNoteMexicoPdfModel` (sin TimbreFiscalDigital, sin UUID, sin QR).
-2. Invoca `CreditNoteMexicoPdfMappingService.MapearPreviewAsync()`.
+1. Finanzas consolida los datos de la NC en `CreditNotePdfModel` (sin TimbreFiscalDigital, sin UUID, sin QR).
+2. Invoca `CreditNotePdfMappingService.MapearPreviewAsync()`.
 3. Resuelve `TemplateKey` dinámicamente según empresa emisora: `{Prefijo}_MEX_NC` (GOL_MEX_NC, MUN_MEX_NC, PRO_MEX_NC, PQF_MEX_NC).
 4. Llama a DocumentBuilder con el `TemplateKey` y el modelo.
 5. Retorna PDF en memoria al frontend.
 6. Sin escrituras en BD.
 
-**Modelo `CreditNoteMexicoPdfModel` — secciones:**
+**Modelo `CreditNotePdfModel` — secciones:**
 
 | Sección                    | Campos clave                                                                |
 | -------------------------- | --------------------------------------------------------------------------- |
@@ -293,15 +327,15 @@ Un único nodo `Concepto` con:
 **Flujo:**
 
 **Paso 1 — Enviar a Timbrado:**
-Finanzas construye el `CreditNoteMexicoRequest` (sección B4) y llama al API de Timbrado (vía `ApiCallerStamping.StampCreditNoteAsync`):
+Finanzas construye el `CreditNoteRequest` (sección B4) y llama al API de Timbrado (vía `ApiCallerStamping.StampCreditNoteAsync`):
 ```
 POST /api/v1/stamp/credit-note
-Body: CreditNoteMexicoRequest
+Body: CreditNoteRequest
 ```
 Muestra feedback visual de progreso al usuario (Criterio J1).
 
 **Paso 2 — Timbrado exitoso:**
-Timbrado retorna `CreditNoteMexicoResponse` con:
+Timbrado retorna `CreditNoteResponse` con:
 - `IdCFDIGenerada` recién insertado
 - `UUID` SAT
 - `XML` timbrado completo con `TimbreFiscalDigital`
@@ -318,27 +352,19 @@ Si `fccNotaCredito.CancelarFacturaOrigen = 1`:
 - Finanzas, tras la cancelación exitosa: si la factura origen proviene de `fccFactura` (origen FAA, `fccFactura.IdCFDIGenerada = @IdCFDI`), ejecuta `UPDATE fccFactura SET IdCatFacturaEstado = CANCELADA` (catFacturaEstado, RE-FU-015 v2.1 — estado terminal).
 
 **Paso 4 — Persistencia post-timbrado:**
-Finanzas ejecuta `PersistMexicoCreditNotePdfService.PersistirAsync()`:
+Finanzas ejecuta `PersistCreditNotePdfService.PersistirAsync()`:
 1. Genera PDF final con sello digital, UUID y QR (llamada a DocumentBuilder con modelo completo).
-2. Resuelve bucket MinIO:
-   ```sql
-   SELECT BucketNombre FROM RegionConfiguracionMinioBucket rcmb
-   INNER JOIN Region r ON rcmb.IdRegion = r.IdRegion
-   WHERE rcmb.BucketClave = 'notas_credito' AND r.Clave = 'MEX' AND rcmb.Activo = 1
-   ```
-3. Sube PDF a MinIO → path: `notas-credito-mex/notas_credito/{anio}/{mes}/{UUID_NC}.pdf`
-4. Sube XML a MinIO → path: `notas-credito-mex/notas_credito/{anio}/{mes}/{UUID_NC}.xml`
-5. INSERT `Archivo` (PDF) → obtiene `IdArchivoPdf`
-6. INSERT `Archivo` (XML) → obtiene `IdArchivoXml`
-7. INSERT `CFDIGeneradaRelacionado` con UUID factura origen + ClaveTipoRelacion='01'
-8. UPDATE `fccNotaCredito`:
+2. Envía el PDF a `PQF.Catalogos.SubirArchivo` (WebApi.Catalogos de ProquifaDotNet) con la clave de bucket `notas_credito` y el archivo → ProquifaDotNet resuelve el bucket en `RegionConfiguracionMinioBucket`, sube a MinIO (path: `notas-credito-mex/notas_credito/{anio}/{mes}/{UUID_NC}.pdf`), inserta `Archivo` y retorna `IdArchivoPdf`.
+3. Envía el XML a `PQF.Catalogos.SubirArchivo` con la misma clave de bucket → retorna `IdArchivoXml` (path: `.../{UUID_NC}.xml`).
+4. INSERT `CFDIGeneradaRelacionado` con UUID factura origen + ClaveTipoRelacion='01'
+5. UPDATE `fccNotaCredito`:
    - `IdCFDIGenerada` = IdCFDIGenerada del timbre
    - `IdCFDI` = IdCFDI del CFDI timbrado
    - `IdArchivoXml`, `IdArchivoPdf`
-   - `Estado` = 'VIGENTE'
+   - `IdCatNotaCreditoEstado` = estado VIGENTE (catálogo `catNotaCreditoEstado`)
    - `Folio`, `Serie` = valores asignados por el foliador
-9. Si modalidad POR_PARTIDAS: INSERT `fccNotaCreditoPartida` para cada partida con `CantidadNC > 0`.
-10. Si modalidad MANUAL: UPDATE `fccNotaCredito.ConceptoManual`.
+6. Si modalidad POR_PARTIDAS: INSERT `fccNotaCreditoPartida` para cada partida con `CantidadNC > 0`.
+7. Si modalidad MANUAL: UPDATE `fccNotaCredito.ConceptoManual`.
 
 **Paso 5 — Correo automático al cliente (Criterio J3):**
 Finanzas envía correo al timbrar exitosamente, a través del Aplicativo Nuevo **ProquifaDotNet.EnvioCorreo** (Reglas al diseñar, regla 7 — no se integra Brevo directamente desde Finanzas):
@@ -347,6 +373,7 @@ Finanzas envía correo al timbrar exitosamente, a través del Aplicativo Nuevo *
 - **Adjuntos:** PDF + XML de la NC.
 - **Asunto:** "Nota de Crédito {Folio NC} — Factura {Folio Factura Origen}" ⚠️ plantilla final PMO #31.
 - INSERT `CorreoEnviado` + INSERT `ArchivoCorreoEnviado` (PDF + XML).
+- Tras el envío exitoso: UPDATE `fccNotaCredito.IdCatNotaCreditoEstado` = estado ENVIADA (catálogo `catNotaCreditoEstado`).
 
 **Paso 6 — Bitácora:**
 Finanzas registra el guardado de la Nota de Crédito en **ProquifaDotNet.BitacoraCambios** (Aplicativo Nuevo — Reglas al diseñar, regla 8).
@@ -368,11 +395,12 @@ SELECT
     c.IdCliente,
     c.NombreCliente,
     COUNT(nc.IdFCCNotaCredito)                                    AS TotalNC,
-    SUM(CASE WHEN nc.Estado = 'VIGENTE' THEN 1 ELSE 0 END)        AS Vigentes,
-    SUM(CASE WHEN nc.Aplicada = 0 AND nc.Estado = 'VIGENTE' THEN 1 ELSE 0 END) AS PorAplicar,
-    SUM(CASE WHEN nc.Estado = 'VIGENTE' THEN nc.Monto ELSE 0 END) AS MontoTotal,
+    SUM(CASE WHEN cne.Clave IN ('VIGENTE','ENVIADA') THEN 1 ELSE 0 END)        AS Vigentes,
+    SUM(CASE WHEN nc.Aplicada = 0 AND cne.Clave IN ('VIGENTE','ENVIADA') THEN 1 ELSE 0 END) AS PorAplicar,
+    SUM(CASE WHEN cne.Clave IN ('VIGENTE','ENVIADA') THEN nc.Monto ELSE 0 END) AS MontoTotal,
     cg.Moneda
 FROM dbo.fccNotaCredito nc
+INNER JOIN dbo.catNotaCreditoEstado cne ON nc.IdCatNotaCreditoEstado = cne.IdCatNotaCreditoEstado
 INNER JOIN dbo.Cliente c ON nc.IdCliente = c.IdCliente
 INNER JOIN dbo.CFDIGenerada cg ON nc.IdCFDIGenerada = cg.IdCFDIGenerada
 -- Criterio A5 (OBS-004): filtrar por clientes en cartera del Cobrador autenticado
@@ -398,16 +426,30 @@ Fecha, Cobrador, Folio NC (acción → PDF), XML (descarga), Emisor, Monto+Moned
 3. Finanzas arma el correo con PDF + XML como adjuntos (recuperados de `Archivo` vía MinIO).
 4. INSERT `CorreoEnviado` + INSERT `ArchivoCorreoEnviado`.
 
+### B9 — Endpoint: Catálogo de motivos de cancelación SAT
+
+**Descripción:** Servicio de solo lectura en Finanzas que retorna las 4 claves del catálogo `catMotivoCancelacionSAT`, para que el frontend construya el selector de motivo al activar "Cancelar Factura Origen" en el Paso 2 (Criterios G1/G3).
+
+**Flujo:**
+1. `GET /api/v1/credit-note/cancellation-reasons` (solo lectura, sin parámetros).
+2. Finanzas consulta `catMotivoCancelacionSAT WHERE Activo = 1`.
+3. Retorna lista `{ clave, descripcion }` — el front envía la `Clave` (no el GUID) al confirmar la cancelación.
+4. Sin escrituras en BD.
+
+**Reglas:**
+- Catálogo estático definido por el SAT; sin administración en la aplicación.
+- El backend guarda la clave seleccionada en `fccNotaCredito.ClaveMotivosCancelacion` y la envía a Timbrado en la cancelación (C2).
+
 ---
 
 ## Parte C — ProquifaDotNet.Timbrado
 
 ### C1 — Endpoint: Timbrar NC México (`POST /api/v1/stamp/credit-note`)
 
-**Descripción:** Timbrado recibe el `CreditNoteMexicoRequest` de Finanzas, construye el XML CFDI E, lo envía al PAC TurboPac, guarda el XML y retorna el CFDI timbrado.
+**Descripción:** Timbrado recibe el `CreditNoteRequest` de Finanzas, construye el XML CFDI E, lo envía al PAC TurboPac, guarda el XML y retorna el CFDI timbrado.
 
 **Flujo:**
-1. Timbrado recibe `CreditNoteMexicoRequest` en `POST /api/v1/stamp/credit-note` (StampingController, RE-018).
+1. Timbrado recibe `CreditNoteRequest` en `POST /api/v1/stamp/credit-note` (StampingController, RE-018).
 2. Construye XML CFDI 4.0 TipoDocumento='E' con todos los nodos (Emisor, Receptor, CfdiRelacionados TipoRelacion='01', Conceptos, Impuestos, MetodoPago='PUE').
 3. Obtiene folio con UPDLOCK atómico: `SELECT UltimoFolio+1 FROM EmpresaFolio WITH (UPDLOCK) WHERE Serie='P2' AND IdEmpresa=@IdEmpresa`.
 4. Envía XML al PAC TurboPac.
@@ -416,13 +458,14 @@ Fecha, Cobrador, Folio NC (acción → PDF), XML (descarga), Emisor, Monto+Moned
 7. INSERT `CFDI` con UUID SAT.
 8. Guarda XML timbrado en BD (o MinIO — mismo patrón que Factura).
 9. UPDATE `EmpresaFolio.UltimoFolio`.
-10. Retorna `CreditNoteMexicoResponse` a Finanzas.
+10. INSERT `StampingLog` en `ProquifaDotNetTimbrado` (`Action='Stamp'`, `NewStatus='Stamped'|'Failed'`, request/response del PAC, duración).
+11. Retorna `CreditNoteResponse` a Finanzas.
 
 **Manejo de errores (Regla 16 / Criterio J5):**
 - Si PAC retorna error: no se persiste la NC, se retorna el error a Finanzas con detalle del PAC.
 - Finanzas muestra mensaje al usuario con posibilidad de reintentar.
 
-### C1.1 — Contrato `CreditNoteMexicoRequest` / `CreditNoteMexicoResponse`
+### C1.1 — Contrato `CreditNoteRequest` / `CreditNoteResponse`
 
 Contrato del endpoint `POST /api/v1/stamp/credit-note`. Todos los campos del XML se calculan en Finanzas antes del timbrado (sección B4); Timbrado solo resuelve el folio (UPDLOCK sobre `EmpresaFolio`, Serie "P2", empresa resuelta por el RFC del emisor) y la fecha de emisión al momento de timbrar.
 
@@ -435,7 +478,7 @@ namespace ProquifaDotNet.Timbrado.Application.DTOs.CreditNote
     /// Solicitud de timbrado de Nota de Crédito México (CFDI 4.0, TipoDeComprobante = E).
     /// Armada por Finanzas (RE-032, sección B4) con todos los campos calculados pre-timbrado.
     /// </summary>
-    public class CreditNoteMexicoRequest
+    public class CreditNoteRequest
     {
         /// <summary>Modalidad de captura: POR_PARTIDAS | MANUAL — determina las validaciones de conceptos.</summary>
         public required string CaptureMode { get; set; }
@@ -552,7 +595,7 @@ namespace ProquifaDotNet.Timbrado.Application.DTOs.CreditNote
     /// <summary>
     /// Respuesta del timbrado exitoso (sección B6, paso 2).
     /// </summary>
-    public class CreditNoteMexicoResponse
+    public class CreditNoteResponse
     {
         /// <summary>Id del CFDIGenerada recién insertado (TipoDocumento=E).</summary>
         public required Guid CfdiGeneratedId { get; set; }
@@ -691,7 +734,8 @@ namespace ProquifaDotNet.Timbrado.Application.DTOs.CreditNote
 1. Timbrado recibe `{ IdCFDI, ClaveMotivo }`.
 2. Invoca PAC TurboPac con UUID de la factura origen y motivo de cancelación.
 3. INSERT/UPDATE `CFDICancelacion` con `ClaveMotivo`, `Estatus='CANCELADA'`.
-4. Retorna resultado a Finanzas — que, si la factura origen proviene de `fccFactura` (origen FAA), ejecuta `UPDATE fccFactura SET IdCatFacturaEstado = CANCELADA` (catFacturaEstado, RE-FU-015 v2.1).
+4. INSERT `StampingLog` en `ProquifaDotNetTimbrado` (`Action='Cancel'`, request/response del PAC).
+5. Retorna resultado a Finanzas — que, si la factura origen proviene de `fccFactura` (origen FAA), ejecuta `UPDATE fccFactura SET IdCatFacturaEstado = CANCELADA` (catFacturaEstado, RE-FU-015 v2.1).
 
 > Este endpoint (`POST /api/v1/stamp/cancel`) existe desde RE-FU-018. RE-032 lo reutiliza sin crear uno nuevo.
 
@@ -711,16 +755,16 @@ Se crean 4 archivos HTML de template (H/B/F × 4 empresas) para el PDF represent
 El diseño del PDF de la NC se documenta en un requisito independiente (análogo a R16A-RE-FU-021 para Factura México). Esta sección cubre únicamente el registro de los `TemplateKey` en BD y la integración funcional.
 
 **Preview vs Timbrado:**
-- **Preview (Paso 3):** PDF sin sello, sin UUID, sin QR — generado por `CreditNoteMexicoPdfMappingService.MapearPreviewAsync()`.
-- **Post-timbrado:** PDF completo con `TimbreFiscalDigital`, UUID, QR — generado por `PersistMexicoCreditNotePdfService.PersistirAsync()`.
+- **Preview (Paso 3):** PDF sin sello, sin UUID, sin QR — generado por `CreditNotePdfMappingService.MapearPreviewAsync()`.
+- **Post-timbrado:** PDF completo con `TimbreFiscalDigital`, UUID, QR — generado por `PersistCreditNotePdfService.PersistirAsync()`.
 
 ---
 
 ## Parte E — MinIO: Almacenamiento PDF y XML
 
-### E1 — Resolución del bucket
+### E1 — Subida vía PQF.Catalogos.SubirArchivo
 
-Finanzas resuelve el bucket NC para México consultando `RegionConfiguracionMinioBucket`:
+Finanzas **no** accede a MinIO ni resuelve el bucket directamente: envía una petición a `PQF.Catalogos.SubirArchivo` (WebApi.Catalogos de ProquifaDotNet) con la clave del bucket y el archivo a subir. ProquifaDotNet resuelve el bucket consultando `RegionConfiguracionMinioBucket`:
 
 ```sql
 SELECT rcmb.BucketNombre
@@ -730,6 +774,8 @@ WHERE rcmb.BucketClave = 'notas_credito'
   AND r.Clave           = 'MEX'
   AND rcmb.Activo       = 1
 ```
+
+Sube el archivo a MinIO, inserta `Archivo` y retorna el `IdArchivo` a Finanzas.
 
 ### E2 — Rutas de almacenamiento
 
@@ -741,13 +787,13 @@ WHERE rcmb.BucketClave = 'notas_credito'
 ### E3 — Flujo completo de persistencia
 
 ```
-PersistMexicoCreditNotePdfService.PersistirAsync()
-  ├── DocumentBuilder.GenerarPdf(TemplateKey, CreditNoteMexicoPdfModel)   → PDF bytes
-  ├── MinIO.PutObject(bucket, path_pdf, PDF bytes)                → OK
-  ├── MinIO.PutObject(bucket, path_xml, XML bytes)                → OK
-  ├── INSERT Archivo (PDF) → IdArchivoPdf
-  ├── INSERT Archivo (XML) → IdArchivoXml
-  └── UPDATE fccNotaCredito SET IdArchivoPdf, IdArchivoXml, Estado='VIGENTE'
+PersistCreditNotePdfService.PersistirAsync()
+  ├── DocumentBuilder.GenerarPdf(TemplateKey, CreditNotePdfModel)     → PDF bytes
+  ├── PQF.Catalogos.SubirArchivo(bucketClave='notas_credito', PDF bytes)    → IdArchivoPdf
+  │     (ProquifaDotNet resuelve bucket → MinIO.PutObject → INSERT Archivo)
+  ├── PQF.Catalogos.SubirArchivo(bucketClave='notas_credito', XML bytes)    → IdArchivoXml
+  │     (mismo flujo en ProquifaDotNet)
+  └── UPDATE fccNotaCredito SET IdArchivoPdf, IdArchivoXml, IdCatNotaCreditoEstado=VIGENTE
 ```
 
 ---
@@ -760,7 +806,7 @@ Las NCs timbradas en ProquifaDotNet deben transferirse al sistema legado **PCcon
 mediante un **paquete SSIS nuevo** (no reutiliza los paquetes de Facturas o Pedidos ya que el
 tipo de documento y las tablas destino difieren).
 
-La transferencia se dispara cuando la NC queda en estado `VIGENTE` en `fccNotaCredito`
+La transferencia se dispara cuando la NC queda en estado `VIGENTE` (catálogo `catNotaCreditoEstado`) en `fccNotaCredito`
 (es decir, después del timbrado exitoso y la persistencia del XML/PDF).
 
 ### F2 — Alcance del paquete SSIS
@@ -790,7 +836,7 @@ SELECT
     cg.Total,
     cg.Moneda,
     cg.TipoDeCambio,
-    nc.Estado,
+    cne.Clave                        AS Estado,
     nc.Modalidad,
     nc.Motivo,
     rel.UUID                         AS UUID_FacturaOrigen,
@@ -799,12 +845,13 @@ SELECT
     a_pdf.FileKey                    AS RutaPdf,
     a_xml.FileKey                    AS RutaXml
 FROM dbo.fccNotaCredito nc
+INNER JOIN dbo.catNotaCreditoEstado cne ON nc.IdCatNotaCreditoEstado = cne.IdCatNotaCreditoEstado
 INNER JOIN dbo.CFDIGenerada cg       ON nc.IdCFDIGenerada = cg.IdCFDIGenerada
 INNER JOIN dbo.CFDI cfdi             ON cg.IdCFDI = cfdi.IdCFDI
 LEFT  JOIN dbo.CFDIGeneradaRelacionado rel ON cg.IdCFDIGenerada = rel.IdCFDIGenerada
 LEFT  JOIN dbo.Archivo a_pdf         ON nc.IdArchivoPdf = a_pdf.IdArchivo
 LEFT  JOIN dbo.Archivo a_xml         ON nc.IdArchivoXml = a_xml.IdArchivo
-WHERE nc.Estado = 'VIGENTE'
+WHERE cne.Clave IN ('VIGENTE','ENVIADA')
   -- Filtro adicional: solo registros no transferidos aún (requiere columna de control)
 ```
 
@@ -847,7 +894,7 @@ WHERE nc.Estado = 'VIGENTE'
 | P4 | Confirmar FormaPago en modalidad manual — '99' fiscalmente incorrecto para NC PUE (Regla 7)                      | B3 / B4                       |
 | P5 | Confirmar ClaveProdServ y ClaveUnidad default para modalidad manual (candidato: 84111506 / ACT — Criterio F5)    | B3 / B4                       |
 | P6 | Recibir estructura de tablas PCconnect para completar mapeo ETL SSIS                                             | F3 / F4                       |
-| P7 | Confirmar si endpoint Cancelar CFDI ya existe en Timbrado (de RE-021/028) o debe crearse nuevo                  | C2                            |
+| P7 | ~~Confirmar si endpoint Cancelar CFDI ya existe en Timbrado~~ — **RESUELTO:** el endpoint `POST /api/v1/stamp/cancel` pertenece a RE-FU-018 (allí se crea); RE-032 solo lo reutiliza (ver C2), sin crear uno nuevo | Resuelto — C2 / RE-FU-018     |
 | P8 | Confirmar plantilla final del asunto/cuerpo del correo NC (PMO #31)                                              | B6 paso 5                     |
 | P9 | Definir si control de transferencia SSIS usa columna en `fccNotaCredito` o tabla SSIS dedicada                   | F4                            |
 
@@ -860,5 +907,5 @@ WHERE nc.Estado = 'VIGENTE'
 | B1 | `fccNotaCredito.IdTPProformaPedido` NOT NULL — NCs R16 no provienen de pedido; confirmar si acepta NULL o requiere placeholder       | ALTER TABLE, integridad referencial  |
 | B2 | `fccNotaCreditoPartida.NumeroDePiezas` es `int` — productos con cantidad fraccionaria requieren cambio a `decimal(18,6)`           | ALTER TABLE fccNotaCreditoPartida    |
 | B3 | Estructura PCconnect desconocida — paquete SSIS no puede diseñarse completamente hasta tener el esquema destino                    | ETL SSIS                             |
-| B4 | `catMotivoCancelacionSAT` no existe como tabla catálogo — `CFDICancelacion.ClaveMotivo` es varchar libre; el front debe traer el catálogo SAT hardcodeado o desde config | Validación UI                       |
+| B4 | ~~`catMotivoCancelacionSAT` no existe como tabla catálogo~~ — **RESUELTA:** la tabla se crea en este requisito (sección A7 / BD cambio #8) y se expone vía servicio de catálogo en Finanzas (B9); el front ya no hardcodea las claves | Resuelta — A7 + B9                  |
 | B5 | Políticas de autorización por monto (PMO #54) fuera de scope en R16 — si se requieren en el futuro, impactan el wizard Paso 2     | Wizard Paso 2                        |

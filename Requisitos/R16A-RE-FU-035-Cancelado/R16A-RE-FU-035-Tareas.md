@@ -78,7 +78,7 @@ Ver sección **Parte C** de `R16A-RE-FU-035-Back.md` — estructura detallada de
 
 **Consideraciones previas:**
 - Patrón base: `FacturaPeruXmlBuilder` (R16A-RE-FU-022). Adaptar a CPE tipo 07 (NC).
-- **Diferencias clave vs NCMexicoXmlBuilder:** UBL 2.1 (no CFDI 4.0), `InvoiceTypeCode=07`, sin UUID, sin sello SAT, referencia por serie-correlativo (`BillingReference`), motivo en `DiscrepancyResponse` (catálogo 09), IGV 18%, TC heredado de la fecha de emisión del CPE origen.
+- **Diferencias clave vs NCXmlBuilder:** UBL 2.1 (no CFDI 4.0), `InvoiceTypeCode=07`, sin UUID, sin sello SAT, referencia por serie-correlativo (`BillingReference`), motivo en `DiscrepancyResponse` (catálogo 09), IGV 18%, TC heredado de la fecha de emisión del CPE origen.
 - ⚠️ **BLOQUEADO B1 para integración:** El XML puede construirse y probarse unitariamente, pero el envío a SUNAT y la recepción del CDR dependen de la modalidad de emisión (ver R16A-RE-FU-029/033).
 - ⚠️ **Mecánica fiscal SUNAT pendiente de validar (P2):** avanzar con la estructura normativa investigada; puede requerir ajustes tras validación con asesor fiscal.
 - ⚠️ **TipoCambioOrigen (P3):** usar `fccNotaCredito.TipoCambioOrigen` — TC de la fecha de emisión del CPE origen, no el del día del timbrado.
@@ -120,7 +120,7 @@ Implementar `NCPeruXmlBuilder` que recibe el `NCPeruDto` y genera el `XDocument`
 - **No aparecen** campos SAT: sin `TipoDeComprobante`, sin `MetodoPago`, sin `FormaPago`, sin `UsoCFDI`.
 
 **Más información:**
-Ver sección **Parte A** de `R16A-RE-FU-035-Back.md` — mapa completo de campos UBL 2.1 CPE tipo 07 y diferencias vs `NCMexicoXmlBuilder`.
+Ver sección **Parte A** de `R16A-RE-FU-035-Back.md` — mapa completo de campos UBL 2.1 CPE tipo 07 y diferencias vs `NCXmlBuilder`.
 
 **Recursos:**
 - `R16A-RE-FU-035-Back.md` — Parte A

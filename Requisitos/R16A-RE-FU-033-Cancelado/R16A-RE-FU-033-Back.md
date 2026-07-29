@@ -101,7 +101,7 @@ Construye el XML de la NC conforme a la estructura UBL 2.1 SUNAT:
 | `cac:CreditNoteLine` | Por partida (modalidad POR_PARTIDAS) o línea única (modalidad MANUAL) |
 | Régimen Tributario | Configuración empresa emisora + catálogo clientes ⚠️ pendiente validar P8 |
 
-**Diferencias clave vs CreditNoteMexicoXmlBuilder (RE-032):**
+**Diferencias clave vs CreditNoteXmlBuilder (RE-032):**
 - Sin `TipoRelacion='01'`, sin `UsoCFDI`, sin `MetodoPago`, sin `FormaPago`, sin UUID.
 - La referencia al CPE origen es por `serie-correlativo` en `cac:BillingReference`.
 - El tipo de cambio es `TipoCambioOrigen` (fecha de la factura origen), no el del día del timbrado.
@@ -109,7 +109,7 @@ Construye el XML de la NC conforme a la estructura UBL 2.1 SUNAT:
 
 ### B6 — Previsualización PDF — Paso 3 (CreditNotePeruPdfMappingService)
 
-`CreditNotePeruPdfMappingService` sigue el patrón de `CreditNoteMexicoPdfMappingService` (RE-032) con adaptaciones SUNAT:
+`CreditNotePeruPdfMappingService` sigue el patrón de `CreditNotePdfMappingService` (RE-032) con adaptaciones SUNAT:
 
 - **Preview (Paso 3):** sin constancia SUNAT, sin número de orden OSE. Template `GOL_PER_NC`.
 - **Post-timbrado:** con datos de la constancia SUNAT (número, fecha, QR SUNAT si aplica).
@@ -246,9 +246,9 @@ Perú **no transfiere datos a PCconnect** (mismo comportamiento que RE-029 Factu
 
 | Aspecto | RE-032 México | RE-033 Perú |
 |---|---|---|
-| Servicio XML | `CreditNoteMexicoXmlBuilder` | `CreditNotePeruXmlBuilder` (nuevo) |
-| Servicio PDF | `CreditNoteMexicoPdfMappingService` | `CreditNotePeruPdfMappingService` (nuevo) |
-| Servicio persistencia | `PersistMexicoCreditNotePdfService` | `PersistPeruCreditNotePdfService` (nuevo) |
+| Servicio XML | `CreditNoteXmlBuilder` | `CreditNotePeruXmlBuilder` (nuevo) |
+| Servicio PDF | `CreditNotePdfMappingService` | `CreditNotePeruPdfMappingService` (nuevo) |
+| Servicio persistencia | `PersistCreditNotePdfService` | `PersistPeruCreditNotePdfService` (nuevo) |
 | Motivo endpoint | `GET /api/v1/cancellationReason` | `GET /api/v1/creditNoteReasonSunat` |
 | Cancelación SAT | POST cancelar-cfdi (condicional) | NO APLICA |
 | Tipo de cambio XML | Del día del timbrado | `TipoCambioOrigen` de la factura origen |

@@ -188,7 +188,7 @@ IGV 18%, RUC, serie alfanumerica SUNAT. Sin transferencia a Legacy. Post-envio: 
     3. ENVIAR (modal envio)
        ProquifaDotNet:
          INSERT CorreoEnviado + ArchivoCorreoEnviado
-         UPDATE fccFactura SET Enviada=1, FechaEnvio=SYSUTCDATETIME(), IdCatFacturaEstado=ENVIADA (antes: UPDATE tpProformaAdelanto SET Enviada=1)
+         UPDATE fccFactura SET Enviada=1, FechaEnvio=GETDATE(), IdCatFacturaEstado=ENVIADA (antes: UPDATE tpProformaAdelanto SET Enviada=1)
          Genera pendiente Validar Cobro (SOLO Prepago, sin rama Credito)
          ** SIN transferencia a Legacy **
 

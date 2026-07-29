@@ -87,7 +87,7 @@ VALUES
 
 ### B1 — Servicio TC del día para Perú (TipoCambioPeruService)
 
-**Descripción:** Servicio paralelo a `TipoCambioMexicoService` (RE-FU-024) pero para Región Perú. Calcula el TC del día de la moneda no-PEN involucrada respecto a PEN.
+**Descripción:** Servicio paralelo a `TipoCambioService` (RE-FU-024) pero para Región Perú. Calcula el TC del día de la moneda no-PEN involucrada respecto a PEN.
 
 **Lógica:**
 | Moneda cobro | Moneda facturación cliente | TC a capturar |
@@ -107,7 +107,7 @@ Los endpoints del Paso 1 ya implementados en RE-FU-024 se adaptan para Perú med
 |---|---|---|
 | Medio de pago | `catMedioDePago` con `ClaveFormaDePago IS NOT NULL` (SAT) | `catMedioDePago` con `ClaveFormaDePago IS NULL` (interno) |
 | Cuenta destino | `EmpresaDatosBancarios` donde empresa es GOL/MUN/PRO/PQF | `EmpresaDatosBancarios` donde empresa es GOLPERU |
-| TC del día | `TipoCambioMexicoService` (vs MXN) | `TipoCambioPeruService` (vs PEN) |
+| TC del día | `TipoCambioService` (vs MXN) | `TipoCambioPeruService` (vs PEN) |
 | ID fiscal en cabecera | RFC | RUC |
 
 ### B3 — Vinculación cobro↔factura sin efecto fiscal en Perú

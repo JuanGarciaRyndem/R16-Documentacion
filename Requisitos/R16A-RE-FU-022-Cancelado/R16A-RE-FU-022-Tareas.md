@@ -148,7 +148,7 @@ Ver criterios A1-J2 en `R16A-RE-FU-022-Pendiente.md`. Ver sección *"Parte A —
 - Los datos del QR, Firma Digital y Valor Resumen se extraen del XML del OSE/PSE, no de BD directamente.
 - La comunicación con ProquifaDotNet (.NET Framework 4.8) para obtener los datos del pedido se realiza mediante llamadas entre APIs. Los datos del CPE (`CFDIGenerada`) se consultan directamente, ya que la tabla es propiedad de ProquifaDotNet.Finanzas.
 - Aplica a Facturas de FAA Perú (RE-FU-020) y de Validar Cobro Perú. Solo empresa GOLPERU.
-- Es el contraparte peruano de la Tarea 9 de RE-FU-021 (`MexicoInvoicePdfMappingService`); mismo patrón, misma tabla, columnas SUNAT adicionales.
+- Es el contraparte peruano de la Tarea 9 de RE-FU-021 (`InvoicePdfMappingService`); mismo patrón, misma tabla, columnas SUNAT adicionales.
 
 **Objetivo general:**
 Implementar el servicio `PeruInvoicePdfMappingService` que consolida todos los datos del CPE UBL 2.1 en un modelo unificado (`PeruInvoicePdfModel`), listo para ser consumido por DocumentBuilder con el template `GOLPERU_PER_FAC`, incluyendo branding de Golocaer S.A.C., datos fiscales SUNAT del emisor y receptor, partidas con códigos SUNAT, totales SUNAT e IGV, elementos técnicos de certificación y QR.
@@ -183,7 +183,7 @@ Ver sección *"Parte B — PeruInvoicePdfMappingService"* en `R16A-RE-FU-022-Bac
 **Recursos:**
 - `R16A-RE-FU-022-Back.md` — Parte B, modelo y flujo MapearAsync
 - `R16A-RE-FU-022-Pendiente.md` — Criterios A1-J2, Reglas 7 y 8
-- R16A-RE-FU-021 Tarea 9 — `MexicoInvoicePdfMappingService` (patrón equivalente)
+- R16A-RE-FU-021 Tarea 9 — `InvoicePdfMappingService` (patrón equivalente)
 - Factura real de muestra: Golocaer S.A.C. E001-362
 
 ---
@@ -205,7 +205,7 @@ Ver sección *"Parte B — PeruInvoicePdfMappingService"* en `R16A-RE-FU-022-Bac
 - La actualización de `CFDIGenerada.IdArchivoPdf` y de `fccFactura.IdCFDIGenerada` (RE-FU-015, antes `tpProformaAdelanto.IdCFDIGenerada`) se realizan ambas directamente en BD vía EF Core, sin llamada API: **corrección arquitectónica 06/07/2026** — a diferencia de la extinta `tpProformaAdelanto` (propiedad del sistema legado, sí requería API), `fccFactura` es propiedad de `ProquifaDotNet.Finanzas` (Scaffold EF Core en `Finanzas.Infrastructure`).
 - TemplateKey fijo: `GOLPERU_PER_FAC` (única empresa emisora Perú).
 - Depende de las Tareas 1-3.
-- Es el contraparte peruano de la Tarea 10 de RE-FU-021 (`PersistMexicoInvoicePdfService`).
+- Es el contraparte peruano de la Tarea 10 de RE-FU-021 (`PersistInvoicePdfService`).
 
 **Objetivo general:**
 Implementar el servicio `PersistPeruInvoicePdfService` que, tras el timbrado exitoso ante SUNAT/OSE, genera el PDF definitivo del CPE UBL 2.1 (con QR, Firma Digital y Valor Resumen completos) y lo persiste en Minio vía la tabla `Archivo` con `IdRegion='PER'`, referenciado desde `CFDIGenerada.IdArchivoPdf`.
@@ -241,7 +241,7 @@ Ver sección *"Parte B — PersistPeruInvoicePdfService"* en `R16A-RE-FU-022-Bac
 **Recursos:**
 - `R16A-RE-FU-022-Back.md` — Parte B, flujo PersistPeruInvoicePdfService
 - `R16A-RE-FU-022-Pendiente.md` — Criterios J1-J2, Reglas 1 y 5
-- R16A-RE-FU-021 Tarea 10 — `PersistMexicoInvoicePdfService` (patrón equivalente)
+- R16A-RE-FU-021 Tarea 10 — `PersistInvoicePdfService` (patrón equivalente)
 
 ---
 

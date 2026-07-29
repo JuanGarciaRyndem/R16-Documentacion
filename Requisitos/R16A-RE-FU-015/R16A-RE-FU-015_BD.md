@@ -69,8 +69,10 @@ CREATE TABLE [dbo].[catFacturaEstado](
         CONSTRAINT [DF_catFacturaEstado_Terminal] DEFAULT (0),
     [Activo]              bit              NOT NULL
         CONSTRAINT [DF_catFacturaEstado_Activo]   DEFAULT (1),
-    [FechaRegistro]       datetime2(7)     NOT NULL
-        CONSTRAINT [DF_catFacturaEstado_FechaReg] DEFAULT (SYSUTCDATETIME()),
+    [FechaRegistro]       datetime     NOT NULL
+        CONSTRAINT [DF_catFacturaEstado_FechaReg] DEFAULT (GETDATE()),
+    [FechaUltimaActualizacion] datetime NOT NULL
+        CONSTRAINT [DF_catFacturaEstado_FechaUltimaActualizacion] DEFAULT (GETDATE()),
     CONSTRAINT [PK_catFacturaEstado] PRIMARY KEY CLUSTERED ([IdCatFacturaEstado]),
     CONSTRAINT [UQ_catFacturaEstado_Clave] UNIQUE ([Clave])
 );
@@ -99,7 +101,8 @@ INSERT INTO [dbo].[catFacturaEstado] (Clave, Descripcion, Orden, EsTerminal) VAL
 | Orden              | int              | Orden natural del ciclo de vida (UI/reportes)                       |
 | EsTerminal         | bit              | 1 = sin transiciones posteriores (PAGADA, CANCELADA)                |
 | Activo             | bit              | Borrado lógico, DEFAULT 1                                           |
-| FechaRegistro      | datetime2(7)     | Alta del registro, DEFAULT SYSUTCDATETIME()                         |
+| FechaRegistro      | datetime     | Alta del registro, DEFAULT GETDATE()                         |
+| FechaUltimaActualizacion      | datetime     | Última modificación, DEFAULT GETDATE()                       |
 
 **Relaciones:**
 
@@ -137,7 +140,7 @@ INSERT INTO [dbo].[catFacturaEstado] (Clave, Descripcion, Orden, EsTerminal) VAL
 | EsFacturaPorAdelantado                                  | bit                | 1 = FAA, 0 = factura final (bandera diferenciadora, RT-10)               |
 | IdCatFacturaEstado                                      | uniqueidentifier   | FK → `catFacturaEstado.IdCatFacturaEstado`, requerido — estado del ciclo de vida de la factura; se asigna POR_GENERAR al crear el registro (la app resuelve el Id por `Clave`) |
 | Enviada                                                 | bit                | 0 = no enviada / 1 = enviada al cliente con PDF+XML — determina, junto con `IdCFDIGenerada`, el estado calculado `EstadoFAA` en `vfccFactura` (equivalente a `tpProformaAdelanto.Enviada`, migrado de RE-FU-019) |
-| FechaEnvio                                              | datetime2(7) NULL  | Fecha y hora (UTC) del envío de la factura al cliente — se asigna con SYSUTCDATETIME() en el mismo UPDATE que `Enviada = 1` / `IdCatFacturaEstado = ENVIADA`; `NULL` mientras no se envía |
+| FechaEnvio                                              | datetime NULL  | Fecha y hora (UTC) del envío de la factura al cliente — se asigna con GETDATE() en el mismo UPDATE que `Enviada = 1` / `IdCatFacturaEstado = ENVIADA`; `NULL` mientras no se envía |
 | IdCliente                                               | uniqueidentifier   | FK, ← `tpPedido.IdCliente`                                               |
 | IdEmpresa                                               | uniqueidentifier   | FK, empresa emisora (Proquifa)                                           |
 | FolioPedidoInterno                                      | varchar            | ← `tpPedido.FolioPedidoInterno`                                          |
@@ -190,7 +193,7 @@ INSERT INTO [dbo].[catFacturaEstado] (Clave, Descripcion, Orden, EsTerminal) VAL
 - `IdCFDIGenerada` debe permanecer `NULL` mientras `EsFacturaPorAdelantado = 1` y no se haya timbrado (`EstadoFAA = 'PendienteGenerar'` en `vfccFactura`).
 - `IdTPProformaPedido` es `NULL` para pedidos Prepago (RE-FU-015, que no genera proforma) y está poblado para pedidos Crédito (RE-FU-012, cuya proforma/Confirmación de Pedido se genera en paralelo a `fccFactura` dentro de la misma transacción de tramitación).
 - ⚠️ H-01 abierto: sin columnas para Tipo de Operación / Condición de Pago SUNAT (Perú).
-- `IdCatFacturaEstado` sigue el ciclo de `catFacturaEstado` (ver catálogo arriba): POR_GENERAR al crear; GENERADA al timbrar (junto con `IdCFDIGenerada`); ENVIADA al enviar (junto con `Enviada = 1` y `FechaEnvio = SYSUTCDATETIME()`); PAGADA_PARCIAL/PAGADA desde Validar Cobro; CANCELADA desde el flujo de cancelación. Convive con `EstadoFAA` (calculado en `vfccFactura`, específico del pendiente FAA) sin sustituirlo.
+- `IdCatFacturaEstado` sigue el ciclo de `catFacturaEstado` (ver catálogo arriba): POR_GENERAR al crear; GENERADA al timbrar (junto con `IdCFDIGenerada`); ENVIADA al enviar (junto con `Enviada = 1` y `FechaEnvio = GETDATE()`); PAGADA_PARCIAL/PAGADA desde Validar Cobro; CANCELADA desde el flujo de cancelación. Convive con `EstadoFAA` (calculado en `vfccFactura`, específico del pendiente FAA) sin sustituirlo.
 - **Tabla única para el pendiente FAA, tanto en el origen Prepago (RE-015) como Crédito (RE-012)** — reemplaza `tpProformaAdelanto` en ambos flujos. Ver vista `vfccFactura` para el listado/estado calculado que antes ofrecía `vtpProformaAdelanto`.
 
 ---
@@ -427,7 +430,7 @@ WHERE f.EsFacturaPorAdelantado = 1;
       IdCatFacturaEstado=GENERADA (si el PAC rechaza: ERROR_TIMBRADO, reintento de Finanzas)
       (Serie/Folio/FolioFiscal/Version/TipoDeComprobante/FechaCertificacion
       se leen de CFDIGenerada via este FK, no se duplican en fccFactura)
-   8b. Al enviar la factura -> UPDATE fccFactura SET Enviada=1, FechaEnvio=SYSUTCDATETIME(),
+   8b. Al enviar la factura -> UPDATE fccFactura SET Enviada=1, FechaEnvio=GETDATE(),
        IdCatFacturaEstado=ENVIADA
    9. FAA genera pendiente Validar Cobro
    10. Validar Cobro aplica cobros -> IdCatFacturaEstado=PAGADA_PARCIAL o PAGADA;

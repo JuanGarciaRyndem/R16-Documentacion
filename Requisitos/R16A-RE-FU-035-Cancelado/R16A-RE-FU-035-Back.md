@@ -179,7 +179,7 @@ Un único `cac:CreditNoteLine`:
 
 ---
 
-### Diferencias clave: NCPeruXmlBuilder vs NCMexicoXmlBuilder
+### Diferencias clave: NCPeruXmlBuilder vs NCXmlBuilder
 
 | Aspecto                        | México (RE-034)                                    | Perú (RE-035)                                        |
 | ------------------------------ | -------------------------------------------------- | ---------------------------------------------------- |

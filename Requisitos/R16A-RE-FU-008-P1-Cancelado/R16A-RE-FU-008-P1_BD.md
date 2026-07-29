@@ -253,8 +253,10 @@ CREATE TABLE [dbo].[catCobroEstatus] (
         CONSTRAINT [DF_catCobroEstatus_Orden]     DEFAULT (0),
     [Activo]             bit              NOT NULL
         CONSTRAINT [DF_catCobroEstatus_Activo]    DEFAULT (1),
-    [FechaRegistro]      datetime2        NOT NULL
-        CONSTRAINT [DF_catCobroEstatus_FechaReg]  DEFAULT (SYSUTCDATETIME()),
+    [FechaRegistro]      datetime        NOT NULL
+        CONSTRAINT [DF_catCobroEstatus_FechaReg]  DEFAULT (GETDATE()),
+    [FechaUltimaActualizacion] datetime NOT NULL
+        CONSTRAINT [DF_catCobroEstatus_FechaUltimaActualizacion] DEFAULT (GETDATE()),
     CONSTRAINT [PK_catCobroEstatus]
         PRIMARY KEY CLUSTERED ([IdCatCobroEstatus]),
     CONSTRAINT [UQ_catCobroEstatus_Clave]
@@ -285,7 +287,8 @@ INSERT INTO dbo.catCobroEstatus (Clave, Descripcion, Orden) VALUES
 | Descripcion | varchar(120) | Descripción legible del estatus |
 | Orden | int | Orden en el ciclo de vida para presentación |
 | Activo | bit | 1 = vigente, 0 = inactivo |
-| FechaRegistro | datetime2 | Fecha de inserción del registro |
+| FechaRegistro | datetime | Fecha de inserción del registro |
+| FechaUltimaActualizacion | datetime | Fecha de última modificación |
 
 ### Ciclo de vida del estatus
 
@@ -401,6 +404,8 @@ CREATE TABLE dbo.MailbotClasificacionLog (
     CompletionTokens          int              NULL,
     FechaRegistro             datetime         NOT NULL
         CONSTRAINT DF_MailbotClasificacionLog_FechaRegistro DEFAULT (GETDATE()),
+    FechaUltimaActualizacion datetime NOT NULL
+        CONSTRAINT DF_MailbotClasificacionLog_FechaUltimaActualizacion DEFAULT (GETDATE()),
     Activo                    bit              NOT NULL
         CONSTRAINT DF_MailbotClasificacionLog_Activo DEFAULT (1)
 );

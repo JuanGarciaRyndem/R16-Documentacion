@@ -66,7 +66,7 @@ timbrado en R16A-RE-FU-018 (Parte 3) via `ALTER TABLE` posteriores.
         [RFCReceptor]           varchar(50)   NOT NULL,
         [Serie]                 varchar(25)   NULL,
         [Folio]                 varchar(40)   NULL,
-        [FechaEmision]          datetime2(7)  NULL,
+        [FechaEmision]          datetime  NULL,
         [UUID]                  varchar(36)   NULL,
         [Total]                 decimal(18,2) NULL,
         [IdCatMetodoDePagoCFDI] uniqueidentifier NULL
@@ -79,8 +79,10 @@ timbrado en R16A-RE-FU-018 (Parte 3) via `ALTER TABLE` posteriores.
             CONSTRAINT [DF_CFDIGenerada_Exportacion] DEFAULT ('01'),
         [Activo]                bit NOT NULL
             CONSTRAINT [DF_CFDIGenerada_Activo] DEFAULT (1),
-        [FechaRegistro]         datetime2(7)  NOT NULL
-            CONSTRAINT [DF_CFDIGenerada_FechaRegistro] DEFAULT (SYSUTCDATETIME()),
+        [FechaRegistro]         datetime  NOT NULL
+            CONSTRAINT [DF_CFDIGenerada_FechaRegistro] DEFAULT (GETDATE()),
+        [FechaUltimaActualizacion] datetime NOT NULL
+            CONSTRAINT [DF_CFDIGenerada_FechaUltimaActualizacion] DEFAULT (GETDATE()),
         CONSTRAINT [PK_CFDIGenerada] PRIMARY KEY CLUSTERED ([IdCFDIGenerada])
     );
     GO
@@ -93,14 +95,15 @@ timbrado en R16A-RE-FU-018 (Parte 3) via `ALTER TABLE` posteriores.
 | RFCReceptor           | varchar(50)      | NO   | -                | RFC/RUC del cliente receptor                                 |
 | Serie                 | varchar(25)      | SI   | -                | Serie del CFDI                                               |
 | Folio                 | varchar(40)      | SI   | -                | Folio del CFDI (consecutivo formateado, consumido de `EmpresaFolio` con UPDLOCK atómico) |
-| FechaEmision          | datetime2(7)     | SI   | -                | Fecha de emisión (timbrado)                                  |
+| FechaEmision          | datetime     | SI   | -                | Fecha de emisión (timbrado)                                  |
 | UUID                  | varchar(36)      | SI   | -                | UUID asignado por el PAC al timbrar                          |
 | Total                 | decimal(18,2)    | SI   | -                | Monto total del CFDI (usado por vfccFactura)                 |
 | IdCatMetodoDePagoCFDI | uniqueidentifier | SI   | -                | FK → `catMetodoDePagoCFDI` — `PPD` (FAA/crédito) o `PUE`     |
 | IdCatFormaPagoSAT     | uniqueidentifier | SI   | -                | FK → `catFormaPagoSAT`; `99` (Por definir) en FAA            |
 | Exportacion           | varchar(2)       | SI   | `01`             | c_Exportacion SAT, obligatorio CFDI 4.0; `01` = No aplica    |
 | Activo                | bit              | NO   | 1                | Activo                                                       |
-| FechaRegistro         | datetime2(7)     | NO   | SYSUTCDATETIME() | Fecha de creación del registro                               |
+| FechaRegistro         | datetime     | NO   | GETDATE() | Fecha de creación del registro                               |
+| FechaUltimaActualizacion         | datetime     | NO   | GETDATE() | Fecha de última modificación |
 
 > Ver R16A-RE-FU-028_BD.md (ALTER: IdCatTipoCFDI, IdCFDIRelacionado) y R16A-RE-FU-018_BD.md Parte 3 (ALTER: Estado, MensajeError, IdArchivoXml, IdCatUsoCFDI, IdCatMoneda, TipoCambio, FechaUltimaActualizacion) para las extensiones posteriores de esta tabla.
 
@@ -124,8 +127,10 @@ CREATE TABLE [dbo].[catFormaPagoSAT](
     [Descripcion]        nvarchar(150)    NOT NULL,
     [Activo]             bit              NOT NULL
         CONSTRAINT [DF_catFormaPagoSAT_Activo]  DEFAULT (1),
-    [FechaRegistro]      datetime2(7)     NOT NULL
-        CONSTRAINT [DF_catFormaPagoSAT_FechaReg] DEFAULT (SYSUTCDATETIME()),
+    [FechaRegistro]      datetime     NOT NULL
+        CONSTRAINT [DF_catFormaPagoSAT_FechaReg] DEFAULT (GETDATE()),
+    [FechaUltimaActualizacion] datetime NOT NULL
+        CONSTRAINT [DF_catFormaPagoSAT_FechaUltimaActualizacion] DEFAULT (GETDATE()),
     CONSTRAINT [PK_catFormaPagoSAT]
         PRIMARY KEY CLUSTERED ([IdCatFormaPagoSAT]),
     CONSTRAINT [UQ_catFormaPagoSAT_Clave]
@@ -165,7 +170,8 @@ GO
 | Clave             | varchar(10)      | NO   | Código c_FormaPago SAT. UNIQUE. `99` = Por definir (usado en FAA)            |
 | Descripcion       | nvarchar(150)    | NO   | Descripción legible de la forma de pago                                      |
 | Activo            | bit              | NO   | 1 = vigente                                                                  |
-| FechaRegistro     | datetime2(7)     | NO   | Fecha de inserción                                                           |
+| FechaRegistro     | datetime     | NO   | Fecha de inserción                                                           |
+| FechaUltimaActualizacion     | datetime     | NO   | Fecha de última modificación |
 
 ---
 
@@ -183,8 +189,10 @@ Catálogo c_Impuesto del SAT. Seed inicial con los 3 valores vigentes.
         [Descripcion] varchar(100) NOT NULL,
         [Activo]      bit NOT NULL
             CONSTRAINT [DF_catImpuestoSat_Activo] DEFAULT (1),
-        [FechaRegistro] datetime2(7) NOT NULL
-            CONSTRAINT [DF_catImpuestoSat_FechaRegistro] DEFAULT (SYSUTCDATETIME()),
+        [FechaRegistro] datetime NOT NULL
+            CONSTRAINT [DF_catImpuestoSat_FechaRegistro] DEFAULT (GETDATE()),
+        [FechaUltimaActualizacion] datetime NOT NULL
+            CONSTRAINT [DF_catImpuestoSat_FechaUltimaActualizacion] DEFAULT (GETDATE()),
         CONSTRAINT [PK_catImpuestoSat] PRIMARY KEY CLUSTERED ([IdCatImpuestoSat]),
         CONSTRAINT [UQ_catImpuestoSat_Clave] UNIQUE ([Clave])
     );
@@ -212,8 +220,10 @@ Catálogo c_TipoFactor del SAT. Seed inicial con los 3 valores vigentes.
         [Descripcion] varchar(100) NOT NULL,
         [Activo]      bit NOT NULL
             CONSTRAINT [DF_catTipoFactorSat_Activo] DEFAULT (1),
-        [FechaRegistro] datetime2(7) NOT NULL
-            CONSTRAINT [DF_catTipoFactorSat_FechaRegistro] DEFAULT (SYSUTCDATETIME()),
+        [FechaRegistro] datetime NOT NULL
+            CONSTRAINT [DF_catTipoFactorSat_FechaRegistro] DEFAULT (GETDATE()),
+        [FechaUltimaActualizacion] datetime NOT NULL
+            CONSTRAINT [DF_catTipoFactorSat_FechaUltimaActualizacion] DEFAULT (GETDATE()),
         CONSTRAINT [PK_catTipoFactorSat] PRIMARY KEY CLUSTERED ([IdCatTipoFactorSat]),
         CONSTRAINT [UQ_catTipoFactorSat_Clave] UNIQUE ([Clave])
     );
@@ -241,8 +251,10 @@ Catálogo c_ObjetoImp del SAT. Seed inicial con los 4 valores vigentes.
         [Descripcion] varchar(200) NOT NULL,
         [Activo]      bit NOT NULL
             CONSTRAINT [DF_catObjetoImpuestoSat_Activo] DEFAULT (1),
-        [FechaRegistro] datetime2(7) NOT NULL
-            CONSTRAINT [DF_catObjetoImpuestoSat_FechaRegistro] DEFAULT (SYSUTCDATETIME()),
+        [FechaRegistro] datetime NOT NULL
+            CONSTRAINT [DF_catObjetoImpuestoSat_FechaRegistro] DEFAULT (GETDATE()),
+        [FechaUltimaActualizacion] datetime NOT NULL
+            CONSTRAINT [DF_catObjetoImpuestoSat_FechaUltimaActualizacion] DEFAULT (GETDATE()),
         CONSTRAINT [PK_catObjetoImpuestoSat] PRIMARY KEY CLUSTERED ([IdCatObjetoImpuestoSat]),
         CONSTRAINT [UQ_catObjetoImpuestoSat_Clave] UNIQUE ([Clave])
     );
@@ -281,8 +293,10 @@ Catálogo de negocio de 3-4 filas que traduce la tasa de IVA de un producto a la
         [Fundamento]              nvarchar(200)   NULL,       -- referencia legal, ej. 'Art. 2-A LIVA'
         [Activo]        bit NOT NULL
             CONSTRAINT [DF_PerfilFiscal_Activo] DEFAULT (1),
-        [FechaRegistro] datetime2(7) NOT NULL
-            CONSTRAINT [DF_PerfilFiscal_FechaRegistro] DEFAULT (SYSUTCDATETIME()),
+        [FechaRegistro] datetime NOT NULL
+            CONSTRAINT [DF_PerfilFiscal_FechaRegistro] DEFAULT (GETDATE()),
+        [FechaUltimaActualizacion] datetime NOT NULL
+            CONSTRAINT [DF_PerfilFiscal_FechaUltimaActualizacion] DEFAULT (GETDATE()),
         CONSTRAINT [PK_PerfilFiscal] PRIMARY KEY CLUSTERED ([IdPerfilFiscal]),
         CONSTRAINT [CK_PerfilFiscal_TasaOCuota] CHECK (
             ([TasaOCuota] IS NULL     AND EXISTS (SELECT 1 FROM [dbo].[catTipoFactorSat] t WHERE t.[IdCatTipoFactorSat] = [IdCatTipoFactorSat] AND t.[Clave] = 'Exento'))
@@ -409,10 +423,10 @@ Foliador por empresa/serie. `UltimoFolio` es el **consecutivo** — el entero qu
             CONSTRAINT [DF_EmpresaFolio_Longitud] DEFAULT (6),
         [Activo] bit NOT NULL
             CONSTRAINT [DF_EmpresaFolio_Activo] DEFAULT (1),
-        [FechaRegistro] datetime2(7) NOT NULL
-            CONSTRAINT [DF_EmpresaFolio_FechaRegistro] DEFAULT (SYSUTCDATETIME()),
-        [FechaUltimaActualizacion] datetime2(7) NOT NULL
-            CONSTRAINT [DF_EmpresaFolio_FechaActualizacion] DEFAULT (SYSUTCDATETIME()),
+        [FechaRegistro] datetime NOT NULL
+            CONSTRAINT [DF_EmpresaFolio_FechaRegistro] DEFAULT (GETDATE()),
+        [FechaUltimaActualizacion] datetime NOT NULL
+            CONSTRAINT [DF_EmpresaFolio_FechaActualizacion] DEFAULT (GETDATE()),
         CONSTRAINT [PK_EmpresaFolio] PRIMARY KEY CLUSTERED ([IdEmpresaFolio]),
         CONSTRAINT [UQ_EmpresaFolio_EmpresaSerie] UNIQUE ([IdEmpresa], [Serie])
     );
@@ -435,8 +449,8 @@ Foliador por empresa/serie. `UltimoFolio` es el **consecutivo** — el entero qu
 | FormatoFolio | varchar(50) | NO | `'{folio}'` | Patrón de formato del folio presentado (ej. `'A{folio:D6}'`) |
 | LongitudMaxima | int | NO | 6 | Longitud máxima del campo folio en caracteres |
 | Activo | bit | NO | 1 | Borrado lógico |
-| FechaRegistro | datetime2(7) | NO | SYSUTCDATETIME() | Fecha de alta del registro |
-| FechaUltimaActualizacion | datetime2(7) | NO | SYSUTCDATETIME() | Última actualización del consecutivo |
+| FechaRegistro | datetime | NO | GETDATE() | Fecha de alta del registro |
+| FechaUltimaActualizacion | datetime | NO | GETDATE() | Última actualización del consecutivo |
 
 ### Consumo del folio — UPDLOCK atómico (EmpresaFolioRepository)
 
@@ -446,7 +460,7 @@ Foliador por empresa/serie. `UltimoFolio` es el **consecutivo** — el entero qu
     -- EmpresaFolioRepository.ConsumeNextFolioAsync — ejecutar en ProquifaDotNet
     UPDATE [dbo].[EmpresaFolio]
     SET    [UltimoFolio]              = [UltimoFolio] + 1,
-           [FechaUltimaActualizacion] = SYSUTCDATETIME()
+           [FechaUltimaActualizacion] = GETDATE()
     OUTPUT inserted.[UltimoFolio]        -- nuevo consecutivo asignado
     WHERE  [IdEmpresa] = @IdEmpresa
       AND  ([Serie] = @Serie OR ([Serie] IS NULL AND @Serie IS NULL));
@@ -482,7 +496,7 @@ Foliador por empresa/serie. `UltimoFolio` es el **consecutivo** — el entero qu
     3. ENVIAR (modal envio)
        ProquifaDotNet:
          INSERT CorreoEnviado + ArchivoCorreoEnviado
-         UPDATE fccFactura SET Enviada = 1, FechaEnvio = SYSUTCDATETIME(), IdCatFacturaEstado = ENVIADA (antes: UPDATE tpProformaAdelanto SET Enviada = 1)
+         UPDATE fccFactura SET Enviada = 1, FechaEnvio = GETDATE(), IdCatFacturaEstado = ENVIADA (antes: UPDATE tpProformaAdelanto SET Enviada = 1)
          Segun tipo (fccFactura.IdTPProformaPedido NOT NULL = origen Credito):
            Credito -> transferencia Legacy
            Prepago -> pendiente Validar Cobro

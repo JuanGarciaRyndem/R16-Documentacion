@@ -439,10 +439,10 @@ Ver sección *"Parte B / B5"* en `R16A-RE-FU-024-Back.md`. Ver criterios F3, F4 
 - El TC se persiste en `fccPagoCliente.TipoDeCambio` al confirmar el cobro.
 
 **Objetivo general:**
-Implementar en Finanzas el servicio `MexicoExchangeRateService` que calcula el TC del día para la moneda del cobro seleccionada en el combo (`IdCatMoneda`), según la regla de la moneda vs MXN.
+Implementar en Finanzas el servicio `ExchangeRateService` que calcula el TC del día para la moneda del cobro seleccionada en el combo (`IdCatMoneda`), según la regla de la moneda vs MXN.
 
 **Objetivos específicos:**
-- Crear `IMexicoExchangeRateService.GetDailyExchangeRateAsync(idCatMonedaCobro, idCatMonedaFacturacion)`.
+- Crear `IExchangeRateService.GetDailyExchangeRateAsync(idCatMonedaCobro, idCatMonedaFacturacion)`.
 - Lógica: si ambas son MXN → N/A; si cobro=MXN y facturación≠MXN → TC de la moneda de facturación; si cobro≠MXN → TC de la moneda del cobro.
 - `GET /api/v1/validate-collection/exchangeRate?sourceCurrencyId=...&targetCurrencyId=...`
 
@@ -450,7 +450,7 @@ Implementar en Finanzas el servicio `MexicoExchangeRateService` que calcula el T
 Servicio en Finanzas que retorna el TC del día según la moneda seleccionada en el combo, listo para el formulario del Paso 1 y la confirmación del cobro.
 
 **Entregables:**
-- `IMexicoExchangeRateService` + `MexicoExchangeRateService`
+- `IExchangeRateService` + `ExchangeRateService`
 - Endpoint `GET /api/v1/validate-collection/exchangeRate`
 - Pruebas unitarias (3 escenarios: N/A, TC moneda facturación, TC moneda cobro)
 
@@ -573,7 +573,7 @@ Ver sección *"Parte B / B8"* en `R16A-RE-FU-024-Back.md`. Ver Regla 11 y Criter
 - Prerrequisito: Tarea 1B (campos `BloqueadoPorTimbrado` y `FechaBloqueoTimbrado`) y Tarea 9 (un cobro debe estar capturado para poder editarse).
 - Se ejecuta al presionar el botón **Editar** del item del listado del Paso 1, disponible solo cuando `canEdit=true` (flag retornado por Tarea 6).
 - Aplica aun si el cobro ya está asociado en el Paso 2 (no requiere desasociar para editar).
-- Si el usuario cambia `IdCatMoneda` o `FechaPago`, el handler debe **recalcular TC** invocando al servicio de la Tarea 10 (`MexicoExchangeRateService`).
+- Si el usuario cambia `IdCatMoneda` o `FechaPago`, el handler debe **recalcular TC** invocando al servicio de la Tarea 10 (`ExchangeRateService`).
 - NO regenerar `Folio` (el folio capturado se mantiene).
 - La validación de comprobante seleccionado sigue siendo obligatoria.
 - **Impacto en Paso 2 (RE-FU-026):** si el cobro editado ya estaba aplicado a un documento, las conversiones operativas pueden quedar desactualizadas; el detalle de la re-evaluación se documenta en RE-FU-026.

@@ -12,3 +12,5 @@
 
 # Ignorar archivo de bloqueo de dependencias
 package-lock.json
+
+*.fuse_hidden*

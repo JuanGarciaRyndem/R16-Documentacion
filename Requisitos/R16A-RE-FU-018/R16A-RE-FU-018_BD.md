@@ -161,8 +161,8 @@ Timbrado invoca al PAC y regresa UUID + XML + estatus (sin persistirlos como ent
 | Name | varchar(50) | NO | - | Clave de configuracion |
 | Value | varchar(max) | NO | - | Valor (puede ser JSON) |
 | Description | varchar(100) | NO | - | Descripcion legible |
-| CreatedAt | datetime2(7) | NO | SYSUTCDATETIME() | Fecha creacion |
-| UpdatedAt | datetime2(7) | NO | SYSUTCDATETIME() | Fecha actualizacion |
+| CreatedAt | datetime | NO | GETDATE() | Fecha creacion |
+| UpdatedAt | datetime | NO | GETDATE() | Fecha actualizacion |
 | IsActive | bit | NO | 1 | Activo |
 
 ---
@@ -181,7 +181,7 @@ Timbrado invoca al PAC y regresa UUID + XML + estatus (sin persistirlos como ent
 | Response | varchar(max) | SI | - | Respuesta del PAC |
 | ErrorMessage | varchar(max) | SI | - | Error si fallo |
 | DurationMs | int | SI | - | Tiempo de respuesta en ms |
-| CreatedAt | datetime2(7) | NO | SYSUTCDATETIME() | Fecha del intento |
+| CreatedAt | datetime | NO | GETDATE() | Fecha del intento |
 | IsActive | bit | NO | 1 | Activo |
 
 ---
@@ -217,8 +217,8 @@ Timbrado invoca al PAC y regresa UUID + XML + estatus (sin persistirlos como ent
         [Name] varchar(50) NOT NULL,
         [Value] varchar(max) NOT NULL,
         [Description] varchar(100) NOT NULL,
-        [CreatedAt] datetime2(7) NOT NULL CONSTRAINT [DF_AppSetting_CreatedAt] DEFAULT (SYSUTCDATETIME()),
-        [UpdatedAt] datetime2(7) NOT NULL CONSTRAINT [DF_AppSetting_UpdatedAt] DEFAULT (SYSUTCDATETIME()),
+        [CreatedAt] datetime NOT NULL CONSTRAINT [DF_AppSetting_CreatedAt] DEFAULT (GETDATE()),
+        [UpdatedAt] datetime NOT NULL CONSTRAINT [DF_AppSetting_UpdatedAt] DEFAULT (GETDATE()),
         [IsActive] bit NOT NULL CONSTRAINT [DF_AppSetting_IsActive] DEFAULT (1),
         CONSTRAINT [PK_AppSetting] PRIMARY KEY CLUSTERED ([Id])
     );
@@ -234,7 +234,7 @@ Timbrado invoca al PAC y regresa UUID + XML + estatus (sin persistirlos como ent
         [Response] varchar(max) NULL,
         [ErrorMessage] varchar(max) NULL,
         [DurationMs] int NULL,
-        [CreatedAt] datetime2(7) NOT NULL CONSTRAINT [DF_StampingLog_CreatedAt] DEFAULT (SYSUTCDATETIME()),
+        [CreatedAt] datetime NOT NULL CONSTRAINT [DF_StampingLog_CreatedAt] DEFAULT (GETDATE()),
         [IsActive] bit NOT NULL CONSTRAINT [DF_StampingLog_IsActive] DEFAULT (1),
         CONSTRAINT [PK_StampingLog] PRIMARY KEY CLUSTERED ([Id])
         -- Sin FK: CfdiGeneradaId referencia CFDIGenerada en la base de datos ProquifaDotNet (otra BD)
@@ -268,8 +268,8 @@ siendo **`catTipoCFDI`** (ya diseñado en Finanzas) — no se crea un catalogo a
             [Estado]                varchar(30) NOT NULL
                 CONSTRAINT [DF_CFDIGenerada_Estado] DEFAULT ('Pendiente'),
             [MensajeError]          varchar(max) NULL,
-            [FechaUltimaActualizacion] datetime2(7) NOT NULL
-                CONSTRAINT [DF_CFDIGenerada_FechaUltimaActualizacion] DEFAULT (SYSUTCDATETIME());
+            [FechaUltimaActualizacion] datetime NOT NULL
+                CONSTRAINT [DF_CFDIGenerada_FechaUltimaActualizacion] DEFAULT (GETDATE());
     GO
 
     ALTER TABLE dbo.CFDIGenerada
@@ -295,7 +295,7 @@ siendo **`catTipoCFDI`** (ya diseñado en Finanzas) — no se crea un catalogo a
 | IdArchivoXml | uniqueidentifier | SI | - | FK -> Archivo (XML del CFDI timbrado, mismo patron que `fccNotaCredito.IdArchivoXml`) |
 | Estado | varchar(30) | NO | 'Pendiente' | Pendiente/Timbrado/Fallido — mapea al enum `StampStatus` (Pending/Stamped/Failed) del lado de Finanzas |
 | MensajeError | varchar(max) | SI | - | Detalle del error si el timbrado fallo |
-| FechaUltimaActualizacion | datetime2(7) | NO | SYSUTCDATETIME() | Fecha de la ultima actualizacion de estatus |
+| FechaUltimaActualizacion | datetime | NO | GETDATE() | Fecha de la ultima actualizacion de estatus |
 
 > **Nota:** el XML no se guarda como blob en `CFDIGenerada` — se sube a Minio y se registra en `Archivo` (patron ya usado por `RE-FU-016` y por `fccNotaCredito.IdArchivoXml`/`IdArchivoPdf`), y `CFDIGenerada.IdArchivoXml` solo referencia ese registro.
 

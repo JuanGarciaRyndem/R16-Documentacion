@@ -92,10 +92,10 @@ tolerancia 100 MXN, para uso en futuras sesiones de Validar Cobro.
         [IdFCCPagoFacturaPedido] uniqueidentifier NULL,  -- cuando se aplica a futura proforma
         [Observaciones] varchar(500) NULL,
         [Activo] bit NOT NULL CONSTRAINT [DF_fccSaldoFavorCliente_Activo] DEFAULT (1),
-        [FechaRegistro] datetime2(7) NOT NULL
-            CONSTRAINT [DF_fccSaldoFavorCliente_FechaReg] DEFAULT (SYSUTCDATETIME()),
-        [FechaUltimaActualizacion] datetime2(7) NOT NULL
-            CONSTRAINT [DF_fccSaldoFavorCliente_FechaUpd] DEFAULT (SYSUTCDATETIME()),
+        [FechaRegistro] datetime NOT NULL
+            CONSTRAINT [DF_fccSaldoFavorCliente_FechaReg] DEFAULT (GETDATE()),
+        [FechaUltimaActualizacion] datetime NOT NULL
+            CONSTRAINT [DF_fccSaldoFavorCliente_FechaUpd] DEFAULT (GETDATE()),
         CONSTRAINT [PK_fccSaldoFavorCliente] PRIMARY KEY CLUSTERED ([IdFCCSaldoFavorCliente]),
         CONSTRAINT [FK_fccSaldoFavorCliente_Cliente]
             FOREIGN KEY ([IdCliente]) REFERENCES dbo.Cliente([IdCliente]),

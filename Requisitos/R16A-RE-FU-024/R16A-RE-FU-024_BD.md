@@ -34,12 +34,12 @@ Se crean 2 tablas nuevas (inconsistencias) y 1 SEQUENCE (foliador COB).
 | #   | Cambio                                                                                              | Tipo | Estado                   |
 | --- | --------------------------------------------------------------------------------------------------- | ---- | ------------------------ |
 | 1   | ALTER TABLE fccPagoCliente ADD Confirmado bit NOT NULL DEFAULT(0) *(semántica: cobro capturado)*    | DDL  | ✅ Ejecutado en RE-FU-023 |
-| 2   | ALTER TABLE fccPagoCliente ADD FechaConfirmacion datetime2 NULL                                     | DDL  | ✅ Ejecutado en RE-FU-023 |
+| 2   | ALTER TABLE fccPagoCliente ADD FechaConfirmacion datetime NULL                                     | DDL  | ✅ Ejecutado en RE-FU-023 |
 | 3   | ALTER TABLE fccPagoCliente ADD IdUsuarioConfirmacion uniqueidentifier NULL                          | DDL  | ✅ Ejecutado en RE-FU-023 |
 | 4   | ALTER TABLE fccPagoCliente ADD Notas varchar(500) NULL                                              | DDL  | ✅ Ejecutado en RE-FU-023 |
 | 5   | ALTER TABLE fccPagoCliente ADD IdCatMoneda uniqueidentifier NULL FK catMoneda                       | DDL  | ✅ Ejecutado en RE-FU-023 |
 | 6   | **ALTER TABLE fccPagoCliente ADD BloqueadoPorTimbrado bit NOT NULL DEFAULT(0)** *(inmutabilidad)*   | DDL  | ❌ Pendiente RE-FU-024    |
-| 7   | **ALTER TABLE fccPagoCliente ADD FechaBloqueoTimbrado datetime2 NULL** *(trazabilidad del bloqueo)* | DDL  | ❌ Pendiente RE-FU-024    |
+| 7   | **ALTER TABLE fccPagoCliente ADD FechaBloqueoTimbrado datetime NULL** *(trazabilidad del bloqueo)* | DDL  | ❌ Pendiente RE-FU-024    |
 | 8   | CREATE TABLE catTipoInconsistenciaCobro                                                             | DDL  | ❌ Pendiente              |
 | 9   | CREATE TABLE fccInconsistenciaCobro                                                                 | DDL  | ❌ Pendiente              |
 | 10  | CREATE SEQUENCE dbo.SeqFolioCobro                                                                   | DDL  | ❌ Pendiente              |
@@ -83,15 +83,15 @@ Se crean 2 tablas nuevas (inconsistencias) y 1 SEQUENCE (foliador COB).
 | `ReferenciaBancaria`       | varchar(80)             | SÍ   | Referencia bancaria del pago                             | Existente                                         |
 | `IdArchivo`                | uniqueidentifier        | SÍ   | FK Archivo — comprobante de pago seleccionado del correo | Existente                                         |
 | `Activo`                   | bit                     | NO   | 1=activo; 0=inconsistencia (elimina pendiente del Buzón) | Existente                                         |
-| `FechaRegistro`            | datetime2(7)            | NO   | Auditoría: cuándo se creó el registro                    | Existente                                         |
-| `FechaUltimaActualizacion` | datetime2(7)            | NO   | Auditoría: cuándo se modificó por última vez             | Existente                                         |
+| `FechaRegistro`            | datetime            | NO   | Auditoría: cuándo se creó el registro                    | Existente                                         |
+| `FechaUltimaActualizacion` | datetime            | NO   | Auditoría: cuándo se modificó por última vez             | Existente                                         |
 | `Confirmado`               | bit NOT NULL DEFAULT(0) | NO   | 0=borrador / 1=capturado (editable hasta timbrar)        | **RE-FU-023** (semántica redefinida en RE-FU-024) |
-| `FechaConfirmacion`        | datetime2               | SÍ   | Timestamp de captura inicial del cobro                   | **RE-FU-023**                                     |
+| `FechaConfirmacion`        | datetime               | SÍ   | Timestamp de captura inicial del cobro                   | **RE-FU-023**                                     |
 | `IdUsuarioConfirmacion`    | uniqueidentifier        | SÍ   | Quién capturó el cobro inicialmente (trazabilidad)       | **RE-FU-023**                                     |
 | `Notas`                    | varchar(500)            | SÍ   | Notas opcionales del formulario del cobro                | **RE-FU-023**                                     |
 | `IdCatMoneda`              | uniqueidentifier        | SÍ   | FK catMoneda — moneda del cobro (combo UI Paso 1)        | **RE-FU-023**                                     |
 | `BloqueadoPorTimbrado`     | bit NOT NULL DEFAULT(0) | NO   | 0=editable vía botón Editar / 1=inmutable post-timbrado  | **NUEVO RE-FU-024**                               |
-| `FechaBloqueoTimbrado`     | datetime2               | SÍ   | Timestamp del bloqueo (Paso 3 timbró el doc. asociado)   | **NUEVO RE-FU-024**                               |
+| `FechaBloqueoTimbrado`     | datetime               | SÍ   | Timestamp del bloqueo (Paso 3 timbró el doc. asociado)   | **NUEVO RE-FU-024**                               |
 
 ---
 
@@ -140,7 +140,7 @@ ALTER TABLE dbo.fccPagoCliente
 
 -- 2. Timestamp de captura inicial del cobro (no de inmutabilidad)
 ALTER TABLE dbo.fccPagoCliente
-    ADD FechaConfirmacion datetime2 NULL;
+    ADD FechaConfirmacion datetime NULL;
 
 -- 3. Trazabilidad: quién capturó el cobro inicialmente
 ALTER TABLE dbo.fccPagoCliente
@@ -168,7 +168,7 @@ ALTER TABLE dbo.fccPagoCliente
 
 -- 7. Timestamp del bloqueo por timbrado (trazabilidad)
 ALTER TABLE dbo.fccPagoCliente
-    ADD FechaBloqueoTimbrado datetime2 NULL;
+    ADD FechaBloqueoTimbrado datetime NULL;
 ```
 
 ---
@@ -213,10 +213,10 @@ CREATE TABLE [dbo].[fccInconsistenciaCobro](
     [Comentario]                   varchar(500) NULL,
     [IdUsuarioRegistro]            uniqueidentifier NOT NULL,
     [Activo]                       bit NOT NULL CONSTRAINT [DF_fccInconsistenciaCobro_Activo] DEFAULT (1),
-    [FechaRegistro]                datetime2(7) NOT NULL
-        CONSTRAINT [DF_fccInconsistenciaCobro_FechaReg] DEFAULT (SYSUTCDATETIME()),
-    [FechaUltimaActualizacion]     datetime2(7) NOT NULL
-        CONSTRAINT [DF_fccInconsistenciaCobro_FechaUpd] DEFAULT (SYSUTCDATETIME()),
+    [FechaRegistro]                datetime NOT NULL
+        CONSTRAINT [DF_fccInconsistenciaCobro_FechaReg] DEFAULT (GETDATE()),
+    [FechaUltimaActualizacion]     datetime NOT NULL
+        CONSTRAINT [DF_fccInconsistenciaCobro_FechaUpd] DEFAULT (GETDATE()),
     CONSTRAINT [PK_fccInconsistenciaCobro]
         PRIMARY KEY CLUSTERED ([IdFCCInconsistenciaCobro]),
     CONSTRAINT [FK_fccInconsistenciaCobro_PagoCliente]
@@ -304,7 +304,7 @@ Estado inmutable:     fccPagoCliente.Folio = 'COB-mmddaa-NNNNNN'  →  Confirmad
 | `fccPagoCliente` | Auto-guardado del borrador | INSERT (nuevo) / UPDATE (existente) con `Confirmado=0`. Guardia: solo si `BloqueadoPorTimbrado=0`. |
 | `fccPagoCliente` | Finalización de la captura | UPDATE: `Folio`, `Confirmado=1`, `FechaConfirmacion`, `IdUsuarioConfirmacion`, `IdCatMoneda`. **NO toca `BloqueadoPorTimbrado` (sigue en 0, el cobro queda editable vía botón Editar).** |
 | `fccPagoCliente` | Edición del cobro vía botón Editar (Paso 1) | UPDATE de los campos del formulario (Monto, FechaPago, IdCatMedioDePago, CuentaOrdenante, IdDatosBancarios, IdCatMoneda, TipoDeCambio, IdArchivo, Notas). Guardia: solo si `BloqueadoPorTimbrado=0`. **No se regenera el Folio.** |
-| `fccPagoCliente` | Timbrado del documento asociado (Paso 3) | UPDATE: `BloqueadoPorTimbrado=1`, `FechaBloqueoTimbrado=SYSUTCDATETIME()`. Disparado desde el flujo del Paso 3 sobre todas las `fccPagoCliente` aplicadas al documento timbrado. |
+| `fccPagoCliente` | Timbrado del documento asociado (Paso 3) | UPDATE: `BloqueadoPorTimbrado=1`, `FechaBloqueoTimbrado=GETDATE()`. Disparado desde el flujo del Paso 3 sobre todas las `fccPagoCliente` aplicadas al documento timbrado. |
 | `fccInconsistenciaCobro` | Confirmar inconsistencia modal | INSERT |
 
 ---

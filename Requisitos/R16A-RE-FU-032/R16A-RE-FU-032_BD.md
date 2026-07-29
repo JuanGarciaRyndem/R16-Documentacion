@@ -48,6 +48,7 @@ sección reserva el análisis de impacto ETL.
 | 6   | DML DocumentTemplate — INSERT 4 templates PDF NC México                                         | DocumentBuilder        | DML       | Media     |
 | 7   | DML RegionConfiguracionMinioBucket — INSERT bucket NC México si no existe                       | ProquifaDotNet         | DML       | Media     |
 | 8   | CREATE TABLE catMotivoCancelacionSAT + DML 4 claves c_MotivoCancelacion SAT                    | ProquifaDotNet         | DDL + DML | Alta      |
+| 9   | CREATE TABLE catNotaCreditoEstado + DML 4 estados (PENDIENTE, VIGENTE, ENVIADA, CANCELADA)     | ProquifaDotNet         | DDL + DML | Alta      |
 | —   | Reutiliza: `fccNotaCredito` — estructura existente; RE-032 agrega columnas (cambio #1)         | ProquifaDotNet         | Existente | —         |
 | —   | Reutiliza: `fccNotaCreditoPartida` — estructura existente; RE-032 agrega columnas (cambio #2)  | ProquifaDotNet         | Existente | —         |
 | —   | Reutiliza: `fccNotaCreditoPedido` — registro de aplicación de NC a pedidos en Validar Cobro   | ProquifaDotNet         | Existente | —         |
@@ -61,6 +62,7 @@ sección reserva el análisis de impacto ETL.
 | —   | Reutiliza: `catUsoCFDI` — tabla existente; G02 se inserta en cambio #3                         | ProquifaDotNet         | Existente | —         |
 | —   | Reutiliza: `EmpresaFolio` — estructura existente (RE-019); Serie "P2" en cambio #5             | ProquifaDotNet (Finanzas) | Existente | —         |
 | —   | Reutiliza: `DocumentTemplate` — tabla existente (DocumentBuilder)                              | DocumentBuilder        | Existente | —         |
+| —   | Reutiliza: `AppSetting` (lectura) + `StampingLog` (INSERT por Stamp/Cancel de la NC)           | ProquifaDotNetTimbrado | Existente | —         |
 | —   | ETL SSIS: transferencia de NCs timbradas a PCconnect (Legacy) — mapeo pendiente estructura PCconnect | PCconnect (Legacy) | ETL      | Alta      |
 
 ---
@@ -87,36 +89,38 @@ módulo R16 de Notas de Crédito México.
 | `Aplicada`              | bit              | Indica si la NC ha sido aplicada a un cobro    |
 | `MontoUSD` / `MontoMXN` | decimal(18,6)    | Montos convertidos                             |
 | `FechaRegistro`         | datetime         | Auditoría                                      |
+| `FechaUltimaActualizacion`         | datetime         | Auditoría                                      |
 | `Activo`                | bit              | Registro activo                                |
 
 **Columnas nuevas a agregar (RE-032):**
 
-| Columna                       | Tipo             | Nulable | Descripción                                                                |
-| ----------------------------- | ---------------- | ------- | -------------------------------------------------------------------------- |
-| `IdEmpresa`                   | uniqueidentifier | No      | FK `Empresa` — empresa emisora (GOL, MUN, PRO, PQF)                        |
-| `IdCliente`                   | uniqueidentifier | No      | FK `Cliente` — cliente receptor de la NC                                   |
-| `Serie`                       | varchar(10)      | Sí      | Serie del foliador interno. Valor: 'P2' (⚠️ pendiente validar con PMO)     |
-| `Modalidad`                   | varchar(20)      | No      | 'POR_PARTIDAS' o 'MANUAL'                                                  |
-| `Motivo`                      | varchar(50)      | Sí      | Clave del motivo principal. Ej: 'DEVOLUCION', 'DESCUENTO_BONIFICACION'     |
-| `Estado`                      | varchar(20)      | No      | 'VIGENTE' \| 'CANCELADA'. Default 'VIGENTE'                                |
-| `CancelarFacturaOrigen`       | bit              | No      | 1 si el usuario solicitó cancelar la factura origen ante el SAT. Default 0 |
-| `ClaveMotivosCancelacion`     | varchar(4)       | Sí      | Clave SAT c_MotivoCancelacion ('01','02','03','04'). Null si no cancela    |
-| `IdCFDIGeneradaFacturaOrigen` | uniqueidentifier | No      | FK `CFDIGenerada` — factura PPD que originó esta NC                        |
-| `ConceptoManual`              | nvarchar(500)    | Sí      | Descripción de la materialidad fiscal. Solo modalidad MANUAL               |
-| `ObservacionesManual`         | nvarchar(500)    | Sí      | Campo opcional de observaciones adicionales. Solo modalidad MANUAL         |
-| `IdArchivoXml`                | uniqueidentifier | Sí      | FK `Archivo` — XML timbrado de la NC. Null hasta timbrado exitoso          |
-| `IdArchivoPdf`                | uniqueidentifier | Sí      | FK `Archivo` — PDF representativo de la NC. Null hasta generación          |
+| Columna                       | Tipo             | Nulable | Descripción                                                                                                                                 |
+| ----------------------------- | ---------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `IdEmpresa`                   | uniqueidentifier | No      | FK `Empresa` — empresa emisora (GOL, MUN, PRO, PQF)                                                                                         |
+| `IdCliente`                   | uniqueidentifier | No      | FK `Cliente` — cliente receptor de la NC                                                                                                    |
+| `Serie`                       | varchar(10)      | Sí      | Serie del foliador interno. Valor: 'P2' (⚠️ pendiente validar con PMO)                                                                      |
+| `Modalidad`                   | varchar(20)      | No      | 'POR_PARTIDAS' o 'MANUAL'                                                                                                                   |
+| `Motivo`                      | varchar(50)      | Sí      | Clave del motivo principal. Ej: 'DEVOLUCION', 'DESCUENTO_BONIFICACION'                                                                      |
+| `IdCatNotaCreditoEstado`      | uniqueidentifier | No      | FK `catNotaCreditoEstado` — estado de la NC. Default: estado PENDIENTE. Ciclo: PENDIENTE → VIGENTE (timbrada) → ENVIADA; CANCELADA terminal |
+| `CancelarFacturaOrigen`       | bit              | No      | 1 si el usuario solicitó cancelar la factura origen ante el SAT. Default 0                                                                  |
+| `ClaveMotivosCancelacion`     | varchar(4)       | Sí      | Clave SAT c_MotivoCancelacion ('01','02','03','04'). Null si no cancela                                                                     |
+| `IdCFDIGeneradaFacturaOrigen` | uniqueidentifier | No      | FK `CFDIGenerada` — factura PPD que originó esta NC                                                                                         |
+| `ConceptoManual`              | nvarchar(500)    | Sí      | Descripción de la materialidad fiscal. Solo modalidad MANUAL                                                                                |
+| `ObservacionesManual`         | nvarchar(500)    | Sí      | Campo opcional de observaciones adicionales. Solo modalidad MANUAL                                                                          |
+| `IdArchivoXml`                | uniqueidentifier | Sí      | FK `Archivo` — XML timbrado de la NC. Null hasta timbrado exitoso                                                                           |
+| `IdArchivoPdf`                | uniqueidentifier | Sí      | FK `Archivo` — PDF representativo de la NC. Null hasta generación                                                                           |
 
 **Relaciones:**
 
-| Tabla relacionada   | Columna FK                      | Tipo relación | Descripción                               |
-| ------------------- | ------------------------------- | ------------- | ----------------------------------------- |
-| `Empresa`           | `IdEmpresa`                     | N:1           | Empresa emisora de la NC                  |
-| `Cliente`           | `IdCliente`                     | N:1           | Cliente receptor                          |
-| `CFDIGenerada`      | `IdCFDIGenerada`                | 1:1           | CFDI de la NC (TipoDocumento='E')         |
-| `CFDIGenerada`      | `IdCFDIGeneradaFacturaOrigen`   | N:1           | Factura origen de la NC                   |
-| `Archivo`           | `IdArchivoXml`                  | N:1           | XML CFDI timbrado                         |
-| `Archivo`           | `IdArchivoPdf`                  | N:1           | PDF representativo                        |
+| Tabla relacionada | Columna FK                    | Tipo relación | Descripción                       |
+| ----------------- | ----------------------------- | ------------- | --------------------------------- |
+| `Empresa`         | `IdEmpresa`                   | N:1           | Empresa emisora de la NC          |
+| `Cliente`         | `IdCliente`                   | N:1           | Cliente receptor                  |
+| `CFDIGenerada`    | `IdCFDIGenerada`              | 1:1           | CFDI de la NC (TipoDocumento='E') |
+| `CFDIGenerada`    | `IdCFDIGeneradaFacturaOrigen` | N:1           | Factura origen de la NC           |
+| `catNotaCreditoEstado` | `IdCatNotaCreditoEstado` | N:1           | Estado de la NC (catálogo)        |
+| `Archivo`         | `IdArchivoXml`                | N:1           | XML CFDI timbrado                 |
+| `Archivo`         | `IdArchivoPdf`                | N:1           | PDF representativo                |
 
 **Índices nuevos:**
 
@@ -124,7 +128,7 @@ módulo R16 de Notas de Crédito México.
 | ------------------------------------------- | --------------------------------- | ------------ |
 | `IX_fccNotaCredito_IdCliente`               | `IdCliente`                       | Non-clustered |
 | `IX_fccNotaCredito_IdCFDIGeneradaOrigen`    | `IdCFDIGeneradaFacturaOrigen`     | Non-clustered |
-| `IX_fccNotaCredito_Estado`                  | `Estado`                          | Non-clustered |
+| `IX_fccNotaCredito_IdCatNotaCreditoEstado`  | `IdCatNotaCreditoEstado`          | Non-clustered |
 
 ---
 
@@ -135,13 +139,13 @@ por partidas de R16 con trazabilidad al concepto original de la factura.
 
 **Columnas existentes relevantes:**
 
-| Columna                      | Tipo             | Descripción                                               |
-| ---------------------------- | ---------------- | --------------------------------------------------------- |
-| `IdFCCNotaCreditoPartida`    | uniqueidentifier | PK                                                        |
-| `IdFCCNotaCredito`           | uniqueidentifier | FK `fccNotaCredito`                                       |
-| `IdTPProformaPartidaPedido`  | uniqueidentifier | FK partida del pedido origen (módulo legacy/pre-R16)      |
-| `NumeroDePiezas`             | int              | Cantidad de piezas de la NC por partida                   |
-| `PrecioUnitario`             | decimal(18,6)    | Precio unitario heredado de la factura origen             |
+| Columna                     | Tipo             | Descripción                                          |
+| --------------------------- | ---------------- | ---------------------------------------------------- |
+| `IdFCCNotaCreditoPartida`   | uniqueidentifier | PK                                                   |
+| `IdFCCNotaCredito`          | uniqueidentifier | FK `fccNotaCredito`                                  |
+| `IdTPProformaPartidaPedido` | uniqueidentifier | FK partida del pedido origen (módulo legacy/pre-R16) |
+| `NumeroDePiezas`            | int              | Cantidad de piezas de la NC por partida              |
+| `PrecioUnitario`            | decimal(18,6)    | Precio unitario heredado de la factura origen        |
 
 **Columnas nuevas a agregar (RE-032):**
 
@@ -183,23 +187,23 @@ Se inserta una fila por cada NC timbrada con los siguientes valores fijos:
 
 Se inserta una fila al crear la NC, vinculando el UUID de la factura origen:
 
-| Campo               | Valor                                                       |
-| ------------------- | ----------------------------------------------------------- |
-| `IdCFDIGenerada`    | IdCFDIGenerada de la NC (TipoDocumento='E')                 |
-| `UUID`              | UUID SAT de la factura origen (de `CFDI.UUID`)              |
-| `ClaveTipoRelacion` | `'01'` — Nota de crédito de los documentos relacionados    |
+| Campo               | Valor                                                   |
+| ------------------- | ------------------------------------------------------- |
+| `IdCFDIGenerada`    | IdCFDIGenerada de la NC (TipoDocumento='E')             |
+| `UUID`              | UUID SAT de la factura origen (de `CFDI.UUID`)          |
+| `ClaveTipoRelacion` | `'01'` — Nota de crédito de los documentos relacionados |
 
 #### CFDICancelacion (sin ALTER, uso condicional)
 
 Se inserta solo cuando el usuario activa "Cancelar Factura Origen" (Regla 8):
 condición = NC por totalidad + dentro del mismo mes calendario de la factura.
 
-| Campo          | Valor                                                       |
-| -------------- | ----------------------------------------------------------- |
-| `IdCFDI`       | IdCFDI de la **factura origen** (no de la NC)              |
-| `ClaveMotivo`  | Clave SAT c_MotivoCancelacion seleccionada ('01','02','03','04') |
-| `UUID`         | UUID SAT de la factura origen                               |
-| `Estatus`      | 'CANCELADA' tras confirmación del PAC                       |
+| Campo         | Valor                                                            |
+| ------------- | ---------------------------------------------------------------- |
+| `IdCFDI`      | IdCFDI de la **factura origen** (no de la NC)                    |
+| `ClaveMotivo` | Clave SAT c_MotivoCancelacion seleccionada ('01','02','03','04') |
+| `UUID`        | UUID SAT de la factura origen                                    |
+| `Estatus`     | 'CANCELADA' tras confirmación del PAC                            |
 
 #### fccNotaCreditoPedido (sin ALTER)
 
@@ -258,12 +262,16 @@ FROM dbo.catTipoCFDI WHERE Clave = 'NOTA_CREDITO';
 Las NCs de México usan Serie "P2" por empresa del grupo PROQUIFA México. Se insertan 4 filas
 en `ProquifaDotNet.EmpresaFolio` (propiedad Finanzas).
 
+> **Nota:** la base de datos es una sola — `ProquifaDotNet`. "Propiedad Finanzas" indica que la tabla
+> la consume/gestiona la solución ProquifaDotNet.Finanzas vía su Scaffold EF Core, no que exista
+> una base de datos separada.
+
 > ⚠️ **Brecha:** El esquema definitivo del foliador Serie "P2" (formato, longitud máxima)
 > está pendiente de validar con PMO (Regla 9 del requisito).
 
 ```sql
 -- Prerequisito: EmpresaFolio y las 4 empresas México deben existir (RE-019)
--- Ejecutar en ProquifaDotNetTimbrado
+-- Ejecutar en ProquifaDotNet
 -- ⚠️ Ajustar FormatoFolio y LongitudMaxima según validación con PMO.
 
 -- Golocaer México
@@ -396,10 +404,10 @@ WHERE rcmb.BucketClave = 'notas_credito' AND r.Clave = 'MEX';
 
 ### Estructura de rutas en MinIO
 
-| Documento     | Ruta                                                    |
-| ------------- | ------------------------------------------------------- |
-| PDF NC        | `notas-credito-mex/notas_credito/{anio}/{mes}/{UUID_NC}.pdf` |
-| XML NC        | `notas-credito-mex/notas_credito/{anio}/{mes}/{UUID_NC}.xml` |
+| Documento | Ruta                                                         |
+| --------- | ------------------------------------------------------------ |
+| PDF NC    | `notas-credito-mex/notas_credito/{anio}/{mes}/{UUID_NC}.pdf` |
+| XML NC    | `notas-credito-mex/notas_credito/{anio}/{mes}/{UUID_NC}.xml` |
 
 ### Consulta de resolución de bucket (Finanzas)
 
@@ -448,7 +456,7 @@ Cobros).
 | `CFDIGenerada.FechaEmision`                     | Fecha de emisión y timbrado                |
 | `CFDIGenerada.Subtotal` / `Total`               | Importes de la NC                          |
 | `CFDIGenerada.Moneda` + `TipoDeCambio`          | Moneda y tipo de cambio                    |
-| `fccNotaCredito.Estado`                         | Estado: VIGENTE / CANCELADA                |
+| `catNotaCreditoEstado.Clave` (vía `IdCatNotaCreditoEstado`) | Estado: VIGENTE / ENVIADA / CANCELADA      |
 | `fccNotaCredito.Modalidad`                      | Modalidad: POR_PARTIDAS / MANUAL           |
 | `fccNotaCredito.Motivo`                         | Motivo de la NC                            |
 | `CFDIGeneradaRelacionado.UUID`                  | UUID de la factura origen relacionada      |
@@ -473,7 +481,7 @@ Cobros).
 ### Consideraciones SSIS
 
 - **Trigger de transferencia:** Después del timbrado exitoso de la NC (estado `VIGENTE`
-  en `fccNotaCredito`, `IdCFDI` poblado en `CFDIGenerada`).
+  del catálogo `catNotaCreditoEstado` en `fccNotaCredito`, `IdCFDI` poblado en `CFDIGenerada`).
 - **Paquete SSIS nuevo:** Se requiere un nuevo paquete SSIS específico para NCs
   (no se reutiliza el de Facturas, ya que el tipo de documento y las tablas destino difieren).
 - **Manejo de cancelación:** Si la factura origen se cancela simultáneamente, el paquete
@@ -519,7 +527,8 @@ Cobros).
 | `Clave` | `varchar(4)` | NO | — | Clave SAT c_MotivoCancelacion UNIQUE ('01','02','03','04') |
 | `Descripcion` | `nvarchar(150)` | NO | — | Descripción oficial SAT del motivo |
 | `Activo` | `bit` | NO | `1` | Control de vigencia |
-| `FechaRegistro` | `datetime2(7)` | NO | `SYSUTCDATETIME()` | Fecha de inserción |
+| `FechaRegistro` | `datetime` | NO | `GETDATE()` | Fecha de inserción |
+| `FechaUltimaActualizacion` | `datetime` | NO | `GETDATE()` | Fecha de última modificación |
 
 ### Índices
 
@@ -546,6 +555,93 @@ Ninguna FK saliente. La `Clave` es referenciada lógicamente por `fccNotaCredito
 - Catálogo **estático** — las claves son definidas por el SAT y cambian excepcionalmente. No requiere administración en la aplicación.
 - La clave `01` ("con relación") aplica cuando existe un CFDI sustituto. La clave `02` aplica cuando no. Las claves `03` y `04` son para otros escenarios de cancelación. Para NCs el motivo más común es `01`.
 - El frontend debe enviar la `Clave` (no el GUID) en el body del request de cancelación. El backend la guarda en `fccNotaCredito.ClaveMotivosCancelacion`.
+
+---
+
+## ProquifaDotNetTimbrado — Uso en RE-032
+
+`ProquifaDotNetTimbrado` **sí es una base de datos aparte**, propia de la solución ProquifaDotNet.Timbrado. RE-032 no crea tablas nuevas en ella — reutiliza las existentes:
+
+### AppSetting (lectura)
+
+Configuración operativa de la solución Timbrado (parámetros del PAC, timeouts, reintentos).
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| `Id` | uniqueidentifier | PK |
+| `Name` | varchar | Nombre del parámetro |
+| `Value` | varchar | Valor del parámetro |
+| `Description` | varchar | Descripción |
+| `CreatedAt` / `UpdatedAt` | datetime | Auditoría |
+| `IsActive` | bit | Vigencia |
+
+### StampingLog (escritura — un INSERT por operación)
+
+Bitácora de las operaciones de timbrado y cancelación. RE-032 inserta una fila por cada llamada de la NC: timbrado (`Action='Stamp'`, endpoint C1) y cancelación de la factura origen (`Action='Cancel'`, endpoint C2).
+
+| Columna | Tipo | Descripción |
+|---|---|---|
+| `Id` | uniqueidentifier | PK |
+| `CfdiGeneradaId` | uniqueidentifier | Referencia informativa cross-database a `ProquifaDotNet.CFDIGenerada` (sin FK) |
+| `Action` | varchar | `Stamp` \| `Cancel` |
+| `PreviousStatus` | varchar | Estado previo de la operación |
+| `NewStatus` | varchar | `Pending` \| `Stamped` \| `Failed` |
+| `Request` | varchar | Payload enviado al PAC |
+| `Response` | varchar | Respuesta del PAC |
+| `ErrorMessage` | varchar | Detalle del error (si aplica) |
+| `DurationMs` | int | Duración de la operación |
+| `CreatedAt` | datetime | Fecha de la operación |
+| `IsActive` | bit | Vigencia |
+
+**Consideraciones:**
+
+- `CfdiGeneradaId` es referencia cruzada entre bases (ProquifaDotNetTimbrado → ProquifaDotNet), por lo que no lleva FK formal.
+- En un timbrado fallido (Regla 16), la NC no se persiste en ProquifaDotNet pero el intento **sí** queda registrado en `StampingLog` con `NewStatus='Failed'` y el detalle del PAC en `Response`/`ErrorMessage`.
+
+---
+
+## Diccionario de Datos — catNotaCreditoEstado (tabla nueva)
+
+**Base de datos:** ProquifaDotNet
+**Descripción:** Catálogo de estados del ciclo de vida de la Nota de Crédito R16. Reemplaza el dominio en texto libre de la columna `Estado` — `fccNotaCredito` referencia este catálogo vía `IdCatNotaCreditoEstado`.
+
+### Columnas
+
+| Nombre                   | Tipo               | Nulable | Default     | Descripción                                                           |
+| ------------------------ | ------------------ | ------- | ----------- | --------------------------------------------------------------------- |
+| `IdCatNotaCreditoEstado` | `uniqueidentifier` | NO      | `NEWID()`   | PK — Identificador único                                              |
+| `Clave`                  | `varchar(20)`      | NO      | —           | Clave del estado UNIQUE ('PENDIENTE','VIGENTE','ENVIADA','CANCELADA') |
+| `Descripcion`            | `nvarchar(150)`    | NO      | —           | Descripción del estado                                                |
+| `Activo`                 | `bit`              | NO      | `1`         | Control de vigencia                                                   |
+| `FechaRegistro`          | `datetime`        | NO      | `GETDATE()` | Fecha de inserción                                                    |
+| `FechaUltimaActualizacion`          | `datetime`        | NO      | `GETDATE()` | Fecha de última modificación |
+
+### Índices
+
+| Nombre | Columnas | Tipo |
+|---|---|---|
+| `PK_catNotaCreditoEstado` | `IdCatNotaCreditoEstado` | PK Clustered |
+| `UQ_catNotaCreditoEstado_Clave` | `Clave` | Unique NonClustered |
+
+### Relaciones
+
+Referenciada por `fccNotaCredito.IdCatNotaCreditoEstado` (FK formal, N:1).
+
+### Datos iniciales
+
+| Clave       | Descripcion                                |
+| ----------- | ------------------------------------------ |
+| `PENDIENTE` | NC capturada, pendiente de timbrar         |
+| `VIGENTE`   | NC timbrada ante el SAT (vigente)          |
+| `ENVIADA`   | NC timbrada y correo enviado al cliente    |
+| `CANCELADA` | NC cancelada ante el SAT — estado terminal |
+
+### Consideraciones especiales
+
+- **Ciclo de vida:** `PENDIENTE → VIGENTE (timbrada) → ENVIADA`; `CANCELADA` es terminal y puede alcanzarse desde VIGENTE o ENVIADA.
+- Default de `fccNotaCredito.IdCatNotaCreditoEstado`: estado `PENDIENTE` (la NC se crea pre-timbrado en el Paso 2 del wizard).
+- Las NCs disponibles para aplicación en Validar Cobro y para transferencia SSIS a PCconnect son las de estado `VIGENTE` o `ENVIADA` (timbradas, no canceladas).
+- Si el timbrado falla, la NC permanece en `PENDIENTE` y el usuario puede reintentar (Regla 16).
 
 ---
 

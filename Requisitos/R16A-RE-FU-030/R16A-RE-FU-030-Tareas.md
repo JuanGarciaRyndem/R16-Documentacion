@@ -6,7 +6,7 @@
 
 > **Orden de ejecución sugerido:** BD catFormaPagoSAT (T1) → BD DML CP01 (T2) → BD ALTER fccDocumentoFiscalCobro (T3) → BD EmpresaFolio Serie P (T4) → BD DocumentTemplate (T5) → BD ALTER vista v3.0 (T6) → Timbrado endpoint CP (T7) → Finanzas: MappingService + PersistirService (T8) → Finanzas: Preview PDF CP (T9) → Finanzas: Cascada PPD + Escenario D (T10) → DocumentBuilder: templates HTML *_MEX_CP (T11).
 >
-> **Dependencias externas:** R16A-RE-FU-028 completo (`catTipoCFDI.COMPLEMENTO_PAGO`, `fccDocumentoFiscalCobro` con `IdCFDIGeneradaComplemento`, `CFDIGenerada` con `IdCFDIRelacionado`, `catMetodoDePagoCFDI`). R16A-RE-FU-029 completo (`catTipoCFDI.IdRegion`, `vfccDocumentoFiscalCobro` v2.0). R16A-RE-FU-021 completo (`MexicoInvoicePdfMappingService`, `PersistMexicoInvoicePdfService` — patrón base de los nuevos servicios PDF del CP).
+> **Dependencias externas:** R16A-RE-FU-028 completo (`catTipoCFDI.COMPLEMENTO_PAGO`, `fccDocumentoFiscalCobro` con `IdCFDIGeneradaComplemento`, `CFDIGenerada` con `IdCFDIRelacionado`, `catMetodoDePagoCFDI`). R16A-RE-FU-029 completo (`catTipoCFDI.IdRegion`, `vfccDocumentoFiscalCobro` v2.0). R16A-RE-FU-021 completo (`InvoicePdfMappingService`, `PersistInvoicePdfService` — patrón base de los nuevos servicios PDF del CP).
 >
 > **Brechas activas sin bloqueante:** B1 (hora FechaPago) y B5 (formato folio Serie P) son pendientes de bajo impacto que se documentan en código con TODO sin bloquear la implementación. B2 (plantilla correo) bloquea solo la configuración de la plantilla en ProquifaDotNet.EnvioCorreo (Aplicativo Nuevo, regla 7); el despacho de adjuntos sí puede implementarse. B3 (política reintento CP) se implementa como "línea queda en PENDIENTE" hasta que PMO defina el flujo formal. **No hay brecha bloqueante en este requisito.**
 
@@ -705,7 +705,7 @@ Ver sección *"Parte C / C1"* en `R16A-RE-FU-030-Back.md` y criterios B1–G3 en
 **Módulos:** Finanzas — PDF Complemento de Pago México
 
 **Consideraciones previas:**
-- Patrón de referencia: `MexicoInvoicePdfMappingService` y `PersistMexicoInvoicePdfService` de RE-021. Seguir la misma estructura.
+- Patrón de referencia: `InvoicePdfMappingService` y `PersistInvoicePdfService` de RE-021. Seguir la misma estructura.
 - `PaymentComplementPdfMappingService` tiene dos modos: `MapearPreviewAsync()` (sin sello digital, NumParcialidad estimado) y `MapearAsync()` (con `TimbreFiscalDigital`, QR de verificación SAT).
 - `PersistPaymentComplementPdfService` sube el PDF **y** el XML a MinIO bucket `cobranza` (MEX), resolviendo el bucket a través de `RegionConfiguracionMinioBucket` (BucketClave=`cobranza`, Región=MEX).
 - Rutas MinIO: `cobranza/complementos/{anio}/{mes}/{UUID_CP}.pdf` y `.xml`.

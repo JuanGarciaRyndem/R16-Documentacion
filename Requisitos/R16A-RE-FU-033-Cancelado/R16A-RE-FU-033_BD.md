@@ -104,7 +104,8 @@ ORDER BY c.column_id;
 | `Descripcion` | `nvarchar(150)` | NO | — | Descripción oficial SUNAT del motivo |
 | `Modalidad` | `varchar(20)` | NO | — | Modalidad de captura: 'POR_PARTIDAS' o 'MANUAL' |
 | `Activo` | `bit` | NO | `1` | Control de vigencia |
-| `FechaRegistro` | `datetime2(7)` | NO | `SYSUTCDATETIME()` | Fecha de inserción |
+| `FechaRegistro` | `datetime` | NO | `GETDATE()` | Fecha de inserción |
+| `FechaUltimaActualizacion` | `datetime` | NO | `GETDATE()` | Fecha de última modificación |
 
 #### Índices
 
@@ -147,7 +148,8 @@ CREATE TABLE dbo.catMotivoCreditoSUNAT09 (
     [Descripcion] nvarchar(150)  NOT NULL,
     [Modalidad]   varchar(20)    NOT NULL,
     [Activo]      bit            NOT NULL CONSTRAINT [DF_catMotivoCreditoSUNAT09_Activo] DEFAULT (1),
-    [FechaRegistro] datetime2(7) NOT NULL CONSTRAINT [DF_catMotivoCreditoSUNAT09_FechaReg] DEFAULT SYSUTCDATETIME(),
+    [FechaRegistro] datetime NOT NULL CONSTRAINT [DF_catMotivoCreditoSUNAT09_FechaReg] DEFAULT (GETDATE()),
+    [FechaUltimaActualizacion] datetime NOT NULL CONSTRAINT [DF_catMotivoCreditoSUNAT09_FechaUltimaActualizacion] DEFAULT (GETDATE()),
     CONSTRAINT [UQ_catMotivoCreditoSUNAT09_Clave] UNIQUE ([Clave]),
     CONSTRAINT [CHK_catMotivoCreditoSUNAT09_Modalidad]
         CHECK ([Modalidad] IN ('POR_PARTIDAS','MANUAL'))

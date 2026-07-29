@@ -9,16 +9,16 @@
 
 Este requisito documenta el diseño e implementación de la capa de generación de documentos de la Nota de Crédito México. Es análogo a **R16A-RE-FU-021** (Factura México) y cubre tres componentes principales:
 
-- **Parte A — `NCMexicoXmlBuilder`**: Generación del XML CFDI tipo E.
-- **Parte B — `NCMexicoPdfMappingService`**: Mapeo del modelo NC al template HTML (preview + post-timbrado).
+- **Parte A — `NCXmlBuilder`**: Generación del XML CFDI tipo E.
+- **Parte B — `NCPdfMappingService`**: Mapeo del modelo NC al template HTML (preview + post-timbrado).
 - **Parte C — Templates HTML NC México**: Diseño visual e información por empresa emisora (GOL / MUN / PRO / PQF).
 
 ---
 
-## Parte A — NCMexicoXmlBuilder
+## Parte A — NCXmlBuilder
 
 ### Descripción
-Clase responsable de construir el `XDocument` con el XML CFDI 4.0 tipo E a partir del `NCMexicoDto` generado en el wizard. Sigue el mismo patrón que `FacturaMexicoXmlBuilder`.
+Clase responsable de construir el `XDocument` con el XML CFDI 4.0 tipo E a partir del `NCDto` generado en el wizard. Sigue el mismo patrón que `FacturaXmlBuilder`.
 
 **Namespace:** `ProquifaDotNet.Finanzas.Application.Services.NC.Mexico`  
 **Dependencias:** `CFDIGeneradaRepository`, `CFDIGeneradaConceptoRepository`, `EmpresaRepository`, `ClienteRepository`, `catMotivoCancelacionSATRepository`
@@ -85,14 +85,14 @@ Clase responsable de construir el `XDocument` con el XML CFDI 4.0 tipo E a parti
 
 #### Conceptos — Modalidad POR PARTIDAS
 
-Por cada `NCMexicoPartidaDto` con `CantNC > 0`:
+Por cada `NCPartidaDto` con `CantNC > 0`:
 
 | Atributo XML         | Valor / Origen                                                               | Criterio |
 | -------------------- | ---------------------------------------------------------------------------- | -------- |
 | `ClaveProdServ`      | Heredado del concepto original (`CFDIGeneradaConcepto.ClaveProdServ`)        | E2       |
 | `ClaveUnidad`        | Heredado (`CFDIGeneradaConcepto.ClaveUnidad`)                                | E2       |
 | `NoIdentificacion`   | Heredado (`CFDIGeneradaConcepto.NoIdentificacion`)                           | E2       |
-| `Cantidad`           | `NCMexicoPartidaDto.CantNC` (cantidad a notar crédito)                       | E3       |
+| `Cantidad`           | `NCPartidaDto.CantNC` (cantidad a notar crédito)                       | E3       |
 | `Descripcion`        | Heredado (`CFDIGeneradaConcepto.Descripcion`)                                | E2       |
 | `ValorUnitario`      | Heredado (`CFDIGeneradaConcepto.ValorUnitario`)                              | E2       |
 | `Importe`            | `CantNC × ValorUnitario` — recalculado                                       | E3       |
@@ -114,7 +114,7 @@ Un único nodo `Concepto`:
 | `NoIdentificacion`   | Omitir                                                                        | —        |
 | `Cantidad`           | `"1"` fijo                                                                    | F2       |
 | `Descripcion`        | Concepto libre capturado por el usuario en el wizard                          | F2       |
-| `ValorUnitario`      | `NCMexicoManualDto.MontoTotalNC`                                               | F2       |
+| `ValorUnitario`      | `NCManualDto.MontoTotalNC`                                               | F2       |
 | `Importe`            | `MontoTotalNC` (igual a ValorUnitario × 1)                                    | F2       |
 | `ObjetoImp`          | ⚠️ **Pendiente P4** — confirmar valor aplicable en modalidad manual            | F2       |
 
@@ -167,13 +167,13 @@ Un único nodo `Concepto`:
 
 ---
 
-## Parte B — NCMexicoPdfMappingService
+## Parte B — NCPdfMappingService
 
 ### Descripción
-Servicio que mapea el `NCMexicoVm` (view model de la NC) al `NCMexicoPdfModel` requerido por el template HTML en DocumentBuilder. Cubre dos modos de operación.
+Servicio que mapea el `NCVm` (view model de la NC) al `NCPdfModel` requerido por el template HTML en DocumentBuilder. Cubre dos modos de operación.
 
 **Namespace:** `ProquifaDotNet.Finanzas.Application.Services.NC.Mexico`  
-**Patrón base:** `MexicoInvoicePdfMappingService` (R16A-RE-FU-021)
+**Patrón base:** `InvoicePdfMappingService` (R16A-RE-FU-021)
 
 ---
 
@@ -275,12 +275,12 @@ La paleta, tipografía e iconografía de certificaciones deben ser **consistente
 
 ---
 
-## Parte D — PersistirNCMexicoPdfService
+## Parte D — PersistirNCPdfService
 
 ### Descripción
-Servicio que invoca DocumentBuilder para renderizar el template HTML con los datos del `NCMexicoPdfModel` y guarda el PDF resultante en MinIO.
+Servicio que invoca DocumentBuilder para renderizar el template HTML con los datos del `NCPdfModel` y guarda el PDF resultante en MinIO.
 
-**Patrón base:** `PersistMexicoInvoicePdfService` (R16A-RE-FU-021)
+**Patrón base:** `PersistInvoicePdfService` (R16A-RE-FU-021)
 
 ### Rutas MinIO
 
@@ -293,7 +293,7 @@ Servicio que invoca DocumentBuilder para renderizar el template HTML con los dat
 
 ## Parte E — Envío de correo NC México
 
-**Servicio:** `SendMexicoCreditNoteMailService` (extiende patrón de `SendMexicoInvoiceMailService`)
+**Servicio:** `SendCreditNoteMailService` (extiende patrón de `SendInvoiceMailService`)
 
 | Campo         | Valor                                                                                        |
 | ------------- | -------------------------------------------------------------------------------------------- |
@@ -304,7 +304,7 @@ Servicio que invoca DocumentBuilder para renderizar el template HTML con los dat
 
 ---
 
-## Diferencias clave: NCMexicoXmlBuilder vs FacturaMexicoXmlBuilder
+## Diferencias clave: NCXmlBuilder vs FacturaXmlBuilder
 
 | Aspecto                    | Factura México (RE-021)                    | NC México (RE-034)                                   |
 | -------------------------- | ------------------------------------------ | ---------------------------------------------------- |
@@ -329,5 +329,5 @@ Servicio que invoca DocumentBuilder para renderizar el template HTML con los dat
 | P4  | `ObjetoImp` modalidad manual — confirmar valor para ClaveProdServ 84111506                    | Afecta nodo Impuestos del Concepto manual         |
 | P5  | Serie del foliador NC México — validar nombre definitivo de la serie en `EmpresaFolio`         | Afecta atributo `Serie` del comprobante root      |
 | P6  | Vigencia iconografía certificaciones (ISO, NEEC, edQM, FELUM, USP, etc.)                      | Afecta Footer de los 4 templates                  |
-| P7  | Plantilla PMO #31 — asunto y cuerpo del correo                                                | Bloquea `SendMexicoCreditNoteMailService`               |
+| P7  | Plantilla PMO #31 — asunto y cuerpo del correo                                                | Bloquea `SendCreditNoteMailService`               |
 | P8  | `FormaPago` cuando la factura origen no está pagada (escenario raro en R16 prepago)           | Afecta atributo FormaPago del comprobante root    |

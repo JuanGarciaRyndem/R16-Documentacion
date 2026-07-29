@@ -511,7 +511,7 @@ Ver sección *"Parte C / C1"* en `R16A-RE-FU-033-Back.md`.
 
 **Consideraciones previas:**
 - ⚠️ **Brecha B1 bloqueante:** Depende de T8 (endpoint Timbrado definido).
-- `PersistPeruCreditNotePdfService` sigue el patrón de `PersistMexicoCreditNotePdfService` (RE-032 T10) con rutas MinIO Perú.
+- `PersistPeruCreditNotePdfService` sigue el patrón de `PersistCreditNotePdfService` (RE-032 T10) con rutas MinIO Perú.
 - Bucket MinIO Perú: `RegionConfiguracionMinioBucket` con `Region='PER'`, `BucketClave='notas_credito'` (⚠️ verificar — Pendiente P4).
 - Rutas MinIO: `notas-credito-per/notas_credito/{anio}/{mes}/{serie}-{correlativo}.pdf/.xml`.
 - **Sin cancelación SAT** — la anulación en Perú es vía NC motivo 01 (no hay llamada a cancelación separada).
@@ -549,7 +549,7 @@ Ver secciones *"Parte B / B7, B8, B9"* y *"Parte E"* en `R16A-RE-FU-033-Back.md`
 
 **Recursos:**
 - `R16A-RE-FU-033-Back.md` — Parte B B7–B9, Parte E
-- `PersistMexicoCreditNotePdfService` (RE-032 T10) — patrón base
+- `PersistCreditNotePdfService` (RE-032 T10) — patrón base
 
 ---
 

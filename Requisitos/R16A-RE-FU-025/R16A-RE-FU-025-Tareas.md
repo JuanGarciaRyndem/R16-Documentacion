@@ -126,7 +126,7 @@ Ver sección *"Parte A / A2"* en `R16A-RE-FU-025-Back.md` y sección *"Cuentas B
 **Módulos:** Validar Cobro — Paso 1 Perú
 
 **Consideraciones previas:**
-- Paralelo a `TipoCambioMexicoService` (RE-FU-024 Tarea 9) pero con moneda base PEN en lugar de MXN.
+- Paralelo a `TipoCambioService` (RE-FU-024 Tarea 9) pero con moneda base PEN en lugar de MXN.
 - La fuente oficial del TC para Perú **no está definida**. No aplica el TC FIX Banxico/DOF mexicano.
 - Sin la fuente del TC, este servicio no puede implementarse completamente. El campo se mostrará como N/A hasta que se resuelva la brecha.
 - El TC capturado con el cobro se persiste en `fccPagoCliente.TipoDeCambio` y se reutiliza en el Paso 2 (conversiones operativas) y, si aplica, en el Paso 3.
@@ -188,7 +188,7 @@ Extender los endpoints del Paso 1 implementados en RE-FU-024 para soportar la va
 **Objetivos específicos:**
 - Extender el endpoint de catálogo de medio de pago para filtrar por región: si región=MEX → `ClaveFormaDePago IS NOT NULL`; si región=PER → `ClaveFormaDePago IS NULL`.
 - Extender el endpoint de cuentas destino para filtrar por empresa y región: si región=MEX → GOL/MUN/PRO/PQF; si región=PER → GOLPERU.
-- Condicionar el servicio de TC del día: si región=MEX → `TipoCambioMexicoService`; si región=PER → `TipoCambioPeruService`.
+- Condicionar el servicio de TC del día: si región=MEX → `TipoCambioService`; si región=PER → `TipoCambioPeruService`.
 - Validar que la cabecera del cliente retorna la etiqueta "RUC" para clientes Perú.
 - Verificar que los demás endpoints del Paso 1 (listado cobros, detalle correo, auto-guardado, confirmar, inconsistencias) funcionan sin cambios para cobros Perú (usan las mismas tablas `fccPagoCliente`, `fccInconsistenciaCobro`, `SeqFolioCobro`).
 

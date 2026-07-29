@@ -51,10 +51,10 @@ La política operativa de R16 es **1 CP por factura**: si un cobro cubre N factu
 | `catMetodoDePagoCFDI.PPD` | RE-028 T1 | Solo facturas PPD generan CP; discriminador en la cascada |
 | `CorreoEnviado` / `ArchivoCorreoEnviado` | RE-028 | Registro del correo enviado con PDF + XML del CP adjuntos |
 | `ApiCallerStamping` (HttpClient + Polly) | RE-019 | Cliente HTTP con retry policy hacia Timbrado — se usa `StampPaymentComplementAsync` (`POST /api/v1/stamp/payment-complement`), método creado en RE-019/018 |
-| `MexicoInvoicePdfMappingService` | RE-021 | Patrón de referencia para `PaymentComplementPdfMappingService` |
-| `PersistMexicoInvoicePdfService` | RE-021 | Patrón de referencia para `PersistPaymentComplementPdfService` |
+| `InvoicePdfMappingService` | RE-021 | Patrón de referencia para `PaymentComplementPdfMappingService` |
+| `PersistInvoicePdfService` | RE-021 | Patrón de referencia para `PersistPaymentComplementPdfService` |
 | Templates `GOL/MUN/PRO/PQF_MEX_FAC` | RE-021 | Referencia de branding e identidad visual para diseño de templates CP |
-| `DatosFacturacionCliente` | RE-004 | RFC, Razón Social, RegimenFiscalReceptor del CFDI 4.0 |
+| `DatosFacturacionCliente` | Preexistente (RE-004 cancelado) | RFC, Razón Social, RegimenFiscalReceptor del CFDI 4.0 |
 | `Empresa` | Existente | RFC Emisor, RegimenFiscal, Prefijo por empresa PROQUIFA México |
 | `RegionConfiguracionMinioBucket` bucket `cobranza` (MEX) | Existente | Almacenamiento PDF y XML del CP en MinIO; bucket ya registrado para México |
 
@@ -89,7 +89,7 @@ Se agregan 8 columnas nullable que almacenan el **snapshot fiscal inmutable** de
 
 | Columna | Tipo | Campo XML |
 |---|---|---|
-| `FechaPagoCP` | datetime2(7) | `FechaPago` del nodo Pago |
+| `FechaPagoCP` | datetime | `FechaPago` del nodo Pago |
 | `IdCatFormaPagoSAT` | uniqueidentifier FK | `FormaDePagoP` (FK → catFormaPagoSAT) |
 | `TipoCambioP_CP` | decimal(18,6) | `TipoCambioP` cuando MonedaP ≠ MXN |
 | `NumParcialidad` | int | `NumParcialidad` del DoctoRelacionado |
@@ -258,7 +258,7 @@ PaymentComplementRequest {
 UPDATE dbo.fccDocumentoFiscalCobro
 SET EstadoLinea                = 'GENERADO',
     IdCFDIGeneradaComplemento  = @IdCFDIGeneradaCP,
-    FechaGeneracion            = SYSUTCDATETIME(),
+    FechaGeneracion            = GETDATE(),
     -- Snapshot DR inmutable
     FechaPagoCP                = @FechaPago,
     IdCatFormaPagoSAT          = @IdCatFormaPagoSAT,
@@ -303,7 +303,7 @@ El PDF del CP se obtiene de `MinIO` a través de `CFDIGenerada.IdArchivoPdf` →
 
 ### B6 — PaymentComplementPdfMappingService
 
-**Descripción:** Servicio de Finanzas responsable de mapear los datos del Complemento de Pago timbrado a un modelo `PaymentComplementPdfModel` para la generación del PDF en DocumentBuilder. Sigue el patrón de `MexicoInvoicePdfMappingService` (RE-021).
+**Descripción:** Servicio de Finanzas responsable de mapear los datos del Complemento de Pago timbrado a un modelo `PaymentComplementPdfModel` para la generación del PDF en DocumentBuilder. Sigue el patrón de `InvoicePdfMappingService` (RE-021).
 
 **Datos de entrada:**
 - `CFDIGenerada` (UUID, Serie, Folio, FechaEmision, TimbreFiscalDigital)

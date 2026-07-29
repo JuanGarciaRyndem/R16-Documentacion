@@ -76,8 +76,10 @@ CREATE TABLE [dbo].[catTipoOperacionSUNAT](
     [Descripcion]              nvarchar(200)    NOT NULL,
     [Activo]                   bit              NOT NULL
         CONSTRAINT [DF_catTipoOperacionSUNAT_Activo] DEFAULT (1),
-    [FechaRegistro]            datetime2(7)     NOT NULL
-        CONSTRAINT [DF_catTipoOperacionSUNAT_FechaReg] DEFAULT (SYSUTCDATETIME()),
+    [FechaRegistro]            datetime     NOT NULL
+        CONSTRAINT [DF_catTipoOperacionSUNAT_FechaReg] DEFAULT (GETDATE()),
+    [FechaUltimaActualizacion] datetime NOT NULL
+        CONSTRAINT [DF_catTipoOperacionSUNAT_FechaUltimaActualizacion] DEFAULT (GETDATE()),
     CONSTRAINT [PK_catTipoOperacionSUNAT]
         PRIMARY KEY CLUSTERED ([IdCatTipoOperacionSUNAT]),
     CONSTRAINT [UQ_catTipoOperacionSUNAT_Clave]
@@ -110,7 +112,8 @@ INSERT INTO dbo.catTipoOperacionSUNAT (Clave, Descripcion) VALUES
 | Clave | varchar(10) NOT NULL UNIQUE | Código catálogo 51 SUNAT (ej. `0101`, `1001`) |
 | Descripcion | nvarchar(200) NOT NULL | Descripción legible del tipo de operación |
 | Activo | bit NOT NULL | 1 = vigente |
-| FechaRegistro | datetime2(7) NOT NULL | Fecha de inserción |
+| FechaRegistro | datetime NOT NULL | Fecha de inserción |
+| FechaUltimaActualizacion | datetime NOT NULL | Fecha de última modificación |
 
 **Índices:**
 

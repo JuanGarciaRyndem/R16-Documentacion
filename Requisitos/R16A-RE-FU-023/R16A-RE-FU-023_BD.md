@@ -25,16 +25,16 @@ Ambas tablas son referenciadas por todos los requisitos del módulo (023–029).
 
 | #   | Cambio                                                                        | Tipo      | Estado      |
 | --- | ----------------------------------------------------------------------------- | --------- | ----------- |
-| 1   | ALTER TABLE tpPedido ADD FechaCancelacionPorFaltaPago datetime2 NULL          | DDL       | ❌ Pendiente |
+| 1   | ALTER TABLE tpPedido ADD FechaCancelacionPorFaltaPago datetime NULL          | DDL       | ❌ Pendiente |
 | 2   | ALTER TABLE tpPedido ADD IdUsuarioCancelacion uniqueidentifier NULL           | DDL       | ❌ Pendiente |
 | 3   | ALTER TABLE fccPagoCliente ADD Confirmado bit NOT NULL DEFAULT(0)             | DDL       | ❌ Pendiente |
-| 4   | ALTER TABLE fccPagoCliente ADD FechaConfirmacion datetime2 NULL               | DDL       | ❌ Pendiente |
+| 4   | ALTER TABLE fccPagoCliente ADD FechaConfirmacion datetime NULL               | DDL       | ❌ Pendiente |
 | 5   | ALTER TABLE fccPagoCliente ADD IdUsuarioConfirmacion uniqueidentifier NULL    | DDL       | ❌ Pendiente |
 | 6   | ALTER TABLE fccPagoCliente ADD Notas varchar(500) NULL                        | DDL       | ❌ Pendiente |
 | 7   | ALTER TABLE fccPagoCliente ADD IdCatMoneda uniqueidentifier NULL FK catMoneda | DDL       | ❌ Pendiente |
 | 8   | FechaEstimadaPago (tpProformaPedido.FechaPromesaPagoMonitoreoCobros)          | Existente | —           |
 | 9   | Filtro cartera (ClienteCartera.IdUsuarioCobrador)                             | Existente | —           |
-| 10  | ALTER TABLE tpPedido ADD FechaSolicitudCancelacion datetime2 NULL (OBS-042)   | DDL       | ❌ Pendiente |
+| 10  | ALTER TABLE tpPedido ADD FechaSolicitudCancelacion datetime NULL (OBS-042)   | DDL       | ❌ Pendiente |
 | 11  | ALTER TABLE tpPedido ADD EstadoCancelacionCFDI varchar(50) NULL (OBS-042)     | DDL       | ❌ Pendiente |
 | 12  | CREATE TABLE fccFechaEstimadaPagoHistorial (OBS-044)                          | DDL       | ❌ Pendiente |
 
@@ -126,7 +126,7 @@ Validar Cobro — leída y extendida por RE-FU-024 a RE-FU-029.
 | `IdArchivo`                  | uniqueidentifier        | SÍ   | FK Archivo — comprobante de pago seleccionado del correo                         |
 | **`IdFCCFolioPagoCliente`**      | **uniqueidentifier**        | **SÍ**   | **FK fccFolioPagoCliente — pendiente del Buzón que originó el cobro**                |
 | `Confirmado`                | bit NOT NULL DEFAULT(0) | NO   | 0 = borrador / 1 = confirmado e inmutable — ❌ Pendiente ALTER          |
-| `FechaConfirmacion`         | datetime2               | SÍ   | Timestamp de confirmación del cobro — ❌ Pendiente ALTER                |
+| `FechaConfirmacion`         | datetime               | SÍ   | Timestamp de confirmación del cobro — ❌ Pendiente ALTER                |
 | `IdUsuarioConfirmacion`     | uniqueidentifier        | SÍ   | Quién confirmó el cobro (trazabilidad) — ❌ Pendiente ALTER             |
 | `Notas`                     | varchar(500)            | SÍ   | Notas opcionales del formulario del cobro — ❌ Pendiente ALTER          |
 | `IdCatMoneda`               | uniqueidentifier        | SÍ   | FK catMoneda — moneda del cobro (combo UI Paso 1) — ❌ Pendiente ALTER  |
@@ -184,7 +184,7 @@ ALTER TABLE dbo.fccPagoCliente
 
 -- 2. Timestamp de confirmación
 ALTER TABLE dbo.fccPagoCliente
-    ADD FechaConfirmacion datetime2 NULL;
+    ADD FechaConfirmacion datetime NULL;
 
 -- 3. Trazabilidad: quién confirmó el cobro
 ALTER TABLE dbo.fccPagoCliente
@@ -210,7 +210,7 @@ ALTER TABLE dbo.fccPagoCliente
 | Columna                 | Tipo                    | Nulo | Descripción                                                      |
 |-------------------------|-------------------------|------|------------------------------------------------------------------|
 | `Confirmado`            | bit NOT NULL DEFAULT(0) | NO   | 0 = borrador / 1 = confirmado e inmutable                        |
-| `FechaConfirmacion`     | datetime2               | SÍ   | Timestamp de confirmación del cobro                              |
+| `FechaConfirmacion`     | datetime               | SÍ   | Timestamp de confirmación del cobro                              |
 | `IdUsuarioConfirmacion` | uniqueidentifier        | SÍ   | ID del usuario que confirmó el cobro (trazabilidad de auditoría) |
 | `Notas`                 | varchar(500)            | SÍ   | Notas opcionales del formulario del cobro                        |
 | `IdCatMoneda`           | uniqueidentifier        | SÍ   | FK catMoneda — moneda del cobro (combo UI Paso 1)                |
@@ -256,7 +256,7 @@ pago desde el modal Gestionar Cobranza de la pantalla principal.
 ```sql
 -- ❌ PENDIENTE — revisar objetos dependientes antes de ejecutar en ProquifaDotNet
 ALTER TABLE dbo.tpPedido
-    ADD FechaCancelacionPorFaltaPago datetime2 NULL;
+    ADD FechaCancelacionPorFaltaPago datetime NULL;
 
 ALTER TABLE dbo.tpPedido
     ADD IdUsuarioCancelacion uniqueidentifier NULL;
@@ -270,7 +270,7 @@ ALTER TABLE dbo.tpPedido
 
 | Columna                         | Tipo             | Nulo | Descripción                                                                              |
 |---------------------------------|------------------|------|------------------------------------------------------------------------------------------|
-| `FechaCancelacionPorFaltaPago`  | datetime2        | SÍ   | Fecha y hora en que se ejecutó la cancelación del pedido por falta de pago               |
+| `FechaCancelacionPorFaltaPago`  | datetime        | SÍ   | Fecha y hora en que se ejecutó la cancelación del pedido por falta de pago               |
 | `IdUsuarioCancelacion`          | uniqueidentifier | SÍ   | ID del usuario autenticado en Finanzas que ejecutó la cancelación (trazabilidad auditoría)|
 
 **Relaciones**
@@ -315,7 +315,7 @@ WHERE TABLE_NAME = 'tpPedido'
 -- OBS-042: trazabilidad de cancelación CFDI
 
 ALTER TABLE dbo.tpPedido
-    ADD FechaSolicitudCancelacion datetime2 NULL;
+    ADD FechaSolicitudCancelacion datetime NULL;
 
 ALTER TABLE dbo.tpPedido
     ADD EstadoCancelacionCFDI varchar(50) NULL;
@@ -325,7 +325,7 @@ ALTER TABLE dbo.tpPedido
 
 | Columna                     | Tipo         | Nulo | Descripción                                                                               |
 |-----------------------------|--------------|------|-------------------------------------------------------------------------------------------|
-| `FechaSolicitudCancelacion` | datetime2    | SÍ   | Fecha y hora en que se envió la solicitud de cancelación del CFDI al SAT                  |
+| `FechaSolicitudCancelacion` | datetime    | SÍ   | Fecha y hora en que se envió la solicitud de cancelación del CFDI al SAT                  |
 | `EstadoCancelacionCFDI`     | varchar(50)  | SÍ   | Estado de la cancelación devuelto por el SAT / PAC (ej. "Pendiente", "Cancelado", "Rechazado") |
 
 **Consideraciones especiales**
@@ -354,10 +354,10 @@ CREATE TABLE dbo.fccFechaEstimadaPagoHistorial (
     IdTpProformaPedido             uniqueidentifier NOT NULL
         CONSTRAINT FK_fccFechaEstimadaPagoHistorial_ProformaPedido
             FOREIGN KEY REFERENCES dbo.tpProformaPedido(IdTpProformaPedido),
-    FechaEstimadaPagoAnterior      datetime2        NULL,
-    FechaEstimadaPagaNueva         datetime2        NULL,
-    FechaCambio                    datetime2        NOT NULL
-        CONSTRAINT DF_fccFechaEstimadaPagoHistorial_FechaCambio DEFAULT (SYSUTCDATETIME()),
+    FechaEstimadaPagoAnterior      datetime        NULL,
+    FechaEstimadaPagaNueva         datetime        NULL,
+    FechaCambio                    datetime        NOT NULL
+        CONSTRAINT DF_fccFechaEstimadaPagoHistorial_FechaCambio DEFAULT (GETDATE()),
     IdUsuarioCambio                uniqueidentifier NOT NULL,
     Motivo                         varchar(300)     NULL
 );
@@ -373,9 +373,9 @@ CREATE TABLE dbo.fccFechaEstimadaPagoHistorial (
 |---------------------------------------|------------------|------|-------------------------------------------------------------------------|
 | `IdFccFechaEstimadaPagoHistorial`     | uniqueidentifier | NO   | PK — DEFAULT NEWID()                                                    |
 | `IdTpProformaPedido`                  | uniqueidentifier | NO   | FK tpProformaPedido — proforma cuya fecha cambió                        |
-| `FechaEstimadaPagoAnterior`           | datetime2        | SÍ   | Valor previo de FechaPromesaPagoMonitoreoCobros (NULL si era primer valor) |
-| `FechaEstimadaPagaNueva`              | datetime2        | SÍ   | Nuevo valor asignado                                                    |
-| `FechaCambio`                         | datetime2        | NO   | Timestamp UTC del cambio — DEFAULT SYSUTCDATETIME()                     |
+| `FechaEstimadaPagoAnterior`           | datetime        | SÍ   | Valor previo de FechaPromesaPagoMonitoreoCobros (NULL si era primer valor) |
+| `FechaEstimadaPagaNueva`              | datetime        | SÍ   | Nuevo valor asignado                                                    |
+| `FechaCambio`                         | datetime        | NO   | Timestamp UTC del cambio — DEFAULT GETDATE()                     |
 | `IdUsuarioCambio`                     | uniqueidentifier | NO   | ID del usuario que realizó el cambio (trazabilidad)                     |
 | `Motivo`                              | varchar(300)     | SÍ   | Justificación opcional del cambio                                       |
 

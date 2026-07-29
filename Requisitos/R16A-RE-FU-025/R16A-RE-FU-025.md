@@ -258,7 +258,7 @@ Entonces el sistema deberá ofrecer: Cancelar (regresa al listado principal de V
 - Diferencia — Medio de pago: en México se usa el catálogo SAT c_FormaPago; en Perú SUNAT no exige declarar el medio de pago en el comprobante, por lo que se propone un catálogo interno de PROQUIFA para control de Tesorería. ** Catálogo interno pendiente de definir (Tesorería). **
 - Diferencia — Cuentas destino: cuentas de Golocaer S.A.C. Perú en lugar de PROQUIFA México. ** Modelo bancario pendiente (ver R16A-RE-FU-006). **
 - Diferencia — Fuente del tipo de cambio: no aplica el DOF mexicano; fuente peruana pendiente de definir.
-- El RUC del cliente proviene del Catálogo de Clientes (R16A-RE-FU-004), ya validado.
+- El RUC del cliente proviene del campo `DatosFacturacionCliente.RFC` (tabla preexistente; R16A-RE-FU-004 cancelado — la validación de formato RUC queda pendiente de definir en el requisito que lo implemente).
 - ** Pendiente — catálogo de tipos de inconsistencia del Paso 1 (Tesorería), transversal con México. **
 - ** Pendiente — confirmar si el folio del cobro (COB-mmddaa-NNNN) es consecutivo por región o global. **
 - ** Pendiente — alcance técnico de la asistencia automatizada propuesta (no comprometido en R16). **

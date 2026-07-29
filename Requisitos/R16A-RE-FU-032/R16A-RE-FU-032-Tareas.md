@@ -448,7 +448,7 @@ Ver sección *"DML EmpresaFolio"* en `R16A-RE-FU-032_BD.md` y sección *"Parte A
 - Los archivos HTML se crean en la Tarea 11. Esta tarea solo registra metadatos en BD.
 
 **Objetivo general:**
-Registrar los 4 templates del Módulo NC México en `DocumentBuilder.DocumentTemplate` para que `PersistMexicoCreditNotePdfService` pueda resolver el `TemplateKey` correcto por empresa emisora.
+Registrar los 4 templates del Módulo NC México en `DocumentBuilder.DocumentTemplate` para que `PersistCreditNotePdfService` pueda resolver el `TemplateKey` correcto por empresa emisora.
 
 **Objetivos específicos:**
 - Verificar ausencia de los 4 TemplateKey.
@@ -519,16 +519,16 @@ Ver sección *"DML DocumentTemplate"* en `R16A-RE-FU-032_BD.md` y sección *"Par
 - Prerrequisitos: Tareas 4 y 5.
 
 **Objetivo general:**
-Ampliar el `StampingController` (endpoint de Notas de Crédito `POST /api/v1/stamp/credit-note` creado en RE-FU-018) para que, al recibir `CreditNoteMexicoRequest` de Finanzas, construya el XML CFDI E, lo timbre vía PAC TurboPac, inserte en `CFDIGenerada` + `CFDI`, actualice `EmpresaFolio` y retorne el CFDI timbrado.
+Ampliar el `StampingController` (endpoint de Notas de Crédito `POST /api/v1/stamp/credit-note` creado en RE-FU-018) para que, al recibir `CreditNoteRequest` de Finanzas, construya el XML CFDI E, lo timbre vía PAC TurboPac, inserte en `CFDIGenerada` + `CFDI`, actualice `EmpresaFolio` y retorne el CFDI timbrado.
 
 **Objetivos específicos:**
-- Recibir y validar `CreditNoteMexicoRequest` (datos del emisor, receptor, conceptos, CFDI relacionado).
+- Recibir y validar `CreditNoteRequest` (datos del emisor, receptor, conceptos, CFDI relacionado).
 - Construir XML CFDI 4.0 TipoDocumento='E' con todos los nodos requeridos.
 - Obtener folio con UPDLOCK atómico Serie "P2".
 - Enviar XML al PAC TurboPac y recibir XML timbrado con `TimbreFiscalDigital`.
 - INSERT `CFDIGenerada` + `CFDI` con UUID SAT.
 - UPDATE `EmpresaFolio.UltimoFolio`.
-- Retornar `CreditNoteMexicoResponse` a Finanzas.
+- Retornar `CreditNoteResponse` a Finanzas.
 - Manejo de errores PAC: retornar error con detalle sin persistir.
 
 **Resultado esperado:**
@@ -536,7 +536,7 @@ Endpoint de Notas de Crédito (`POST /api/v1/stamp/credit-note`) funcional que t
 
 **Entregables:**
 - Ampliación de `StampingController` (`POST /api/v1/stamp/credit-note`) para el flujo de Nota de Crédito México
-- `CreditNoteMexicoRequest` / `CreditNoteMexicoResponse` DTOs
+- `CreditNoteRequest` / `CreditNoteResponse` DTOs
 - Unit tests del servicio de construcción XML
 
 **Criterios de aceptación:**
@@ -611,7 +611,7 @@ Ver secciones *"Parte B / B1, B2, B3"* en `R16A-RE-FU-032-Back.md`.
 
 **Consideraciones previas:**
 - Orquesta la secuencia completa post-timbrado: Finanzas → Timbrado → (condicional) Cancelación factura → DocumentBuilder → MinIO → BD → Correo.
-- `PersistMexicoCreditNotePdfService` es implementado en **R16A-RE-FU-034 T6**. Esta tarea lo consume; asegurarse de que RE-034 T6 esté completada antes de integrarse end-to-end.
+- `PersistCreditNotePdfService` es implementado en **R16A-RE-FU-034 T6**. Esta tarea lo consume; asegurarse de que RE-034 T6 esté completada antes de integrarse end-to-end.
 - El bucket MinIO se resuelve de `RegionConfiguracionMinioBucket` donde `BucketClave='notas_credito'` y `Region.Clave='MEX'` (⚠️ verificar existencia — Pendiente P2).
 - Correo automático al timbrar: Para=contacto cliente (editable), CC=ESAC+CxC (editable). ⚠️ Plantilla pendiente PMO #31.
 - Prerrequisitos: T1, T2, T7, T8, **RE-034 T1–T6** completos.
@@ -623,7 +623,7 @@ Implementar el flujo completo de Finanzas post-timbrado: llamada a Timbrado, (co
 - Endpoint POST `/api/v1/creditNote/{id}/stamp`: orquesta toda la secuencia.
 - Llamada al API de Timbrado (`POST /api/v1/stamp/credit-note`, vía `ApiCallerStamping.StampCreditNoteAsync`) y manejo de error/éxito (Criterios J1, J5).
 - Si `CancelarFacturaOrigen=1`: llamada al endpoint de cancelación CFDI.
-- `PersistMexicoCreditNotePdfService.PersistirAsync()`: DocumentBuilder → MinIO → INSERT Archivo × 2 → INSERT CFDIGeneradaRelacionado → UPDATE fccNotaCredito → INSERT fccNotaCreditoPartida (si por partidas).
+- `PersistCreditNotePdfService.PersistirAsync()`: DocumentBuilder → MinIO → INSERT Archivo × 2 → INSERT CFDIGeneradaRelacionado → UPDATE fccNotaCredito → INSERT fccNotaCreditoPartida (si por partidas).
 - Envío de correo con INSERT `CorreoEnviado` + `ArchivoCorreoEnviado` (PDF + XML).
 - Navegación al Paso 4 NC Emitida con datos completos.
 
@@ -632,7 +632,7 @@ Al presionar "Timbrar" en el Paso 3, la NC queda en estado VIGENTE en BD, el PDF
 
 **Entregables:**
 - Endpoint POST timbrar
-- `PersistMexicoCreditNotePdfService`
+- `PersistCreditNotePdfService`
 - Flujo de correo automático
 - Unit tests + integration tests del flujo completo
 
@@ -648,7 +648,7 @@ Ver sección *"Parte B / B6, B7, B8"* y *"Parte E"* en `R16A-RE-FU-032-Back.md`.
 
 **Recursos:**
 - `R16A-RE-FU-032-Back.md` — Parte B sección B6, Parte E
-- `PersistMexicoInvoicePdfService` (RE-021) — patrón base
+- `PersistInvoicePdfService` (RE-021) — patrón base
 - `PersistPaymentComplementPdfService` (RE-030) — patrón base
 
 ---

@@ -6,7 +6,7 @@
 
 > **Orden de ejecución sugerido:** BD catálogos (T1) → BD ALTER CFDIGenerada (T2) → BD tablas principales (T3, T4) → BD ALTER tpPedido (T5) → BD vista (T6) → Timbrado endpoint (T7) → Finanzas: inicialización (T8) → autosave (T9) → NCs en CFDI (T10) → previsualización (T11) → timbrado (T12) → DocumentBuilder plantilla CDP (T13) → Finanzas: envío (T14) → FEE + Confirmación (T15) → ETL Legacy (T17) → cierre wizard (T16).
 >
-> **Dependencias externas:** RE-FU-026 completo (asociación Paso 2 cerrada con `fccPagoFacturaPedido` y `fccPagoFacturaAdelanto`). RE-FU-019 completo (`CFDIGenerada`, `EmpresaFolio`, `ApiCallerStamping`). RE-FU-021 completo (`MexicoInvoicePdfMappingService`, `PersistMexicoInvoicePdfService`, templates `*_MEX_FAC`).
+> **Dependencias externas:** RE-FU-026 completo (asociación Paso 2 cerrada con `fccPagoFacturaPedido` y `fccPagoFacturaAdelanto`). RE-FU-019 completo (`CFDIGenerada`, `EmpresaFolio`, `ApiCallerStamping`). RE-FU-021 completo (`InvoicePdfMappingService`, `PersistInvoicePdfService`, templates `*_MEX_FAC`).
 >
 > **Brechas bloqueantes activas:** B1 (relación SAT tipo 07), B3 (mecanismo ETL Legacy), B4 (FEE: granularidad y reglas), B6 (política fallo cascada PPD). Las tareas T5, T12, T15, T17 dependen de resolverlas antes de implementar. Ver `R16A-RE-FU-028_BD.md` y `R16A-RE-FU-028-Back.md` — sección Brechas.
 >
@@ -972,7 +972,7 @@ Ver sección *"Parte B / B5"* en `R16A-RE-FU-028-Back.md`.
 **Módulos:** Validar Cobro — Paso 3 México
 
 **Consideraciones previas:**
-- `MexicoInvoicePdfMappingService.MapearPreviewAsync` (RE-FU-021) ya existe y genera el modelo sin `TimbreFiscalDigital`. Esta tarea lo invoca para las líneas de tipo `FACTURA` y `FACTURA_ANTICIPO`.
+- `InvoicePdfMappingService.MapearPreviewAsync` (RE-FU-021) ya existe y genera el modelo sin `TimbreFiscalDigital`. Esta tarea lo invoca para las líneas de tipo `FACTURA` y `FACTURA_ANTICIPO`.
 - Para líneas de tipo `COMPLEMENTO_PAGO`: la previsualización del PDF del Complemento se implementa en **R16A-RE-FU-030** — en esta tarea no se incluye.
 - El PDF de previsualización se genera en memoria sin persistir en BD ni MinIO.
 - Los templates `GOL/MUN/PRO/PQF_MEX_FAC` ya existen (RE-FU-021). El `TemplateKey` se resuelve dinámicamente desde `Empresa.Prefijo`.
@@ -984,7 +984,7 @@ Implementar en Finanzas el endpoint de previsualización PDF del Paso 3 para lí
 **Objetivos específicos:**
 - Implementar `POST /api/v1/validate-collection/fiscalDocumentLine/{idLinea}/pdfPreview` en Finanzas.
 - Crear `GetStep3LinePreviewPdfQuery` + Handler.
-- Invocar `MexicoInvoicePdfMappingService.MapearPreviewAsync(idCFDIGenerada)` para obtener el `InvoicePdfModel` sin `TimbreFiscalDigital`.
+- Invocar `InvoicePdfMappingService.MapearPreviewAsync(idCFDIGenerada)` para obtener el `InvoicePdfModel` sin `TimbreFiscalDigital`.
 - Resolver `TemplateKey` dinámicamente (`GOL/MUN/PRO/PQF_MEX_FAC`) desde `Empresa.Prefijo`.
 - Generar PDF en memoria vía DocumentBuilder y retornarlo como `byte[]` o stream al frontend.
 - Para líneas `COMPLEMENTO_PAGO`: retornar error controlado indicando que la previsualización del Complemento corresponde a RE-FU-030.
@@ -1005,11 +1005,11 @@ Endpoint `GET .../lineas/{idLinea}/preview-pdf` que retorna el PDF de previsuali
 - No hay persistencia en BD ni MinIO (preview en memoria únicamente).
 
 **Más información de la tarea:**
-Ver sección *"Parte B / B3"* en `R16A-RE-FU-028-Back.md`. Ver `MexicoInvoicePdfMappingService.MapearPreviewAsync` en `R16A-RE-FU-021-Back.md`.
+Ver sección *"Parte B / B3"* en `R16A-RE-FU-028-Back.md`. Ver `InvoicePdfMappingService.MapearPreviewAsync` en `R16A-RE-FU-021-Back.md`.
 
 **Recursos:**
 - `R16A-RE-FU-028-Back.md` — Parte B, sección B3
-- `R16A-RE-FU-021-Back.md` — MexicoInvoicePdfMappingService (MapearPreviewAsync)
+- `R16A-RE-FU-021-Back.md` — InvoicePdfMappingService (MapearPreviewAsync)
 
 ---
 
@@ -1024,14 +1024,14 @@ Ver sección *"Parte B / B3"* en `R16A-RE-FU-028-Back.md`. Ver `MexicoInvoicePdf
 **Consideraciones previas:**
 - Las Tareas 7, 8, 9 y 10 deben estar ejecutadas (Timbrado extendido, líneas existentes, NCs resueltas).
 - `ApiCallerStamping` (HttpClient + Polly) ya existe de RE-FU-018/019 — el Paso 3 usa `StampInvoiceAsync` (`POST /api/v1/stamp/invoice`) para Factura/Factura Anticipo y `StampPaymentComplementAsync` (`POST /api/v1/stamp/payment-complement`) para el Complemento.
-- `PersistMexicoInvoicePdfService` ya existe de RE-FU-021 — se invoca post-timbrado para FACTURA y FACTURA_ANTICIPO.
+- `PersistInvoicePdfService` ya existe de RE-FU-021 — se invoca post-timbrado para FACTURA y FACTURA_ANTICIPO.
 - **Escenario B (PPD + cascada):** la Factura PPD se timbra primero; inmediatamente tras el éxito, Finanzas solicita el timbrado del Complemento enviando el UUID de la Factura PPD como `IdCFDIRelacionado`. Si el Complemento falla, la Factura PPD queda vigente (⚠️ Brecha B6 — política pendiente).
 - **Escenario D (COMPLEMENTO_PAGO desde FAA):** Finanzas envía el UUID de la FAA existente (`fccFactura.IdCFDIGenerada`, RE-FU-015 — antes `tpProformaAdelanto.IdCFDIGenerada`) como referencia. La generación del PDF del Complemento corresponde a RE-FU-030.
 - ⚠️ Brecha B1: tipo de relación SAT para FACTURA_ANTICIPO pendiente de confirmar.
 - ⚠️ Brecha B6: política ante fallo del Complemento en cascada PPD pendiente de definir.
 
 **Objetivo general:**
-Implementar en Finanzas el servicio central de timbrado del Paso 3 con los cuatro escenarios: FACTURA PUE (1 CFDI), FACTURA PPD + Complemento en cascada (2 CFDIs), FACTURA_ANTICIPO (1 CFDI) y COMPLEMENTO_PAGO desde FAA existente (1 CFDI). Post-timbrado exitoso, invocar `PersistMexicoInvoicePdfService` para las Facturas y actualizar el estado de la línea a `GENERADO`.
+Implementar en Finanzas el servicio central de timbrado del Paso 3 con los cuatro escenarios: FACTURA PUE (1 CFDI), FACTURA PPD + Complemento en cascada (2 CFDIs), FACTURA_ANTICIPO (1 CFDI) y COMPLEMENTO_PAGO desde FAA existente (1 CFDI). Post-timbrado exitoso, invocar `PersistInvoicePdfService` para las Facturas y actualizar el estado de la línea a `GENERADO`.
 
 **Objetivos específicos:**
 - Implementar `POST /api/v1/validate-collection/fiscalDocumentLine/{idLinea}/stamp` en Finanzas.
@@ -1039,12 +1039,12 @@ Implementar en Finanzas el servicio central de timbrado del Paso 3 con los cuatr
 - **Escenario A — FACTURA PUE:**
   1. Finanzas → Timbrado: request con `TipoCFDI=FACTURA_PUE`, datos emisor/receptor, NCs en `CFDIRelacionados`.
   2. Recibir UUID + XML timbrado.
-  3. Invocar `PersistMexicoInvoicePdfService.PersistirAsync(IdCFDI, xmlTimbrado)`.
+  3. Invocar `PersistInvoicePdfService.PersistirAsync(IdCFDI, xmlTimbrado)`.
   4. `UPDATE fccDocumentoFiscalCobro SET EstadoLinea=GENERADO, IdCFDIGeneradaFactura, FechaGeneracion`.
   5. `UPDATE tpProformaPedido SET IdCFDIGenerada` directo vía EF Core (Scaffold Finanzas — movida a Finanzas 07/07/2026).
 - **Escenario B — FACTURA PPD + Complemento en cascada:**
   1. Timbrar Factura PPD (igual que A, `TipoCFDI=FACTURA_PPD`).
-  2. Invocar `PersistMexicoInvoicePdfService.PersistirAsync` para la Factura.
+  2. Invocar `PersistInvoicePdfService.PersistirAsync` para la Factura.
   3. Timbrar Complemento (`TipoCFDI=COMPLEMENTO_PAGO`, `IdCFDIRelacionado=UUID Factura PPD`). **El PDF del Complemento es responsabilidad de RE-FU-030.**
   4. `UPDATE fccDocumentoFiscalCobro SET EstadoLinea=GENERADO, IdCFDIGeneradaFactura, IdCFDIGeneradaComplemento, FechaGeneracion`.
 - **Escenario C — FACTURA_ANTICIPO:** igual que A con `TipoCFDI=FACTURA_ANTICIPO` y tipo de relación 07 SAT en `CFDIRelacionados`.
@@ -1079,7 +1079,7 @@ Ver sección *"Parte B / B4"* y Brechas B1 y B6 en `R16A-RE-FU-028-Back.md`.
 **Recursos:**
 - `R16A-RE-FU-028-Back.md` — Parte B, sección B4; Brechas B1 y B6
 - `R16A-RE-FU-019-Tareas.md` — Tarea 13 (ApiCallerStamping, patrón base)
-- `R16A-RE-FU-021-Back.md` — PersistMexicoInvoicePdfService
+- `R16A-RE-FU-021-Back.md` — PersistInvoicePdfService
 
 ---
 

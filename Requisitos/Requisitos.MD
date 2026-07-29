@@ -36,13 +36,13 @@ Gestión de documentos regulatorios (licencias, permisos, certificados) asociado
 
 ---
 
-### [R16A-RE-FU-004](R16A-RE-FU-004/R16A-RE-FU-004.md) — Mantenimiento de Catálogo de Clientes — Información Fiscal del Cliente
+### [R16A-RE-FU-004](R16A-RE-FU-004.md) — Mantenimiento de Catálogo de Clientes — Información Fiscal del Cliente
 
 Configuración de datos fiscales del cliente según su región (México o Perú).
 
-- [Impacto en Base de Datos](R16A-RE-FU-004/R16A-RE-FU-004_BD.md)
-- [Impacto en Backend](R16A-RE-FU-004/R16A-RE-FU-004-Back.md)
-- [Tareas](R16A-RE-FU-004/R16A-RE-FU-004-Tareas.md)
+- [Impacto en Base de Datos](R16A-RE-FU-004_BD.md)
+- [Impacto en Backend](R16A-RE-FU-004-Back.md)
+- [Tareas](R16A-RE-FU-004-Tareas.md)
 
 ---
 

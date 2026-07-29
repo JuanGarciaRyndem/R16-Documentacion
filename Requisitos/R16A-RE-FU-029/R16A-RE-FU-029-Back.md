@@ -53,7 +53,7 @@ Al confirmar el envío de cada línea, Finanzas dispara dos acciones automática
 | `catCondicionesDePago` | RE-FU-018/019 | Catálogo existente (CONTADO/CRÉDITO); Perú lo usa como equivalente al `catMetodoDePagoCFDI` de México |
 | `fccPagoFacturaPedido` | RE-FU-026 | FK desde `fccDocumentoFiscalCobro` (origen proforma Perú) |
 | `fccPagoFacturaAdelanto` | RE-FU-026 | FK desde `fccDocumentoFiscalCobro` (origen FAA Perú; sin documento fiscal — Regla 4) |
-| `DatosFacturacionCliente` | RE-FU-004 | RUC, Razón Social receptor del CPE UBL 2.1 |
+| `DatosFacturacionCliente` | Preexistente (RE-FU-004 cancelado) | RUC, Razón Social receptor del CPE UBL 2.1 |
 | `Empresa` (GOLPERU) | RE-FU-020 | RUC Emisor, Razón Social emisora; datos fiscales pendientes (Brecha B4) |
 | `FacturaPdfMappingService` Perú | RE-FU-020 | Consolidación datos CPE en `InvoicePdfModel`; template `GOLPERU_PER_FAC` |
 | `ApiCallerStamping` (HttpClient + Polly) | RE-FU-019 | Cliente HTTP con retry policy hacia Timbrado — se usa `StampInvoiceAsync` (`POST /api/v1/stamp/invoice`), reutilizado sin cambios |

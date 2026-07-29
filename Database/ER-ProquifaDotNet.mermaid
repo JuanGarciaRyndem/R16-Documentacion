@@ -8,14 +8,42 @@ erDiagram
         varchar ClaveISO
         varchar Nombre
         bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
+    }
+
+    catRegimenFiscal {
+        uniqueidentifier IdCatRegimenFiscal PK
+        varchar RegimenFiscal
+        varchar Descripcion
+        bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
+    }
+
+    Direccion {
+        uniqueidentifier IdDireccion PK
+        varchar CodigoPostal
+        varchar Calle
+        varchar Ciudad
+        varchar Estado
+        bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     Empresa {
         uniqueidentifier IdEmpresa PK
         varchar Prefijo
-        varchar Nombre
+        varchar Alias
+        varchar RazonSocial
+        varchar RFC
+        uniqueidentifier IdDireccion FK
+        uniqueidentifier IdCatRegimenFiscal FK
         uniqueidentifier IdRegion FK
         bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     EmpresaRegion {
@@ -23,6 +51,8 @@ erDiagram
         uniqueidentifier IdEmpresa FK
         uniqueidentifier IdRegion FK
         bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     Cliente {
@@ -30,6 +60,8 @@ erDiagram
         varchar Nombre
         uniqueidentifier IdRegion FK
         bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     Usuario {
@@ -37,6 +69,8 @@ erDiagram
         varchar NombreUsuario
         uniqueidentifier IdRegion FK
         bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     Archivo {
@@ -44,7 +78,8 @@ erDiagram
         varchar NombreArchivo
         varchar Ruta
         uniqueidentifier IdCatUsoArchivoSistema FK
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     catUsoArchivoSistema {
@@ -52,6 +87,8 @@ erDiagram
         varchar Clave
         varchar Descripcion
         bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     ArchivoCliente {
@@ -60,7 +97,8 @@ erDiagram
         uniqueidentifier IdArchivo FK
         uniqueidentifier IdCatUsoArchivoSistema FK
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     catBanco {
@@ -70,6 +108,8 @@ erDiagram
         bit Deposito
         bit Transferencia
         bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     catMoneda {
@@ -77,6 +117,8 @@ erDiagram
         varchar ClaveMoneda
         varchar Moneda
         bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     DatosBancarios {
@@ -86,7 +128,8 @@ erDiagram
         varchar CLABE
         varchar IdCatMoneda FK
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     EmpresaDatosBancarios {
@@ -95,7 +138,8 @@ erDiagram
         uniqueidentifier IdEmpresa FK
         uniqueidentifier IdRegion FK
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     ClienteDatosBancarios {
@@ -103,7 +147,8 @@ erDiagram
         uniqueidentifier IdCliente FK
         uniqueidentifier IdDatosBancarios FK
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     catMedioDePago {
@@ -111,6 +156,8 @@ erDiagram
         varchar MedioDePago
         varchar ClaveFormaDePago
         bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     catMetodoDePagoCFDI {
@@ -118,6 +165,8 @@ erDiagram
         varchar MetodoDePagoCFDI
         varchar Clave
         bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     catUsoCFDI {
@@ -125,6 +174,8 @@ erDiagram
         varchar ClaveUso
         varchar Uso
         bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     catCondicionesDePago {
@@ -132,6 +183,8 @@ erDiagram
         varchar Descripcion
         int DiasCredito
         bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     ConfiguracionPagos {
@@ -142,7 +195,8 @@ erDiagram
         uniqueidentifier IdCatMetodoDePagoCFDI FK
         uniqueidentifier IdCatCondicionesDePago FK
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     DatosFacturacionCliente {
@@ -154,7 +208,8 @@ erDiagram
         varchar RFC
         varchar RazonSocial
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     ClienteCartera {
@@ -163,7 +218,8 @@ erDiagram
         uniqueidentifier IdUsuarioCobrador FK
         uniqueidentifier IdRegion FK
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     ClienteCarteraCliente {
@@ -172,7 +228,8 @@ erDiagram
         uniqueidentifier IdCliente FK
         uniqueidentifier IdRegion FK
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     catProceso {
@@ -180,6 +237,8 @@ erDiagram
         varchar Proceso
         varchar Clave
         bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     catClasificacionCorreoRecibido {
@@ -188,6 +247,8 @@ erDiagram
         varchar Clasificacion
         bit EsCobro
         bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     RegionConfiguracionMailBot {
@@ -197,7 +258,8 @@ erDiagram
         varchar ServidorIMAP
         int PuertoIMAP
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     CorreoRecibido {
@@ -205,9 +267,10 @@ erDiagram
         uniqueidentifier IdRegion FK
         varchar Asunto
         varchar CorreoEmisor
-        datetime2 FechaRecepcion
+        datetime FechaRecepcion
         bit Procesado
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     CorreoRecibidoCliente {
@@ -216,7 +279,8 @@ erDiagram
         uniqueidentifier IdCliente FK
         uniqueidentifier IdCatClasificacionCorreoRecibido FK
         bit Procesado
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     tpPedido {
@@ -225,13 +289,14 @@ erDiagram
         uniqueidentifier IdCliente FK
         uniqueidentifier IdEmpresa FK
         uniqueidentifier IdRegion FK
-        datetime2 FechaEstimadaEntrega
-        datetime2 FechaCancelacionPorFaltaPago
+        datetime FechaEstimadaEntrega
+        datetime FechaCancelacionPorFaltaPago
         uniqueidentifier IdUsuarioCancelacion FK
-        datetime2 FechaSolicitudCancelacion
+        datetime FechaSolicitudCancelacion
         varchar EstadoCancelacionCFDI
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     %% tpProformaPedido/tpProformaPartidaPedido: scope movido a Finanzas (08/07/2026) — ver ER-Finanzas.mermaid
@@ -240,10 +305,11 @@ erDiagram
         uniqueidentifier IdTPPedido FK
         decimal MontoPendiente
         decimal MontoTotal
-        datetime2 FechaPromesaPagoMonitoreoCobros
+        datetime FechaPromesaPagoMonitoreoCobros
         uniqueidentifier IdCFDIGenerada FK
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     tpProformaAdelanto {
@@ -253,7 +319,8 @@ erDiagram
         uniqueidentifier IdCFDIGenerada FK
         bit Enviada
         bit Activo
-        datetime2 FechaRegistro
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
     }
 
     %% MIGRACIÓN (06/07/2026): tpProformaAdelanto queda como tabla legada, ya no es el
@@ -261,6 +328,59 @@ erDiagram
     %% Esos flujos ahora usan fccFactura/fccFacturaPartida/fccFacturaReferenciaBancaria,
     %% propiedad de ProquifaDotNet.Finanzas — ver ER-Finanzas.mermaid y
     %% R16A-RE-FU-015_BD.md ("Migración de tpProformaAdelanto").
+
+    %% ── Perfil Fiscal (R16A-RE-Cambio-PerfilFiscal) ─────────────────────────────
+    catImpuesto {
+        uniqueidentifier IdCatImpuesto PK
+        varchar Clave
+        varchar Descripcion
+        bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
+    }
+
+    catTipoFactorSat {
+        uniqueidentifier IdCatTipoFactorSat PK
+        varchar Clave
+        varchar Descripcion
+        bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
+    }
+
+    catObjetoImpuestoSat {
+        uniqueidentifier IdCatObjetoImpuestoSat PK
+        varchar Clave
+        varchar Descripcion
+        bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
+    }
+
+    PerfilFiscal {
+        uniqueidentifier IdPerfilFiscal PK
+        uniqueidentifier IdRegion FK
+        uniqueidentifier IdCatImpuesto FK
+        uniqueidentifier IdCatTipoFactorSat FK
+        decimal TasaOCuota
+        uniqueidentifier IdCatObjetoImpuestoSat FK
+        nvarchar Fundamento
+        bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
+    }
+
+    FamiliaRegion {
+        uniqueidentifier IdFamiliaRegion PK
+        uniqueidentifier IdFamilia FK
+        uniqueidentifier IdRegion FK
+        uniqueidentifier IdPerfilFiscal FK
+        varchar ClaveProdServSat
+        varchar ClaveUnidadSat
+        bit Activo
+        datetime FechaRegistro
+        datetime FechaUltimaActualizacion
+    }
 
     Region ||--o{ Empresa : "tiene"
     Region ||--o{ EmpresaRegion : "tiene"
@@ -297,3 +417,14 @@ erDiagram
     catCondicionesDePago ||--o{ DatosFacturacionCliente : "usa"
     tpPedido ||--o{ tpProformaPedido : "tiene"
     tpPedido ||--o{ tpProformaAdelanto : "tiene"
+    catRegimenFiscal ||--o{ Empresa : "régimen fiscal emisor"
+    catRegimenFiscal ||--o{ DatosFacturacionCliente : "régimen fiscal receptor"
+    Direccion ||--o| Empresa : "domicilio fiscal (LugarExpedicion)"
+
+    %% Relaciones Perfil Fiscal
+    Region ||--o{ PerfilFiscal : "discrimina"
+    catImpuesto ||--o{ PerfilFiscal : "impuesto"
+    catTipoFactorSat ||--o{ PerfilFiscal : "tipo factor"
+    catObjetoImpuestoSat ||--o{ PerfilFiscal : "objeto impuesto (MX)"
+    PerfilFiscal ||--o{ FamiliaRegion : "perfil aplicado"
+    Region ||--o{ FamiliaRegion : "discrimina"

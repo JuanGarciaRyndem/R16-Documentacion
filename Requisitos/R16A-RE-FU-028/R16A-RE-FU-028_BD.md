@@ -61,8 +61,10 @@ CREATE TABLE [dbo].[catTipoDocumentoFiscal](
     [Descripcion]               nvarchar(150)    NOT NULL,
     [Activo]                    bit              NOT NULL
         CONSTRAINT [DF_catTipoDocumentoFiscal_Activo] DEFAULT (1),
-    [FechaRegistro]             datetime2(7)     NOT NULL
-        CONSTRAINT [DF_catTipoDocumentoFiscal_FechaReg] DEFAULT (SYSUTCDATETIME()),
+    [FechaRegistro]             datetime     NOT NULL
+        CONSTRAINT [DF_catTipoDocumentoFiscal_FechaReg] DEFAULT (GETDATE()),
+    [FechaUltimaActualizacion] datetime NOT NULL
+        CONSTRAINT [DF_catTipoDocumentoFiscal_FechaUltimaActualizacion] DEFAULT (GETDATE()),
     CONSTRAINT [PK_catTipoDocumentoFiscal]
         PRIMARY KEY CLUSTERED ([IdCatTipoDocumentoFiscal]),
     CONSTRAINT [UQ_catTipoDocumentoFiscal_Clave]
@@ -90,7 +92,8 @@ INSERT INTO dbo.catTipoDocumentoFiscal (Clave, Descripcion) VALUES
 | Clave | varchar(30) NOT NULL UNIQUE | Clave técnica del tipo: `FACTURA`, `FACTURA_ANTICIPO`, `COMPLEMENTO_PAGO` |
 | Descripcion | nvarchar(150) NOT NULL | Descripción legible para el usuario |
 | Activo | bit NOT NULL | 1 = vigente |
-| FechaRegistro | datetime2(7) NOT NULL | Fecha de inserción |
+| FechaRegistro | datetime NOT NULL | Fecha de inserción |
+| FechaUltimaActualizacion | datetime NOT NULL | Fecha de última modificación |
 
 **Índices:**
 
@@ -116,8 +119,10 @@ CREATE TABLE [dbo].[catDocumentoFiscalCobroEstado](
     [Descripcion]                      nvarchar(150)    NOT NULL,
     [Activo]                           bit              NOT NULL
         CONSTRAINT [DF_catDocumentoFiscalCobroEstado_Activo] DEFAULT (1),
-    [FechaRegistro]                    datetime2(7)     NOT NULL
-        CONSTRAINT [DF_catDocumentoFiscalCobroEstado_FechaReg] DEFAULT (SYSUTCDATETIME()),
+    [FechaRegistro]                    datetime     NOT NULL
+        CONSTRAINT [DF_catDocumentoFiscalCobroEstado_FechaReg] DEFAULT (GETDATE()),
+    [FechaUltimaActualizacion] datetime NOT NULL
+        CONSTRAINT [DF_catDocumentoFiscalCobroEstado_FechaUltimaActualizacion] DEFAULT (GETDATE()),
     CONSTRAINT [PK_catDocumentoFiscalCobroEstado]
         PRIMARY KEY CLUSTERED ([IdCatDocumentoFiscalCobroEstado]),
     CONSTRAINT [UQ_catDocumentoFiscalCobroEstado_Clave]
@@ -145,7 +150,8 @@ INSERT INTO dbo.catDocumentoFiscalCobroEstado (Clave, Descripcion) VALUES
 | Clave | varchar(20) NOT NULL UNIQUE | Clave técnica del estado: `PENDIENTE`, `GENERADO`, `ENVIADO` |
 | Descripcion | nvarchar(150) NOT NULL | Descripción legible del estado |
 | Activo | bit NOT NULL | 1 = vigente |
-| FechaRegistro | datetime2(7) NOT NULL | Fecha de inserción |
+| FechaRegistro | datetime NOT NULL | Fecha de inserción |
+| FechaUltimaActualizacion | datetime NOT NULL | Fecha de última modificación |
 
 **Índices:**
 
@@ -184,14 +190,14 @@ CREATE TABLE [dbo].[fccDocumentoFiscalCobro](
     [IdCatMetodoDePagoCFDI]                  uniqueidentifier NULL,   -- FK catMetodoDePagoCFDI; NULL para COMPLEMENTO_PAGO
     [IdCFDIGeneradaFactura]                  uniqueidentifier NULL,   -- FK CFDIGenerada: Factura/Anticipo/Complemento FAA timbrado
     [IdCFDIGeneradaComplemento]              uniqueidentifier NULL,   -- FK CFDIGenerada: Complemento cascada PPD (solo MetodoPago=PPD)
-    [FechaGeneracion]                        datetime2(7)     NULL,
-    [FechaEnvio]                             datetime2(7)     NULL,
+    [FechaGeneracion]                        datetime     NULL,
+    [FechaEnvio]                             datetime     NULL,
     [Activo]                                 bit              NOT NULL
         CONSTRAINT [DF_fccDocumentoFiscalCobro_Activo]         DEFAULT (1),
-    [FechaRegistro]                          datetime2(7)     NOT NULL
-        CONSTRAINT [DF_fccDocumentoFiscalCobro_FechaReg]       DEFAULT (SYSUTCDATETIME()),
-    [FechaUltimaActualizacion]               datetime2(7)     NOT NULL
-        CONSTRAINT [DF_fccDocumentoFiscalCobro_FechaUpd]       DEFAULT (SYSUTCDATETIME()),
+    [FechaRegistro]                          datetime     NOT NULL
+        CONSTRAINT [DF_fccDocumentoFiscalCobro_FechaReg]       DEFAULT (GETDATE()),
+    [FechaUltimaActualizacion]               datetime     NOT NULL
+        CONSTRAINT [DF_fccDocumentoFiscalCobro_FechaUpd]       DEFAULT (GETDATE()),
     CONSTRAINT [PK_fccDocumentoFiscalCobro]
         PRIMARY KEY CLUSTERED ([IdFCCDocumentoFiscalCobro]),
     CONSTRAINT [FK_fccDocumentoFiscalCobro_PagoFacturaPedido]
@@ -253,11 +259,11 @@ CREATE INDEX [IX_fccDocumentoFiscalCobro_PagoFacturaAdelanto]
 | IdCatMetodoDePagoCFDI           | uniqueidentifier FK NULL     | FK a `catMetodoDePagoCFDI`. Método de pago (PPD / PUE). NULL para líneas `COMPLEMENTO_PAGO` (el método PPD es fijo y se infiere del catálogo tipo, no se persiste aquí).               |
 | IdCFDIGeneradaFactura           | uniqueidentifier FK NULL     | FK a `CFDIGenerada`: Factura, Factura Anticipo, o Complemento directo desde FAA. Se popula al timbrar exitosamente.                                                                    |
 | IdCFDIGeneradaComplemento       | uniqueidentifier FK NULL     | FK a `CFDIGenerada`: Complemento de Pago generado en cascada cuando `MetodoPago = 'PPD'`. NULL para `COMPLEMENTO_PAGO` (ese CFDI va en `IdCFDIGeneradaFactura`) y para PUE.            |
-| FechaGeneracion                 | datetime2(7) NULL            | Fecha/hora del timbrado exitoso de los CFDIs de la línea.                                                                                                                              |
-| FechaEnvio                      | datetime2(7) NULL            | Fecha/hora del envío exitoso al cliente.                                                                                                                                               |
+| FechaGeneracion                 | datetime NULL            | Fecha/hora del timbrado exitoso de los CFDIs de la línea.                                                                                                                              |
+| FechaEnvio                      | datetime NULL            | Fecha/hora del envío exitoso al cliente.                                                                                                                                               |
 | Activo                          | bit NOT NULL                 | 1 = activo. Permanece 1 incluso en estados Generado y Enviado para trazabilidad histórica.                                                                                             |
-| FechaRegistro                   | datetime2(7) NOT NULL        | Fecha de creación del registro.                                                                                                                                                        |
-| FechaUltimaActualizacion        | datetime2(7) NOT NULL        | Fecha de última modificación.                                                                                                                                                          |
+| FechaRegistro                   | datetime NOT NULL        | Fecha de creación del registro.                                                                                                                                                        |
+| FechaUltimaActualizacion        | datetime NOT NULL        | Fecha de última modificación.                                                                                                                                                          |
 |                                 |                              |                                                                                                                                                                                        |
 
 **Relaciones:**
@@ -304,14 +310,14 @@ CREATE TABLE [dbo].[fccConfirmacionPedido](
     [IdTPPedido]                uniqueidentifier NOT NULL,
     [FolioConfirmacion]         varchar(80)      NOT NULL,
     [RutaArchivoPDF]            nvarchar(500)    NULL,
-    [FechaGeneracion]           datetime2(7)     NOT NULL
-        CONSTRAINT [DF_fccConfirmacionPedido_FechaGen] DEFAULT (SYSUTCDATETIME()),
+    [FechaGeneracion]           datetime     NOT NULL
+        CONSTRAINT [DF_fccConfirmacionPedido_FechaGen] DEFAULT (GETDATE()),
     [Activo]                    bit              NOT NULL
         CONSTRAINT [DF_fccConfirmacionPedido_Activo]  DEFAULT (1),
-    [FechaRegistro]             datetime2(7)     NOT NULL
-        CONSTRAINT [DF_fccConfirmacionPedido_FechaReg] DEFAULT (SYSUTCDATETIME()),
-    [FechaUltimaActualizacion]  datetime2(7)     NOT NULL
-        CONSTRAINT [DF_fccConfirmacionPedido_FechaUpd] DEFAULT (SYSUTCDATETIME()),
+    [FechaRegistro]             datetime     NOT NULL
+        CONSTRAINT [DF_fccConfirmacionPedido_FechaReg] DEFAULT (GETDATE()),
+    [FechaUltimaActualizacion]  datetime     NOT NULL
+        CONSTRAINT [DF_fccConfirmacionPedido_FechaUpd] DEFAULT (GETDATE()),
     CONSTRAINT [PK_fccConfirmacionPedido]
         PRIMARY KEY CLUSTERED ([IdFCCConfirmacionPedido]),
     CONSTRAINT [FK_fccConfirmacionPedido_DocumentoFiscalCobro]
@@ -341,10 +347,10 @@ CREATE INDEX [IX_fccConfirmacionPedido_Pedido]
 | IdTPPedido | uniqueidentifier FK NOT NULL | Pedido al que corresponde la Confirmación |
 | FolioConfirmacion | varchar(80) NOT NULL | Folio del documento (formato pendiente de definición — Gap G3) |
 | RutaArchivoPDF | nvarchar(500) NULL | Ruta del PDF en Minio (bucket `confirmaciones`). NULL mientras no se haya generado. |
-| FechaGeneracion | datetime2(7) NOT NULL | Fecha/hora de generación del documento |
+| FechaGeneracion | datetime NOT NULL | Fecha/hora de generación del documento |
 | Activo | bit NOT NULL | 1 = activo |
-| FechaRegistro | datetime2(7) NOT NULL | Fecha de inserción |
-| FechaUltimaActualizacion | datetime2(7) NOT NULL | Fecha de última modificación |
+| FechaRegistro | datetime NOT NULL | Fecha de inserción |
+| FechaUltimaActualizacion | datetime NOT NULL | Fecha de última modificación |
 
 **Relaciones:**
 
@@ -384,8 +390,10 @@ CREATE TABLE [dbo].[catTipoCFDI](
     [Descripcion]       nvarchar(150)    NOT NULL,
     [Activo]            bit              NOT NULL
         CONSTRAINT [DF_catTipoCFDI_Activo]   DEFAULT (1),
-    [FechaRegistro]     datetime2(7)     NOT NULL
-        CONSTRAINT [DF_catTipoCFDI_FechaReg] DEFAULT (SYSUTCDATETIME()),
+    [FechaRegistro]     datetime     NOT NULL
+        CONSTRAINT [DF_catTipoCFDI_FechaReg] DEFAULT (GETDATE()),
+    [FechaUltimaActualizacion] datetime NOT NULL
+        CONSTRAINT [DF_catTipoCFDI_FechaUltimaActualizacion] DEFAULT (GETDATE()),
     CONSTRAINT [PK_catTipoCFDI]
         PRIMARY KEY CLUSTERED ([IdCatTipoCFDI]),
     CONSTRAINT [UQ_catTipoCFDI_Clave]
@@ -414,7 +422,8 @@ INSERT INTO dbo.catTipoCFDI (Clave, Descripcion) VALUES
 | Clave | varchar(20) NOT NULL UNIQUE | Clave técnica: `FACTURA_PPD`, `FACTURA_PUE`, `FACTURA_ANTICIPO`, `COMPLEMENTO_PAGO` |
 | Descripcion | nvarchar(150) NOT NULL | Descripción legible del tipo de CFDI |
 | Activo | bit NOT NULL | 1 = vigente |
-| FechaRegistro | datetime2(7) NOT NULL | Fecha de inserción |
+| FechaRegistro | datetime NOT NULL | Fecha de inserción |
+| FechaUltimaActualizacion | datetime NOT NULL | Fecha de última modificación |
 
 **Índices:**
 
@@ -500,13 +509,13 @@ IF NOT EXISTS (
 )
 BEGIN
     ALTER TABLE dbo.tpPedido
-        ADD FechaEstimadaEntrega datetime2(7) NULL;
+        ADD FechaEstimadaEntrega datetime NULL;
 END
 ```
 
 | Campo nuevo | Tipo | Default | Descripción |
 |-------------|------|---------|-------------|
-| FechaEstimadaEntrega | datetime2(7) NULL | NULL | FEE confirmada post-pago. Se establece en el Paso 3 al enviar exitosamente la primera línea del pedido. Cabecera para Confirmación de Pedido y transferencia Legacy. Solo aplica a México. Distinto de `tpPartidaPedido.FechaEstimadaEntrega` (FEE por producto al tramitar). |
+| FechaEstimadaEntrega | datetime NULL | NULL | FEE confirmada post-pago. Se establece en el Paso 3 al enviar exitosamente la primera línea del pedido. Cabecera para Confirmación de Pedido y transferencia Legacy. Solo aplica a México. Distinto de `tpPartidaPedido.FechaEstimadaEntrega` (FEE por producto al tramitar). |
 
 ---
 

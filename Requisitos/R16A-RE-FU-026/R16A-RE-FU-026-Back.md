@@ -56,10 +56,10 @@ CREATE TABLE [dbo].[fccSaldoFavorCliente](
     [IdFCCPagoFacturaPedido]  uniqueidentifier NULL,       -- cuando se aplica a futura proforma
     [Observaciones]           varchar(500)     NULL,
     [Activo]                  bit              NOT NULL CONSTRAINT [DF_fccSaldoFavor_Activo] DEFAULT (1),
-    [FechaRegistro]           datetime2(7)     NOT NULL
-        CONSTRAINT [DF_fccSaldoFavor_FechaReg] DEFAULT (SYSUTCDATETIME()),
-    [FechaUltimaActualizacion] datetime2(7)    NOT NULL
-        CONSTRAINT [DF_fccSaldoFavor_FechaUpd] DEFAULT (SYSUTCDATETIME()),
+    [FechaRegistro]           datetime     NOT NULL
+        CONSTRAINT [DF_fccSaldoFavor_FechaReg] DEFAULT (GETDATE()),
+    [FechaUltimaActualizacion] datetime    NOT NULL
+        CONSTRAINT [DF_fccSaldoFavor_FechaUpd] DEFAULT (GETDATE()),
     CONSTRAINT [PK_fccSaldoFavorCliente]
         PRIMARY KEY CLUSTERED ([IdFCCSaldoFavorCliente]),
     CONSTRAINT [FK_fccSaldoFavor_Cliente]
