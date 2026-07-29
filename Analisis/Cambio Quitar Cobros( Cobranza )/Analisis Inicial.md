@@ -173,7 +173,8 @@ Sin embargo, la **referencia bancaria construida con el Código Validador sigue 
 ![Diagrama de cobros](Imagenes/flujo_cobros_whiteboard_digital.png)
 
 ### Flujo nuevo con Aplicativo Externo de Cobranza
-![[flujo_cobros_aplicativo_externo.png]]
+![Flujo nuevo con aplicativo externo](Imagenes/flujo_cobros_aplicativo_externo.png)
+
 
 ---
 
