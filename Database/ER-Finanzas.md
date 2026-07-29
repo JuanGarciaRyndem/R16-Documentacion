@@ -996,39 +996,39 @@ Pendiente en Validar Cobro generado automáticamente al clasificar un correo com
 
 Cobro capturado en Validar Cobro Paso 1 (folio COB-mmddaa-#; inmutable al confirmar). Tabla existente verificada contra BD + ALTERs R16: `IdCatCobroEstatus` (RE-008) y `Confirmado`, `FechaConfirmacion`, `IdUsuarioConfirmacion`, `Notas`, `IdCatMoneda` (RE-023). Detalle: RE-023/024_BD y RE-008_BD.
 
-| Columna | Tipo de Dato | Índice | Descripción |
-|---------|--------------|--------|-------------|
-| `IdFCCPagoCliente` | uniqueidentifier | PK | Identificador único (PK) — DEFAULT NEWID() |
-| `IdCliente` | uniqueidentifier | FK | FK → `Cliente` |
-| `IdEmpresa` | uniqueidentifier | FK | FK → `Empresa` — empresa PROQUIFA que recibe el cobro |
-| `IdContactoCliente` | uniqueidentifier | FK | FK → `ContactoCliente` (nullable) |
-| `IdFCCFolioPagoCliente` | uniqueidentifier | FK | FK → `fccFolioPagoCliente` — pendiente del Buzón que originó el cobro |
-| `IdCatCobroEstatus` | uniqueidentifier | FK | FK → `catCobroEstatus` — estatus del ciclo de vida del cobro (ALTER RE-008) |
-| `Monto` | decimal | — | Monto recibido del cliente |
-| `FechaPago` | datetime | — | Fecha efectiva del pago |
-| `IdCatMoneda` | uniqueidentifier | FK | FK → `catMoneda` — moneda oficial del cobro (ALTER RE-023; soporta PEN) |
-| `MXN` | bit | — | Flag legacy: cobro en pesos — DEFAULT (0) |
-| `USD` | bit | — | Flag legacy: cobro en dólares — DEFAULT (1) |
-| `TipoDeCambio` | decimal | — | TC del día vs MXN — DEFAULT (0) |
-| `IdCatMedioDePago` | uniqueidentifier | FK | FK → `catMedioDePago` — forma de pago (c_FormaPago SAT) |
-| `IdDatosBancarios` | uniqueidentifier | FK | FK → `DatosBancarios` — cuenta PROQUIFA destino |
-| `IdCatBanco` | uniqueidentifier | FK | FK → `catBanco` — banco emisor del cliente |
-| `CuentaOrdenante` | varchar | — | Cuenta del cliente emisor |
-| `ReferenciaBancaria` | varchar | — | Referencia bancaria del cobro |
-| `Broker` | bit | — | 1 = cobro vía Broker — DEFAULT (0) |
-| `IdCatBrokerCliente` | uniqueidentifier | FK | FK → `catBroker` — broker del cliente (cuando aplica) |
-| `InformacionComplementoPago` | bit | — | 1 = requiere complemento de pago — DEFAULT (0) |
-| `IdCFDI` | uniqueidentifier | FK | FK → `CFDI` (legacy) — documento fiscal asociado |
-| `Folio` | varchar | — | Folio COB-mmddaa-NNNNNN — NULL en borrador; se llena al confirmar (RE-024) |
-| `Serie` | varchar | — | Serie del comprobante fiscal |
-| `IdArchivo` | uniqueidentifier | FK | FK → `Archivo` — comprobante de pago seleccionado del correo |
-| `Confirmado` | bit | — | 0 = borrador / 1 = confirmado e inmutable (ALTER RE-023, RE-024) |
-| `FechaConfirmacion` | datetime | — | Timestamp de confirmación del cobro (ALTER RE-023) |
-| `IdUsuarioConfirmacion` | uniqueidentifier | FK | FK → `Usuario` — quién confirmó el cobro (ALTER RE-023) |
-| `Notas` | varchar | — | Notas capturadas por el usuario (ALTER RE-023) |
-| `Activo` | bit | — | 1 = vigente / **0 = inconsistencia** (cierra el pendiente del Buzón) |
-| `FechaRegistro` | datetime | — | Fecha de alta del registro — DEFAULT GETDATE() |
-| `FechaUltimaActualizacion` | datetime | — | Fecha de última modificación — DEFAULT GETDATE() |
+| Columna                      | Tipo de Dato     | Índice | Descripción                                                                 |
+| ---------------------------- | ---------------- | ------ | --------------------------------------------------------------------------- |
+| `IdFCCPagoCliente`           | uniqueidentifier | PK     | Identificador único (PK) — DEFAULT NEWID()                                  |
+| `IdCliente`                  | uniqueidentifier | FK     | FK → `Cliente`                                                              |
+| `IdEmpresa`                  | uniqueidentifier | FK     | FK → `Empresa` — empresa PROQUIFA que recibe el cobro                       |
+| `IdContactoCliente`          | uniqueidentifier | FK     | FK → `ContactoCliente` (nullable)                                           |
+| `IdFCCFolioPagoCliente`      | uniqueidentifier | FK     | FK → `fccFolioPagoCliente` — pendiente del Buzón que originó el cobro       |
+| `IdCatCobroEstatus`          | uniqueidentifier | FK     | FK → `catCobroEstatus` — estatus del ciclo de vida del cobro (ALTER RE-008) |
+| `Monto`                      | decimal          | —      | Monto recibido del cliente                                                  |
+| `FechaPago`                  | datetime         | —      | Fecha efectiva del pago                                                     |
+| `IdCatMoneda`                | uniqueidentifier | FK     | FK → `catMoneda` — moneda oficial del cobro (ALTER RE-023; soporta PEN)     |
+| `MXN`                        | bit              | —      | Flag legacy: cobro en pesos — DEFAULT (0)                                   |
+| `USD`                        | bit              | —      | Flag legacy: cobro en dólares — DEFAULT (1)                                 |
+| `TipoDeCambio`               | decimal          | —      | TC del día vs MXN — DEFAULT (0)                                             |
+| `IdCatMedioDePago`           | uniqueidentifier | FK     | FK → `catMedioDePago` — forma de pago (c_FormaPago SAT)                     |
+| `IdDatosBancarios`           | uniqueidentifier | FK     | FK → `DatosBancarios` — cuenta PROQUIFA destino                             |
+| `IdCatBanco`                 | uniqueidentifier | FK     | FK → `catBanco` — banco emisor del cliente                                  |
+| `CuentaOrdenante`            | varchar          | —      | Cuenta del cliente emisor                                                   |
+| `ReferenciaBancaria`         | varchar          | —      | Referencia bancaria del cobro                                               |
+| `Broker`                     | bit              | —      | 1 = cobro vía Broker — DEFAULT (0)                                          |
+| `IdCatBrokerCliente`         | uniqueidentifier | FK     | FK → `catBroker` — broker del cliente (cuando aplica)                       |
+| `InformacionComplementoPago` | bit              | —      | 1 = requiere complemento de pago — DEFAULT (0)                              |
+| `IdCFDI`                     | uniqueidentifier | FK     | FK → `CFDI` (legacy) — documento fiscal asociado                            |
+| `Folio`                      | varchar          | —      | Folio COB-mmddaa-NNNNNN — NULL en borrador; se llena al confirmar (RE-024)  |
+| `Serie`                      | varchar          | —      | Serie del comprobante fiscal                                                |
+| `IdArchivo`                  | uniqueidentifier | FK     | FK → `Archivo` — comprobante de pago seleccionado del correo                |
+| `Confirmado`                 | bit              | —      | 0 = borrador / 1 = confirmado e inmutable (ALTER RE-023, RE-024)            |
+| `FechaConfirmacion`          | datetime         | —      | Timestamp de confirmación del cobro (ALTER RE-023)                          |
+| `IdUsuarioConfirmacion`      | uniqueidentifier | FK     | FK → `Usuario` — quién confirmó el cobro (ALTER RE-023)                     |
+| `Notas`                      | varchar          | —      | Notas capturadas por el usuario (ALTER RE-023)                              |
+| `Activo`                     | bit              | —      | 1 = vigente / **0 = inconsistencia** (cierra el pendiente del Buzón)        |
+| `FechaRegistro`              | datetime         | —      | Fecha de alta del registro — DEFAULT GETDATE()                              |
+| `FechaUltimaActualizacion`   | datetime         | —      | Fecha de última modificación — DEFAULT GETDATE()                            |
 
 ### Tabla: `fccPagoFacturaPedido`
 

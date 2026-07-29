@@ -56,17 +56,17 @@ tpProformaPedido.ReferenciaPago  ← snapshot inmutable copiado de ClienteDatosB
 
 **Propósito:** Relación N:N entre `Cliente` y `DatosBancarios` del grupo PROQUIFA. Persiste el Código Validador por combinación cliente-cuenta y **la referencia bancaria vigente armada** (Regla 4, nivel 1). El historial del Código Validador NO lleva columnas propias: cada cambio se registra en ProquifaDotNet.BitacoraCambios (tabla afectada, campo, valor anterior/nuevo, usuario, fecha — actualización 2026-07-07, sustituye a OBS-014).
 
-| Columna Propuesta               | Tipo             | Nulo | Descripción                                                                                              |
-| ------------------------------- | ---------------- | ---- | -------------------------------------------------------------------------------------------------------- |
-| `IdClienteDatosBancarios`       | uniqueidentifier | NO   | PK. Default: NEWID()                                                                                     |
-| `IdCliente`                     | uniqueidentifier | NO   | FK — `Cliente`                                                                                           |
-| `IdDatosBancarios`              | uniqueidentifier | NO   | FK — `DatosBancarios` (cuenta del grupo PROQUIFA)                                                        |
-| `CodigoValidador`               | varchar(50)      | NO   | Código validador capturado manualmente por el usuario                                                    |
-| `ReferenciaVigente`             | varchar(80)      | SÍ   | **Referencia bancaria armada vigente del cliente** (Regla 4 nivel 1, OBS-013). Se regenera solo ante cambio de dato fuente. |
-| `FechaReferenciaVigente`        | datetime         | SÍ   | Fecha y hora en que se generó/actualizó la referencia vigente. Útil para auditoría y troubleshooting.    |
-| `FechaRegistro`                 | datetime         | NO   | Default: GETDATE()                                                                                       |
-| `FechaUltimaActualizacion`      | datetime         | NO   | Default: GETDATE()                                                                                       |
-| `Activo`                        | bit              | NO   | 1 = Asignación activa, 0 = Eliminada. Default: 1                                                         |
+| Columna Propuesta          | Tipo             | Nulo | Descripción                                                                                                                 |
+| -------------------------- | ---------------- | ---- | --------------------------------------------------------------------------------------------------------------------------- |
+| `IdClienteDatosBancarios`  | uniqueidentifier | NO   | PK. Default: NEWID()                                                                                                        |
+| `IdCliente`                | uniqueidentifier | NO   | FK — `Cliente`                                                                                                              |
+| `IdDatosBancarios`         | uniqueidentifier | NO   | FK — `DatosBancarios` (cuenta del grupo PROQUIFA)                                                                           |
+| `CodigoValidador`          | varchar(50)      | NO   | Código validador capturado manualmente por el usuario                                                                       |
+| `ReferenciaVigente`        | varchar(80)      | SÍ   | **Referencia bancaria armada vigente del cliente** (Regla 4 nivel 1, OBS-013). Se regenera solo ante cambio de dato fuente. |
+| `FechaReferenciaVigente`   | datetime         | SÍ   | Fecha y hora en que se generó/actualizó la referencia vigente. Útil para auditoría y troubleshooting.                       |
+| `FechaRegistro`            | datetime         | NO   | Default: GETDATE()                                                                                                          |
+| `FechaUltimaActualizacion` | datetime         | NO   | Default: GETDATE()                                                                                                          |
+| `Activo`                   | bit              | NO   | 1 = Asignación activa, 0 = Eliminada. Default: 1                                                                            |
 
 > **⚠️ Pendiente** — Confirmar longitud máxima de `CodigoValidador` con el cliente. Actualmente propuesto como `varchar(50)` — ajustar antes de ejecutar en producción.
 

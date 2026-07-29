@@ -342,17 +342,17 @@ GO
 
 **Propósito:** Tabla de configuración fiscal por Familia y Región. Una fila por combinación `(IdFamilia, IdRegion)`. Vincula cada familia con el perfil fiscal correcto para cada región y almacena las claves SAT que aplican para México. La tabla `Familia` no se modifica.
 
-| Columna            | Tipo               | Nulo | Default            | Descripción                                                               |
-| ------------------ | ------------------ | ---- | ------------------ | ------------------------------------------------------------------------- |
-| `IdFamiliaRegion`  | `uniqueidentifier` | NO   | `NEWID()`          | PK                                                                        |
-| `IdFamilia`        | `uniqueidentifier` | NO   | —                  | FK → `Familia`                                                            |
-| `IdRegion`         | `uniqueidentifier` | NO   | —                  | FK → `Region`                                                             |
-| `IdPerfilFiscal`   | `uniqueidentifier` | NO   | —                  | FK → `PerfilFiscal` — debe corresponder a la misma `IdRegion`             |
-| `ClaveProdServSat` | `varchar(10)`      | SÍ   | `NULL`             | Clave SAT c_ClaveProdServ. Solo MX. `NULL` = no facturable MX o fila PE   |
-| `ClaveUnidadSat`   | `varchar(10)`      | SÍ   | `NULL`             | Clave SAT c_ClaveUnidad: `E48`, `H87`, `ACT`. Solo MX                     |
-| `Activo`           | `bit`              | NO   | `1`                | Borrado lógico                                                            |
-| `FechaRegistro`    | `datetime`     | NO   | `GETDATE()` | Fecha de alta                                                             |
-| `FechaUltimaActualizacion`    | `datetime`     | NO   | `GETDATE()` | Fecha de última modificación |
+| Columna                    | Tipo               | Nulo | Default     | Descripción                                                             |
+| -------------------------- | ------------------ | ---- | ----------- | ----------------------------------------------------------------------- |
+| `IdFamiliaRegion`          | `uniqueidentifier` | NO   | `NEWID()`   | PK                                                                      |
+| `IdFamilia`                | `uniqueidentifier` | NO   | —           | FK → `Familia`                                                          |
+| `IdRegion`                 | `uniqueidentifier` | NO   | —           | FK → `Region`                                                           |
+| `IdPerfilFiscal`           | `uniqueidentifier` | NO   | —           | FK → `PerfilFiscal` — debe corresponder a la misma `IdRegion`           |
+| `ClaveProdServSat`         | `varchar(10)`      | SÍ   | `NULL`      | Clave SAT c_ClaveProdServ. Solo MX. `NULL` = no facturable MX o fila PE |
+| `ClaveUnidadSat`           | `varchar(10)`      | SÍ   | `NULL`      | Clave SAT c_ClaveUnidad: `E48`, `H87`, `ACT`. Solo MX                   |
+| `Activo`                   | `bit`              | NO   | `1`         | Borrado lógico                                                          |
+| `FechaRegistro`            | `datetime`         | NO   | `GETDATE()` | Fecha de alta                                                           |
+| `FechaUltimaActualizacion` | `datetime`         | NO   | `GETDATE()` | Fecha de última modificación                                            |
 
 **Índices:**
 - `PK_FamiliaRegion` (Clustered): `IdFamiliaRegion`

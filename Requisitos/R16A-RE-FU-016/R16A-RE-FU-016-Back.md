@@ -174,18 +174,18 @@ ProquifaDotNet (Venta Interna)     ProquifaDotNet.Finanzas          DocumentBuil
 
 ### En ProquifaDotNet.Finanzas (Solución nueva — Módulo Proforma)
 
-| # | Gap | Acción | Esfuerzo |
-|---|-----|--------|----------|
-| GAP-01 | Crear módulo Proforma en Finanzas | Entidad Proforma en Domain, Command/Query en Application, endpoints en API | Alto |
-| GAP-02 | Crear DTO ProformaModel y BO de armado | Consultar BD ProquifaDotNet (EF Core scaffold), armar objeto completo con datos de 15+ tablas | Alto |
-| GAP-03 | Integración con DocumentBuilder (cliente HTTP) | Llamar `POST api/Report/proforma` desde Infrastructure, retornar byte[] | Medio |
-| GAP-04 | Integración con Minio (persistencia PDF) | Al envío exitoso: subir PDF al bucket 'pedidos', registrar en tabla Archivo | Medio |
-| GAP-05 | Endpoint generación bajo demanda (previsualización) | `POST /api/v1/proforma/{id}/pdf` — genera sin persistir, retorna byte[] | Medio |
-| GAP-06 | Endpoint consulta histórica | `GET /api/v1/proforma/{id}/pdf` — descarga PDF de Minio (sin regenerar) | Bajo |
-| GAP-07 | Foliador con SEQUENCE | Consumir `NEXT VALUE FOR dbo.SeqFolioProforma` al confirmar envío, formato MMDDAA-Consecutivo | Medio |
-| GAP-08 | Lógica del Código Validador (REF. CLIENTE) | Banamex=7 segmentos; no-Banamex=nombre cliente directo | Medio |
-| GAP-09 | Conversión monto a letras | MXN: "PESOS XX/100 M.N." / USD: "DOLARES XX/100" | Bajo |
-| GAP-10 | Folio con prefijo PRF (visual) | En DTO para DocumentBuilder: "PRF-" + FolioProforma. No se persiste con prefijo | Bajo |
+| #      | Gap                                                 | Acción                                                                                        | Esfuerzo |
+| ------ | --------------------------------------------------- | --------------------------------------------------------------------------------------------- | -------- |
+| GAP-01 | Crear módulo Proforma en Finanzas                   | Entidad Proforma en Domain, Command/Query en Application, endpoints en API                    | Alto     |
+| GAP-02 | Crear DTO ProformaModel y BO de armado              | Consultar BD ProquifaDotNet (EF Core scaffold), armar objeto completo con datos de 15+ tablas | Alto     |
+| GAP-03 | Integración con DocumentBuilder (cliente HTTP)      | Llamar `POST api/Report/proforma` desde Infrastructure, retornar byte[]                       | Medio    |
+| GAP-04 | Integración con Minio (persistencia PDF)            | Al envío exitoso: subir PDF al bucket 'pedidos', registrar en tabla Archivo                   | Medio    |
+| GAP-05 | Endpoint generación bajo demanda (previsualización) | `POST /api/v1/proforma/{id}/pdf` — genera sin persistir, retorna byte[]                       | Medio    |
+| GAP-06 | Endpoint consulta histórica                         | `GET /api/v1/proforma/{id}/pdf` — descarga PDF de Minio (sin regenerar)                       | Bajo     |
+| GAP-07 | Foliador con SEQUENCE                               | Consumir `NEXT VALUE FOR dbo.SeqFolioProforma` al confirmar envío, formato MMDDAA-Consecutivo | Medio    |
+| GAP-08 | Lógica del Código Validador (REF. CLIENTE)          | Banamex=7 segmentos; no-Banamex=nombre cliente directo                                        | Medio    |
+| GAP-09 | Conversión monto a letras                           | MXN: "PESOS XX/100 M.N." / USD: "DOLARES XX/100"                                              | Bajo     |
+| GAP-10 | Folio con prefijo PRF (visual)                      | En DTO para DocumentBuilder: "PRF-" + FolioProforma. No se persiste con prefijo               | Bajo     |
 
 ### En ProquifaDotNet (Venta Interna)
 
@@ -238,12 +238,12 @@ ProquifaDotNet (Venta Interna)     ProquifaDotNet.Finanzas          DocumentBuil
 
 ## Dependencias
 
-| Requisito | Relación |
-|-----------|----------|
-| R16A-RE-FU-006 | ReferenciaPago / Código Validador |
+| Requisito      | Relación                                               |
+| -------------- | ------------------------------------------------------ |
+| R16A-RE-FU-006 | ReferenciaPago / Código Validador                      |
 | R16A-RE-FU-013 | Flujo base Prepago (foliador, previsualización, envío) |
-| R16A-RE-FU-014 | Flujo Prepago sin FAA dispara generación del PDF |
-| R16A-RE-FU-017 | Proforma Perú (mismo patrón, templates diferentes) |
+| R16A-RE-FU-014 | Flujo Prepago sin FAA dispara generación del PDF       |
+| R16A-RE-FU-017 | Proforma Perú (mismo patrón, templates diferentes)     |
 
 ---
 
