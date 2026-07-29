@@ -167,7 +167,7 @@ Sin embargo, la **referencia bancaria construida con el Código Validador sigue 
 
 ### Flujo Actual
 
-![[flujo_entradas_salidas_cobros.png]]
+![[Imagenes/flujo_entradas_salidas_cobros.png]]
 ### Componentes o Módulos que se quitan
 ![[flujo_cobros_whiteboard_digital.png]]
 
