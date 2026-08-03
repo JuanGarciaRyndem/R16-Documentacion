@@ -187,6 +187,10 @@ erDiagram
         uniqueidentifier IdLote FK
         varchar Pedimento
         decimal PrecioFleteParcialidad
+        varchar ClaveProdServSat "ALTER R16A-Cambio-PerfilFiscal — solo MX"
+        varchar ClaveUnidadSat "ALTER R16A-Cambio-PerfilFiscal — solo MX"
+        varchar TipoFactor "ALTER R16A-Cambio-PerfilFiscal — Tasa|Cuota|Exento"
+        decimal TasaOCuota "ALTER R16A-Cambio-PerfilFiscal — null si Exento"
         bit Activo
         datetime FechaRegistro
         datetime FechaUltimaActualizacion
@@ -282,6 +286,10 @@ erDiagram
         decimal Cantidad
         decimal ValorUnitario
         decimal Importe
+        varchar ClaveProdServSat "ALTER R16A-Cambio-PerfilFiscal — solo MX"
+        varchar ClaveUnidadSat "ALTER R16A-Cambio-PerfilFiscal — solo MX"
+        varchar TipoFactor "ALTER R16A-Cambio-PerfilFiscal — Tasa|Cuota|Exento"
+        decimal TasaOCuota "ALTER R16A-Cambio-PerfilFiscal — null si Exento"
         datetime2 FechaRegistro
     }
     fccFacturaReferenciaBancaria {

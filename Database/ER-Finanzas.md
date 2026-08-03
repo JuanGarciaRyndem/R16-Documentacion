@@ -17,7 +17,7 @@ Tablas físicas en ProquifaDotNet gestionadas por la solución ProquifaDotNet.Fi
 
 ```mermaid
 erDiagram
-    %% catImpuesto / catTipoFactorSat / catObjetoImpuestoSat / PerfilFiscal / FamiliaRegion
+    %% catImpuesto / catTipoFactorSat / catObjetoImpuestoSat / PerfilFiscal / PerfilFiscalConfiguracionFamilia
     %% viven en ProquifaDotNet — acceso Finanzas via Scaffold (R16A-RE-Cambio-PerfilFiscal)
     catImpuesto {
         uniqueidentifier IdCatImpuesto PK
@@ -55,11 +55,12 @@ erDiagram
         datetime FechaRegistro
         datetime FechaUltimaActualizacion
     }
-    FamiliaRegion {
-        uniqueidentifier IdFamiliaRegion PK
+    PerfilFiscalConfiguracionFamilia {
+        uniqueidentifier IdPerfilFiscalConfiguracionFamilia PK
         uniqueidentifier IdFamilia FK
         uniqueidentifier IdRegion FK
         uniqueidentifier IdPerfilFiscal FK
+        varchar ClaveTipoEntidad
         varchar ClaveProdServSat
         varchar ClaveUnidadSat
         bit Activo
@@ -527,7 +528,7 @@ erDiagram
     catImpuesto ||--o{ PerfilFiscal : "impuesto"
     catTipoFactorSat ||--o{ PerfilFiscal : "tipo factor"
     catObjetoImpuestoSat ||--o{ PerfilFiscal : "objeto impuesto (MX)"
-    PerfilFiscal ||--o{ FamiliaRegion : "perfil aplicado"
+    PerfilFiscal ||--o{ PerfilFiscalConfiguracionFamilia : "perfil aplicado"
     PerfilFiscal ||--o{ CFDIGeneradaConcepto : "aplica perfil fiscal"
     catFormaPagoSAT ||--o{ CFDIGenerada : "forma de pago CFDI"
     catMetodoDePagoCFDI ||--o{ CFDIGenerada : "método de pago CFDI"
@@ -576,7 +577,7 @@ erDiagram
 | 31  | `catCobroEstatus`               | ✨ Nueva R16 (definida en RE-002)                           | RE-002 (crea), RE-008 (FK en fccPagoCliente), RE-026                                                                                                                            | Catálogo de estatus del ciclo de vida del cobro: BORRADOR → CAPTURADO → ASOCIADO / SALDO_A_FAVOR → COMPLETADO; CON_INCONSISTENCIA / CANCELADO |
 
 
-> **Nota (R16A-RE-Cambio-PerfilFiscal):** Las tablas `catImpuesto`, `catTipoFactorSat`, `catObjetoImpuestoSat`, `PerfilFiscal` y `FamiliaRegion` **viven en ProquifaDotNet** (no son tablas propias de Finanzas). Finanzas las accede via Scaffold EF Core. Ver Sección 2.
+> **Nota (R16A-RE-Cambio-PerfilFiscal):** Las tablas `catImpuesto`, `catTipoFactorSat`, `catObjetoImpuestoSat`, `PerfilFiscal` y `PerfilFiscalConfiguracionFamilia` **viven en ProquifaDotNet** (no son tablas propias de Finanzas). Finanzas las accede via Scaffold EF Core. Ver Sección 2.
 
 ### 2. Tablas existentes de ProquifaDotNet consumidas vía Scaffold (lectura / escritura puntual)
 
@@ -586,8 +587,8 @@ erDiagram
 | `catTipoFactorSat`                                                       | Lectura   | RE-019 (Guía Técnica), RE-Cambio-PerfilFiscal | Catálogo c_TipoFactor SAT: Tasa, Cuota, Exento |
 | `catObjetoImpuestoSat`                                                   | Lectura   | RE-019 (Guía Técnica), RE-Cambio-PerfilFiscal | Catálogo c_ObjetoImp SAT: 01-No objeto, 02-Sí objeto, 03-Sí objeto no obligado, 04-Sí objeto IVA crédito IEPS |
 | `PerfilFiscal`                                                           | Lectura   | RE-019 (Guía Técnica), RE-Cambio-PerfilFiscal | Perfil fiscal: combinación catImpuesto × catTipoFactorSat × TasaOCuota × catObjetoImpuestoSat × IdRegion |
-| `FamiliaRegion`                                                          | Lectura   | RE-Cambio-PerfilFiscal          | Junction: Familia ↔ Region ↔ PerfilFiscal + ClaveProdServSat + ClaveUnidadSat |
-| `Familia`                                                                | Lectura   | RE-019, RE-Cambio-PerfilFiscal  | Familia de productos (para resolución de ClaveProdServSat/ClaveUnidadSat via FamiliaRegion) |
+| `PerfilFiscalConfiguracionFamilia`                                       | Lectura   | RE-Cambio-PerfilFiscal          | Configuración fiscal por tipo de entidad (familia/flete/factura-anticipo) + Region ↔ PerfilFiscal + ClaveProdServSat + ClaveUnidadSat |
+| `Familia`                                                                | Lectura   | RE-019, RE-Cambio-PerfilFiscal  | Familia de productos — incluye `ClaveProductoServicioCFDI` (ALTER TABLE R16A-RE-Cambio-PerfilFiscal) |
 | `Empresa`                                                                | Lectura   | RE-016, 019-022, 028-033        | Datos del emisor: `RFC`, `RazonSocial`, `Alias`, `Prefijo`, `IdCatRegimenFiscal` (→ `catRegimenFiscal.RegimenFiscal`), `IdDireccion` (→ `Direccion.CodigoPostal` = `LugarExpedicion`) + FK de `EmpresaFolio` |
 | `Cliente`                                                                | Lectura   | RE-018+, 023-029                | Razón social, clave; joins de listados                                                                                                                                                                       |
 | `DatosFacturacionCliente`                                                | Lectura   | RE-004, 012, 015, 019           | Snapshot fiscal del receptor al crear FAA/factura                                                                                                                                                            |
@@ -668,16 +669,17 @@ Perfil fiscal reutilizable: combinación de catálogos SAT + región que define 
 | `FechaRegistro`            | datetime         | —      | Fecha de alta del registro                                                                               |
 | `FechaUltimaActualizacion` | datetime         | —      | Fecha de última modificación                                                                             |
 
-### Tabla: `FamiliaRegion`
+### Tabla: `PerfilFiscalConfiguracionFamilia`
 
-Junction que asocia una Familia de productos a una Región con su PerfilFiscal correspondiente, `ClaveProdServSat` y `ClaveUnidadSat` por región. Tabla en ProquifaDotNet; Finanzas accede via Scaffold. Detalle: R16A-RE-Cambio-PerfilFiscal_BD.
+Configuración fiscal por tipo de entidad facturable (Familia, flete o factura-anticipo) y Región. Vincula cada entidad con su `PerfilFiscal` y las claves SAT correspondientes. `IdFamilia` es nullable para soportar fletes y FAA que no corresponden a una Familia. Tabla en ProquifaDotNet; Finanzas accede via Scaffold. Detalle: R16A-RE-Cambio-PerfilFiscal_BD.
 
-| Columna                    | Tipo de Dato     | Índice | Descripción                                                  |
-| -------------------------- | ---------------- | ------ | ------------------------------------------------------------ |
-| `IdFamiliaRegion`          | uniqueidentifier | PK     | Identificador único (PK)                                     |
-| `IdFamilia`                | uniqueidentifier | FK     | FK → `Familia`                                               |
-| `IdRegion`                 | uniqueidentifier | FK     | FK → `Region` — discriminador MX/PE                          |
-| `IdPerfilFiscal`           | uniqueidentifier | FK     | FK → `PerfilFiscal` — perfil fiscal aplicable en esta región |
+| Columna                                  | Tipo de Dato     | Índice | Descripción                                                                         |
+| ---------------------------------------- | ---------------- | ------ | ----------------------------------------------------------------------------------- |
+| `IdPerfilFiscalConfiguracionFamilia`     | uniqueidentifier | PK     | Identificador único (PK)                                                            |
+| `IdFamilia`                              | uniqueidentifier | FK     | FK → `Familia` (nullable — NULL para flete / factura-anticipo)                      |
+| `IdRegion`                               | uniqueidentifier | FK     | FK → `Region` — discriminador MX/PE                                                 |
+| `IdPerfilFiscal`                         | uniqueidentifier | FK     | FK → `PerfilFiscal` — perfil fiscal aplicable en esta región                        |
+| `ClaveTipoEntidad`                       | varchar(30)      | —      | Discriminador: `'familia'` \| `'flete'` \| `'factura-anticipo'`                     |
 | `ClaveProdServSat`         | varchar          | —      | Clave c_ClaveProdServ SAT para esta familia en esta región   |
 | `ClaveUnidadSat`           | varchar          | —      | Clave c_ClaveUnidad SAT para esta familia en esta región     |
 | `Activo`                   | bit              | —      | Borrado lógico (1 = vigente)                                 |
@@ -952,6 +954,10 @@ Partidas de la proforma (1:N) — tabla existente verificada contra BD; movida a
 | `IdLote`                    | uniqueidentifier | FK     | FK → `Lote`                                        |
 | `Pedimento`                 | varchar          | —      | Pedimento aduanal                                  |
 | `PrecioFleteParcialidad`    | decimal          | —      | Precio de flete de la parcialidad                  |
+| `ClaveProdServSat`          | varchar(10)      | —      | **ALTER R16A-Cambio-PerfilFiscal** — Clave c_ClaveProdServ SAT. Solo MX; null para PE |
+| `ClaveUnidadSat`            | varchar(10)      | —      | **ALTER R16A-Cambio-PerfilFiscal** — Clave c_ClaveUnidad SAT (ej. "H87"). Solo MX; null para PE |
+| `TipoFactor`                | varchar(10)      | —      | **ALTER R16A-Cambio-PerfilFiscal** — "Tasa" \| "Cuota" \| "Exento" (de catTipoFactorSat) |
+| `TasaOCuota`                | decimal(8,6)     | —      | **ALTER R16A-Cambio-PerfilFiscal** — Tasa del impuesto (ej. 0.160000). NULL cuando TipoFactor = "Exento" |
 | `Activo`                    | bit              | —      | Borrado lógico (1 = vigente)                       |
 | `FechaRegistro`             | datetime         | —      | Fecha de alta del registro                         |
 | `FechaUltimaActualizacion`  | datetime         | —      | Fecha de última modificación                       |
@@ -1081,6 +1087,10 @@ Partidas snapshot del pedido (1:N de fccFactura). Detalle: RE-015_BD.
 | `Cantidad` | decimal | — | Cantidad de la partida |
 | `ValorUnitario` | decimal | — | Valor unitario |
 | `Importe` | decimal | — | Importe de la partida |
+| `ClaveProdServSat` | varchar(10) | — | **ALTER R16A-Cambio-PerfilFiscal** — Clave c_ClaveProdServ SAT. Solo MX; null para PE |
+| `ClaveUnidadSat` | varchar(10) | — | **ALTER R16A-Cambio-PerfilFiscal** — Clave c_ClaveUnidad SAT (ej. "H87"). Solo MX; null para PE |
+| `TipoFactor` | varchar(10) | — | **ALTER R16A-Cambio-PerfilFiscal** — "Tasa" \| "Cuota" \| "Exento" (de catTipoFactorSat) |
+| `TasaOCuota` | decimal(8,6) | — | **ALTER R16A-Cambio-PerfilFiscal** — Tasa del impuesto (ej. 0.160000). NULL cuando TipoFactor = "Exento" |
 | `FechaRegistro` | datetime | — | Fecha de alta del registro |
 | `FechaUltimaActualizacion` | datetime | — | Fecha de última modificación |
 
@@ -1307,7 +1317,7 @@ dotnet ef dbcontext scaffold \
   --table catTipoFactorSat \
   --table catObjetoImpuestoSat \
   --table PerfilFiscal \
-  --table FamiliaRegion \
+  --table PerfilFiscalConfiguracionFamilia \
   --table Familia \
   --table tpProformaPedido \
   --table tpProformaPartidaPedido \
