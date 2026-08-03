@@ -346,6 +346,8 @@ protected override Guid _GuardarOActualizar(ClienteDatosBancarios entity)
 
 ### GAP-07 — Regeneración de `ReferenciaVigente` por cambio en `Cliente.Nombre` o `Cliente.Clave`
 
+
+
 **Archivos involucrados:** `Logic.Pqf.Catalogos\Clientes\ClienteBO.cs` (o equivalente) + `ClienteDatosBancariosBO.cs`
 **Impacto:** Regla 4 nivel 1 — *"solo se regenera si cambia un dato fuente (banco, cuenta, Código Validador o **datos del cliente que la componen**)"*. Los segmentos S1-S3 dependen de `Cliente.Nombre` y S4 depende de `Cliente.Clave`. Si cambian, todas las asignaciones activas del cliente quedan con `ReferenciaVigente` obsoleta.
 **Cambio requerido:** Definir el mecanismo de regeneración en cascada. Tres opciones a evaluar con arquitectura:
