@@ -57,36 +57,33 @@ var seg6 = moneda?.ReferenciaCuenta ?? "D";
 
 ---
 
-## Cambio 2 — Endpoint `GenerarReferenciaBanamex`
+## Cambio 2 — Endpoint `GenerarReferenciaBancaria`
 
 ### Descripción
 
-Endpoint para calcular y devolver la referencia Banamex de 7 segmentos **sin persistirla**. Se invoca únicamente cuando la UI detecta que el banco seleccionado tiene la bandera Banamex activa (`catBanco.RequiereCodigoValidador = true`). Permite mostrar la referencia como preview antes de que el usuario confirme.
-
+Endpoint para calcular y devolver la referencia Banamex de 7 segmentos **sin persistirla**. Se invoca únicamente cuando la UI detecta que el banco seleccionado tiene `catBanco.RequiereCodigoValidador = true`. Permite mostrar la referencia como preview antes de que el usuario confirme. La lógica reside en `ClienteDatosBancariosBO.Extensions`; el controller es delgado.
 
 ### Request / Response
 
 ```
-POST /ClienteDatosBancarios/GenerarReferenciaBanamex
+POST /ClienteDatosBancarios/GenerarReferenciaBancaria
 
 Body:
 {
-    "idCliente": "{guid}",
-    "idEmpresa":  "{guid}",
-    "idBanco":   "{guid}",
-    "idCuenta":  "{guid}"
+    "idCliente":               "{guid}",
+    "idEmpresa":               "{guid}",
+    "idBanco":                 "{guid}",
+    "idEmpresaDatosBancarios": "{guid}"
 }
 
 Response 200 OK:
 {
     "referencia": "QUI2345002P"
 }
--- Segmentos: Q·U·I (letras 1-3 del nombre) + 2345 (últimos 4 de Clave) + 002 (código banco) + P (MXN) + "" (CodigoValidador vacío)
+-- Segmentos: Q·U·I (letras 1-3 del nombre) + 2345 (últimos 4 del ID Legacy) + 002 (código banco) + P (MXN) + "" (CodigoValidador vacío)
 
-Response 400 Bad Request (banco no es Banamex):
-{
-    "message": "El banco indicado no es Banamex. Este endpoint solo aplica para Banamex."
-}
+Response 400 Bad Request:
+{ "message": "El banco indicado no requiere Código Validador." }
 ```
 
 ### Parámetros
@@ -94,52 +91,90 @@ Response 400 Bad Request (banco no es Banamex):
 | Parámetro | Tipo | Descripción |
 |---|---|---|
 | `idCliente` | Guid | Cliente al que se asigna la cuenta |
-| `idEmpresa` | Guid | Empresa del grupo PROQUIFA que factura (Proquifa, Golocaer, etc.) — `IdEmpresa` |
-| `idBanco` | Guid | Banco seleccionado — debe tener `RequiereCodigoValidador = true` |
-| `idCuenta` | Guid | Cuenta bancaria seleccionada (`IdDatosBancarios`) |
+| `idEmpresa` | Guid | Empresa del grupo PROQUIFA que factura — `Empresa.IdEmpresa` |
+| `idBanco` | Guid | Banco seleccionado — `catBanco.IdCatBanco`, debe tener `RequiereCodigoValidador = true` |
+| `idEmpresaDatosBancarios` | Guid | Cuenta seleccionada — `EmpresaDatosBancarios.IdEmpresaDatosBancarios` |
 
-> **Nota:** `CodigoValidador` no se incluye porque este endpoint es un preview previo a su captura. La referencia final con el Código Validador se genera al guardar con `PUT /ClienteDatosBancarios`.
+> **Nota:** `CodigoValidador` no se incluye porque es un preview previo a su captura. La referencia final con el Código Validador se genera al guardar con `PUT /ClienteDatosBancarios`.
 
-### Implementación
+### Implementación — Controller (delgado)
 
-**Archivo:** `WebApi.Catalogos\Controllers\Configuracion\Clientes\ClienteDatosBancariosController.cs`
+**Archivo:** `WebApi.Catalogos\Controllers\Configuracion\Clientes\Relaciones\ClienteDatosBancariosController.cs`
 
 ```csharp
+/// <summary>Genera un preview de la referencia Banamex antes de capturar el Código Validador.</summary>
 [HttpPost]
-[Route("ClienteDatosBancarios/GenerarReferenciaBanamex")]
-public IHttpActionResult GenerarReferenciaBanamex([FromBody] GenerarReferenciaBanamexRequest request)
+[Route("ClienteDatosBancarios/GenerarReferenciaBancaria")]
+[ResponseType(typeof(string))]
+public HttpResponseMessage GenerarReferenciaBancaria([FromBody] GenerarReferenciaBancariaRequest request)
 {
-    var idCliente = request.IdCliente;
-    var idEmpresa  = request.IdEmpresa;
-    var idBanco   = request.IdBanco;
-    var idCuenta  = request.IdCuenta;
-
-    using (var db = new ProquifaDotNetEntities())
+    return TryExecute(() =>
     {
-        var banco = db.catBanco.FirstOrDefault(b => b.IdCatBanco == idBanco);
-        if (banco == null || !banco.RequiereCodigoValidador)
-            return BadRequest("El banco indicado no es Banamex. Este endpoint solo aplica para Banamex.");
+        var bo = new ClienteDatosBancariosBO();
+        var referencia = bo.GenerarReferenciaBancaria(
+            request.IdCliente,
+            request.IdEmpresa,
+            request.IdBanco,
+            request.IdEmpresaDatosBancarios);
 
-        var cliente = db.Cliente.FirstOrDefault(c => c.IdCliente == idCliente);
-        var cuenta  = db.DatosBancarios.FirstOrDefault(d => d.IdDatosBancarios == idCuenta);
-
-        if (cliente == null || cuenta == null)
-            return NotFound();
-
-        var refBO     = new ReferenciaBancariaBO();
-        var referencia = refBO.Construir(cliente, cuenta, codigoValidador: string.Empty);
-
-        return Ok(new { referencia });
-    }
+        return bo.Response.Status
+            ? Request.CreateResponse(HttpStatusCode.OK, referencia)
+            : Request.CreateResponse(HttpStatusCode.BadRequest, bo.Response.FMessage);
+    });
 }
 
-// DTO del request
-public class GenerarReferenciaBanamexRequest
+public class GenerarReferenciaBancariaRequest
 {
-    public Guid IdCliente { get; set; }
-    public Guid IdEmpresa  { get; set; }
-    public Guid IdBanco   { get; set; }
-    public Guid IdCuenta  { get; set; }
+    public Guid IdCliente               { get; set; }
+    public Guid IdEmpresa               { get; set; }
+    public Guid IdBanco                 { get; set; }
+    public Guid IdEmpresaDatosBancarios { get; set; }
+}
+```
+
+### Implementación — Lógica en Extensions
+
+**Archivo:** `Logic.Pqf.Catalogos\Clientes\DatosBancarios\ClienteDatosBancariosBO.Extensions.cs`
+
+```csharp
+public string GenerarReferenciaBancaria(Guid idCliente, Guid idEmpresa, Guid idBanco, Guid idEmpresaDatosBancarios)
+{
+    var cuenta = new EmpresaDatosBancariosBO().Obtener(idEmpresaDatosBancarios);
+    if (cuenta == null || !cuenta.Activo)
+    {
+        Model.AddMessage("IdEmpresaDatosBancarios", "La cuenta bancaria seleccionada no existe o no está activa.");
+        Response = new Response(false, new FMessage(EMessageType.Validation.ToString(), Model.Messages.ModelState));
+        return null;
+    }
+
+    var datosBancarios = new DatosBancariosBO().Obtener(cuenta.IdDatosBancarios);
+    var banco = datosBancarios.IdCatBanco.HasValue
+        ? new TablaGenericaBO<catBanco>().Obtener(datosBancarios.IdCatBanco.Value)
+        : null;
+
+    if (banco == null || !banco.RequiereCodigoValidador)
+    {
+        Model.AddMessage("IdBanco", "El banco indicado no requiere Código Validador.");
+        Response = new Response(false, new FMessage(EMessageType.Validation.ToString(), Model.Messages.ModelState));
+        return null;
+    }
+
+    var moneda = datosBancarios.IdCatMoneda.HasValue
+        ? new TablaGenericaBO<catMoneda>().Obtener(datosBancarios.IdCatMoneda.Value)
+        : null;
+
+    var cliente     = new ClienteBO().Obtener(idCliente);
+    var razonSocial = new DatosFacturacionClienteBO().ObtenerPorCliente(idCliente)?.RazonSocial;
+
+    int? clienteLegacy;
+    using (var db = new ProquifaDotNetEntities())
+    {
+        clienteLegacy = db.spObtenerClienteLegacyId(idCliente).SingleOrDefault()?.ClienteLegacy;
+        if (clienteLegacy == null)
+            Logger.WarnFormat("ClienteLegacy no encontrado para IdCliente {0} — S4 será '0000'", idCliente);
+    }
+
+    return _bankReferenceBO.Build(cliente.Nombre, razonSocial, clienteLegacy, banco, moneda, codigoValidador: string.Empty);
 }
 ```
 
@@ -157,6 +192,6 @@ public class GenerarReferenciaBanamexRequest
 
 - [ ] `catMoneda` tiene las columnas `ClaveLegacy` y `ReferenciaCuenta` con los valores MXN → `M.N.`/`P` y USD → `DLS`/`D` poblados.
 - [ ] `ReferenciaBancariaBO` usa `catMoneda.ReferenciaCuenta` para el segmento 6; no parsea `ClaveMoneda`.
-- [ ] `POST /ClienteDatosBancarios/GenerarReferenciaBanamex` retorna la referencia de 7 segmentos correcta cuando el banco es Banamex.
+- [ ] `POST /ClienteDatosBancarios/GenerarReferenciaBancaria` retorna la referencia de 7 segmentos correcta cuando el banco es Banamex.
 - [ ] El endpoint retorna 400 si el banco no tiene la bandera Banamex activa.
 - [ ] El endpoint no persiste ningún dato — solo calcula y devuelve la referencia.
