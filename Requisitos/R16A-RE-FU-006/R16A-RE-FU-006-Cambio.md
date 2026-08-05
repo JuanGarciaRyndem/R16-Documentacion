@@ -73,14 +73,15 @@ Body:
     "idCliente":               "{guid}",
     "idEmpresa":               "{guid}",
     "idBanco":                 "{guid}",
-    "idEmpresaDatosBancarios": "{guid}"
+    "idEmpresaDatosBancarios": "{guid}",
+    "codigoValidador":         "07"
 }
 
 Response 200 OK:
 {
-    "referencia": "QUI2345002P"
+    "referencia": "QUI2345002P07"
 }
--- Segmentos: Q·U·I (letras 1-3 del nombre) + 2345 (últimos 4 del ID Legacy) + 002 (código banco) + P (MXN) + "" (CodigoValidador vacío)
+-- Segmentos: Q·U·I (letras 1-3 del nombre, sin espacios) + 2345 (últimos 4 del ID Legacy) + 002 (código banco) + P (MXN) + 07 (CodigoValidador — numérico 01–99)
 
 Response 400 Bad Request:
 { "message": "El banco indicado no requiere Código Validador." }
@@ -94,8 +95,7 @@ Response 400 Bad Request:
 | `idEmpresa` | Guid | Empresa del grupo PROQUIFA que factura — `Empresa.IdEmpresa` |
 | `idBanco` | Guid | Banco seleccionado — `catBanco.IdCatBanco`, debe tener `RequiereCodigoValidador = true` |
 | `idEmpresaDatosBancarios` | Guid | Cuenta seleccionada — `EmpresaDatosBancarios.IdEmpresaDatosBancarios` |
-
-> **Nota:** `CodigoValidador` no se incluye porque es un preview previo a su captura. La referencia final con el Código Validador se genera al guardar con `PUT /ClienteDatosBancarios`.
+| `codigoValidador` | string(2) | Código Validador capturado por el usuario. **Numérico, siempre 2 dígitos con cero a la izquierda** (rango `01`–`99`). Se incluye en el segmento 7 de la referencia. Puede enviarse vacío (`""`) para obtener un preview parcial antes de capturarlo. |
 
 ### Implementación — Controller (delgado)
 
@@ -115,7 +115,8 @@ public HttpResponseMessage GenerarReferenciaBancaria([FromBody] GenerarReferenci
             request.IdCliente,
             request.IdEmpresa,
             request.IdBanco,
-            request.IdEmpresaDatosBancarios);
+            request.IdEmpresaDatosBancarios,
+            request.CodigoValidador ?? string.Empty);
 
         return bo.Response.Status
             ? Request.CreateResponse(HttpStatusCode.OK, referencia)
@@ -125,10 +126,11 @@ public HttpResponseMessage GenerarReferenciaBancaria([FromBody] GenerarReferenci
 
 public class GenerarReferenciaBancariaRequest
 {
-    public Guid IdCliente               { get; set; }
-    public Guid IdEmpresa               { get; set; }
-    public Guid IdBanco                 { get; set; }
-    public Guid IdEmpresaDatosBancarios { get; set; }
+    public Guid   IdCliente               { get; set; }
+    public Guid   IdEmpresa               { get; set; }
+    public Guid   IdBanco                 { get; set; }
+    public Guid   IdEmpresaDatosBancarios { get; set; }
+    public string CodigoValidador         { get; set; }
 }
 ```
 
@@ -137,7 +139,7 @@ public class GenerarReferenciaBancariaRequest
 **Archivo:** `Logic.Pqf.Catalogos\Clientes\DatosBancarios\ClienteDatosBancariosBO.Extensions.cs`
 
 ```csharp
-public string GenerarReferenciaBancaria(Guid idCliente, Guid idEmpresa, Guid idBanco, Guid idEmpresaDatosBancarios)
+public string GenerarReferenciaBancaria(Guid idCliente, Guid idEmpresa, Guid idBanco, Guid idEmpresaDatosBancarios, string codigoValidador)
 {
     var cuenta = new EmpresaDatosBancariosBO().Obtener(idEmpresaDatosBancarios);
     if (cuenta == null || !cuenta.Activo)
@@ -174,7 +176,7 @@ public string GenerarReferenciaBancaria(Guid idCliente, Guid idEmpresa, Guid idB
             Logger.WarnFormat("ClienteLegacy no encontrado para IdCliente {0} — S4 será '0000'", idCliente);
     }
 
-    return _bankReferenceBO.Build(cliente.Nombre, razonSocial, clienteLegacy, banco, moneda, codigoValidador: string.Empty);
+    return _bankReferenceBO.Build(cliente.Nombre, razonSocial, clienteLegacy, banco, moneda, codigoValidador);
 }
 ```
 
@@ -192,6 +194,7 @@ public string GenerarReferenciaBancaria(Guid idCliente, Guid idEmpresa, Guid idB
 
 - [ ] `catMoneda` tiene las columnas `ClaveLegacy` y `ReferenciaCuenta` con los valores MXN → `M.N.`/`P` y USD → `DLS`/`D` poblados.
 - [ ] `ReferenciaBancariaBO` usa `catMoneda.ReferenciaCuenta` para el segmento 6; no parsea `ClaveMoneda`.
-- [ ] `POST /ClienteDatosBancarios/GenerarReferenciaBancaria` retorna la referencia de 7 segmentos correcta cuando el banco es Banamex.
+- [ ] `POST /ClienteDatosBancarios/GenerarReferenciaBancaria` retorna la referencia de 7 segmentos correcta cuando el banco es Banamex, incluyendo el `CodigoValidador` recibido en el segmento 7.
+- [ ] El endpoint acepta `CodigoValidador` vacío (`""`) y genera la referencia parcial para preview.
 - [ ] El endpoint retorna 400 si el banco no tiene la bandera Banamex activa.
 - [ ] El endpoint no persiste ningún dato — solo calcula y devuelve la referencia.

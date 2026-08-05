@@ -55,7 +55,7 @@ Un cliente puede tener asignadas una o más cuentas bancarias del catálogo de c
 **Regla 3 — Código Validador por combinación cliente-cuenta**
 Cada combinación cliente-cuenta tiene un Código Validador capturado manualmente por el usuario.
 
-> **⚠️ Pendiente** — El documento del cliente no especifica longitud máxima ni reglas de formato del Código Validador. Queda como duda formal del proyecto antes del desarrollo.
+> **Resuelto** — El Código Validador es **numérico, siempre 2 dígitos con cero a la izquierda** (rango `01`–`99`). El Front enviará exactamente 2 caracteres; la columna en BD puede tener mayor capacidad pero el valor nunca la excederá.
 
 **Regla 4 — Persistencia en dos niveles: referencia vigente del cliente y referencia casada a la proforma**
 La referencia bancaria se persiste en dos niveles:
@@ -79,9 +79,9 @@ Para cuentas de Banamex, la referencia bancaria se compone por la concatenación
 
 | Segmento | Descripción                                                           | Fallback / Regla                                                                                  |
 | -------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| 1        | Primera letra del nombre del cliente                                  | “X” si no existe                                                                                  |
-| 2        | Segunda letra del nombre del cliente                                  | “X” si no existe                                                                                  |
-| 3        | Tercera letra del nombre del cliente                                  | “X” si no existe                                                                                  |
+| 1        | Primera letra del nombre del cliente (ignorando espacios)             | “X” si no existe                                                                                  |
+| 2        | Segunda letra del nombre del cliente (ignorando espacios)             | “X” si no existe                                                                                  |
+| 3        | Tercera letra del nombre del cliente (ignorando espacios)             | “X” si no existe                                                                                  |
 | 4        | Últimos 4 caracteres de la clave del cliente                          | Padding con ceros a la izquierda si la clave tiene menos de 4 caracteres                          |
 | 5        | Código del banco (campo `Codigo` de la tabla `Bancos`)                | —                                                                                                 |
 | 6        | Carácter de moneda                                                    | “P” si la primera letra del campo `Moneda` de la cuenta es “M” (peso); “D” en cualquier otro caso |
@@ -194,7 +194,7 @@ La asignación de cuentas bancarias del grupo PROQUIFA a clientes y la captura d
 **Criterio C3 — Referencia para Banamex (7 segmentos)**
 - **Dado** que el banco de la cuenta asignada para una proforma es Banamex,
 - **Cuando** el sistema construye la referencia bancaria,
-- **Entonces** deberá concatenar determinísticamente los 7 segmentos definidos en la Regla 7: tres primeras letras del nombre del cliente con fallback “X”, últimos 4 caracteres de la clave del cliente con padding de ceros, código del banco, carácter de moneda “P”/“D”, y Código Validador.
+- **Entonces** deberá concatenar determinísticamente los 7 segmentos definidos en la Regla 7: tres primeras letras del nombre del cliente **ignorando espacios** (ej. “BP Farmaceutica” → “BPF”) con fallback “X”, últimos 4 caracteres de la clave del cliente con padding de ceros, código del banco, carácter de moneda “P”/”D”, y Código Validador.
 
 ---
 
@@ -209,7 +209,7 @@ La asignación de cuentas bancarias del grupo PROQUIFA a clientes y la captura d
 
 > **⚠️ Pendiente** — La condición de identificación de Banamex referente al campo moneda de la cuenta aparece truncada en el documento del cliente y no se ha clarificado. Queda como duda formal de desarrollo. Se propone evaluar con desarrollo identificar Banamex directamente por nombre o ID en la tabla `Bancos` como simplificación.
 
-> **⚠️ Pendiente** — Longitud máxima y reglas de formato del Código Validador no especificadas por el cliente. El PMO del proyecto anunciaba que la información se enviaría pero no llegó. Queda como duda formal del proyecto.
+> **Resuelto** — El Código Validador es **numérico, siempre 2 dígitos con cero a la izquierda** (rango `01`–`99`). El Front enviará exactamente 2 caracteres; la columna en BD puede tener mayor capacidad pero el valor nunca la excederá.
 
 > **⚠️ Pendiente** — Aplicabilidad de esta funcionalidad para clientes Perú. La documentación del cliente cubre exclusivamente PROQUIFA México. El modelo bancario peruano de identificación de pagos no está definido. Queda como duda formal del proyecto.
 
@@ -230,3 +230,4 @@ La asignación de cuentas bancarias del grupo PROQUIFA a clientes y la captura d
 | 5   | 2026-06-10 | OBS-014     | Historial de un nivel del Código Validador: al modificar, se conservan el valor actual y el inmediatamente anterior con autor y fecha; el “anterior” previo se sobrescribe. Solo a nivel de datos, sin UI. Tocado: Alcance (No aplica a), Regla 4, Criterios B2 y B4, Riesgos (retira antiguo Riesgo 5). |
 | 6   | 2026-07-07 | BitacoraCambios | El historial del Código Validador se integra al Aplicativo Nuevo ProquifaDotNet.BitacoraCambios (regla 8): cada cambio se registra con valor anterior/nuevo, autor y fecha (historial completo). Sustituye la rotación de un nivel de OBS-014 y elimina las columnas `CodigoValidadorAnterior`/`FechaModificacionAnterior`/`IdUsuarioModificacionAnterior` de `ClienteDatosBancarios`. Tocado: Alcance (No aplica a), Regla 4, Criterios B2 y B4, Riesgos. |
 | 7   | 2026-06-09 | OBS-015     | Confirmado: el PDF de la proforma se almacena y al consultarlo NO se reconstruye la referencia (equivalente al Legacy/Drobo). Se elimina el término "proformas re-emitidas". Tocado: Alcance (No aplica a), Reglas 4 y 5, Criterio C1, Notas de Implementación. |
+| 8   | 2026-08-05 | BUG-001     | Corrección de bug en Regla 7: los segmentos 1-3 deben extraerse ignorando espacios en el nombre del cliente. Ejemplo: "BP Farmaceutica" debe producir "BPF", no "BP ". Tocado: Regla 7 (tabla de segmentos), Criterio C3. |
