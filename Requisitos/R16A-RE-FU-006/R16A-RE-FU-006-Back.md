@@ -176,7 +176,9 @@ namespace Logic.Pqf.Catalogos.Clientes.DatosBancarios
             var clave  = cliente.Clave  ?? string.Empty;
 
             // Segmentos 1-3: primeras tres letras del nombre ignorando espacios, fallback "X"
-            // Bug BUG-001: "BP Farmaceutica" debe producir "BPF", no "BP "
+            // BUG-001: los espacios se ignoran — "BP Farmaceutica" → "BPF", no "BP "
+            // Si el nombre sin espacios tiene menos de 3 chars, los faltantes se rellenan con "X"
+            // Ejemplos: "BP Farmaceutica" → "BPF" | "GP" → "GPX" | "A" → "AXX"
             var letras = nombre.Replace(" ", string.Empty);
             var seg1 = letras.Length > 0 ? letras[0].ToString() : "X";
             var seg2 = letras.Length > 1 ? letras[1].ToString() : "X";

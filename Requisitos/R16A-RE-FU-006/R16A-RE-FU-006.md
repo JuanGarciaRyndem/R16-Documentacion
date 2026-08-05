@@ -81,7 +81,7 @@ Para cuentas de Banamex, la referencia bancaria se compone por la concatenación
 | -------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | 1        | Primera letra del nombre del cliente (ignorando espacios)             | “X” si no existe                                                                                  |
 | 2        | Segunda letra del nombre del cliente (ignorando espacios)             | “X” si no existe                                                                                  |
-| 3        | Tercera letra del nombre del cliente (ignorando espacios)             | “X” si no existe                                                                                  |
+| 3        | Tercera letra del nombre del cliente (ignorando espacios)             | “X” si el nombre sin espacios tiene menos de 3 caracteres (ej. “GP” → “GPX”)                     |
 | 4        | Últimos 4 caracteres de la clave del cliente                          | Padding con ceros a la izquierda si la clave tiene menos de 4 caracteres                          |
 | 5        | Código del banco (campo `Codigo` de la tabla `Bancos`)                | —                                                                                                 |
 | 6        | Carácter de moneda                                                    | “P” si la primera letra del campo `Moneda` de la cuenta es “M” (peso); “D” en cualquier otro caso |
