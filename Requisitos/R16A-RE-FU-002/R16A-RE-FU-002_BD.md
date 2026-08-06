@@ -316,14 +316,17 @@ CREATE TABLE [dbo].[catCobroEstatus] (
 );
 
 -- DML inicial
-INSERT INTO dbo.catCobroEstatus (Clave, Descripcion, Orden) VALUES
-    ('BORRADOR',           'Captura iniciada en Paso 1, no confirmada',             1),
-    ('CAPTURADO',          'Cobro confirmado en Paso 1, pendiente de asociar',      2),
-    ('ASOCIADO',           'Vinculado a proforma o factura en Paso 2',              3),
-    ('SALDO_A_FAVOR',      'Cobro con residual disponible tras asociación',         4),
-    ('CON_INCONSISTENCIA', 'Marcado con inconsistencia en Paso 1 o Paso 2',         5),
-    ('COMPLETADO',         'Documentos fiscales generados y enviados en Paso 3',    6),
-    ('CANCELADO',          'Cancelado por falta de pago u otra razón operativa',    7);
+INSERT INTO [dbo].[catCobroEstatus] ([Clave], [Descripcion], [Orden])
+    SELECT a.[Clave], a.[Descripcion], a.[Orden]
+    FROM (VALUES
+        ('borrador',           'Estatus inicial cuando se recibe el comprobante de pago del cliente', 1),
+        ('capturado',          'Cobro confirmado, pendiente de asociar',                              2),
+        ('asociado',           'Se Vincula el cobro a una proforma o factura',                        3),
+        ('saldo_a_favor',      'Cobro con residual disponible tras asociación',                       4),
+        ('con_inconsistencia', 'Cobro marcado con inconsistencia',                                    5),
+        ('completado',         'Documentos fiscales generados y enviados',                            6),
+        ('cancelado',          'Cancelado por falta de pago u otra razón operativa',                  7))
+        a ([Clave], [Descripcion], [Orden]);
 ```
 
 ### Diccionario de datos — catCobroEstatus
@@ -335,7 +338,7 @@ INSERT INTO dbo.catCobroEstatus (Clave, Descripcion, Orden) VALUES
 | Columna | Tipo | Descripción |
 |---|---|---|
 | IdCatCobroEstatus | uniqueidentifier PK | Identificador único del estatus |
-| Clave | varchar(30) UNIQUE | Clave textual: `BORRADOR`, `CAPTURADO`, `ASOCIADO`, `SALDO_A_FAVOR`, `CON_INCONSISTENCIA`, `COMPLETADO`, `CANCELADO` |
+| Clave | varchar(30) UNIQUE | Clave textual en minúsculas: `borrador`, `capturado`, `asociado`, `saldo_a_favor`, `con_inconsistencia`, `completado`, `cancelado` |
 | Descripcion | varchar(120) | Descripción legible del estatus |
 | Orden | int | Orden en el ciclo de vida para presentación |
 | Activo | bit | 1 = vigente |

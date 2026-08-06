@@ -175,10 +175,14 @@ namespace Logic.Pqf.Catalogos.Clientes.DatosBancarios
             var nombre = cliente.Nombre ?? string.Empty;
             var clave  = cliente.Clave  ?? string.Empty;
 
-            // Segmentos 1-3: primeras tres letras del nombre, fallback "X"
-            var seg1 = nombre.Length > 0 ? nombre[0].ToString() : "X";
-            var seg2 = nombre.Length > 1 ? nombre[1].ToString() : "X";
-            var seg3 = nombre.Length > 2 ? nombre[2].ToString() : "X";
+            // Segmentos 1-3: primeras tres letras del nombre ignorando espacios, fallback "X"
+            // BUG-001: los espacios se ignoran — "BP Farmaceutica" → "BPF", no "BP "
+            // Si el nombre sin espacios tiene menos de 3 chars, los faltantes se rellenan con "X"
+            // Ejemplos: "BP Farmaceutica" → "BPF" | "GP" → "GPX" | "A" → "AXX"
+            var letras = nombre.Replace(" ", string.Empty);
+            var seg1 = letras.Length > 0 ? letras[0].ToString() : "X";
+            var seg2 = letras.Length > 1 ? letras[1].ToString() : "X";
+            var seg3 = letras.Length > 2 ? letras[2].ToString() : "X";
 
             // Segmento 4: últimos 4 chars de la clave del cliente, padding con ceros
             var seg4 = clave.Length >= 4
@@ -431,7 +435,7 @@ ORDER BY LEN(c.Nombre) DESC;
 | # | Pendiente | Responsable |
 |---|-----------|-------------|
 | P1 | Confirmar lógica completa de identificación de Banamex (condición de moneda truncada en documento cliente). Propuesta: usar `catBanco.Clave = "002"`. | Desarrollo / Cliente |
-| P2 | Confirmar longitud máxima y formato del `CodigoValidador`. Longitud provisional: varchar(50). | Cliente / PMO |
+| ~~P2~~ | ~~Confirmar longitud máxima y formato del `CodigoValidador`.~~ **[Resuelto]** El Código Validador es **numérico, siempre 2 dígitos con cero a la izquierda** (rango `01`–`99`). El Front siempre envía exactamente 2 caracteres; la columna en BD puede ser mayor (varchar(50) provisional) pero el valor nunca excederá 2 caracteres. | Cerrado |
 | P3 | Confirmar si el campo `Clave` existe en la tabla `Cliente` y su tipo de dato (para segmento 4 de la referencia Banamex). Si no existe, decidir entre agregarlo permanentemente o definir fuente alternativa (no depender de tabla ETL `Carga_ClientesR1` a largo plazo). | Desarrollo |
 | P4 | Validar con el cliente si la asignación de cuentas y captura del CódValidador debe restringirse al rol Coordinador de Tesorería. | Funcional / Cliente |
 | P5 | Confirmar si puede haber más de una cuenta bancaria activa por cliente y si se requiere tope máximo. | Funcional / Cliente |
@@ -451,7 +455,7 @@ ORDER BY LEN(c.Nombre) DESC;
 - [ ] El endpoint `PUT /ClienteDatosBancarios` guarda correctamente la combinación con su `CodigoValidador` y devuelve `ReferenciaVigente` calculada.
 - [ ] `ReferenciaBancariaBO.Construir()` retorna `Cliente.Nombre` para cuentas de bancos distintos de Banamex.
 - [ ] `ReferenciaBancariaBO.Construir()` retorna la concatenación de 7 segmentos para cuentas de Banamex (`catBanco.Clave = "002"`).
-- [ ] Los 7 segmentos del algoritmo Banamex aplican correctamente el fallback "X" y padding de ceros.
+- [ ] Los 7 segmentos del algoritmo Banamex aplican correctamente el fallback "X" y padding de ceros. Los segmentos 1-3 ignoran espacios en el nombre (ej. "BP Farmaceutica" → "BPF", no "BP ").
 - [ ] `tpProformaPedidoFactory` **lee** `ClienteDatosBancarios.ReferenciaVigente` y la copia a `ReferenciaPago` (no recalcula).
 - [ ] Una proforma generada para un cliente MEX con cuenta Banamex muestra la referencia de 7 segmentos en el PDF.
 - [ ] Una proforma generada para un cliente MEX con cuenta no-Banamex muestra el nombre del cliente como referencia.
