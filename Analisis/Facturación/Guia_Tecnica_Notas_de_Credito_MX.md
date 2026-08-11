@@ -277,12 +277,12 @@ Lo que se mueve como dinero real (se devuelve o se guarda como saldo a favor) = 
 
 ### Tabla de ejemplos (cubre los 4 casos posibles)
 
-| Total | Cobrado | Saldo Pendiente | NC (Total del CFDI) | ¿NC ≤ Saldo Pendiente? | Nuevo `TotalNCCondonada` | Nuevo Saldo Pendiente | Excedente | FormaPago | `EstatusAplicacionNC` inicial (sección 13) |
-|---|---|---|---|---|---|---|---|---|---|
-| $1000 | $0 | $1000 | $300 | Sí | $300 | $700 | No aplica | `15` | Resuelta |
-| $1000 | $400 | $600 | $500 | Sí | $500 | $100 | No aplica | `15` | Resuelta |
-| $1000 | $500 | $500 | $600 | No | $600 | $0 | **$100** | Forma real o `23` (sección 7) | Resuelta (forma real) o Pendiente de aplicación (`23`) |
-| $1000 | $1000 | $0 | $300 | No | $300 | $0 | **$300** (= NC completa, porque no había Saldo Pendiente que agotar) | Forma real o `23` (sección 7) | Resuelta (forma real) o Pendiente de aplicación (`23`) |
+| Total | Cobrado | Saldo Pendiente | NC (Total del CFDI) | ¿NC ≤ Saldo Pendiente? | Nuevo `TotalNCCondonada` | Nuevo Saldo Pendiente | Excedente                                                            | FormaPago                     | `EstatusAplicacionNC` inicial (sección 13)             |
+| ----- | ------- | --------------- | ------------------- | ---------------------- | ------------------------ | --------------------- | -------------------------------------------------------------------- | ----------------------------- | ------------------------------------------------------ |
+| $1000 | $0      | $1000           | $300                | Sí                     | $300                     | $700                  | No aplica                                                            | `15`                          | Resuelta                                               |
+| $1000 | $400    | $600            | $500                | Sí                     | $500                     | $100                  | No aplica                                                            | `15`                          | Resuelta                                               |
+| $1000 | $500    | $500            | $600                | No                     | $600                     | $0                    | **$100**                                                             | Forma real o `23` (sección 7) | Resuelta (forma real) o Pendiente de aplicación (`23`) |
+| $1000 | $1000   | $0              | $300                | No                     | $300                     | $0                    | **$300** (= NC completa, porque no había Saldo Pendiente que agotar) | Forma real o `23` (sección 7) | Resuelta (forma real) o Pendiente de aplicación (`23`) |
 
 **Nota sobre `TotalNCCondonada`:** estos 4 ejemplos asumen que es la primera NC de esa factura (`TotalNCCondonada` previo = $0). Si ya tuviera NC previas, el "Nuevo `TotalNCCondonada`" sería el acumulado anterior más el `NC.Monto` de esta nueva NC — y el `Saldo Pendiente` de arranque de la fórmula ya reflejaría ese acumulado (sección 6).
 

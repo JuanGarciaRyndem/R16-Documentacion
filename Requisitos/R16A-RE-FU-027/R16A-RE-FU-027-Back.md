@@ -33,7 +33,8 @@ El impacto en BD es **mínimo**: solo 2 `ALTER TABLE` en `fccNotaCredito` para s
 | `fccSaldoFavorCliente`        | RE-FU-026                | Misma tabla, registros con `IdRegion = 'PER'` (o PEN=1)          |
 | `catTipoInconsistenciaCobro`  | RE-FU-024 + RE-FU-026    | Mismo catálogo; tipos Paso 2 ya incluyen PAGO_INCOMPLETO_VENCIDO |
 | `fccInconsistenciaCobro`      | RE-FU-024                | Registro de inconsistencias del Paso 2 contra el cobro           |
-| `fccPagoCliente.TipoDeCambio` | RE-FU-025                | TC capturado en Paso 1 Perú — usado para conversiones del Paso 2 |
+| `fccPagoCliente.TipoDeCambio` | RE-FU-025                | TC vs PEN (uso local/fiscal Perú)                                |
+| `fccPagoCliente.TipoDeCambioMonedaFacturacion` | RE-FU-025 (OBS-050) | **TC vs moneda de facturación** — usado para cobertura del cobro contra facturas/proformas (OBS-052) |
 
 ---
 
@@ -117,7 +118,7 @@ ALTER TABLE dbo.fccSaldoFavorCliente
 SaldoAsociacion = (SumaCobrosAplicados + SumaNCAplicadas) - SumaAdeudoDocumentosSeleccionados
 ```
 
-**Multi-divisa:** Cuando los documentos están en moneda distinta a la del cobro, Finanzas convierte el importe del documento a moneda del cobro usando `fccPagoCliente.TipoDeCambio` (TC capturado en Paso 1 Perú). Todos los totales del panel se expresan en moneda del cobro. Moneda base: PEN.
+**Multi-divisa (OBS-052 aplicado a Perú):** Cuando los documentos están en moneda distinta a la del cobro, Finanzas convierte usando el **TC del pago** persistido en `fccPagoCliente` — se prioriza `TipoDeCambioMonedaFacturacion` (OBS-050) para la conversión operativa contra facturas/proformas y `TipoDeCambio` (vs PEN) para el registro local. **NO** se usa el TC de emisión del documento; el diferencial contra ese TC se registra como fluctuación cambiaria del emisor y no se exige al cliente. Todos los totales del panel se expresan en moneda del cobro. Moneda base local: PEN.
 
 **Escenarios gobernados:**
 

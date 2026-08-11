@@ -28,6 +28,7 @@ Ver `R16A-RE-FU-018-Back.md` (Parte A — Creación de Solución ProquifaDotNet.
 - [RE-019 — Timbrar FAA México (reutiliza invoice)](#re-019--timbrar-faa-méxico-reutiliza-invoice)
 - [RE-020 — Timbrar FAA / Factura Perú (reutiliza invoice)](#re-020--timbrar-faa--factura-perú-reutiliza-invoice)
 - [RE-021 — Persistencia PDF Factura México (sin endpoint en Timbrado)](#re-021--persistencia-pdf-factura-méxico-sin-endpoint-en-timbrado)
+- [RE-023 — Cancelar Factura (CFDI) ante el SAT (interno — invocado por orquestador Finanzas)](#re-023--cancelar-factura-cfdi-ante-el-sat-interno--invocado-por-orquestador-finanzas)
 - [RE-028/029 — Timbrar Factura y Complemento de Pago (reutiliza invoice + payment-complement)](#re-028029--timbrar-factura-y-complemento-de-pago-reutiliza-invoice--payment-complement)
 - [RE-032/033 — Timbrar Nota de Crédito México/Perú (reutiliza credit-note)](#re-032033--timbrar-nota-de-crédito-méxicoperú-reutiliza-credit-note)
 
@@ -82,6 +83,21 @@ No aplica a Timbrado. La actualización de `CFDIGenerada.IdArchivoPdf` ocurre co
 
 ---
 
+## RE-023 — Cancelar Factura (CFDI) ante el SAT (interno — invocado por orquestador Finanzas)
+
+**Controller:** `TimbradoController` (extensión)
+
+> **Rol:** endpoint **interno** que **solo cancela el CFDI de la factura** ante el SAT vía PAC (TurboPac). Invocado exclusivamente por el orquestador de Finanzas (`PUT /api/v1/validate-collection/orders/{orderId}/cancel-non-payment`) dentro del flujo Caso B (pedido con CFDI timbrado, Conducta 2). NO cancela pedido ni proforma — esos los coordina Finanzas. **Idempotente** (consulta `CFDICancelacion` antes de solicitar al PAC). Puede devolver estado asíncrono (`EnProceso`) que Finanzas monitorea con Hangfire.
+
+| Método | Ruta                                             | Descripción                                                                                                                                                                                                       | Parámetros entrada                                       | Respuesta                                                                                                       | Estado    |
+| ------ | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | --------- |
+| POST   | `/api/v1/invoices/{invoiceId}/cancel`            | Solicita al PAC la cancelación del CFDI de la factura (`CFDIGenerada`). Arma `requestCancelacion` firmado, invoca `TurboPac.CancelaCfdi`, INSERT/UPDATE en `CFDICancelacion`. Idempotente: si ya hay cancelación registrada, retorna el estado actual sin re-solicitar al PAC. NO toca `tpPedido` ni `tpProformaPedido`. | `invoiceId` (=`IdCFDIGenerada`) en path; Body: `{ claveMotivo }` (fija `03` — No se llevó a cabo la operación, D3 diseño RE-023; a confirmar con área fiscal) | `200 OK { estatus: 'Cancelado' \| 'EnProceso' \| 'Rechazado', folio, fechaCancelacion }` / `409 Conflict` (SAT rechaza síncrono) | **Nuevo** |
+| GET    | `/api/v1/invoices/{invoiceId}/cancel/status`     | Consulta el estatus de una cancelación en curso ante el PAC. Invocado por el job de Hangfire de Finanzas para polling cuando la cancelación quedó `EnProceso`. Actualiza `CFDICancelacion.Estatus` según respuesta del PAC. | `invoiceId` en path                                      | `200 OK { estatus: 'Cancelado' \| 'EnProceso' \| 'Rechazado', motivoRechazo? }`                                | **Nuevo** |
+
+> **Diferencia con `POST /api/v1/stamp/cancel` (RE-032/033):** aquel es el endpoint genérico usado por el flujo de Nota de Crédito para cancelar la factura origen; este par (`/invoices/{id}/cancel` + `/cancel/status`) es específico del flujo de **cancelación de pedido por falta de pago** de RE-023 y soporta el ciclo asíncrono con polling. Ambos consumen internamente el mismo `TimbradoService.CancelInvoiceAsync` + `TurboPac.CancelaCfdi`; la diferencia está en el consumidor (RE-023 orquestador vs RE-032/033 Nota de Crédito) y en el soporte de consulta de estatus.
+
+---
+
 ## RE-028/029 — Timbrar Factura y Complemento de Pago (reutiliza invoice + payment-complement)
 
 No agrega endpoints nuevos. El endpoint "Timbrar línea" de Finanzas (`POST /api/v1/validate-collection/fiscalDocumentLine/{id}/stamp`) llama internamente `POST /api/v1/stamp/invoice` para Factura/Factura Anticipo y `POST /api/v1/stamp/payment-complement` para el Complemento de Pago — incluida la cascada Factura + Complemento en secuencia cuando el método de pago es PPD. RE-029 (Perú) reutiliza el mismo endpoint de facturas sin diferencias. Ver `Endpoints-Finanzas.md` (RE-028/029).
@@ -101,7 +117,9 @@ No agrega endpoints nuevos. `CreditNoteController.Stamp` (Finanzas, `POST /api/v
 | `POST /api/v1/stamp/invoice`           | Factura — CFDI I (SAT MEX) / CPE 01 (SUNAT PER), incluye FAA | RE-019, RE-020, RE-028, RE-029          |
 | `POST /api/v1/stamp/payment-complement`| Complemento de Pago — CFDI P (Pagos20 v2.0, solo México)     | RE-028, RE-030                          |
 | `POST /api/v1/stamp/credit-note`       | Nota de Crédito — CFDI E (SAT MEX) / CPE 07 (SUNAT PER)      | RE-032, RE-033                          |
-| `POST /api/v1/stamp/cancel`            | Cancelación ante SAT/SUNAT                                   | RE-032, RE-033                          |
-| **Total**                              |                                                              | **4**                                   |
+| `POST /api/v1/stamp/cancel`            | Cancelación genérica ante SAT/SUNAT (Nota de Crédito → factura origen) | RE-032, RE-033                          |
+| `POST /api/v1/invoices/{invoiceId}/cancel` | Cancelación de CFDI de factura por falta de pago (orquestador RE-023, soporta asíncrono) | RE-023                                  |
+| `GET /api/v1/invoices/{invoiceId}/cancel/status` | Polling del estatus de cancelación en curso (invocado por Hangfire de Finanzas) | RE-023                                  |
+| **Total**                              |                                                              | **6**                                   |
 
 > Todo el resto de la lógica de negocio (armado del XML/UBL, folios `EmpresaFolio`, persistencia de `CFDIGenerada`, PDF, MinIO, correo) vive en `ProquifaDotNet.Finanzas` — ver `Endpoints-Finanzas.md`.

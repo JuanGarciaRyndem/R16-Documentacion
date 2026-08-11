@@ -30,7 +30,8 @@ El impacto en BD (ProquifaDotNet) es **moderado**: 1 tabla nueva (`fccSaldoFavor
 | `fccNotaCredito` (Aplicada, IdCFDI, Monto) | ProquifaDotNet existente | Catálogo de NCs vigentes del cliente                        |
 | `catTipoInconsistenciaCobro`               | RE-FU-024                | Se extiende con campo `AplicaMarkPendienteCancelacion`      |
 | `fccInconsistenciaCobro`                   | RE-FU-024                | Registro de inconsistencias del Paso 2 contra el cobro      |
-| `fccPagoCliente.TipoDeCambio`              | RE-FU-024                | TC capturado en Paso 1 — usado para conversiones del Paso 2 |
+| `fccPagoCliente.TipoDeCambio`              | RE-FU-024                | TC vs MXN (uso fiscal — CFDI/CP)                            |
+| `fccPagoCliente.TipoDeCambioMonedaFacturacion` | RE-FU-024 (OBS-050)  | **TC vs moneda de facturación** — TC usado para el cálculo de cobertura del cobro contra proformas/facturas (OBS-052) |
 
 ---
 
@@ -146,7 +147,14 @@ WHERE Clave = 'PAGO_INCOMPLETO_VENCIDO';
 SaldoAsociacion = (SumaCobrosAplicados + SumaNCAplicadas) - SumaAdeudoDocumentosSeleccionados
 ```
 
-**Multi-divisa:** Cuando los documentos están en moneda distinta a la moneda del cobro, Finanzas convierte el importe del documento a moneda del cobro usando `fccPagoCliente.TipoDeCambio` (TC capturado en Paso 1). Todos los totales del panel se expresan en moneda del cobro. El TC aplicado se expone vía tooltip en el Front.
+**Multi-divisa (OBS-052):** Cuando los documentos están en moneda distinta a la moneda del cobro, Finanzas convierte usando el **TC del pago** persistido en el cobro — **NO** el TC de emisión del documento. Regla concreta:
+
+- Si el cobro es MXN y el documento está en moneda de facturación ≠ MXN → convertir el monto MXN del cobro a la moneda del documento con `fccPagoCliente.TipoDeCambioMonedaFacturacion` (OBS-050).
+- Si el cobro es en moneda distinta a MXN → convertir el importe del documento a moneda del cobro con `fccPagoCliente.TipoDeCambio` (vs MXN) y el TC del documento, o usar `TipoDeCambioMonedaFacturacion` directamente cuando la moneda de facturación coincide con la del documento.
+
+**Fundamento legal/fiscal:** Art. 8 Ley Monetaria EUM + Guía CFDI 4.0 / CRP 2.0 (`EquivalenciaDR` se determina con el TC del pago). La diferencia contra el TC de emisión del documento **NO** se cobra al cliente ni genera saldo pendiente — se registra como **fluctuación cambiaria** (pérdida/ganancia) del emisor conforme a LISR / NIF B-15. El motor NO debe exigir el diferencial cambiario como saldo insoluto.
+
+Todos los totales del panel se expresan en moneda del cobro. El TC aplicado se expone vía tooltip en el Front, indicando fuente (`TipoDeCambioMonedaFacturacion` u `TipoDeCambio`) y fecha (`FechaPago` del cobro).
 
 **Escenarios gobernados:**
 | Resultado SaldoAsociacion | Escenario | Acción del sistema |

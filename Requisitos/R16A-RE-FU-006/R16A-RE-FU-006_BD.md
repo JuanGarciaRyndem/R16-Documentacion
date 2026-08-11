@@ -370,8 +370,8 @@ ORDER BY c.Nombre;
 
 ## Módulos Consumidores
 
-| Módulo                       | Tabla                    | Campo                | Descripción                                                                                                                  |
-| ---------------------------- | ------------------------ | -------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Catálogo de Clientes (Cobros)| `ClienteDatosBancarios`  | `ReferenciaVigente`  | Se arma al CREATE/UPDATE de la asignación y se regenera ante cambio en `Cliente.Nombre`, `Cliente.Clave`, banco, cuenta o CV |
-| Generación de Proforma       | `tpProformaPedido`       | `ReferenciaPago`     | Snapshot inmutable copiado de `ClienteDatosBancarios.ReferenciaVigente` al generar el PDF en firme                           |
-| Buzón de Cobros              | `fccPagoCliente`         | `ReferenciaBancaria` | Identificación de pagos contra la referencia del cliente                                                                     |
+| Módulo                        | Tabla                   | Campo                | Descripción                                                                                                                  |
+| ----------------------------- | ----------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Catálogo de Clientes (Cobros) | `ClienteDatosBancarios` | `ReferenciaVigente`  | Se arma al CREATE/UPDATE de la asignación y se regenera ante cambio en `Cliente.Nombre`, `Cliente.Clave`, banco, cuenta o CV |
+| Generación de Proforma        | `tpProformaPedido`      | `ReferenciaPago`     | Snapshot inmutable copiado de `ClienteDatosBancarios.ReferenciaVigente` al generar el PDF en firme                           |
+| Buzón de Cobros               | `fccPagoCliente`        | `ReferenciaBancaria` | Identificación de pagos contra la referencia del cliente                                                                     |

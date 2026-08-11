@@ -298,6 +298,7 @@ erDiagram
         bit MXN
         bit USD
         decimal TipoDeCambio
+        decimal TipoDeCambioMonedaFacturacion
         uniqueidentifier IdCatMedioDePago FK
         uniqueidentifier IdDatosBancarios FK
         uniqueidentifier IdCatBanco FK
@@ -313,6 +314,8 @@ erDiagram
         bit Confirmado
         datetime FechaConfirmacion
         uniqueidentifier IdUsuarioConfirmacion FK
+        bit BloqueadoPorTimbrado
+        datetime FechaBloqueoTimbrado
         varchar Notas
         bit Activo
         datetime FechaRegistro
@@ -559,7 +562,7 @@ erDiagram
 | 13  | `fccDocumentoFiscalCobro`       | ✨ Nueva R16                                                | RE-028, RE-029, RE-030                                                                                                                                                          | Línea de documento fiscal a emitir por cobro (snapshot CFDI 4.0 / Pagos20)                                                                    |
 | 14  | `fccConfirmacionPedido`         | ✨ Nueva R16                                                | RE-028                                                                                                                                                                          | Confirmación de pedido del Paso 3                                                                                                             |
 | 15  | `fccFolioPagoCliente`           | ✅ Existente — sin cambios                                  | RE-008, RE-023                                                                                                                                                                  | Pendiente en Validar Cobro generado al clasificar correo como Cobro en el Buzón (Mailbot); incluye pre-extracción MailBot                     |
-| 16  | `fccPagoCliente`                | ✨ Existente + ALTER                                        | RE-008 (IdCatCobroEstatus), RE-023 (Confirmado, FechaConfirmacion, IdUsuarioConfirmacion, Notas, IdCatMoneda), RE-024, RE-025                                                   | Cobro capturado en Validar Cobro Paso 1 (folio COB-mmddaa-#, inmutable al confirmar)                                                          |
+| 16  | `fccPagoCliente`                | ✨ Existente + ALTER                                        | RE-008 (IdCatCobroEstatus), RE-023 (Confirmado, FechaConfirmacion, IdUsuarioConfirmacion, Notas, IdCatMoneda), RE-024 (BloqueadoPorTimbrado, FechaBloqueoTimbrado, **TipoDeCambioMonedaFacturacion — OBS-050**), RE-025                                                   | Cobro capturado en Validar Cobro Paso 1 (folio COB-mmddaa-#, inmutable al **timbrar** el documento asociado)                                                          |
 | 17  | `fccPagoFacturaPedido`          | ✨ Nueva R16                                                | RE-026, RE-027                                                                                                                                                                  | Asociación N:N cobro ↔ proforma (Paso 2)                                                                                                      |
 | 18  | `fccPagoFacturaAdelanto`        | ✨ Nueva R16                                                | RE-026, RE-027                                                                                                                                                                  | Asociación N:N cobro ↔ FAA (`IdFccFactura`)                                                                                                   |
 | 19  | `fccSaldoFavorCliente`          | ✨ Nueva R16                                                | RE-026, RE-027                                                                                                                                                                  | Saldo a favor / tolerancia ≤100 MXN (Estado de Cuenta)                                                                                        |
@@ -1000,7 +1003,7 @@ Pendiente en Validar Cobro generado automáticamente al clasificar un correo com
 
 ### Tabla: `fccPagoCliente`
 
-Cobro capturado en Validar Cobro Paso 1 (folio COB-mmddaa-#; inmutable al confirmar). Tabla existente verificada contra BD + ALTERs R16: `IdCatCobroEstatus` (RE-008) y `Confirmado`, `FechaConfirmacion`, `IdUsuarioConfirmacion`, `Notas`, `IdCatMoneda` (RE-023). Detalle: RE-023/024_BD y RE-008_BD.
+Cobro capturado en Validar Cobro Paso 1 (folio COB-mmddaa-#; inmutable al **timbrado** del documento asociado, no al confirmar la captura — ver RE-024). Tabla existente verificada contra BD + ALTERs R16: `IdCatCobroEstatus` (RE-008); `Confirmado`, `FechaConfirmacion`, `IdUsuarioConfirmacion`, `Notas`, `IdCatMoneda` (RE-023); `BloqueadoPorTimbrado`, `FechaBloqueoTimbrado`, **`TipoDeCambioMonedaFacturacion` (OBS-050)** (RE-024). Detalle: RE-023/024_BD y RE-008_BD.
 
 | Columna                      | Tipo de Dato     | Índice | Descripción                                                                 |
 | ---------------------------- | ---------------- | ------ | --------------------------------------------------------------------------- |
@@ -1015,7 +1018,8 @@ Cobro capturado en Validar Cobro Paso 1 (folio COB-mmddaa-#; inmutable al confir
 | `IdCatMoneda`                | uniqueidentifier | FK     | FK → `catMoneda` — moneda oficial del cobro (ALTER RE-023; soporta PEN)     |
 | `MXN`                        | bit              | —      | Flag legacy: cobro en pesos — DEFAULT (0)                                   |
 | `USD`                        | bit              | —      | Flag legacy: cobro en dólares — DEFAULT (1)                                 |
-| `TipoDeCambio`               | decimal          | —      | TC del día vs MXN — DEFAULT (0)                                             |
+| `TipoDeCambio`               | decimal          | —      | **TC vs MXN** (uso fiscal — CFDI / Complemento de Pago). Pre-carga automática con TC Oficial DOF de `FechaPago`, editable (OBS-049) — DEFAULT (0) |
+| `TipoDeCambioMonedaFacturacion` | decimal(18,6) | —      | **TC vs moneda de facturación del cliente** (uso operativo — asociación a facturas/proformas en Paso 2). Pre-carga con TC Oficial DOF de `FechaPago`, editable. NULL si facturación es MXN o coincide con moneda base (OBS-050) — ALTER RE-024 |
 | `IdCatMedioDePago`           | uniqueidentifier | FK     | FK → `catMedioDePago` — forma de pago (c_FormaPago SAT)                     |
 | `IdDatosBancarios`           | uniqueidentifier | FK     | FK → `DatosBancarios` — cuenta PROQUIFA destino                             |
 | `IdCatBanco`                 | uniqueidentifier | FK     | FK → `catBanco` — banco emisor del cliente                                  |
@@ -1031,6 +1035,8 @@ Cobro capturado en Validar Cobro Paso 1 (folio COB-mmddaa-#; inmutable al confir
 | `Confirmado`                 | bit              | —      | 0 = borrador / 1 = confirmado e inmutable (ALTER RE-023, RE-024)            |
 | `FechaConfirmacion`          | datetime         | —      | Timestamp de confirmación del cobro (ALTER RE-023)                          |
 | `IdUsuarioConfirmacion`      | uniqueidentifier | FK     | FK → `Usuario` — quién confirmó el cobro (ALTER RE-023)                     |
+| `BloqueadoPorTimbrado`       | bit              | —      | 0 = editable (botón Editar visible) / 1 = inmutable (documento asociado timbrado) — DEFAULT (0), ALTER RE-024 |
+| `FechaBloqueoTimbrado`       | datetime         | —      | Timestamp del bloqueo por timbrado del documento asociado — ALTER RE-024 |
 | `Notas`                      | varchar          | —      | Notas capturadas por el usuario (ALTER RE-023)                              |
 | `Activo`                     | bit              | —      | 1 = vigente / **0 = inconsistencia** (cierra el pendiente del Buzón)        |
 | `FechaRegistro`              | datetime         | —      | Fecha de alta del registro — DEFAULT GETDATE()                              |

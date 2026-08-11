@@ -17,7 +17,7 @@
 | #   | Clave            | Título simple                                                                                       | Tipo | Aplicativo               |
 | --- | ---------------- | --------------------------------------------------------------------------------------------------- | ---- | ------------------------ |
 | 1   | UPDATE-TABL-CH   | Agregar campos de captura, notas y moneda (IdCatMoneda) a fccPagoCliente *(referencia RE-FU-023)*   | BD   | ProquifaDotNet           |
-| 1B  | UPDATE-TABL-CH   | **Agregar campos BloqueadoPorTimbrado y FechaBloqueoTimbrado a fccPagoCliente (RE-FU-024)**         | BD   | ProquifaDotNet           |
+| 1B  | UPDATE-TABL-CH   | **Agregar campos BloqueadoPorTimbrado, FechaBloqueoTimbrado y TipoDeCambioMonedaFacturacion (OBS-050) a fccPagoCliente (RE-FU-024)** | BD   | ProquifaDotNet           |
 | 2   | CREATE-TABL-CH   | Crear tabla catTipoInconsistenciaCobro con datos iniciales                                          | BD   | ProquifaDotNet           |
 | 3   | CREATE-TABL-M    | Crear tabla fccInconsistenciaCobro                                                                  | BD   | ProquifaDotNet           |
 | 4   | BD-OBJ-CH        | Crear SEQUENCE SeqFolioCobro para foliador COB-mmddaa                                               | BD   | ProquifaDotNet           |
@@ -81,7 +81,7 @@ Ver sección *"Parte A / A1 / Bloque A"* en `R16A-RE-FU-024-Back.md` y sección 
 
 ## TAREA 1B
 
-**[ RE-FU-024 ] [UPDATE-TABL-CH] Agregar campos BloqueadoPorTimbrado y FechaBloqueoTimbrado a fccPagoCliente**
+**[ RE-FU-024 ] [UPDATE-TABL-CH] Agregar campos BloqueadoPorTimbrado, FechaBloqueoTimbrado y TipoDeCambioMonedaFacturacion a fccPagoCliente**
 
 **Aplicativos:** ProquifaDotNet
 
@@ -95,25 +95,26 @@ Ver sección *"Parte A / A1 / Bloque A"* en `R16A-RE-FU-024-Back.md` y sección 
 - No requiere índice nuevo (las consultas del Paso 1 filtran por `IdCliente` que ya tiene índice).
 
 **Objetivo general:**
-Agregar a `fccPagoCliente` los 2 campos que implementan la inmutabilidad post-timbrado y permiten distinguir cobros editables (botón Editar visible) de cobros inmutables.
+Agregar a `fccPagoCliente` los 3 campos: 2 que implementan la inmutabilidad post-timbrado (editable vs inmutable) y 1 que persiste el segundo TC (moneda de facturación) del doble TC — OBS-050.
 
 **Objetivos específicos:**
 - `ALTER TABLE dbo.fccPagoCliente ADD BloqueadoPorTimbrado bit NOT NULL CONSTRAINT [DF_fccPagoCliente_BloqueadoPorTimbrado] DEFAULT (0)`
 - `ALTER TABLE dbo.fccPagoCliente ADD FechaBloqueoTimbrado datetime2 NULL`
-- Validar que el `DEFAULT (0)` no rompe registros existentes.
+- `ALTER TABLE dbo.fccPagoCliente ADD TipoDeCambioMonedaFacturacion decimal(18,6) NULL` *(OBS-050 — TC vs moneda de facturación del cliente para asociación operativa en Paso 2)*
+- Validar que los `DEFAULT` / `NULL` no rompen registros existentes.
 - Confirmar con PROQUIFA si se requiere UPDATE de migración para cobros ya timbrados existentes.
 
 **Resultado esperado:**
-Tabla `fccPagoCliente` extendida con `BloqueadoPorTimbrado` y `FechaBloqueoTimbrado`, lista para las guardias del auto-guardado, el endpoint de edición y el flag `canEdit` del listado.
+Tabla `fccPagoCliente` extendida con `BloqueadoPorTimbrado`, `FechaBloqueoTimbrado` y `TipoDeCambioMonedaFacturacion`, lista para las guardias del auto-guardado, el endpoint de edición, el flag `canEdit` del listado y el pre-cargado del doble TC (Tarea 10).
 
 **Entregables:**
-- Script DDL: 2 ALTER TABLE.
+- Script DDL: 3 ALTER TABLE.
 - Script de validación (estructura post-ALTER + verificación de valores DEFAULT en registros existentes).
 - (Si aplica) Script DML de migración para cobros ya timbrados existentes.
 
 **Criterios de aceptación:**
-- Los 2 campos existen en `fccPagoCliente` con tipos y DEFAULT definidos.
-- Registros existentes no se ven afectados (`BloqueadoPorTimbrado=0`, `FechaBloqueoTimbrado=NULL`).
+- Los 3 campos existen en `fccPagoCliente` con tipos y DEFAULT/NULL definidos.
+- Registros existentes no se ven afectados (`BloqueadoPorTimbrado=0`, `FechaBloqueoTimbrado=NULL`, `TipoDeCambioMonedaFacturacion=NULL`).
 - Ningún objeto dependiente presenta errores tras el ALTER.
 
 **Más información de la tarea:**
@@ -433,32 +434,39 @@ Ver sección *"Parte B / B5"* en `R16A-RE-FU-024-Back.md`. Ver criterios F3, F4 
 **Módulos:** Validar Cobro — Paso 1 México
 
 **Consideraciones previas:**
-- El TC se calcula automáticamente al seleccionar la moneda del cobro (`IdCatMoneda`).
+- El TC se pre-carga automáticamente al seleccionar la moneda del cobro (`IdCatMoneda`) o al cambiar la `FechaPago`.
 - La lógica usa `catMoneda.ClaveMoneda` del `IdCatMoneda` seleccionado para determinar qué TC calcular.
-- Fuente: TC FIX Banxico/DOF — ⚠️ pendiente confirmar con PROQUIFA.
-- El TC se persiste en `fccPagoCliente.TipoDeCambio` al confirmar el cobro.
+- **Fuente (OBS-049 — resuelta):** TC Oficial DOF (FIX Banxico) de la `FechaPago`, **sin margen 2.5%**. Reutilizar catálogo/tabla existente en ProquifaDotNet que almacena Oficial + Venta por moneda por día.
+- **Doble TC persistido (OBS-050):** el servicio pre-carga **dos** valores por cobro: `TipoDeCambio` (vs MXN, uso fiscal CFDI/CP) y `TipoDeCambioMonedaFacturacion` (vs moneda de facturación del cliente, uso operativo Paso 2). Ambos se persisten en `fccPagoCliente`.
+- Ambos campos son **editables** por el usuario en el formulario y **no bloquean el avance** del Paso 1.
+- Nueva columna `fccPagoCliente.TipoDeCambioMonedaFacturacion decimal(18,6) NULL` (ALTER pendiente en RE-FU-024, ver `_BD.md` fila 11 de impacto).
 
 **Objetivo general:**
-Implementar en Finanzas el servicio `ExchangeRateService` que calcula el TC del día para la moneda del cobro seleccionada en el combo (`IdCatMoneda`), según la regla de la moneda vs MXN.
+Implementar en Finanzas el servicio `ExchangeRateService` que pre-carga los dos TC (fiscal + operativo) para el cobro según la moneda del cobro, la moneda de facturación del cliente y la `FechaPago`.
 
 **Objetivos específicos:**
-- Crear `IExchangeRateService.GetDailyExchangeRateAsync(idCatMonedaCobro, idCatMonedaFacturacion)`.
-- Lógica: si ambas son MXN → N/A; si cobro=MXN y facturación≠MXN → TC de la moneda de facturación; si cobro≠MXN → TC de la moneda del cobro.
-- `GET /api/v1/validate-collection/exchangeRate?sourceCurrencyId=...&targetCurrencyId=...`
+- Crear `IExchangeRateService.GetDailyExchangeRatesAsync(idCatMonedaCobro, idCatMonedaFacturacion, fechaPago)`.
+- Retornar DTO con dos campos: `TipoDeCambio` (vs MXN) y `TipoDeCambioMonedaFacturacion` (vs moneda facturación).
+- Lógica de casos: ver tabla completa en Back.md (B6 y OBS-050) — cobro MXN + facturación MXN → ambos N/A; cobro MXN + facturación ≠ MXN → solo `TipoDeCambioMonedaFacturacion`; cobro ≠ MXN + facturación MXN → solo `TipoDeCambio`; cobro ≠ MXN + facturación ≠ MXN → ambos (si coinciden, `TipoDeCambioMonedaFacturacion` = 1).
+- Consumir la tabla existente de TC diarios (Oficial DOF), NO scrappear DOF en línea.
+- `GET /api/v1/validate-collection/exchangeRate?sourceCurrencyId=...&billingCurrencyId=...&paymentDate=...`
 
 **Resultado esperado:**
-Servicio en Finanzas que retorna el TC del día según la moneda seleccionada en el combo, listo para el formulario del Paso 1 y la confirmación del cobro.
+Servicio en Finanzas que retorna ambos TC pre-cargados para el formulario del Paso 1, editables por el usuario y persistidos al guardar.
 
 **Entregables:**
 - `IExchangeRateService` + `ExchangeRateService`
+- DTO `DailyExchangeRatesDto { TipoDeCambio, TipoDeCambioMonedaFacturacion, IsNotApplicable }`
 - Endpoint `GET /api/v1/validate-collection/exchangeRate`
-- Pruebas unitarias (3 escenarios: N/A, TC moneda facturación, TC moneda cobro)
+- Pruebas unitarias cubriendo las 4 combinaciones cobro/facturación + caso día inhábil (último valor publicado)
 
 **Criterios de aceptación:**
-- Si ambas monedas son MXN: retorna `{ "exchangeRate": null, "isNotApplicable": true }`.
-- Si cobro=MXN y facturación≠MXN: retorna TC de la moneda de facturación vs MXN.
-- Si cobro≠MXN: retorna TC de la moneda del cobro vs MXN.
-- Valor solo lectura en el formulario.
+- Ambas monedas MXN → `{ TipoDeCambio: null, TipoDeCambioMonedaFacturacion: null, IsNotApplicable: true }`.
+- Cobro MXN + facturación ≠ MXN → solo `TipoDeCambioMonedaFacturacion` poblado.
+- Cobro ≠ MXN + facturación MXN → solo `TipoDeCambio` poblado.
+- Cobro ≠ MXN + facturación ≠ MXN → ambos poblados; iguales → `TipoDeCambioMonedaFacturacion=1`.
+- Valores usan **Oficial DOF** (nunca Venta) de `FechaPago`; día inhábil → último valor publicado.
+- Ambos valores son editables en el formulario; el servidor persiste el valor recibido (no lo sobrescribe).
 
 **Más información de la tarea:**
 Ver sección *"Parte B / B6"* en `R16A-RE-FU-024-Back.md`. Ver regla 7 y criterio D8 en `R16A-RE-FU-024.md`.
@@ -573,7 +581,7 @@ Ver sección *"Parte B / B8"* en `R16A-RE-FU-024-Back.md`. Ver Regla 11 y Criter
 - Prerrequisito: Tarea 1B (campos `BloqueadoPorTimbrado` y `FechaBloqueoTimbrado`) y Tarea 9 (un cobro debe estar capturado para poder editarse).
 - Se ejecuta al presionar el botón **Editar** del item del listado del Paso 1, disponible solo cuando `canEdit=true` (flag retornado por Tarea 6).
 - Aplica aun si el cobro ya está asociado en el Paso 2 (no requiere desasociar para editar).
-- Si el usuario cambia `IdCatMoneda` o `FechaPago`, el handler debe **recalcular TC** invocando al servicio de la Tarea 10 (`ExchangeRateService`).
+- Si el usuario cambia `IdCatMoneda` o `FechaPago`, el handler debe **re-pre-cargar ambos TC** (`TipoDeCambio` y `TipoDeCambioMonedaFacturacion` — OBS-050) invocando al servicio de la Tarea 10 (`ExchangeRateService`). Si el usuario editó manualmente alguno de los TC en la misma edición, respetar su valor.
 - NO regenerar `Folio` (el folio capturado se mantiene).
 - La validación de comprobante seleccionado sigue siendo obligatoria.
 - **Impacto en Paso 2 (RE-FU-026):** si el cobro editado ya estaba aplicado a un documento, las conversiones operativas pueden quedar desactualizadas; el detalle de la re-evaluación se documenta en RE-FU-026.
@@ -601,7 +609,7 @@ Endpoint `PUT .../payment/{id}/edit` que permite corregir errores de captura sob
 - El endpoint actualiza todos los campos editables del cobro cuando `Confirmado=1 AND BloqueadoPorTimbrado=0`.
 - Si `BloqueadoPorTimbrado=1`, retorna `409 Conflict` con código de error estandarizado y no modifica el registro.
 - El folio (`Folio`) no se regenera.
-- Si el usuario cambió la moneda o la fecha, el `TipoDeCambio` queda recalculado vía servicio de Tarea 10.
+- Si el usuario cambió la moneda o la fecha, ambos TC (`TipoDeCambio` y `TipoDeCambioMonedaFacturacion` — OBS-050) quedan re-pre-cargados vía servicio de Tarea 10, salvo que el usuario los haya editado manualmente en la misma operación.
 - La validación de comprobante sigue siendo obligatoria (error 400 si no hay `IdArchivo`).
 - `FechaUltimaActualizacion` queda actualizada.
 

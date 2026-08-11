@@ -25,7 +25,7 @@ El impacto en BD (ProquifaDotNet) es **moderado**: 5 ALTER ya ejecutados en RE-F
 | API Datos | ProquifaDotNet | Expone endpoints de Buzón (correos, adjuntos) — siguen activos para Venta Interna, no deprecados; Finanzas construye sus propios endpoints en paralelo (ver Parte C) |
 | Catálogos | ProquifaDotNet (existente) | `POST /Catalogos/{catMoneda,catMedioDePago,vEmpresaDatosBancarios}` — consumidos directamente por el frontend de Validar Cobro; Finanzas no crea endpoints propios (activos, no deprecados — ver Parte C) |
 | Lógica Paso 1 | ProquifaDotNet.Finanzas | Orquesta el Paso 1: listado cobros, captura, auto-guardado, confirmación, TC, inconsistencias |
-| TC del día | ProquifaDotNet.Finanzas | Calcula TC FIX Banxico/DOF (fuente pendiente de confirmar) para la moneda no-MXN involucrada |
+| TC del día | ProquifaDotNet.Finanzas | Pre-carga TC **Oficial DOF (FIX Banxico) sin margen 2.5%** de la fecha del comprobante (OBS-049); campo editable, no bloquea el avance |
 | Comunicación | Finanzas → ProquifaDotNet | Lecturas de origen de datos (`CorreoRecibido`, `Archivo`) para construir sus propios endpoints `/api/v1/validate-collection/*` (Buzón); catálogos (`catMoneda`, `catMedioDePago`, `EmpresaDatosBancarios`) consumidos directamente por el frontend sin intermediario; escritura de cobros e inconsistencias |
 
 ### Infraestructura reutilizada
@@ -240,19 +240,55 @@ WHERE IdFCCPagoCliente    = @Id
 
 ---
 
-### B6 — Tipo de Cambio del día automático (México)
+### B6 — Tipo de Cambio del día automático (México) — OBS-049
 
-**Descripción:** Servicio en Finanzas que calcula el TC del día según la moneda del cobro (`IdCatMoneda`) y la moneda de facturación del cliente (`DatosFacturacionCliente.IdCatMoneda`).
+**Descripción:** Servicio en Finanzas (`ExchangeRateService`) que pre-carga el TC según la moneda del cobro (`IdCatMoneda`) y la moneda de facturación del cliente (`DatosFacturacionCliente.IdCatMoneda`).
 
-| Moneda cobro (`IdCatMoneda`) | Moneda facturación | TC a capturar |
+| Moneda cobro (`IdCatMoneda`) | Moneda facturación | TC a pre-cargar |
 |---|---|---|
 | MXN | MXN | N/A |
-| MXN | Distinta a MXN | TC del día de la moneda de facturación vs MXN |
-| Distinta a MXN | Cualquiera | TC del día de la moneda del cobro vs MXN |
+| MXN | Distinta a MXN | TC Oficial DOF de la moneda de facturación vs MXN, correspondiente a la `FechaPago` del cobro |
+| Distinta a MXN | Cualquiera | TC Oficial DOF de la moneda del cobro vs MXN, correspondiente a la `FechaPago` del cobro |
 
-**Fuente:** TC FIX Banxico/DOF — **pendiente confirmar con PROQUIFA**.
+**Fuente (OBS-049 — confirmada):** **TC Oficial DOF (FIX Banxico)** — el sistema almacena localmente dos valores diarios por moneda: `Oficial` (FIX Banxico/DOF) y `Venta` (Oficial + 2.5% margen comercial PROQUIFA). Para el Paso 1 de Validar Cobro se utiliza **exclusivamente el Oficial** — **no aplicar el margen 2.5%**, porque ya está incorporado en el precio de la cotización y aplicarlo nuevamente generaría déficit sistemático contra el cliente (≈ $437 MXN en 1,000 USD), superando la tolerancia operativa de $100 MXN. El TC Oficial coincide con el criterio fiscal SAT para el complemento de pagos (CP).
+
+**Fecha de referencia del TC:** el TC se toma del **día del comprobante** (campo `FechaPago` capturado por el Gestor), NO del día de recepción/registro del pago en el sistema. Si la `FechaPago` cae en día inhábil, se utiliza el **último valor publicado** disponible.
+
+**Editabilidad (OBS-049):** el TC pre-cargado por el servicio es **editable** por el usuario en el formulario. El endpoint de auto-guardado (`PUT /api/v1/validate-collection/payment`) y el endpoint de edición (`PUT /api/v1/validate-collection/payment/{id}/edit`, B9) aceptan el `TipoDeCambio` recibido del cliente y lo persisten tal cual — **no** lo recalculan silenciosamente ni bloquean el avance del Paso 1 si difiere del valor sugerido por `ExchangeRateService`. El recálculo por B6 se dispara únicamente cuando cambia `IdCatMoneda` o `FechaPago` y el usuario no ha editado el TC manualmente en la misma edición.
 
 > `IdCatMoneda` del formulario se usa para determinar qué TC calcular, en lugar de los flags `MXN`/`USD`.
+
+**Origen técnico del catálogo diario de TC:** revisar catálogo/tabla existente de tipos de cambio en ProquifaDotNet que ya almacena Oficial + Venta por moneda por día. Reutilizar; NO scrappear/consultar DOF en línea desde Finanzas.
+
+**OBS-050 — Doble TC persistido en el cobro (fiscal + operativo):**
+El servicio `ExchangeRateService` pre-carga **dos tipos de cambio** cuando la moneda del cobro y la moneda de facturación del cliente difieren, y ambos se persisten en `fccPagoCliente`:
+
+| Campo | Moneda base | Uso | Criterio |
+|---|---|---|---|
+| `TipoDeCambio` | MXN | CFDI / Complemento de Pago (obligación SAT) | TC Oficial DOF de `FechaPago`, moneda del cobro vs MXN |
+| `TipoDeCambioMonedaFacturacion` (nuevo) | Moneda de facturación del cliente | Asociar/cubrir cobro contra facturas y proformas en Paso 2 | TC Oficial DOF de `FechaPago`, moneda del cobro vs moneda de facturación (derivado del par DOF de ambas monedas contra MXN si es cruce) |
+
+Casos:
+- Cobro MXN + facturación MXN → ambos N/A.
+- Cobro MXN + facturación ≠ MXN → `TipoDeCambio` N/A; `TipoDeCambioMonedaFacturacion` = TC del día de la moneda de facturación vs MXN (se aplica en Paso 2 para convertir el cobro MXN al equivalente en moneda del documento).
+- Cobro ≠ MXN + facturación MXN → `TipoDeCambio` aplica; `TipoDeCambioMonedaFacturacion` N/A.
+- Cobro ≠ MXN + facturación ≠ MXN (misma o distinta) → ambos aplican; si son la misma moneda, `TipoDeCambioMonedaFacturacion` = 1.
+
+Ambos campos son editables por el usuario en el formulario del Paso 1 y ambos se persisten tal cual al guardar. Impacto BD: ALTER `fccPagoCliente` ADD `TipoDeCambioMonedaFacturacion decimal(18,6) NULL` — documentado en _BD.md.
+
+**OBS-052 — Regla de cobertura del cobro contra factura/proforma (uso operativo del segundo TC):**
+Cuando en el Paso 2 (RE-FU-025 / RE-FU-026) se calcula cuánto cubre un cobro sobre una factura o proforma emitida en una moneda distinta a la del cobro, la conversión se hace **con el TC del pago** (persistido en el cobro), NO con el TC impreso en el documento al momento de emisión.
+
+Fórmula operativa:
+```
+MontoCubiertoEnMonedaDocumento = MontoCobroMXN ÷ TipoDeCambioMonedaFacturacion
+    (si el documento está en moneda de facturación del cliente)
+```
+
+Fundamento: Art. 8 Ley Monetaria EUM + Guía CFDI 4.0 / CRP 2.0 SAT (`EquivalenciaDR` se determina con el TC del pago). La diferencia contra el TC de emisión del documento **NO** genera saldo pendiente del cliente — se registra como fluctuación cambiaria (LISR / NIF B-15) del emisor. El servicio de asociación en Paso 2 debe implementar esta regla y NO exigir el diferencial cambiario al cliente.
+
+**OBS-051 — Fecha del pago cuando se aplica saldo a favor previo:**
+Cuando el "cobro" del Paso 1 es en realidad la aplicación de un saldo a favor previo (originado por devolución, nota de crédito o pago excedente ya timbrado), la `FechaPago` que se registra en el nuevo Complemento de Recepción de Pagos es la **fecha en que el saldo se aplica** a la factura destino, no la fecha en que se originó el saldo. El TC del CP se calcula con esa fecha de aplicación. Alineado a Guía CFDI 4.0 / CRP 2.0.
 
 ---
 
@@ -309,7 +345,7 @@ WHERE IdFCCPagoCliente    = @Id
 5. NO regenerar `Folio` (el folio se mantiene)
 6. Persistir cambios vía UPDATE en ProquifaDotNet
 
-**Campos editables:** `Monto`, `FechaPago`, `IdCatMedioDePago`, `CuentaOrdenante`, `IdDatosBancarios`, `IdCatMoneda`, `TipoDeCambio` (recalculado, no editable directamente), `IdArchivo` (comprobante seleccionado), `Notas`.
+**Campos editables:** `Monto`, `FechaPago`, `IdCatMedioDePago`, `CuentaOrdenante`, `IdDatosBancarios`, `IdCatMoneda`, `TipoDeCambio` (editable — OBS-049), **`TipoDeCambioMonedaFacturacion` (editable — OBS-050)**, `IdArchivo` (comprobante seleccionado), `Notas`. Al cambiar `IdCatMoneda` o `FechaPago` se re-pre-cargan ambos TC vía `ExchangeRateService`; si el usuario ya los editó manualmente en la misma edición, se respeta su valor.
 
 **Operación (vía API ProquifaDotNet):**
 ```sql
@@ -320,7 +356,8 @@ SET Monto                    = @Monto,
     CuentaOrdenante          = @CuentaOrdenante,
     IdDatosBancarios         = @IdDatosBancarios,
     IdCatMoneda              = @IdCatMoneda,
-    TipoDeCambio             = @TipoCambioRecalculado,
+    TipoDeCambio             = @TipoCambio,
+    TipoDeCambioMonedaFacturacion = @TipoCambioMonedaFacturacion,
     IdArchivo                = @IdArchivoComprobante,
     Notas                    = @Notas,
     FechaUltimaActualizacion = GETDATE()
@@ -389,8 +426,8 @@ WHERE ap.IdDocumento           = @IdDocumentoTimbrado
 > ⚠️ **BRECHA — Catálogo de Tipos de Inconsistencia del Paso 1 pendiente (Riesgo 1)**
 > Datos iniciales son propuesta. Catálogo completo pendiente de PROQUIFA Tesorería.
 
-> ⚠️ **BRECHA — Fuente oficial del TC del día para México**
-> Pendiente confirmar si PROQUIFA usa TC FIX Banxico/DOF u otra fuente propia.
+> ✅ **BRECHA — Fuente oficial del TC del día para México — Resuelta OBS-049 (10/08)**
+> Confirmado: **TC Oficial DOF (FIX Banxico)** de la fecha del comprobante, **sin margen 2.5%**. Campo editable, no bloquea el avance. Ver B6.
 
 > ⚠️ **BRECHA — Foliador global vs por región**
 > Pendiente confirmar si el consecutivo es compartido MEX+PER o independiente por región.

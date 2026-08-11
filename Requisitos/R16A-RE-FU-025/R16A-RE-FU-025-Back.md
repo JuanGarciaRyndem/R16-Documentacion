@@ -85,18 +85,26 @@ VALUES
 
 ## Parte B — ProquifaDotNet.Finanzas: Variante Perú del Paso 1
 
-### B1 — Servicio TC del día para Perú (TipoCambioPeruService)
+### B1 — Servicio TC del día para Perú (TipoCambioPeruService) — Doble TC (OBS-050)
 
-**Descripción:** Servicio paralelo a `TipoCambioService` (RE-FU-024) pero para Región Perú. Calcula el TC del día de la moneda no-PEN involucrada respecto a PEN.
+**Descripción:** Servicio paralelo a `TipoCambioService` (RE-FU-024). Aplica el mismo patrón de **doble TC persistido** de OBS-050 sobre `fccPagoCliente`, adaptado a Perú:
+
+| Campo persistido | Uso | Cálculo Perú |
+|---|---|---|
+| `TipoDeCambio` | Registro fiscal (equivalente al criterio SUNAT para el sistema local) | TC de la fecha del comprobante, moneda del cobro vs PEN |
+| `TipoDeCambioMonedaFacturacion` | Asociación operativa a facturas/proformas en Paso 2 (RE-FU-027) | TC de la fecha del comprobante, moneda del cobro vs moneda de facturación del cliente |
 
 **Lógica:**
-| Moneda cobro | Moneda facturación cliente | TC a capturar |
+| Moneda cobro | Moneda facturación cliente | TC a pre-cargar |
 |---|---|---|
-| PEN | PEN | N/A |
-| PEN | Distinta a PEN | TC del día de la moneda de facturación vs PEN |
-| Distinta a PEN | Cualquiera | TC del día de la moneda del cobro vs PEN |
+| PEN | PEN | ambos N/A |
+| PEN | Distinta a PEN | `TipoDeCambio` N/A; `TipoDeCambioMonedaFacturacion` = TC de la moneda de facturación vs PEN |
+| Distinta a PEN | PEN | `TipoDeCambio` aplica; `TipoDeCambioMonedaFacturacion` N/A |
+| Distinta a PEN | Distinta a PEN | ambos aplican; si coinciden, `TipoDeCambioMonedaFacturacion` = 1 |
 
-**Fuente:** Pendiente de definir para Perú (no aplica TC FIX Banxico/DOF mexicano).
+Ambos campos son editables y no bloquean el avance (criterio análogo a OBS-049 aplicado a Perú).
+
+**Fuente:** Pendiente de definir la fuente oficial para Perú (no aplica TC FIX Banxico/DOF mexicano; probable SBS o SUNAT).
 > ⚠️ **BRECHA BLOQUEANTE:** sin fuente del TC definida, el servicio no puede implementarse completamente.
 
 ### B2 — Adaptación de catálogos en formulario del Paso 1 para Perú

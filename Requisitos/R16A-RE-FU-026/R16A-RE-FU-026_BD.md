@@ -200,7 +200,7 @@ tolerancia 100 MXN, para uso en futuras sesiones de Validar Cobro.
 | Cobro MXN + Doc USD | Importe Doc * TC -> MXN |
 | NC en moneda distinta al cobro | Monto NC * TC -> moneda cobro |
 
-> TC usado = fccPagoCliente.TipoDeCambio (capturado en Paso 1, solo lectura).
+> TC usado (OBS-050 / OBS-052): `fccPagoCliente.TipoDeCambioMonedaFacturacion` para la cobertura del cobro contra facturas/proformas en la moneda de facturación del cliente; `fccPagoCliente.TipoDeCambio` (vs MXN) para el nodo fiscal del CFDI/CP. Ambos son el **TC del pago** — NO el TC de emisión del documento. El diferencial contra el TC de emisión es fluctuación cambiaria del emisor (LISR / NIF B-15), no saldo del cliente.
 > Todos los totales del panel se muestran en moneda del cobro.
 
 ---

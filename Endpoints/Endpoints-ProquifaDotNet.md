@@ -135,13 +135,15 @@ Endpoints del aplicativo principal ProquifaDotNet (WebApi.Catalogos / WebApi.Log
 
 ---
 
-# RE-023 — Cancelar Pedido por Falta de Pago
+# RE-023 — Cancelar Pedido por Falta de Pago (interno — solo trazabilidad en `tpPedido`)
 
 **Controller:** `tpPedidoController` (extensión)
 
-| Método | Ruta                                        | Descripción                                                                                                                                                                 | Parámetros entrada   | Respuesta                           | Estado    |
-| ------ | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- | ----------------------------------- | --------- |
-| PUT    | `/pedidos/{idTpPedido}/cancelar-falta-pago` | Cancela pedido por falta de pago: UPDATE `tpProformaPedido.Cancelada=1`, registra `tpPedido.FechaCancelacionPorFaltaPago`, solicita cancelación CFDI si hay factura vigente | `idTpPedido` en path | `204 NoContent` ó error con detalle | **Nuevo** |
+> **Rol:** endpoint **interno** invocado únicamente por el **orquestador de Finanzas** (`PUT /api/v1/validate-collection/orders/{orderId}/cancel-non-payment`). Solo escribe trazabilidad de cancelación en `tpPedido` — NO cancela la proforma (`tpProformaPedido.IdcatEstadoProforma` la escribe Finanzas), NO cancela el CFDI (lo hace ProquifaDotNet.Timbrado). Es **idempotente**: si `tpPedido` ya está cancelado, no-op y responde `200 OK`. Ver diseño distribuido en `[R16A-RE-FU-023][DIS-SOL] Diseño de la solución.md` sección 1.4.
+
+| Método | Ruta                                                 | Descripción                                                                                                                          | Parámetros entrada   | Respuesta                                                                | Estado    |
+| ------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------- | ------------------------------------------------------------------------ | --------- |
+| PUT    | `/api/v1/orders/{orderId}/cancel-non-payment`        | Escribe trazabilidad de cancelación en `tpPedido`: `FechaCancelacionPorFaltaPago = GETDATE()`, `IdUsuarioCancelacion = @IdUsuario`. **Idempotente** (si ya está cancelado, retorna OK sin cambios). NO toca `tpProformaPedido` ni CFDI. | `orderId` (=`IdTpPedido`) en path; Body: `{ IdUsuarioCancelacion }` | `200 OK` (cancelado o ya estaba cancelado — no-op idempotente) / `404 Not Found` | **Nuevo** |
 
 ---
 
@@ -185,6 +187,6 @@ Endpoints del aplicativo principal ProquifaDotNet (WebApi.Catalogos / WebApi.Log
 | `catMetodoDePagoCFDI` / `catUsoCFDI` / `catMedioDePago` | Catálogos          | —                         | 3 (filtro región) | RE-005    |
 | `ClienteDatosBancariosController`                       | Catálogos/Clientes | 4                         | —                 | RE-006    |
 | `tpPedidoCancelacionController`                         | Logística/Pedidos  | 1                         | —                 | RE-010    |
-| `tpPedidoController`                                    | Logística/Pedidos  | 1 (`cancelar-falta-pago`) | —                 | RE-023    |
+| `tpPedidoController`                                    | Logística/Pedidos  | 1 (`cancel-non-payment` — interno, invocado por orquestador Finanzas) | —                 | RE-023    |
 | `catMoneda` (Área Catálogos)                            | Catálogos          | —                         | Sin cambios — consumido directamente por Finanzas | RE-024    |
 | `CorreoRecibido` / `CorreoRecibidoContenido` / `ArchivoCorreoRecibido` / `Archivo` (Área Catálogos) | Catálogos/Buzón | — | Sin cambios — consumidos directamente por Finanzas | RE-024 |

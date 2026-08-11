@@ -847,7 +847,7 @@ namespace Proquifa.Finanzas.Application.Services.PaymentComplement
 | Primer CP (`NumParcialidad=1`) | Total de la Factura PPD (`CFDIGenerada.Total`) |
 | CPs subsecuentes | `ImpSaldoInsoluto` del CP anterior para la misma factura |
 
-**ImpSaldoInsoluto** = `ImpSaldoAnt − ImpPagado`. **EquivalenciaDR/TipoCambioP**: ver tabla de dependencias arriba — no son valores arbitrarios ni "TC del día" sin fuente; se resuelven con `ConversorDivisas`, que ya distingue DOF vs Banamex por configuración del cliente. **FechaPago**: fecha del cobro confirmado en el Paso 2.
+**ImpSaldoInsoluto** = `ImpSaldoAnt − ImpPagado`. **EquivalenciaDR/TipoCambioP**: ver tabla de dependencias arriba — no son valores arbitrarios ni "TC del día" sin fuente; se resuelven con `ConversorDivisas`, que ya distingue DOF vs Banamex por configuración del cliente. Alineado a OBS-049/OBS-052 (RE-024): el TC del pago (Oficial DOF de `FechaPago`, sin margen 2.5%) es el que se usa para `TipoCambioP` y `EquivalenciaDR`; el diferencial contra el TC de emisión de la factura relacionada es fluctuación cambiaria (LISR / NIF B-15), no saldo insoluto adicional. **FechaPago**: fecha efectiva del cobro (`fccPagoCliente.FechaPago`). **OBS-051:** cuando el CP corresponde a la aplicación de un saldo a favor previo, `FechaPago` es la **fecha en que el saldo se aplica** a la factura destino, no la fecha del cobro que originó el saldo.
 
 > ⚠️ **Pendiente:** convención de hora en `FechaPago` (12:00:00 fija vs hora real) pendiente de validar con asesor fiscal. Mientras tanto, `BuildPaymentDate()` implementa `CAST(@FechaCobro AS date) + '12:00:00'` como convención provisional, documentada con TODO en código (ver "Pendientes y Brechas").
 

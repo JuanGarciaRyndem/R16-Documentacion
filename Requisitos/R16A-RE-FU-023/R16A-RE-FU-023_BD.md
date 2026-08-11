@@ -36,7 +36,8 @@ Ambas tablas son referenciadas por todos los requisitos del módulo (023–029).
 | 9   | Filtro cartera (ClienteCartera.IdUsuarioCobrador)                             | Existente | —           |
 | 10  | ALTER TABLE tpPedido ADD FechaSolicitudCancelacion datetime NULL (OBS-042)   | DDL       | ❌ Pendiente |
 | 11  | ALTER TABLE tpPedido ADD EstadoCancelacionCFDI varchar(50) NULL (OBS-042)     | DDL       | ❌ Pendiente |
-| 12  | CREATE TABLE fccFechaEstimadaPagoHistorial (OBS-044)                          | DDL       | ❌ Pendiente |
+| 12  | CREATE TABLE fccFechaEstimadaPagoHistorial (OBS-044) — condicional Opción A   | DDL       | ⚠️ Condicional (sub-duda viva) |
+| 13  | ALTER tpPedido ADD FechaEstimadaPagoAnterior + auditoría (OBS-044) — Opción B | DDL       | ⚠️ Condicional (sub-duda viva) |
 
 ---
 
@@ -337,11 +338,19 @@ ALTER TABLE dbo.tpPedido
 
 ---
 
-## 6. CREATE TABLE fccFechaEstimadaPagoHistorial (OBS-044)
+## 6. CREATE TABLE fccFechaEstimadaPagoHistorial (OBS-044) — CONDICIONAL
 
-> ❌ PENDIENTE de crear. Tabla nueva para historial completo de cambios en FechaEstimadaPago.
+> ❌ PENDIENTE de crear — **SUJETO A DECISIÓN OPERATIVA (sub-duda viva OBS-044, 10/07).**
+>
+> **Contexto:** El cliente confirmó (10/07) que el histórico de FechaEstimadaPago está dentro del alcance R16 (Riesgo 1 eliminado). Sin embargo queda **sub-duda viva** de presentación/desempeño:
+> - **Opción A — Bitácora completa (append-only):** esta tabla `fccFechaEstimadaPagoHistorial`. Cada cambio genera un INSERT. Permite reporte histórico completo y visualización en pantalla.
+> - **Opción B — Solo el último cambio (propuesta del equipo por desempeño):** NO se crea esta tabla. En su lugar, se agregan 2 campos a `tpProformaPedido` (`FechaEstimadaPagoAnterior datetime NULL`, `IdUsuarioCambioFechaEstimada uniqueidentifier NULL`, `FechaCambioFechaEstimada datetime NULL`) — al modificar, el valor "actual" pasa a "anterior" y el anterior previo se sobrescribe. Misma mecánica que OBS-014 (FU-006 Código Validador). No requiere vista en pantalla; solo bitácora general del sistema.
+>
+> **Recomendación técnica:** Opción B (menor costo de mantenimiento y desempeño; alineada a patrón OBS-014 ya aceptado).
+>
+> El script CREATE TABLE de abajo aplica **solo si se confirma la Opción A**.
 
-**Propósito:** Guardar el historial completo de cambios de `FechaPromesaPagoMonitoreoCobros` (FechaEstimadaPago) por proforma/pedido. Cada cambio genera una fila nueva — no se sobrescribe el valor anterior.
+**Propósito (Opción A):** Guardar el historial completo de cambios de `FechaPromesaPagoMonitoreoCobros` (FechaEstimadaPago) por proforma/pedido. Cada cambio genera una fila nueva — no se sobrescribe el valor anterior.
 
 ```sql
 -- ❌ PENDIENTE — crear en ProquifaDotNet
@@ -497,9 +506,9 @@ tpProformaPedido.IdCliente → Cliente
 
 | # | Gap | Tipo | Acción |
 |---|-----|------|--------|
-| 1 | Saldo Pendiente: dolarizado vs moneda cliente | Negocio | ✅ Resuelta OBS-046: siempre en USD. Usar ConversorDivisas existente. |
+| 1 | Saldo Pendiente: dolarizado vs moneda cliente | Negocio | ✅ Resuelta OBS-046 (10/07): siempre en USD. **TC por documento origen** (proforma/factura), NO TC del día ni unificado. Sumar montos ya dolarizados. Usar ConversorDivisas existente. **Pendiente operativo no bloqueante:** documentar TC del proceso (proforma, cobro, factura) y su trazabilidad por documento. |
 | 2 | Orden del listado por defecto | Negocio | ✅ Resuelta OBS-047: ordenar por antigüedad del cobro recibido más antiguo (MIN fccFolioPagoCliente.FechaRecepcion, ASC). Clientes sin cobros al final. SLA 72h como indicador visual. |
-| 3 | Historial de cambios FechaPromesaPago | Negocio | ✅ Resuelta OBS-044: SÍ aplica. CREATE TABLE fccFechaEstimadaPagoHistorial. Cada cambio genera INSERT — no se sobreescribe. Ver sección 6. |
+| 3 | Historial de cambios FechaPromesaPago | Negocio | ✅ Resuelta OBS-044 (10/07): SÍ aplica, dentro de alcance R16 (Riesgo 1 eliminado). ⚠️ **Sub-duda viva:** ¿bitácora completa (tabla append-only) o solo el último cambio (2 campos en tpProformaPedido) por desempeño? Equipo propone solo el último — misma naturaleza que OBS-014 (FU-006 Código Validador). Diseño actual (sección 6) queda condicionado a la resolución. |
 | 4 | Cancelación propaga a proforma/factura | Negocio | ✅ Resuelta OBS-042: se agregan FechaSolicitudCancelacion + EstadoCancelacionCFDI en tpPedido para trazabilidad. Ver sección 5. |
 | 5 | Buzón de Cobros Perú sin datos | Operativo | Brechas modelo bancario Perú |
 | 6 | Rol: Gestor Cobranza vs Analista CxC | Negocio | Confirmar denominación |

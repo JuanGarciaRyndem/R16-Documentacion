@@ -229,7 +229,7 @@ flowchart TD
 
 **Motivación (Regla 4 nivel 1):** *"solo se regenera si cambia un dato fuente (banco, cuenta, Código Validador o datos del cliente que la componen)"*. Los segmentos S1–S3 dependen de `Cliente.Nombre`.
 
-**Reducción de superficie por ADR-3:** al mover S4 de `Cliente.Clave` a `ClienteLegacy` (id legacy inmutable), **el único dato del cliente que puede caducar la referencia es `Cliente.Nombre`** (S1–S3). Un cambio de `Clave` ya no dispara nada porque la fórmula no lee `Clave`. Esto simplifica el disparador respecto a lo que planteaba H-04.
+**Reducción de superficie por ADR-3:** al mover S4 de `Cliente.Clave` a `ClienteLegacy` (id legacy inmutable), **el único dato del cliente que puede caducar la referencia es `Cliente.RazonSocial`** (S1–S3). Un cambio de `Clave` ya no dispara nada porque la fórmula no lee `Clave`. Esto simplifica el disparador respecto a lo que planteaba H-04.
 
 **Happy path (Opción recomendada — hook transaccional en `ClienteBO`):**
 

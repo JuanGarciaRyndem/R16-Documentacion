@@ -246,7 +246,13 @@ Operación (por cada ítem):
            FechaEstimadaPagaNueva, FechaCambio=GETDATE(), IdUsuarioCambio, Motivo)
 ```
 
-> **OBS-044:** El comando NO sobreescribe silenciosamente la fecha — cada cambio genera una fila en `fccFechaEstimadaPagoHistorial` con el valor anterior y el nuevo. El historial es append-only.
+> **OBS-044 (10/07):** El histórico de modificaciones de FechaEstimadaPago está **dentro del alcance R16** — confirmado por el cliente (Riesgo 1 eliminado al registrarse el histórico en BD). El comando NO sobreescribe silenciosamente: cada cambio queda registrado con valor anterior, valor nuevo, usuario y timestamp.
+>
+> ⚠️ **Sub-duda VIVA (solo presentación / desempeño):**
+> - ¿El histórico requiere **visualización en pantalla** o basta con el **registro en BD** (bitácora general del sistema)?
+> - ¿Se conserva **bitácora completa** (append-only en `fccFechaEstimadaPagoHistorial`) o **solo el último cambio** (2 campos en `tpProformaPedido`: FechaEstimadaAnterior + IdUsuarioCambio/FechaCambio) por desempeño?
+>
+> **Propuesta del equipo:** solo el último cambio por desempeño (misma naturaleza que el historial del Código Validador FU-006 / OBS-014, donde solo se conservan "actual" + "inmediatamente anterior"). El diseño actual (`fccFechaEstimadaPagoHistorial` append-only, ver A3 en _BD.md) queda condicionado a la resolución de esta sub-duda.
 
 **Endpoints expuestos:**
 
@@ -289,7 +295,7 @@ Response: QueryResultDto<PaymentValidationClientDto>
 | --------------- | ------- |
 | `PendingPaymentsReceived` | COUNT `fccFolioPagoCliente.Activo=1` por cliente (Scaffold Finanzas) |
 | `PendingQuoteInvoices` | COUNT `tpProformaPedido` con `MontoPendiente > 0` y `Cancelada=0` (Scaffold Finanzas) |
-| `TotalPendingBalance` | SUM `tpProformaPedido.MontoPendiente` por cliente convertido a USD (OBS-046: el listado siempre se muestra dolarizado en USD, usando ConversorDivisas existente) |
+| `TotalPendingBalance` | SUM por cliente de `tpProformaPedido.MontoPendiente` **convertido a USD documento por documento**, usando el **tipo de cambio del propio documento origen** (proforma / factura) — no el TC del día de consulta ni un TC unificado del listado. Los montos ya dolarizados se suman. Reutiliza `ConversorDivisas` existente (`FacturasPendientesClienteObj`). Decisión confirmada OBS-046 — 10/07 |
 | `ContextualAction` | `PROCESS_PAYMENTS` si `PendingPaymentsReceived > 0`; `MANAGE_COLLECTIONS` si no |
 | `OldestPendingPayment` | MIN `fccFolioPagoCliente.FechaRecepcion` donde `Activo=1` por cliente — para ordenamiento por antigüedad (OBS-047) |
 | `HasSlaExpired` | `true` si `OldestPendingPayment` lleva más de 72 horas sin procesar; se muestra indicador visual de alerta en UI (OBS-047) |
@@ -360,8 +366,10 @@ UPDATE tpPedido SET FechaCancelacionPorFaltaPago = GETDATE(),
 
 ## Brechas
 
-> ✅ **BRECHA — Moneda del Saldo Pendiente total — Resuelta OBS-046**
-> Decisión OBS-046: el listado siempre se muestra dolarizado en USD. Usar `ConversorDivisas` existente en ProquifaDotNet (`FacturasPendientesClienteObj`) para convertir `MontoPendiente` a USD antes de sumar.
+> ✅ **BRECHA — Moneda del Saldo Pendiente total — Resuelta OBS-046 (criterio TC cerrado 10/07)**
+> Decisión OBS-046: el listado siempre se muestra dolarizado en USD. **Criterio de tipo de cambio:** cada documento se convierte a USD con el **TC de su propio documento origen** (proforma/factura), NO con el TC del día de consulta ni un TC unificado del listado. Los montos ya dolarizados se suman. Reutilizar `ConversorDivisas` existente en ProquifaDotNet (`FacturasPendientesClienteObj`).
+>
+> ⚠️ **Pendiente operativo NO bloqueante:** documentar los tipos de cambio del proceso (proforma, cobro, factura) y su trazabilidad/origen por documento.
 
 > ⚠️ **BRECHA — spActualizarBuzonPagoLegacyLegacy al cancelar pedido**
 > Confirmar si la cancelación desde Validar Cobro dispara el SP de sincronización Legacy.

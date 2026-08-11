@@ -30,13 +30,13 @@ Region  (México / Perú — determina validaciones y catálogos)
 
 ## Entidades Afectadas
 
-| Objeto | Tipo | Impacto | Descripción |
-|---|---|---|---|
-| `DatosFacturacionCliente` | Tabla existente | Lectura / Escritura | Almacena los 3 campos fiscales: RFC, `IdCatRegimenFiscal`, `IdCatTipoSociedadMercantil` |
-| `catRegimenFiscal` | Catálogo existente | Lectura / Datos iniciales | Régimenes fiscales disponibles por Región |
-| `catTipoSociedadMercantil` | Catálogo existente | Lectura / Datos iniciales | Tipos de sociedad mercantil disponibles por Región |
-| `Region` | Tabla existente | Lectura | Determina las validaciones y catálogos que aplican al cliente |
-| `vDatosFacturacionCliente` | Vista existente | Lectura | Expone datos fiscales completos con valores resueltos de catálogos |
+| Objeto                     | Tipo               | Impacto                   | Descripción                                                                             |
+| -------------------------- | ------------------ | ------------------------- | --------------------------------------------------------------------------------------- |
+| `DatosFacturacionCliente`  | Tabla existente    | Lectura / Escritura       | Almacena los 3 campos fiscales: RFC, `IdCatRegimenFiscal`, `IdCatTipoSociedadMercantil` |
+| `catRegimenFiscal`         | Catálogo existente | Lectura / Datos iniciales | Régimenes fiscales disponibles por Región                                               |
+| `catTipoSociedadMercantil` | Catálogo existente | Lectura / Datos iniciales | Tipos de sociedad mercantil disponibles por Región                                      |
+| `Region`                   | Tabla existente    | Lectura                   | Determina las validaciones y catálogos que aplican al cliente                           |
+| `vDatosFacturacionCliente` | Vista existente    | Lectura                   | Expone datos fiscales completos con valores resueltos de catálogos                      |
 
 ---
 

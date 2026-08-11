@@ -43,6 +43,7 @@ Se crean 2 tablas nuevas (inconsistencias) y 1 SEQUENCE (foliador COB).
 | 8   | CREATE TABLE catTipoInconsistenciaCobro                                                             | DDL  | ❌ Pendiente              |
 | 9   | CREATE TABLE fccInconsistenciaCobro                                                                 | DDL  | ❌ Pendiente              |
 | 10  | CREATE SEQUENCE dbo.SeqFolioCobro                                                                   | DDL  | ❌ Pendiente              |
+| 11  | **ALTER TABLE fccPagoCliente ADD TipoDeCambioMonedaFacturacion decimal(18,6) NULL** *(OBS-050 — doble TC fiscal+operativo)* | DDL  | ❌ Pendiente RE-FU-024    |
 
 > **Nota #5 — IdCatMoneda:** La pantalla del Paso 1 (Captura del Cobro) muestra un combo
 > desplegable de Moneda (ej. "USD"). Esto requiere un FK a `catMoneda` para cargar las opciones.
@@ -73,7 +74,8 @@ Se crean 2 tablas nuevas (inconsistencias) y 1 SEQUENCE (foliador COB).
 | `Folio`                    | varchar(80)             | SÍ   | Formato COB-mmddaa-NNNN al confirmar; NULL en borrador   | Existente                                         |
 | `Monto`                    | decimal(18,4)           | NO   | Monto recibido del cliente                               | Existente                                         |
 | `FechaPago`                | datetime                | SÍ   | Fecha efectiva del pago                                  | Existente                                         |
-| `TipoDeCambio`             | decimal                 | SÍ   | TC del día vs MXN (calculado automático, solo lectura)   | Existente                                         |
+| `TipoDeCambio`             | decimal                 | SÍ   | **TC vs MXN (uso fiscal — CFDI / Complemento de Pago)**. Pre-carga automática con **TC Oficial DOF (FIX Banxico) sin margen 2.5%** de la `FechaPago` (OBS-049). Editable; el valor persistido es el del formulario al guardar. | Existente |
+| `TipoDeCambioMonedaFacturacion` | decimal(18,6)      | SÍ   | **TC vs moneda de facturación del cliente (uso operativo — asociación a facturas/proformas en Paso 2)** — OBS-050. Pre-carga automática con TC Oficial DOF de `FechaPago`, cruzando el par DOF de la moneda del cobro y de la moneda de facturación. Editable. `NULL` cuando facturación es MXN o cuando cobro y facturación coinciden con la moneda base. | ❌ Pendiente RE-FU-024 |
 | `MXN`                      | bit                     | NO   | Bandera moneda pesos (legacy)                            | Existente                                         |
 | `USD`                      | bit                     | NO   | Bandera moneda dólares (legacy)                          | Existente                                         |
 | `IdCatMedioDePago`         | uniqueidentifier        | SÍ   | FK catMedioDePago — forma de pago c_FormaPago SAT        | Existente                                         |
@@ -303,7 +305,7 @@ Estado inmutable:     fccPagoCliente.Folio = 'COB-mmddaa-NNNNNN'  →  Confirmad
 |-------|---------|-----------|
 | `fccPagoCliente` | Auto-guardado del borrador | INSERT (nuevo) / UPDATE (existente) con `Confirmado=0`. Guardia: solo si `BloqueadoPorTimbrado=0`. |
 | `fccPagoCliente` | Finalización de la captura | UPDATE: `Folio`, `Confirmado=1`, `FechaConfirmacion`, `IdUsuarioConfirmacion`, `IdCatMoneda`. **NO toca `BloqueadoPorTimbrado` (sigue en 0, el cobro queda editable vía botón Editar).** |
-| `fccPagoCliente` | Edición del cobro vía botón Editar (Paso 1) | UPDATE de los campos del formulario (Monto, FechaPago, IdCatMedioDePago, CuentaOrdenante, IdDatosBancarios, IdCatMoneda, TipoDeCambio, IdArchivo, Notas). Guardia: solo si `BloqueadoPorTimbrado=0`. **No se regenera el Folio.** |
+| `fccPagoCliente` | Edición del cobro vía botón Editar (Paso 1) | UPDATE de los campos del formulario (Monto, FechaPago, IdCatMedioDePago, CuentaOrdenante, IdDatosBancarios, IdCatMoneda, **TipoDeCambio, TipoDeCambioMonedaFacturacion** — OBS-050, IdArchivo, Notas). Guardia: solo si `BloqueadoPorTimbrado=0`. **No se regenera el Folio.** |
 | `fccPagoCliente` | Timbrado del documento asociado (Paso 3) | UPDATE: `BloqueadoPorTimbrado=1`, `FechaBloqueoTimbrado=GETDATE()`. Disparado desde el flujo del Paso 3 sobre todas las `fccPagoCliente` aplicadas al documento timbrado. |
 | `fccInconsistenciaCobro` | Confirmar inconsistencia modal | INSERT |
 
@@ -315,10 +317,12 @@ Estado inmutable:     fccPagoCliente.Folio = 'COB-mmddaa-NNNNNN'  →  Confirmad
 |---|-----|------|--------|
 | 1 | Catálogo completo catTipoInconsistenciaCobro | Negocio | Solicitar a PROQUIFA Tesorería |
 | 2 | Foliador COB global vs por región | Negocio | Confirmar con cliente |
-| 3 | Fuente oficial TC del día para México (TC FIX Banxico/DOF) | Técnico | Confirmar con PROQUIFA |
+| 3 | Fuente oficial TC del día para México | Técnico | ✅ Resuelta OBS-049 (10/08): **TC Oficial DOF (FIX Banxico)** de la `FechaPago` del comprobante, **sin margen 2.5%**. Campo editable, no bloquea el avance. Reutilizar catálogo/tabla existente de TC diarios en ProquifaDotNet (almacena Oficial + Venta por moneda). |
 | 4 | Flags MXN/USD vs IdCatMoneda — coexistencia o deprecación | Técnico | Confirmar si se unifican o conviven |
 | 5 | Alcance asistencia automatizada IA | Técnico | No comprometido en R16 |
-| 6 | Moneda base del TC: MXN vs moneda facturación | Fiscal | Confirmar con asesor fiscal |
+| 6 | Moneda base del TC: MXN vs moneda facturación | Fiscal | ✅ Resuelta OBS-050 (10/08): se persisten **dos TC** en `fccPagoCliente` — `TipoDeCambio` (vs MXN, uso fiscal CFDI/CP) y `TipoDeCambioMonedaFacturacion` (vs moneda de facturación, uso operativo Paso 2). Requiere ALTER (fila 11 impacto). |
+| 7 | Fecha del pago cuando se aplica un saldo a favor previo | Fiscal | ✅ Resuelta OBS-051 (10/08): la `FechaPago` es la **fecha de aplicación** del saldo a la nueva factura, no la fecha en que se originó el saldo. Alineado a CRP 2.0 SAT. Sin impacto en esquema. |
+| 8 | TC para calcular cobertura del cobro contra factura/proforma | Fiscal + operativo | ✅ Resuelta OBS-052 (10/08): usar el **TC del pago** (`TipoDeCambioMonedaFacturacion`), NO el TC de emisión de la factura. Fundamento: Art. 8 Ley Monetaria EUM + Guía CFDI 4.0/CRP 2.0 (`EquivalenciaDR`). El diferencial contra el TC de emisión se registra como fluctuación cambiaria (LISR / NIF B-15), no como saldo del cliente. Implementación en Paso 2 (RE-FU-025 / RE-FU-026). |
 
 ---
 
