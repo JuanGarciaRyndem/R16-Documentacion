@@ -1,8 +1,10 @@
 # ADR-001 — Estrategia de identificadores en Base de Datos y Aplicativo
 
-- **Estado:** Propuesto
+- **Estado:** Aprobado
 - **Fecha:** 2026-08-11
+- **Última actualización:** 2026-08-12
 - **Autor:** Juan David
+- **Revisores:** Valde (arquitectura) — aprobado. Gerardo (DBA) — aprobado con matices para catálogos.
 - **Alcance:** **Aplicativos nuevos con base de datos nueva**. Este documento **NO aplica** a `ProquifaDotNet` (PQF2) ni a `ProquifaDotNet.Finanzas`, ya que ambos operan sobre la base de datos existente `ProquifaDotNet` y se rigen por sus propias convenciones. Aplica a soluciones que se creen con **su propia base de datos nueva** (por ejemplo, `ProquifaDotNetTimbrado` y futuras soluciones equivalentes).
 
 ---
@@ -21,13 +23,25 @@ Los aplicativos nuevos alcanzados por este ADR se construyen en **.NET Core 10**
 
 ## 2. Decisión
 
-Se adopta el siguiente estándar para aplicativos nuevos con base de datos nueva:
+Se adopta el siguiente estándar para aplicativos nuevos con base de datos nueva, diferenciando **tablas transaccionales/dominio** y **tablas de catálogo**.
 
-1. **Toda PK de tabla será `uniqueidentifier`**, sin excepción por tamaño ni tipo de entidad. Aplica tanto a agregados de dominio como a **catálogos** (aunque sean pequeños o de solo lectura).
+### 2.1 Tablas transaccionales y de dominio
+
+1. **La PK será `uniqueidentifier`**, sin excepción por tamaño ni tipo de entidad.
 2. **El ID lo genera el aplicativo con `Guid.CreateVersion7()`** (nativo en .NET 9+, disponible en .NET Core 10).
 3. **La columna tendrá `DEFAULT NEWSEQUENTIALID()`** como red de seguridad, para que cualquier `INSERT` que no envíe ID desde el aplicativo mantenga orden monótono y minimice fragmentación.
 4. **La PK se define como CLUSTERED** salvo excepción documentada (tablas de altísima escritura por rango de fecha, donde el clustered index puede convenir sobre `FechaCreacion`).
 5. Se centraliza la generación en un helper único por solución: `IIdGenerator.NewId()` en la capa `Domain` (o `Application`), implementado en `Infrastructure` con `Guid.CreateVersion7()`. Ninguna capa llama directamente a `Guid.CreateVersion7()` — así podemos sustituir la implementación (por ejemplo, para pruebas deterministas o si aparece UUIDv8).
+
+### 2.2 Tablas de catálogo (regla del DBA)
+
+Los catálogos **no** los administra el sistema en tiempo de ejecución: se cargan y actualizan por script y deben quedar **homologados entre ambientes** (Dev, QA, Prod, etc.). Por eso siguen reglas distintas:
+
+1. **La PK será `uniqueidentifier`** (se mantiene la uniformidad de tipo con el resto de la BD).
+2. **NO se usa `NEWSEQUENTIALID()` como DEFAULT** ni se genera el ID en runtime — el GUID lo **hardcodea el programador dentro del script de insert**. Así el mismo registro tiene **el mismo ID en todos los ambientes**, lo cual es indispensable para catálogos referenciados desde código, integraciones y migraciones.
+3. **Todo catálogo debe llevar un `UNIQUE` (UK) sobre la columna `Clave`** (o el campo de negocio equivalente), para impedir que se inserte dos veces el mismo valor lógico.
+4. **La PK sigue siendo CLUSTERED** salvo excepción documentada.
+5. El GUID hardcodeado se genera **una sola vez** al crear el registro por primera vez en el script; queda registrado en el repositorio de scripts como parte del `INSERT` y no se regenera.
 
 **Fuera de alcance:** las bases de datos existentes (`ProquifaDotNet`, entre otras) y los aplicativos que operan sobre ellas (`ProquifaDotNet` — PQF2 — y `ProquifaDotNet.Finanzas`) conservan sus propias convenciones y no se ven afectados por este ADR.
 
@@ -83,7 +97,9 @@ Se adopta el siguiente estándar para aplicativos nuevos con base de datos nueva
 | Predecible (expone info) | No | Sí (orden) | Sí (timestamp) | Sí (timestamp) |
 | Protege inserts fuera del aplicativo | — | Sí | No | Sí |
 | Estándar | Propietario SQL | Propietario SQL | RFC 9562 | RFC 9562 + SQL |
-| Recomendado para aplicativos nuevos | ❌ | Solo como default | ✅ | ✅ **Elegido** |
+| Recomendado para aplicativos nuevos | ❌ | Solo como default | ✅ | ✅ **Elegido (transaccionales)** |
+
+**Nota sobre catálogos:** ninguna de las opciones anteriores aplica. Los catálogos usan **GUID hardcodeado en el script de carga** (sin DEFAULT, sin generación en runtime) más un UK sobre `Clave`, para garantizar el mismo `Id` en todos los ambientes.
 
 ---
 
@@ -103,7 +119,19 @@ Se adopta el siguiente estándar para aplicativos nuevos con base de datos nueva
 ### 4.3 Impactos operativos
 - **Aplicativos alcanzados:** solo los que se crean con **base de datos nueva propia** (ej. `ProquifaDotNetTimbrado`).
 - **Aplicativos no alcanzados:** `ProquifaDotNet` (PQF2) y `ProquifaDotNet.Finanzas` — ambos siguen las convenciones de la base `ProquifaDotNet` existente.
-- **Diccionario de datos:** cada tabla del aplicativo nuevo debe declarar explícitamente que la PK es `uniqueidentifier`, generada por aplicativo con UUIDv7 y con `DEFAULT NEWSEQUENTIALID()`.
+- **Diccionario de datos:** cada tabla del aplicativo nuevo debe declarar explícitamente:
+  - Si es transaccional/dominio: PK `uniqueidentifier`, generada por aplicativo con UUIDv7, con `DEFAULT NEWSEQUENTIALID()`.
+  - Si es catálogo: PK `uniqueidentifier` **hardcodeada en el script de carga**, sin DEFAULT, y con UK sobre `Clave`.
+- **Scripts de catálogo:** deben versionarse en el repositorio de scripts con los GUIDs ya definidos; los mismos scripts se ejecutan en Dev, QA y Prod garantizando que un `Catalogo.Clave = 'X'` tenga el mismo `Id` en todos los ambientes.
+
+---
+
+## 4.4 Historial de revisión
+
+| Fecha | Revisor | Rol | Resultado |
+|---|---|---|---|
+| 2026-08-12 | Valde | Arquitectura | Aprobado — luz verde a la propuesta adoptada. |
+| 2026-08-12 | Gerardo | DBA | Aprobado con matices — para catálogos: GUID hardcodeado desde el script (no NEWSEQUENTIALID ni runtime), homologación de Ids entre ambientes y UK sobre `Clave`. Integrado en sección 2.2. |
 
 ---
 
@@ -124,13 +152,30 @@ Se adopta el siguiente estándar para aplicativos nuevos con base de datos nueva
    }
    ```
 3. Registro en el contenedor DI como `Singleton`.
-4. Definición SQL estándar de la columna de PK:
+4. Definición SQL estándar de la columna de PK **en tablas transaccionales/dominio**:
    ```sql
    [Id] UNIQUEIDENTIFIER NOT NULL
        CONSTRAINT DF_<Tabla>_Id DEFAULT (NEWSEQUENTIALID()),
        CONSTRAINT PK_<Tabla> PRIMARY KEY CLUSTERED ([Id])
    ```
-5. Prohibido `Guid.NewGuid()` para IDs de dominio (regla de revisión de código).
+5. Definición SQL estándar **en tablas de catálogo** (sin DEFAULT, con UK de negocio):
+   ```sql
+   CREATE TABLE [dbo].[<Catalogo>](
+       [Id]           UNIQUEIDENTIFIER NOT NULL,
+       [Clave]        VARCHAR(50)      NOT NULL,
+       [Descripcion]  VARCHAR(200)     NOT NULL,
+       -- resto de columnas del catálogo
+       CONSTRAINT PK_<Catalogo>  PRIMARY KEY CLUSTERED ([Id]),
+       CONSTRAINT UK_<Catalogo>_Clave UNIQUE ([Clave])
+   );
+
+   -- Los inserts hardcodean el GUID para homologar entre ambientes:
+   INSERT INTO [dbo].[<Catalogo>] ([Id], [Clave], [Descripcion]) VALUES
+       ('0198f2a3-1c5e-7c4a-9d2b-3f4e5a6b7c8d', 'CLAVE_A', 'Descripción A'),
+       ('0198f2a3-1c5e-7c4a-9d2b-3f4e5a6b7c8e', 'CLAVE_B', 'Descripción B');
+   ```
+6. Prohibido `Guid.NewGuid()` para IDs de dominio (regla de revisión de código).
+7. Prohibido dejar que un catálogo genere su GUID en runtime — el GUID viaja en el script para garantizar el mismo Id entre ambientes.
 
 ---
 
