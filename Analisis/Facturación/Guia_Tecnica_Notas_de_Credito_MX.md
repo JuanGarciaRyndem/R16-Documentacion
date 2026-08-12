@@ -527,12 +527,12 @@ EstatusAplicacionNC  VARCHAR(30)  -- 'Pendiente de aplicación' / 'Aplicada parc
 
 ### Catálogo de `EstatusAplicacionNC`
 
-| Estatus | Aplica a | Cuándo se usa |
-|---|---|---|
-| **Pendiente de aplicación** | Solo NC con saldo a favor (Novación) | Recién timbrada, aún no se ha usado nada del saldo en ninguna factura futura |
-| **Aplicada parcialmente** | Solo NC con saldo a favor (Novación) | Parte del saldo ya se consumió en alguna factura futura, queda remanente disponible |
-| **Aplicada totalmente** | Solo NC con saldo a favor (Novación) | El saldo a favor se consumió por completo |
-| **Resuelta** | NC de Condonación o devolución de dinero | Timbrada y sin ningún evento posterior — no hay "aplicación" que rastrear en estos casos |
+| Estatus                     | Aplica a                                 | Cuándo se usa                                                                            |
+| --------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------- |
+| **Pendiente de aplicación** | Solo NC con saldo a favor (Novación)     | Recién timbrada, aún no se ha usado nada del saldo en ninguna factura futura             |
+| **Aplicada parcialmente**   | Solo NC con saldo a favor (Novación)     | Parte del saldo ya se consumió en alguna factura futura, queda remanente disponible      |
+| **Aplicada totalmente**     | Solo NC con saldo a favor (Novación)     | El saldo a favor se consumió por completo                                                |
+| **Resuelta**                | NC de Condonación o devolución de dinero | Timbrada y sin ningún evento posterior — no hay "aplicación" que rastrear en estos casos |
 
 La diferencia entre "Aplicada totalmente" y "Resuelta" es información real: distingue si el saldo se consumió en otra factura o si nunca hubo saldo que consumir. Homologarlos en un mismo valor final (por ejemplo, forzando que toda NC nazca "Aplicada totalmente") generaría una inconsistencia entre lo que dice el estatus y lo que muestran los datos reales, lo cual es más deuda técnica, no menos.
 
