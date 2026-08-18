@@ -68,9 +68,7 @@ La leyenda se agrega siempre que haya al menos una partida controlada en la coti
 ## Riesgos
 
 **Riesgo 1 — Cliente confundido al recibir leyenda redundante**
-La leyenda aparece siempre que haya productos controlados, incluso si el cliente ya tiene cargados todos sus documentos regulatorios en el Catálogo. Esto puede generar fricción operativa: clientes recurrentes que reciben siempre la misma notificación y podrían interpretarla como un recordatorio innecesario.
-
-> **⚠️ Propuesta abierta** — Para evaluación con el cliente: variante dinámica de la leyenda que consulte el Catálogo de Clientes y solo la agregue cuando el cliente **no** tenga cargados los documentos regulatorios. Esto evitaría ruido para clientes recurrentes que ya cumplieron con su documentación. La propuesta confirmada actual es la leyenda universal.
+La leyenda aparece siempre que haya productos controlados, incluso si el cliente ya tiene cargados todos sus documentos regulatorios en el Catálogo. Esto puede generar fricción operativa: clientes recurrentes que reciben siempre la misma notificación y podrían interpretarla como un recordatorio innecesario. **Resuelto:** la leyenda se muestra siempre de forma genérica cuando la cotización definitiva contenga productos controlados; se descarta la variante dinámica que dependía del estado del Catálogo del cliente.
 
 ---
 
@@ -95,9 +93,7 @@ La leyenda aparece siempre que haya productos controlados, incluso si el cliente
 **Criterio B1 — Inclusión de la leyenda regulatoria en cotización definitiva con controlados**
 - **Dado** que una cotización definitiva contiene al menos una partida controlada,
 - **Cuando** el sistema genera el PDF,
-- **Entonces** deberá incluir la leyenda regulatoria visible en una posición claramente identificable del documento. La leyenda informa al cliente que el pedido requiere la entrega de los documentos regulatorios para procesarse.
-
-> **⚠️ Pendiente** — La ubicación exacta de la leyenda en el PDF (encabezado, sección dedicada antes de la firma, pie de página, etc.) queda como decisión de diseño UI a definir en sprint de desarrollo.
+- **Entonces** deberá incluir la leyenda regulatoria visible en una posición claramente identificable del documento. La leyenda informa al cliente que el pedido requiere la entrega de los documentos regulatorios para procesarse. **La ubicación exacta de la leyenda en el PDF se define internamente como decisión de diseño (Ryndem/PROQUIFA).**
 
 **Criterio B2 — No inclusión de la leyenda en cotización definitiva sin controlados**
 - **Dado** que una cotización definitiva **no** contiene ninguna partida controlada,
@@ -121,9 +117,7 @@ La leyenda aparece siempre que haya productos controlados, incluso si el cliente
 **Criterio C1 — Texto de la leyenda para clientes México**
 - **Dado** que el cliente de la cotización definitiva tiene Región = México,
 - **Cuando** el sistema arma el texto de la leyenda,
-- **Entonces** deberá usar la denominación México: referenciar **Licencia Sanitaria** y **Aviso de Responsable Sanitario** como documentos requeridos para procesar el pedido.
-
-> **⚠️ Pendiente** — El texto exacto queda como decisión de UX/Marketing del cliente. Propuesta base: *“Producto sujeto a regulación sanitaria. Para procesar el pedido se requiere: Licencia Sanitaria vigente y Aviso de Responsable Sanitario.”*
+- **Entonces** deberá usar la denominación México: referenciar **Licencia Sanitaria** y **Aviso de Responsable Sanitario** como documentos requeridos para procesar el pedido. **El texto exacto de la leyenda se define internamente como decisión de diseño (Ryndem/PROQUIFA); la propuesta base se conserva como referencia:** *"Producto sujeto a regulación sanitaria. Para procesar el pedido se requiere: Licencia Sanitaria vigente y Aviso de Responsable Sanitario."*
 
 ---
 
@@ -134,9 +128,8 @@ La leyenda aparece siempre que haya productos controlados, incluso si el cliente
 - La leyenda **no bloquea** la generación del PDF. La validación bloqueante para que un pedido pueda procesarse cuando el cliente tiene productos controlados vive en el módulo **Pretramitar Pedido** (requisito R16A-RE-FU-009), que verifica que el cliente tenga registrados los documentos regulatorios en su Catálogo. La leyenda en cotización funciona como recordatorio proactivo previo a esa validación.
 - La leyenda funciona como complemento al ciclo regulatorio del proyecto: carga de documentos regulatorios en el Catálogo de Clientes → recordatorio informativo en cotización definitiva → validación bloqueante en Pretramitar Pedido.
 
-> **⚠️ Pendiente** — Ubicación exacta de la leyenda en el PDF (encabezado, sección dedicada, pie de página). Queda como decisión de diseño UI a definir en sprint de desarrollo.
-
-> **⚠️ Pendiente** — Texto exacto de la leyenda para clientes México. El texto definitivo es una decisión de UX/Marketing del cliente.
+- **Ubicación de la leyenda en el PDF (resuelto):** se define internamente como decisión de diseño (Ryndem/PROQUIFA), sin bloqueo externo.
+- **Texto de la leyenda (resuelto):** se define internamente como decisión de diseño; se conserva la propuesta base como referencia (ver Criterio C1).
 
 ---
 
@@ -146,4 +139,5 @@ La leyenda aparece siempre que haya productos controlados, incluso si el cliente
 |---|-------|-------------|------------------------|
 | 1 | 2026-06-10 | OBS-017 | Historia de Usuario: el rol cambia de «ESAC» a «Asesor Comercial». El resto del requisito es impersonal; solo la HU referenciaba el rol. |
 | 2 | 2026-06-10 | OBS-018 | Leyenda regulatoria acotada a Región México. Consecuencia de OBS-007 (Sustancias Controladas no habilitadas en Perú). Cambios: Requisito, Alcance "Aplica a" y "No aplica a" actualizados; Regla 4 reescrita (solo México, COFEPRIS); Riesgo 2 eliminado; Criterio C2 (Perú) eliminado; pendiente DIGEMID eliminado de Notas. |
+| 3 | 2026-08-05 | Cierre de pendientes | Se cierra el pendiente de la ubicación de la leyenda en el PDF (Criterio B1 + Observaciones): se define internamente como decisión de diseño. Se cierra el pendiente del texto de la leyenda (Criterio C1 + Observaciones): se define internamente como decisión de diseño, con la propuesta base conservada como referencia. Se cierra la propuesta de variante dinámica (Riesgo 1): la leyenda se muestra siempre de forma genérica cuando la cotización definitiva contenga productos controlados. |
 

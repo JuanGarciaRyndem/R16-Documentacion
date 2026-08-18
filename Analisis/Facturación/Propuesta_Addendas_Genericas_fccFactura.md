@@ -53,16 +53,16 @@ Esto evita el antipatrón de crear una tabla por cada cliente y a la vez permite
 
 **Descripción:** Cabecera transaccional que asocia una factura con su addenda correspondiente y almacena el XML íntegro.
 
-| Columna             | Tipo                                     | Descripción                                                     |
-| ------------------- | ---------------------------------------- | --------------------------------------------------------------- |
+| Columna             | Tipo                                     | Descripción                                                       |
+| ------------------- | ---------------------------------------- | ----------------------------------------------------------------- |
 | `IdFacturaAddenda`  | `UNIQUEIDENTIFIER` PK                    | GUID generado como UUIDv7 desde la aplicación (sin default en BD) |
-| `IdFactura`         | `UNIQUEIDENTIFIER` FK → `fccFactura`     | Factura asociada                                                |
-| `IdAddendaTipo`     | `UNIQUEIDENTIFIER` FK → `fccAddendaTipo` | Tipo de addenda aplicada                                        |
-| `XmlOriginal`       | `XML`                                    | XML completo del nodo `<cfdi:Addenda>` tal como se envió/timbró |
-| `Hash`              | `VARCHAR(64)`                            | SHA-256 del XML para integridad                                 |
-| `EstadoIntegracion` | `TINYINT`                                | 0=Pendiente, 1=Aplicada, 2=Rechazada                            |
-| `FechaGeneracion`   | `DATETIME2`                              | Cuándo se generó                                                |
-| `IdUsuarioCreacion` | `UNIQUEIDENTIFIER`                       | Auditoría                                                       |
+| `IdFactura`         | `UNIQUEIDENTIFIER` FK → `fccFactura`     | Factura asociada                                                  |
+| `IdAddendaTipo`     | `UNIQUEIDENTIFIER` FK → `fccAddendaTipo` | Tipo de addenda aplicada                                          |
+| `XmlOriginal`       | `XML`                                    | XML completo del nodo `<cfdi:Addenda>` tal como se envió/timbró   |
+| `Hash`              | `VARCHAR(64)`                            | SHA-256 del XML para integridad                                   |
+| `EstadoIntegracion` | `TINYINT`                                | 0=Pendiente, 1=Aplicada, 2=Rechazada                              |
+| `FechaGeneracion`   | `DATETIME2`                              | Cuándo se generó                                                  |
+| `IdUsuarioCreacion` | `UNIQUEIDENTIFIER`                       | Auditoría                                                         |
 
 **Relaciones:** N → 1 con `fccFactura`; N → 1 con `fccAddendaTipo`; 1 → N con `fccFacturaAddendaDetalle`.
 
@@ -119,21 +119,21 @@ Esto evita el antipatrón de crear una tabla por cada cliente y a la vez permite
 
 **Filas generadas en `fccFacturaAddendaDetalle`:**
 
-| NodoRuta | Atributo | Valor | TipoDato | Orden |
-|---|---|---|---|---|
-| `OrdenCompra` | `numero` | `OC-2026-9876` | string | 0 |
-| `OrdenCompra` | `fecha` | `2026-08-01` | date | 0 |
-| `Entrega` | `folioRemision` | `REM-4567` | string | 0 |
-| `Entrega` | `almacenDestino` | `CEDIS-NORTE` | string | 0 |
-| `Entrega` | `fechaEntrega` | `2026-08-10` | date | 0 |
-| `Contacto` | `nombre` | `Juan Pérez` | string | 0 |
-| `Contacto` | `correo` | `compras@cliente.com.mx` | string | 0 |
-| `Contacto` | `telefono` | `5555123456` | string | 0 |
-| `Referencias/Referencia` | `tipo` | `CentroCostos` | string | 0 |
-| `Referencias/Referencia` | `valor` | `CC-4400` | string | 0 |
-| `Referencias/Referencia` | `tipo` | `Proyecto` | string | 1 |
-| `Referencias/Referencia` | `valor` | `PRY-INV-2026` | string | 1 |
-| `Observaciones` | `#text` | `Entregar en horario de 8:00 a 14:00 hrs.` | string | 0 |
+| NodoRuta                 | Atributo         | Valor                                      | TipoDato | Orden |
+| ------------------------ | ---------------- | ------------------------------------------ | -------- | ----- |
+| `OrdenCompra`            | `numero`         | `OC-2026-9876`                             | string   | 0     |
+| `OrdenCompra`            | `fecha`          | `2026-08-01`                               | date     | 0     |
+| `Entrega`                | `folioRemision`  | `REM-4567`                                 | string   | 0     |
+| `Entrega`                | `almacenDestino` | `CEDIS-NORTE`                              | string   | 0     |
+| `Entrega`                | `fechaEntrega`   | `2026-08-10`                               | date     | 0     |
+| `Contacto`               | `nombre`         | `Juan Pérez`                               | string   | 0     |
+| `Contacto`               | `correo`         | `compras@cliente.com.mx`                   | string   | 0     |
+| `Contacto`               | `telefono`       | `5555123456`                               | string   | 0     |
+| `Referencias/Referencia` | `tipo`           | `CentroCostos`                             | string   | 0     |
+| `Referencias/Referencia` | `valor`          | `CC-4400`                                  | string   | 0     |
+| `Referencias/Referencia` | `tipo`           | `Proyecto`                                 | string   | 1     |
+| `Referencias/Referencia` | `valor`          | `PRY-INV-2026`                             | string   | 1     |
+| `Observaciones`          | `#text`          | `Entregar en horario de 8:00 a 14:00 hrs.` | string   | 0     |
 
 ---
 

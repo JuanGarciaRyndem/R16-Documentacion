@@ -1,10 +1,10 @@
-﻿# Validación regulatoria
+# Validación regulatoria
 
 | Campo | Valor |
 |---|---|
 | **ID** | R16A-RE-FU-009 |
 | **Nombre** | Validación regulatoria |
-| **Módulo** | Pretramitar Pedido |
+| **Módulo** | Tramitar Pedido |
 | **Estatus** | Propuesto |
 | **Referencia Legacy** | R16.3M-RE-FU-004 |
 
@@ -12,13 +12,13 @@
 
 ## Historia de Usuario
 
-> Yo como **ESAC**, quiero que el sistema valide automáticamente que un cliente cuente con la documentación regulatoria registrada en su catálogo antes de permitir que un pedido con sustancias controladas avance del módulo Pretramitar Pedido al módulo Tramitar Pedido, para asegurar el cumplimiento normativo y evitar tramitar pedidos sin el soporte documental requerido.
+> Yo como **ESAC**, quiero que el sistema valide automáticamente que el cliente cuente con la documentación regulatoria registrada en su catálogo cuando el pedido contiene sustancias controladas, para que el pedido completo permanezca retenido hasta que la documentación esté registrada y se procese solo cuando el cumplimiento normativo esté garantizado.
 
 ---
 
 ## Requisito
 
-El sistema debe validar automáticamente, en el módulo Pretramitar Pedido, que el cliente del pedido tenga registrados en el Catálogo de Clientes los documentos regulatorios requeridos cuando el pedido contiene al menos una sustancia controlada tipo Mundial, Nacional u Origen (Licencia Sanitaria y Aviso de Responsable Sanitario para Región México; documentos equivalentes según normativa DIGEMID para Región Perú **). Si alguno de los documentos requeridos no está registrado, el sistema debe bloquear el avance del pedido hacia Tramitar Pedido e indicar al ESAC que revise la documentación regulatoria en la configuración del cliente. La validación se realiza únicamente sobre la presencia del registro, sin verificación de vigencia.
+El sistema debe validar automáticamente, como **último paso del módulo Tramitar Pedido**, que el cliente del pedido tenga registrados en el Catálogo de Clientes los documentos regulatorios requeridos cuando el pedido contiene sustancias controladas tipo Mundial, Nacional u Origen (Licencia Sanitaria y Aviso de Responsable Sanitario para Región México). Si alguno de los documentos requeridos no está registrado, el sistema debe **retener el pedido completo** e indicar al ESAC que revise la documentación regulatoria en la configuración del cliente. El pedido se procesa únicamente cuando la documentación queda registrada. La validación se realiza sobre la presencia del registro, sin verificación de vigencia. El pedido se procesa siempre como una unidad completa, sin separación de partidas por su clasificación regulatoria.
 
 ---
 
@@ -26,70 +26,58 @@ El sistema debe validar automáticamente, en el módulo Pretramitar Pedido, que 
 
 ### Aplica a
 
-- Pedidos en el módulo Pretramitar Pedido que contienen al menos una sustancia controlada clasificada como Mundial, Nacional u Origen.
-- Validación de presencia (registro) en el Catálogo de Clientes de los documentos regulatorios requeridos según la Región del cliente: para México, Licencia Sanitaria y Aviso de Responsable Sanitario; para Perú, los documentos equivalentes según normativa DIGEMID.
-- Bloqueo del avance del pedido al módulo Tramitar Pedido cuando la validación falla.
-- Notificación al ESAC indicando qué documento(s) específicos no están registrados en el catálogo del cliente.
-- Operaciones México y Perú: la validación aplica con la misma mecánica en ambas regiones, verificando en cada caso los documentos regulatorios correspondientes a la Región del cliente.
+- Pedidos en el módulo **Tramitar Pedido** que contienen sustancias controladas clasificadas como Mundial, Nacional u Origen.
+- Validación de presencia (registro) en el Catálogo de Clientes de los documentos regulatorios requeridos según la Región del cliente: para México, Licencia Sanitaria y Aviso de Responsable Sanitario.
+- **Retención del pedido completo** cuando la validación falla — el pedido no se procesa hasta que la documentación quede registrada.
+- **Tramitación del pedido completo en su folio original** una vez que la documentación se registra, sin generar folios adicionales.
+- Notificación al ESAC indicando que el cliente no cuenta con la documentación regulatoria requerida.
+- La validación se ejecuta **como último paso de Tramitar Pedido**, después de cualquier ajuste operativo (fletes, direcciones, ajustes a la OC, aceptación de OC Interna, tramitación con errores). Todos los caminos de entrada a Tramitar Pedido pasan por esta validación antes de procesar el pedido.
 
 ### No aplica a
 
-- Pedidos sin sustancias controladas (la validación no se invoca para estos pedidos; avanzan al flujo de Tramitar Pedido sin verificación regulatoria adicional).
+- Pedidos sin sustancias controladas (la validación no se invoca; el pedido avanza sin verificación regulatoria adicional).
 - Validación de fecha de vigencia o validez de los documentos registrados (solo se valida que estén registrados, no que estén vigentes).
+- Separación del pedido por documentación regulatoria: el pedido se procesa siempre como una unidad completa, sin fragmentar partidas controladas y no controladas en pedidos separados con folios distintos.
+- Facturación por adelantado sobre partidas no controladas mientras las controladas esperan documentación: la facturación por adelantado aplica al pedido completo cuando corresponde, no a partidas fragmentadas del pedido.
+- Región Perú: las validaciones regulatorias y su condicionante en Tramitar Pedido se construyen únicamente para México (ver R16A-RE-FU-003).
 
 ---
 
 ## Reglas de Negocio
 
 **Regla 1 — Validación regulatoria solo aplica cuando hay sustancias controladas**
-La validación regulatoria del módulo Pretramitar Pedido se ejecuta únicamente cuando el pedido contiene al menos una sustancia controlada clasificada como Mundial, Nacional u Origen. Los pedidos sin sustancias controladas no invocan esta validación y siguen su flujo normal.
+La validación regulatoria del módulo Tramitar Pedido se ejecuta únicamente cuando el pedido contiene sustancias controladas clasificadas como Mundial, Nacional u Origen. Los pedidos sin sustancias controladas no invocan esta validación y siguen su flujo normal.
 
-**Regla 2 — Documentos regulatorios a validar según Región**
-Los documentos regulatorios que la validación verifica en el Catálogo de Clientes dependen de la Región del cliente del pedido. Para Región México son dos: Licencia Sanitaria y Aviso de Responsable Sanitario. Para Región Perú son los documentos regulatorios equivalentes según normativa DIGEMID.
-
-> ** Denominación exacta de los documentos para Perú pendiente de confirmar con el cliente. **
+**Regla 2 — Documentos regulatorios a validar (Región México)**
+Los documentos regulatorios que la validación verifica en el Catálogo de Clientes son, para Región México: Licencia Sanitaria y Aviso de Responsable Sanitario. Para Región Perú no se construye validación regulatoria en esta release (ver R16A-RE-FU-003).
 
 **Regla 3 — Validación sobre presencia del registro, no sobre vigencia ni contenido**
 La validación comprueba únicamente que los documentos estén registrados como información asociada al cliente. No valida fechas de vigencia, estados de validez, contenido del archivo ni firmas digitales. Un documento registrado satisface la validación para ese documento.
 
-**Regla 4 — Bloqueo del avance ante validación fallida**
-Cuando al menos uno de los documentos requeridos no está registrado, el sistema bloquea el avance del pedido del módulo Pretramitar Pedido al módulo Tramitar Pedido y muestra al ESAC un mensaje genérico que lo invita a revisar la documentación regulatoria en la configuración del cliente. El mensaje no especifica cuál documento falta.
+**Regla 4 — Retención del pedido completo ante validación fallida**
+Cuando al menos uno de los documentos requeridos no está registrado, el sistema **retiene el pedido completo** en Tramitar Pedido y muestra al ESAC un mensaje que lo invita a revisar la documentación regulatoria en la configuración del cliente. El pedido no se procesa mientras la documentación no quede registrada, independientemente de si el cliente acepta o no entregas parciales y de si el pedido tiene además partidas no controladas.
 
-**Regla 5 — Avance permitido cuando los documentos requeridos están registrados**
-Cuando los documentos regulatorios correspondientes a la Región del cliente están registrados en el Catálogo de Clientes, el sistema permite el avance del pedido al módulo Tramitar Pedido, dando por satisfecha la validación regulatoria.
+**Regla 5 — Tramitación en el folio original al registrarse la documentación**
+Una vez que la documentación regulatoria queda registrada en el Catálogo de Clientes, el pedido retenido se procesa en su **folio original** cuando el ESAC ejecuta nuevamente el avance. El sistema no genera un pedido nuevo con folio distinto para las partidas controladas ni para el pedido resultante — es el mismo pedido continuando su flujo.
+
+**Regla 6 — Documentación regulatoria a nivel cliente**
+La documentación regulatoria (Licencia Sanitaria y Aviso de Responsable Sanitario) se registra a **nivel cliente** en el Catálogo de Clientes y aplica a todos los pedidos del cliente que contengan sustancias controladas. No se registra por pedido ni por partida.
+
+**Regla 7 — Validación como último paso de Tramitar Pedido**
+La validación regulatoria se ejecuta como el **último paso del módulo Tramitar Pedido**, después de cualquier ajuste operativo previo (fletes, direcciones, ajustes a la OC, aceptación de OC Interna del cliente, tramitación con errores desde Gestionar Intramitable, etc.). Cualquier camino que lleve un pedido a Tramitar Pedido pasa por esta validación antes de procesar.
 
 ---
 
 ## Riesgos
 
 **Riesgo 1 — Documentos registrados pero no vigentes**
-Como la validación solo verifica la presencia del registro (no la vigencia), un cliente podría tener Licencia Sanitaria o Aviso de Responsable Sanitario registrados pero vencidos legalmente. El sistema permitiría avanzar el pedido a Tramitar Pedido sin detectar esta situación.
+Como la validación solo verifica la presencia del registro (no la vigencia), un cliente podría tener Licencia Sanitaria o Aviso de Responsable Sanitario registrados pero vencidos legalmente. El sistema permitiría procesar el pedido sin detectar esta situación.
 
 **Riesgo 2 — Documentos registrados con archivos incorrectos**
 Como la validación solo verifica que el documento esté registrado (sin validar contenido), un cliente podría tener archivos registrados como Licencia Sanitaria pero que en realidad contengan información incorrecta o sean documentos distintos. El sistema lo daría por válido.
 
-**Riesgo 3 — Cliente bloqueado en operación por falta de actualización del catálogo**
-Si el cliente solicita un pedido con controlados y su catálogo no tiene los documentos registrados, el ESAC quedará bloqueado en Pretramitar y deberá esperar a que el área responsable actualice el Catálogo de Clientes antes de poder avanzar. Esto puede generar fricción operativa y demoras en la atención al cliente.
-
-**Riesgo 4 — Denominación regulatoria Perú no definida**
-Para clientes con Región Perú, la denominación exacta de los documentos regulatorios equivalentes (regulados por DIGEMID en lugar de COFEPRIS) no está confirmada por el cliente.
-
-> ** Si el desarrollo arranca sin esta definición, la validación para clientes Perú podría verificar documentos con denominaciones incorrectas. Pendiente clarificar con el cliente la nomenclatura exacta para Perú antes del desarrollo. **
-
-**Riesgo 5 — Puntos de entrada a Tramitar Pedido que no pasan por la validación regulatoria de Pretramitar**
-La validación regulatoria se ejecuta solo en el avance de Pretramitar Pedido a Tramitar Pedido. Existen otros caminos por los que un pedido con sustancias controladas puede llegar a Tramitar Pedido sin pasar por Pretramitar (gestión de pedido intramitable con OC corregida validada en Validar ajustes a la OC, decisión de "tramitar con errores", y aceptación de OC Interna por el cliente). Si la validación no se re-ejecuta en esos puntos, un pedido con sustancias controladas podría tramitarse sin el soporte documental regulatorio requerido.
-
-> ** Comportamiento de la validación en esos puntos de entrada pendiente de confirmar con el cliente (transversal México y Perú). **
-
-**Riesgo 6 — Documentos regulatorios retirados después de la validación**
-La validación regulatoria comprueba la presencia de los documentos en el momento de avanzar de Pretramitar Pedido a Tramitar Pedido. Si después de esa validación los documentos se retiran o eliminan del Catálogo de Clientes, y en Tramitar Pedido no se vuelve a validar, el pedido podría tramitarse con sustancias controladas sin el soporte documental regulatorio que en su momento sí existía.
-
-> ** Comportamiento pendiente de confirmar con el cliente: ¿se re-valida la presencia de documentos en Tramitar Pedido, o la validación de Pretramitar es definitiva? (transversal México y Perú). **
-
-**Riesgo 7 — Cambio de familia del producto a controlado después de la validación**
-La validación regulatoria solo se invoca cuando el pedido contiene al menos una sustancia controlada (Mundial, Nacional u Origen). Si en Pretramitar Pedido el producto no era controlado (por lo que no se exigió documentación) y posteriormente se reclasifica a una familia controlada ya en Tramitar Pedido, el pedido podría quedar con sustancias controladas sin haber pasado nunca por la validación regulatoria.
-
-> ** Comportamiento pendiente de confirmar con el cliente: ¿un cambio de familia a controlado después de Pretramitar dispara una nueva validación regulatoria? (transversal México y Perú). **
+**Riesgo 3 — Pedido completo retenido por falta de actualización del catálogo**
+Si el cliente solicita un pedido con sustancias controladas y su catálogo no tiene los documentos registrados, el pedido completo queda retenido en Tramitar Pedido y el ESAC debe esperar a que el área responsable actualice el Catálogo de Clientes antes de poder procesar el pedido. Esto puede generar fricción operativa y demoras en la atención al cliente, incluso sobre las partidas no controladas que forman parte del mismo pedido.
 
 ---
 
@@ -98,52 +86,70 @@ La validación regulatoria solo se invoca cuando el pedido contiene al menos una
 ### Sección A — Determinación de aplicabilidad
 
 **Criterio A1 — Detección de pedido con sustancias controladas**
-- **Dado** que el ESAC opera un pedido en el módulo Pretramitar Pedido,
+- **Dado** que el ESAC opera un pedido en el módulo Tramitar Pedido,
 - **Cuando** el sistema evalúa el contenido del pedido,
-- **Entonces** deberá identificar si contiene al menos una sustancia controlada clasificada como Mundial, Nacional u Origen para determinar si debe ejecutar la validación regulatoria.
+- **Entonces** deberá identificar si contiene sustancias controladas clasificadas como Mundial, Nacional u Origen para determinar si debe ejecutar la validación regulatoria.
 
 **Criterio A2 — Validación no se ejecuta para pedidos sin controlados**
 - **Dado** que el pedido no contiene sustancias controladas,
-- **Cuando** el ESAC intenta avanzar el pedido al módulo Tramitar Pedido,
-- **Entonces** el sistema no deberá ejecutar la validación regulatoria. El pedido avanza al flujo normal sin verificación de documentos regulatorios.
+- **Cuando** el ESAC intenta procesar el pedido,
+- **Entonces** el sistema no deberá ejecutar la validación regulatoria. El pedido continúa el flujo normal sin verificación de documentos regulatorios.
 
 ### Sección B — Ejecución de la validación y resultado
 
-**Criterio B1 — Validación regulatoria automática al intentar avanzar**
-- **Dado** que el pedido contiene al menos una sustancia controlada y el ESAC intenta avanzar el pedido al módulo Tramitar Pedido,
-- **Cuando** se ejecuta la acción de avance,
-- **Entonces** el sistema deberá consultar automáticamente el Catálogo de Clientes y verificar la presencia de los documentos regulatorios correspondientes a la Región del cliente del pedido (para México, Licencia Sanitaria y Aviso de Responsable Sanitario; para Perú, los equivalentes según DIGEMID) registrados en el Catálogo de Clientes.
+**Criterio B1 — Validación regulatoria automática como último paso de Tramitar Pedido**
+- **Dado** que el pedido contiene sustancias controladas y el ESAC intenta procesar el pedido en Tramitar Pedido,
+- **Cuando** se ejecuta el último paso de Tramitar Pedido,
+- **Entonces** el sistema deberá consultar automáticamente el Catálogo de Clientes y verificar la presencia de los documentos regulatorios correspondientes (Licencia Sanitaria y Aviso de Responsable Sanitario para Región México) registrados en el catálogo del cliente.
 
 **Criterio B2 — Validación solo sobre presencia del registro**
 - **Dado** que el sistema ejecuta la validación regulatoria,
 - **Cuando** consulta el Catálogo de Clientes,
 - **Entonces** deberá considerar el documento como válido si está registrado, independientemente de su fecha de carga, fecha de vigencia o cualquier otro atributo. No valida vigencia, contenido del archivo ni firmas digitales en este release.
 
-**Criterio B3 — Avance bloqueado cuando falta uno o ambos documentos**
+**Criterio B3 — Retención del pedido completo cuando falta uno o ambos documentos**
 - **Dado** que la validación detecta que al menos uno de los documentos requeridos no está registrado en el Catálogo de Clientes,
-- **Cuando** el ESAC intenta avanzar el pedido,
-- **Entonces** el sistema no deberá permitir el avance al módulo Tramitar Pedido. El pedido permanece en el módulo Pretramitar Pedido.
+- **Cuando** el ESAC intenta procesar el pedido,
+- **Entonces** el sistema deberá **retener el pedido completo** en Tramitar Pedido, sin procesarlo. Ninguna partida del pedido (controladas ni no controladas) avanza mientras la documentación no quede registrada.
 
-**Criterio B4 — Mensaje genérico al ESAC al bloquear el avance**
-- **Dado** que el avance fue bloqueado por validación regulatoria fallida,
+**Criterio B4 — Mensaje al ESAC al retener el pedido**
+- **Dado** que el pedido fue retenido por validación regulatoria fallida,
 - **Cuando** se notifica al ESAC,
-- **Entonces** el sistema deberá mostrar un mensaje genérico indicando que no es posible procesar el pedido porque el cliente no cuenta con la documentación regulatoria requerida para productos controlados, e invitándolo a revisar la sección de documentos regulatorios en la configuración del cliente. El mensaje no especifica cuál documento falta ni distingue por región.
+- **Entonces** el sistema deberá mostrar un mensaje indicando que no es posible procesar el pedido porque el cliente no cuenta con la documentación regulatoria requerida para productos controlados, e invitándolo a revisar la sección de documentos regulatorios en la configuración del cliente.
 
-**Criterio B5 — Avance permitido cuando los documentos requeridos están registrados**
-- **Dado** que la validación confirma que los documentos regulatorios correspondientes a la Región del cliente están registrados en el Catálogo de Clientes,
-- **Cuando** el ESAC ejecuta la acción de avance,
-- **Entonces** el sistema deberá permitir el avance del pedido al módulo Tramitar Pedido sin interrupción ni mensaje adicional.
+**Criterio B5 — Tramitación permitida cuando los documentos requeridos están registrados**
+- **Dado** que la validación confirma que los documentos regulatorios están registrados en el Catálogo de Clientes,
+- **Cuando** el ESAC ejecuta la acción de procesar,
+- **Entonces** el sistema deberá permitir la tramitación del pedido completo en su folio original, sin interrupción ni mensaje adicional.
+
+**Criterio B6 — Tramitación del pedido retenido en su folio original al registrarse la documentación**
+- **Dado** que un pedido fue retenido en Tramitar Pedido por falta de documentación regulatoria y el área responsable registró posteriormente los documentos requeridos en el Catálogo de Clientes,
+- **Cuando** el ESAC ejecuta nuevamente el avance del pedido en Tramitar Pedido,
+- **Entonces** el sistema deberá permitir la tramitación del pedido completo en su **folio original**, sin generar folios adicionales ni fragmentar el pedido en partidas separadas.
 
 ---
 
 ## Notas
 
-- Este es el único cambio funcional que R16 introduce al módulo Pretramitar Pedido. El resto del flujo del módulo (validación de orden de compra, agregar partidas de productos, modificación de dirección de entrega, ajuste de fletes y demás operaciones del módulo) opera conforme al sistema preexistente en PQF2 sin modificaciones funcionales.
+- Este es el único cambio funcional que R16 introduce al módulo Tramitar Pedido en materia regulatoria. El resto del flujo del módulo opera conforme al sistema preexistente en PQF2 sin modificaciones funcionales.
+- La validación regulatoria se ejecuta **como último paso de Tramitar Pedido**. Todos los caminos que pueden llevar un pedido a Tramitar Pedido (avance desde Pretramitar Pedido, OC corregida validada, tramitación con errores desde Gestionar Intramitable, aceptación de OC Interna del cliente) pasan por esta validación antes de procesar.
 - Cubre el requisito del cliente sobre verificación previa a la tramitación de que el cliente cuente con los documentos regulatorios registrados, cuando el pedido contenga sustancias controladas.
 - La validación es estrictamente sobre presencia del registro en el Catálogo de Clientes, no sobre vigencia ni contenido. La responsabilidad de mantener los documentos vigentes y correctos recae en el proceso de actualización del Catálogo de Clientes.
-- El módulo donde se cargan o actualizan los documentos es Catálogo de Clientes, no Pretramitar Pedido. Si la validación bloquea un pedido, el ESAC debe coordinar con el área responsable del Catálogo de Clientes para registrar la documentación antes de poder avanzar el pedido.
-- Aplicable a las operaciones de México y Perú; la validación regulatoria opera con la misma mecánica en ambas regiones, verificando en cada caso los documentos correspondientes a la Región del cliente.
+- El módulo donde se cargan o actualizan los documentos es Catálogo de Clientes, no Tramitar Pedido. Si la validación retiene un pedido, el ESAC debe coordinar con el área responsable del Catálogo de Clientes para registrar la documentación antes de poder procesar el pedido.
+- El pedido se procesa siempre como una **unidad completa** — el sistema no separa partidas controladas y no controladas en pedidos con folios distintos. La documentación regulatoria se registra a **nivel cliente** y aplica a todo el pedido.
+- Aplicable a **Región México**. Para Región Perú no se construye validación regulatoria en esta release (ver R16A-RE-FU-003).
 
-> ** Pendiente: denominación exacta de los documentos regulatorios equivalentes para clientes con Región Perú según normativa DIGEMID. Es el mismo pendiente que en los requisitos R16A-RE-FU-003 (carga de documentos regulatorios) y R16A-RE-FU-007 (leyenda regulatoria en cotización). Debe resolverse de forma unificada para las tres filas. **
+**Resueltos (dudas cerradas):**
+- **Puntos de entrada a Tramitar Pedido:** la validación se ubica como último paso de Tramitar Pedido, con lo que todos los caminos de entrada (avance desde Pretramitar, OC corregida, tramitación con errores, aceptación de OC Interna) pasan por ella antes de procesar.
+- **Cambio de familia del producto a controlado:** deja de ser un problema al validarse en el último paso de Tramitar Pedido — cualquier reclasificación previa queda cubierta por esta validación final.
+- **Pedidos que mezclan partidas controladas y no controladas:** confirmado por el cliente que el escenario **no ocurre** en la operación real. En consecuencia, se retira la mecánica de separación que lo presuponía; el pedido se procesa siempre como unidad completa.
 
-> ** Duda — La validación de documentos regulatorios se ejecuta únicamente al avanzar de Pretramitar Pedido a Tramitar Pedido. Existen otros caminos a Tramitar Pedido que no pasan por esa validación: (1) Gestionar Pedido Intramitable → OC corregida del cliente → Validar ajustes a la OC → avanza a Tramitar si resuelve, o se cicla a Intramitable si no; (2) "tramitar con errores" desde Gestionar Intramitable (avanzar pese a inconsistencias no resueltas); (3) Tramitar con OC Interna, donde desde Pretramitar el pedido se envía siempre a Gestionar Intramitable solo para solicitar al cliente la aceptación de la OC Interna, y al aceptarla avanza a Tramitar. Pendiente confirmar con el cliente cómo se comporta la validación regulatoria en cada punto de entrada: ¿se re-ejecuta antes de tramitar, o el pedido podría llegar a Tramitar sin validar los documentos regulatorios? Aplica a México y Perú. **
+---
+
+## Cambios
+
+| # | Fecha | Observación | Descripción del cambio |
+|---|-------|-------------|------------------------|
+| 1 | 2026-08-14 | Retiro de separación de partidas | Historia, Requisito, Alcance y Reglas 4–6 reescritos para retención y tramitación del pedido completo (sin separación por documentación regulatoria). Se retira la tramitación de partidas no controladas sin esperar documentación de las controladas. Se retira la generación de folio nuevo distinto. Regla 6 pasa a "documentación regulatoria a nivel cliente". Riesgo 3 reescrito en términos del pedido completo retenido. Criterios B3 y B6 reescritos. Criterios A1, B1 y B4 ajustan la redacción de "al menos una sustancia controlada" a "sustancias controladas". |
+| 2 | 2026-08-14 | Cierres de dudas | Punto de entrada a Tramitar Pedido: validación ubicada como último paso de Tramitar Pedido (cubre todos los caminos: avance desde Pretramitar, OC corregida, tramitación con errores, aceptación OC Interna). Cambio de familia del producto a controlado: deja de ser problema al validarse en el último paso. Pedido mezcla controlados/no controlados: confirmado que no ocurre en operación real; se retira mecánica de separación. |
+| 3 | 2026-08-14 | Correcciones de consistencia | Se corrigen las referencias al módulo Pretramitar Pedido, que quedaron desactualizadas al moverse la validación regulatoria a Tramitar Pedido. El campo "Módulo" pasa de Pretramitar Pedido a Tramitar Pedido. |
