@@ -18,7 +18,7 @@
 
 ## Requisito
 
-El sistema debe contar con un campo **"Cobrador"** en la sección Datos Generales del Catálogo de Clientes que permita asignar a cada cliente un usuario con rol Gestor de Cobranza. La edición del campo está habilitada para los roles **Coordinador de Tesorería** y **Gerente de Tesorería**; para cualquier otro rol el campo se muestra visible pero bloqueado. La asignación es la base operativa para que los Gestores de Cobranza vean en su bandeja únicamente los pendientes y pagos de los clientes que tienen asignados en los módulos **Validar Cobro**, **Factura por Adelantado**, **Buzón de Pagos** y **Notas de Crédito**.
+El sistema debe contar con dos campos de asignación en la sección Datos Generales del Catálogo de Clientes: **"Cobrador"** (usuario con rol Gestor de Cobranza) y **"Coordinador de Tesorería"** (usuario con rol Coordinador de Tesorería). La edición de ambos campos está habilitada para los roles **Coordinador de Tesorería** y **Gerente de Tesorería**; para cualquier otro rol los campos se muestran visibles pero bloqueados. La asignación del Cobrador es la base operativa para que los Gestores de Cobranza vean en su bandeja únicamente los pendientes y pagos de los clientes que tienen asignados. Para clientes de **Región México** aplica en los módulos **Validar Cobro**, **Factura por Adelantado**, **Buzón de Pagos** y **Notas de Crédito**. Para clientes de **Región Perú** aplica únicamente en los módulos **Validar Cobro** y **Buzón de Pagos**, al no existir Factura por Adelantado ni Notas de Crédito en esa región.
 
 ---
 
@@ -27,17 +27,21 @@ El sistema debe contar con un campo **"Cobrador"** en la sección Datos Generale
 ### Aplica a
 
 - Clientes de México y Perú en el Catálogo de Clientes.
-- Campo único "Cobrador" en la sección Datos Generales del cliente.
-- Edición del campo habilitada para los roles Coordinador de Tesorería y Gerente de Tesorería.
-- Selector que muestra usuarios con rol Gestor de Cobranza.
-- Bloqueo del campo (no editable, solo visible) para cualquier rol distinto de Coordinador de Tesorería y Gerente de Tesorería.
-- Aplicación de la asignación en los módulos Validar Cobro, Factura por Adelantado, Buzón de Pagos y Notas de Crédito para filtrar la visibilidad de pendientes y pagos por cobrador asignado.
+- Dos campos de asignación en la sección Datos Generales del cliente:
+  - **"Cobrador"** — selector que muestra usuarios con rol Gestor de Cobranza.
+  - **"Coordinador de Tesorería"** — selector que muestra usuarios con rol Coordinador de Tesorería.
+- Edición de ambos campos habilitada para los roles Coordinador de Tesorería y Gerente de Tesorería.
+- Bloqueo de ambos campos (no editables, solo visibles) para cualquier rol distinto de Coordinador de Tesorería y Gerente de Tesorería.
+- Aplicación de la asignación de Cobrador para filtrar la visibilidad de pendientes y pagos por cartera:
+  - **Región México:** módulos Validar Cobro, Factura por Adelantado, Buzón de Pagos y Notas de Crédito.
+  - **Región Perú:** módulos Validar Cobro y Buzón de Pagos (Factura por Adelantado y Notas de Crédito no aplican en Perú).
 - Reasignación del Cobrador de un cliente: todos los pendientes y pagos del cliente se redistribuyen inmediatamente a la bandeja del nuevo Cobrador.
-- Restricción de vaciado del campo Cobrador: una vez asignado por primera vez, el campo no puede quedar vacío; solo admite reasignación a otro Cobrador.
+- Restricción de vaciado de ambos campos (Cobrador y Coordinador de Tesorería): una vez asignados por primera vez, los campos no pueden quedar vacíos; solo admiten reasignación a otro usuario del rol correspondiente.
 
 ### No aplica a
 
-- Asignación múltiple de Cobradores al mismo cliente (un solo Gestor de Cobranza por cliente).
+- Asignación múltiple de usuarios al mismo cliente en cualquiera de los dos campos: un solo Cobrador y un solo Coordinador de Tesorería por cliente.
+- Filtrado por cartera del Cobrador en los módulos Factura por Adelantado y Notas de Crédito para clientes de Región Perú (esos módulos no existen en Perú).
 - Campo Cobrador en el alta de cliente desde Cotizar lo Cotizable: ese alta está orientada exclusivamente a habilitar la cotización, no a la gestión del cliente. La asignación de Cobrador se realiza posteriormente en el Catálogo de Clientes.
 - Preservación de historial de asignaciones previas en R16.
 
@@ -111,12 +115,12 @@ Si el Coordinador de Tesorería no asigna oportunamente un Cobrador a un cliente
 ### Sección C — Filtrado de bandeja por Cobrador asignado
 
 **Criterio C1 — Bandeja filtrada por cobrador actualmente asignado**
-- **Dado** que un Gestor de Cobranza accede a los módulos Validar Cobro, Factura por Adelantado, Buzón de Pagos o Notas de Crédito,
+- **Dado** que un Gestor de Cobranza accede a los módulos operativos según la región del cliente (Región México: Validar Cobro, Factura por Adelantado, Buzón de Pagos o Notas de Crédito; Región Perú: Validar Cobro o Buzón de Pagos),
 - **Cuando** el sistema renderiza la bandeja de pendientes y pagos,
 - **Entonces** deberá mostrar únicamente los registros correspondientes a clientes que tengan al Gestor de Cobranza actualmente asignado en su Catálogo de Clientes.
 
 **Criterio C2 — Redistribución inmediata al reasignar Cobrador**
-- **Dado** que un cliente tiene pendientes y pagos en la bandeja del Cobrador A,
+- **Dado** que un cliente tiene pendientes y pagos en la bandeja del Cobrador A en los módulos aplicables según la región del cliente (Región México: Validar Cobro, Factura por Adelantado, Buzón de Pagos y Notas de Crédito; Región Perú: Validar Cobro y Buzón de Pagos),
 - **Cuando** el Coordinador de Tesorería reasigna ese cliente al Cobrador B y guarda,
 - **Entonces** el sistema deberá mostrar los pendientes y pagos del cliente en la bandeja del Cobrador B en la siguiente consulta de la bandeja, y dejar de mostrarlos en la bandeja del Cobrador A. La reasignación aplica de manera dinámica sobre todos los pendientes y pagos vigentes del cliente, incluidos los que aún no han sido trabajados: todos pasan a la bandeja del nuevo Cobrador, sin distinción entre los previos a la reasignación y los nuevos.
 
@@ -138,5 +142,14 @@ Si el Coordinador de Tesorería no asigna oportunamente un Cobrador a un cliente
 - El campo se llama exactamente **"Cobrador"**.
 - Roles relevantes para esta funcionalidad: **Coordinador de Tesorería** y **Gerente de Tesorería** (ambos pueden editar el campo Cobrador); **Gestor de Cobranza** (es el rol que aparece como opción en el selector y opera bandejas filtradas por cartera).
 - La administración de roles del sistema (creación de roles, asignación usuario-rol) no tiene UI dedicada en R16. Los roles y las asignaciones usuario-rol se gestionan a nivel base de datos.
-- La asignación cliente-Cobrador se utiliza posteriormente en los módulos Validar Cobro, Factura por Adelantado, Buzón de Pagos y Notas de Crédito para filtrar la visibilidad de pendientes y pagos por cobrador asignado.
+- La asignación cliente-Cobrador se utiliza posteriormente para filtrar la visibilidad de pendientes y pagos por cobrador asignado según la región del cliente: **Región México** — módulos Validar Cobro, Factura por Adelantado, Buzón de Pagos y Notas de Crédito; **Región Perú** — módulos Validar Cobro y Buzón de Pagos (Factura por Adelantado y Notas de Crédito no aplican en Perú).
 - **Comportamiento del filtro de bandeja: dinámico.** Cuando el Coordinador o el Gerente de Tesorería reasigna el Cobrador de un cliente, todos los pendientes y pagos vigentes del cliente (incluidos los que aún no han sido trabajados) se reflejan inmediatamente en la bandeja del nuevo Cobrador y dejan de aparecer en la del Cobrador anterior. No hay distinción entre pendientes previos y nuevos respecto al filtro de visibilidad. Aparte del filtro dinámico de la bandeja, el sistema conserva en el histórico el registro del trabajo ya realizado por el Cobrador anterior, de modo que la reasignación no borra esa trazabilidad.
+
+---
+
+## Cambios
+
+| # | Fecha | Observación | Descripción del cambio |
+|---|-------|-------------|------------------------|
+| 1 | 2026-07-27 | Alcance Perú | Se precisa que el filtrado por cartera para clientes de Región Perú opera únicamente en Validar Cobro y Buzón de Pagos (no aplica FAA ni NC). Se agrega el punto en Alcance "Aplica a" con los módulos aplicables por región. Se agrega exclusión en "No aplica a" del filtrado por cartera en FAA y NC para Perú. Se actualizan los Criterios C1 y C2 con la precisión por región. Se ajusta el bullet de módulos consumidores en Observaciones. |
+| 2 | 2026-07-27 | Corrección de consistencia interna del Alcance | Se sustituyen los bullets que describían un campo único "Cobrador" por la descripción de los dos campos de asignación (Cobrador y Coordinador de Tesorería), con sus selectores y sus permisos de edición y bloqueo. La restricción de vaciado se extiende a ambos campos. La exclusión de asignación múltiple en "No aplica a" se extiende a ambos campos. El Alcance no se había actualizado al incorporarse el campo Coordinador de Tesorería, que ya estaba contemplado en el Requisito, las Reglas 7 a 9 y los Criterios D1 a D5. |
