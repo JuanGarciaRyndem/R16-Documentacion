@@ -5,7 +5,7 @@
 | **ID**                  | R16A-RE-FU-028                                                                                                                                                                                                                                                                                                                                                                                                     |
 | **Título**              | Validar Cobro: Paso 3 México                                                                                                                                                                                                                                                                                                                                                                                       |
 | **Módulo / Épica**      | Validar Cobro                                                                                                                                                                                                                                                                                                                                                                                                      |
-| **Historia de Usuario** | Yo como **Gestor de Cobranza / Analista de Cuentas por Cobrar (denominación pendiente resolver)**, quiero contar con la tercera pantalla del wizard de Validar Cobro (Paso 3 - Facturación y Envío) para previsualizar, timbrar y enviar los documentos fiscales de cada línea de la asociación, para cerrar el ciclo operativo de cobranza con todos los artefactos fiscales y operativos del cliente entregados. |
+| **Historia de Usuario** | Yo como **Gestor de Cobranza**, quiero contar con la tercera pantalla del wizard de Validar Cobro (Paso 3 - Facturación y Envío) para previsualizar, timbrar y enviar los documentos fiscales de cada línea de la asociación, para cerrar el ciclo operativo de cobranza con todos los artefactos fiscales y operativos del cliente entregados. |
 | **Prioridad**           | Alta                                                                                                                                                                                                                                                                                                                                                                                                               |
 | **Estado**              | Propuesto                                                                                                                                                                                                                                                                                                                                                                                                          |
 | **Requisito asociado**  | R16.2M-RE-FU-002                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -29,7 +29,7 @@ El sistema debe contar con la tercera pantalla del wizard de Validar Cobro (Paso
 - Listado de líneas a procesar, una por cada documento de la asociación cerrada en el Paso 2.
 - Lógica condicional por línea según el tipo de documento origen del Paso 2:
   - Proforma normal (sin productos controlados) → genera Factura nueva (CFDI Ingreso).
-  - Proforma con productos controlados → genera Factura Anticipo (CFDI Ingreso con tipo de relación 07 SAT — Aplicación de Anticipo).
+  - Proforma con productos controlados → genera Factura Anticipo (CFDI Ingreso). ~~con tipo de relación 07 SAT — Aplicación de Anticipo~~ **INCORRECTO — DUDA-088:** la Factura Anticipo NO lleva tipo de relación 07. La relación 07 se usa en la Factura Final (fuera de alcance de este requisito, se genera en Legacy) para referenciar hacia la Factura Anticipo. La Factura Anticipo se genera según `Guia_Tecnica_Facturas_Ingreso_MX.md` (sección 6): sin `CfdiRelacionados`, con `ClaveProdServ=84111506` (genérico), `ClaveUnidad=ACT`, descripción "Anticipo del bien o servicio".
   - Factura existente (de Prepago con Factura por Adelantado previa) con cobro asociado → genera Complemento de Pago (CFDI Pagos 2.0).
 - Por línea, edición de Uso CFDI (combo del catálogo SAT c_UsoCFDI).
 - Por línea, edición de Método de Pago únicamente para líneas que parten de proforma (PPD o PUE). Líneas de Complemento de Pago tienen Método de Pago fijo en PPD (no editable, conforme normativa SAT).
@@ -57,7 +57,7 @@ El sistema debe contar con la tercera pantalla del wizard de Validar Cobro (Paso
 
 - Wizard de Validar Cobro para Región Perú: se documenta en requisito independiente con diferencias significativas.
 - Cancelación fiscal de documentos ya timbrados en el Paso 3 (vía CFDI de cancelación SAT): NO está contemplada en R16 dentro del Paso 3 ni en el módulo Validar Cobro.
-- Generación masiva (Timbrar todo / Enviar todo): NO contemplada. La operación es individual por línea.
+- Generación masiva (Timbrar todo / Enviar todo): NO contemplada. La operación es individual por línea. (Confirmado con cliente — DUDA-050.)
 - Edición del Método de Pago en líneas de Complemento de Pago: NO permitida (PPD fijo conforme normativa SAT).
 - Re-timbrado de un documento ya generado en el Paso 3: NO permitido. La línea queda inmutable post-timbrado.
 
@@ -72,7 +72,7 @@ El Paso 3 del wizard de Validar Cobro opera exclusivamente sobre clientes con Re
 El sistema genera una línea por cada documento (proforma o factura) asociado en el Paso 2 que requiera emisión de un documento fiscal. Cada línea referencia: tipo de documento origen (Proforma normal, Proforma con controlados, Factura existente), folio del documento origen, Pedido Interno, empresa emisora del grupo, cobros asociados, y NCs aplicadas (si las hubo).
 
 **Regla 3 — Lógica condicional del tipo de documento fiscal a generar**
-El tipo de documento fiscal a generar por línea depende del tipo de documento origen: si la línea parte de una Proforma normal (sin productos controlados), se genera una Factura nueva (CFDI Ingreso); si parte de una Proforma con productos controlados, se genera una Factura Anticipo (CFDI Ingreso con tipo de relación 07 SAT — Aplicación de Anticipo); si parte de una Factura existente (de Prepago con Factura por Adelantado previo) con cobro asociado, se genera un Complemento de Pago (CFDI Pagos 2.0) que se relaciona al UUID de la factura existente. ** Pendiente confirmar el uso del tipo de relación 07 para la Factura Anticipo de proforma con controlados. **
+El tipo de documento fiscal a generar por línea depende del tipo de documento origen: si la línea parte de una Proforma normal (sin productos controlados), se genera una Factura nueva (CFDI Ingreso); si parte de una Proforma con productos controlados, se genera una Factura Anticipo (CFDI Ingreso). ~~con tipo de relación 07 SAT — Aplicación de Anticipo~~ si parte de una Factura existente (de Prepago con Factura por Adelantado previo) con cobro asociado, se genera un Complemento de Pago (CFDI Pagos 2.0) que se relaciona al UUID de la factura existente. **RESUELTO — DUDA-088 (corrige error anterior):** la Factura Anticipo NO usa tipo de relación 07 SAT — es incorrecto usar la relación 07 en la Factura Anticipo. La relación 07 aplica en la FACTURA FINAL (cuando declara que aplica el anticipo de una Factura Anticipo previa), documento fuera de alcance de este requisito. La Factura Anticipo debe generarse conforme a `Guia_Tecnica_Facturas_Ingreso_MX.md`.
 
 **Regla 4 — Edición del Uso CFDI por línea**
 El campo Uso CFDI de cada línea es un combo del catálogo SAT c_UsoCFDI (ejemplo: "G01 - Adquisición de mercancías", "G03 - Gastos en general", "P01 - Por definir", etc.) editable por el usuario antes del timbrado. El valor por defecto corresponde al Uso CFDI configurado del cliente o capturado en el pedido original; el usuario puede ajustarlo previo al timbrado.
@@ -99,7 +99,7 @@ Al confirmar el timbrado de una línea con proforma origen, el sistema actúa se
 Cuando el usuario presiona Enviar en una línea y el envío es exitoso, el sistema dispara automáticamente (aplica únicamente a operaciones México): establecer la Fecha Estimada de Entrega (FEE) del pedido asociado al documento enviado, y transferir el pedido y los documentos generados (Factura, Complemento de Pago, NCs aplicadas, info del cobro) al sistema Legacy. La Confirmación de Pedido se genera al enviar (en el Paso 3 de Validar Cobro) y se adjunta en el mismo correo de envío de la línea. No se previsualiza: solo se genera y se muestra como archivo adjunto en el modal de envío. No existe candado bloqueante.
 
 **Regla 12 — Destinatarios del envío (Para y CC)**
-Al armar el modal de envío, el sistema determina los destinatarios: Para es el contacto del cliente del pedido (heredado del flujo de tramitación, editable por el usuario en el modal); CC es el ESAC asignado al cliente/pedido (sugerido por el sistema, editable por el usuario en el modal). ** Pendiente confirmar el comportamiento si el contacto del pedido no está disponible o si hay múltiples contactos del cliente. **
+Al armar el modal de envío, el sistema determina los destinatarios: Para es el contacto del cliente del pedido (heredado del flujo de tramitación, editable por el usuario en el modal); CC es el ESAC asignado al cliente/pedido (sugerido por el sistema, editable por el usuario en el modal). ~~Pendiente confirmar el comportamiento si el contacto del pedido no está disponible o si hay múltiples contactos del cliente.~~ **RESUELTO — DUDA-089:** se usa el mismo mecanismo de envíos que el sistema actual ya tiene; no requiere desarrollo adicional (se descarta como funcionalidad nueva a construir).
 
 **Regla 13 — Modal Previsualizar**
 Al presionar "Previsualizar", el sistema abre un modal con la previsualización del PDF representativo del documento a generar (incluye todos los datos que tendrá la factura/anticipo/complemento). El usuario puede cerrar el modal sin acción, regresar a editar campos del Paso 3, o proceder a Timbrar.
@@ -176,7 +176,7 @@ Entonces deberá configurar la línea para emitir una Factura nueva (CFDI Ingres
 **Criterio C2 — Proforma con productos controlados → Factura Anticipo**
 Dado que una línea parte de una Proforma con productos controlados (USP/EP/FEUM/Microbiologics u otros químicos-biológicos sujetos a control),
 Cuando el sistema determina el tipo de documento fiscal a generar,
-Entonces deberá configurar la línea para emitir una Factura Anticipo (CFDI Ingreso con tipo de relación 07 SAT — Aplicación de Anticipo). Esto se debe a que el pago se recibe antes de la entrega física del producto controlado, conforme práctica operativa de PROQUIFA.
+Entonces deberá configurar la línea para emitir una Factura Anticipo (CFDI Ingreso). ~~con tipo de relación 07 SAT — Aplicación de Anticipo~~ **INCORRECTO — DUDA-088:** ver corrección arriba; la Factura Anticipo no lleva relación 07. Esto se debe a que el pago se recibe antes de la entrega física del producto controlado, conforme práctica operativa de PROQUIFA.
 
 **Criterio C3 — Factura existente con cobro → Complemento de Pago**
 Dado que una línea parte de una Factura existente (emitida previamente desde el flujo de Prepago con Factura por Adelantado) con un cobro asociado en el Paso 2,
@@ -358,7 +358,7 @@ Entonces el sistema deberá cerrar el wizard y retornar al listado principal del
 - El Paso 3 se invoca desde el Paso 2 al presionar "Continuar" con la asociación cerrada.
 - Lógica condicional del tipo de documento fiscal a generar por línea:
   - Proforma normal → Factura nueva (CFDI Ingreso).
-  - Proforma con productos controlados → Factura Anticipo (CFDI Ingreso con tipo de relación 07 SAT — Aplicación de Anticipo).
+  - Proforma con productos controlados → Factura Anticipo (CFDI Ingreso). ~~con tipo de relación 07 SAT — Aplicación de Anticipo~~ **INCORRECTO — DUDA-088:** ver detalle en §resumen (arriba); la Factura Anticipo no lleva relación 07 — eso aplica a la Factura Final (fuera de alcance).
   - Factura existente (de Prepago con Factura por Adelantado previo) con cobro asociado → Complemento de Pago (CFDI Pagos 2.0).
 - Productos controlados: PROQUIFA es distribuidor químico-biológico USP/EP/FEUM/Microbiologics. La práctica operativa exige pago anticipado para productos controlados, por lo que se factura como anticipo en lugar de factura estándar.
 - Edición del Uso CFDI: combo del catálogo SAT c_UsoCFDI editable por línea antes del timbrado.
@@ -378,11 +378,11 @@ Entonces el sistema deberá cerrar el wizard y retornar al listado principal del
 - Inmutabilidad post-timbrado: una vez timbrado un documento, no se permite re-timbrar ni editar. La cancelación fiscal vía CFDI de cancelación SAT no está contemplada en el Paso 3 ni en Validar Cobro.
 - Manejo de errores del PAC TurboPac: mismo comportamiento operativo que en Factura por Adelantado.
 - Cierre del wizard: cuando todas las líneas están Enviadas, el sistema cierra el wizard y retorna al listado principal.
-- ** Pendiente confirmar el uso del tipo de relación 07 SAT para la Factura Anticipo generada desde proforma con productos controlados. **
+- ~~Pendiente confirmar el uso del tipo de relación 07 SAT para la Factura Anticipo generada desde proforma con productos controlados.~~ **RESUELTO — DUDA-088:** confirmado que es INCORRECTO usar la relación 07 en la Factura Anticipo; la relación 07 corresponde a la Factura Final (fuera de alcance). Ver `Guia_Tecnica_Facturas_Ingreso_MX.md`.
 - ** Pendiente confirmar la plantilla del correo de envío para Complementos de Pago (asunto y cuerpo). Propuesta inicial: asunto "<Folio Pedido Interno> - <Folio Factura>". **
 - ** Pendiente definir vía operativa de excepción para casos donde el usuario necesita salir del Paso 3 con líneas pendientes sin posibilidad de continuar (cliente cancela a último minuto, error operativo detectado tarde, etc.). **
 - ** Pendiente definición formal de la política de indisponibilidad del PAC TurboPac (transversal con Factura por Adelantado). **
-- ** Pendiente resolver formalmente la denominación canónica del rol operativo entre "Gestor de Cobranza" y "Analista de Cuentas por Cobrar" (transversal). **
+- **(Resuelto DUDA-047, 2026-08-21):** la denominación canónica del rol operativo en la documentación funcional es "Gestor de Cobranza"; se eliminan las menciones a "Analista de Cuentas por Cobrar" como nombre del rol.
 
 
 ---
@@ -392,3 +392,7 @@ Entonces el sistema deberá cerrar el wizard y retornar al listado principal del
 | # | Fecha | Referencia | Descripción del cambio |
 |---|-------|------------|------------------------|
 | 1 | 2026-06-10 | OBS-048 | Revisado. La reanudación del wizard en el paso activo ya estaba cubierta en la nota de Persistencia del Paso 3. Sin cambios de contenido. |
+| 2 | 2026-08-21 | DUDA-050 | Confirmado: timbrado uno a uno, no masivo. Ya reflejado en el documento; se agrega nota de trazabilidad. |
+| 3 | 2026-08-21 | DUDA-088 | **Corrección de error fiscal:** la Factura Anticipo NO usa tipo de relación 07 SAT. Se tachan y corrigen todas las menciones que indicaban lo contrario. La relación 07 corresponde a la Factura Final (fuera de alcance), conforme `Guia_Tecnica_Facturas_Ingreso_MX.md`. |
+| 4 | 2026-08-21 | DUDA-089 | Confirmado: el manejo de contacto del pedido para el envío usa el mismo mecanismo existente del sistema; no requiere desarrollo adicional. Se corrige la nota de "pendiente confirmar". |
+| 5 | 2026-08-21 | DUDA-047 | Homologada la denominación del rol operativo a "Gestor de Cobranza"; se eliminan las menciones a "Analista de Cuentas por Cobrar" como nombre del rol. |

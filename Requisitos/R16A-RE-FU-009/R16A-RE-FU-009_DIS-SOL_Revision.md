@@ -28,12 +28,16 @@ Antes de pasar a construcción hay que reconciliar la fuente de verdad del requi
 - **Lo que dice el requisito vigente:** El Alcance dice *"Operaciones México y Perú: la validación aplica con la misma mecánica en ambas regiones"*; la Regla 2 exige documentos "equivalentes según normativa DIGEMID" para Perú; las Notas repiten *"Aplicable a las operaciones de México y Perú"*. Lo único pendiente en el requisito es la **denominación** exacta de los documentos DIGEMID (Riesgo 4) — no una exclusión de la validación.
 - **Acción:** Si la exclusión de Perú fue una decisión real de negocio, actualizar `R16A-RE-FU-009.md` (Alcance, Regla 2, Notas) para reflejarla formalmente antes de construir. Si no fue decidida, corregir el diseño para que Perú sí ejecute la validación con los documentos DIGEMID (aun si su denominación queda como TODO de datos, no de alcance).
 
+> **Resuelto (2026-08-21) — DUDA-027 / DUDA-029 / DUDA-051:** el cliente confirmó que Perú no soporta sustancias controladas en R16; el riesgo de tramitar/facturar un controlado de Perú se asume como riesgo operativo comunicado al cliente, sin bloqueo técnico. `R16A-RE-FU-009.md` ya quedó alineado (Alcance, Regla 2 y Notas dicen explícitamente "Aplicable a Región México... Para Región Perú no se construye validación regulatoria en esta release"). Los documentos `-Back.md` y `_BD.md` fueron actualizados en consecuencia para retirar los pendientes de denominación DIGEMID. El diseño de Cristóbal debe simplificarse para no construir la rama Perú.
+
 ### H-02 — Bifurcación por "entregas parciales" se apoya en una regla que no existe en el requisito local
 
 - **Sección del PDF:** §3.1 pasos 6b/6c, §3.3 completo, Reglas R9/R10 (§3.4), CA-B3/CA-B6 (Validación de criterios de aceptación).
 - **Lo que dice tu diseño:** Cita repetidamente *"Regla 6 de la Historia"* como fuente de las reglas de bifurcación (pedido hijo, `AceptaEntregasParciales`, partidas controladas nunca facturadas por adelantado).
 - **Lo que dice el requisito vigente:** `R16A-RE-FU-009.md` solo llega hasta la **Regla 5**. La Regla 4 es explícita: *"el sistema bloquea el avance del pedido... El mensaje no especifica cuál documento falta"* — sin mención de tramitación parcial ni pedido hijo. Tampoco hay Criterios C1-C2/D/E en el `.md` (llega hasta B5); el PDF usa una numeración distinta (AC-A, AC-B, AC-C1/C2, AC-D, AC-E) que solo aparece citando "Historia R16A-79 (fuente de verdad)".
 - **Acción:** Confirmar con negocio/PM cuál es la fuente de verdad vigente. Si Jira R16A-79 tiene una versión más reciente de la historia con la Regla 6 y los AC adicionales, **actualizar `R16A-RE-FU-009.md`** para que el repositorio quede alineado antes de construir — hoy un desarrollador que solo lea el `.md` no sabría que existe la bifurcación.
+
+> **Resuelto (2026-08-14):** se cerró en sentido contrario a la Regla 6 de Jira. El cliente confirmó que el escenario de pedidos que mezclan partidas controladas y no controladas **no ocurre** en la operación real; en consecuencia se **retiró por completo** la mecánica de separación/bifurcación (pedido hijo, `AceptaEntregasParciales`, `IdPedidoOrigenControlado`). `R16A-RE-FU-009.md` quedó reescrito para que, ante documentación regulatoria faltante, el sistema retenga siempre **el pedido completo** en su folio original (Regla 4, Criterio B3), sin excepción por composición del pedido. El diseño de Cristóbal (§3.1 pasos 6b/6c, §3.3, Reglas R9/R10) debe simplificarse retirando toda la lógica de entregas parciales / pedido hijo; los objetos de BD asociados (`ppPedido.AceptaEntregasParciales`, `tpPedido.IdPedidoOrigenControlado` en `_BD.md` H-03/H-04) quedan sin sustento y deben retirarse del alcance de construcción salvo que el cliente reabra el escenario.
 
 ### H-03 — Falta el script `ALTER TABLE ppPedido ADD AceptaEntregasParciales`
 
@@ -68,6 +72,8 @@ Antes de pasar a construcción hay que reconciliar la fuente de verdad del requi
 - **Sección del PDF:** No cubierto explícitamente en observaciones/riesgos (§1.3) ni en el flujo.
 - **Problema:** El Riesgo 5 del requisito y la PARTE 3.2 de `R16A-RE-FU-009-Back.md` ya habían mapeado los flujos que podrían no pasar por la validación (Gestionar Intramitable → OC corregida, "tramitar con errores", aceptación de OC Interna). El PDF no retoma ese análisis ni confirma si esos caminos también invocan `TramitarPedidoBO.Process()`.
 - **Acción:** Incorporar la tabla de `-Back.md` §3.2 al diseño (o referenciarla explícitamente) y confirmar cobertura de los tres caminos alternos.
+
+> **Resuelto (2026-08-21) — DUDA-024:** se confirmó que todos los caminos hacia Tramitar Pedido (Pretramitar, validar ajustes, aceptar OC, pedido intramitable/"tramitar con errores") convergen en Tramitar Pedido, donde se ejecuta la validación regulatoria como último paso. Los tres caminos alternos quedan cubiertos por construcción, sin necesidad de re-validar en cada uno. `-Back.md` §3.2 y `_BD.md` (Gap 5) fueron actualizados para reflejar el cierre.
 
 ### H-08 — Numeración de criterios de aceptación no mapea 1:1 con el requisito
 

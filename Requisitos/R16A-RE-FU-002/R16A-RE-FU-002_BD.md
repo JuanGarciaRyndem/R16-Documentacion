@@ -267,7 +267,7 @@ Considerar incluirlo para trazabilidad del cobrador en reasignaciones.
 |-----|-------------|-----------------|
 | Mapeo exacto de rol | Confirmar si AnalistaDeCuentasPorCobrar = Gestor de Cobranza | Validar con equipo |
 | SP sin IdUsuarioCobrador | spDesactivarCarterasCliente no retorna cobrador en SELECT | Actualizar SP para incluirlo |
-| Historial de asignaciones | **Resuelto — OBS-005:** El trabajo ya realizado por el cobrador anterior permanece registrado en los módulos donde fue ejecutado (FxA, Validar Cobro, etc.). La reasignación opera por pantalla/módulo: solo los pendientes aún abiertos (no finalizados) pasan al nuevo cobrador. No se requiere migración de registros históricos. | Aplicado en criterio C4 del Back |
+| Historial de asignaciones | **Resuelto — OBS-005:** El trabajo ya realizado por el cobrador anterior permanece registrado en los módulos donde fue ejecutado (FxA, Validar Cobro, etc.). La reasignación opera por pantalla/módulo: solo los pendientes aún abiertos (no finalizados) pasan al nuevo cobrador. No se requiere migración de registros históricos. **Confirmado con cliente (DUDA-116, 2026-08-21):** los avances parciales guardados dentro de un flujo de varios pasos (wizard) no cierran el pendiente, por lo que sigue siendo reasignable. | Aplicado en criterio C4 del Back |
 | Campo Gerente de Tesorería | Confirmar qué campo de Usuario mapea al rol Gerente de Tesorería (OBS-003) | Validar con equipo antes de implementar GAP-04 |
 
 ---

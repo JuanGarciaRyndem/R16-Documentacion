@@ -7,8 +7,10 @@
 
 ## Resumen
 Tramitacion de pedidos Credito (incluyendo Pago contra entrega) con sustancias controladas.
-Oculta Factura por Adelantado y Entrega con Remision. Peru no transfiere a Legacy.
+Oculta Factura por Adelantado y Entrega con Remision.
 Reutiliza flujo credito existente con restricciones regulatorias.
+
+> **Nota (2026-08-21, DUDA-027):** el cliente confirmó que Perú no soporta sustancias controladas en R16. Las referencias a Perú/IdRegion en este documento describen el condicionamiento por región ya existente en el código, a título informativo; no representan un flujo funcional a construir o mantener para Perú. El riesgo de tramitar/facturar un controlado en Perú se asume como riesgo operativo comunicado al cliente, no como control de sistema/BD.
 
 ---
 

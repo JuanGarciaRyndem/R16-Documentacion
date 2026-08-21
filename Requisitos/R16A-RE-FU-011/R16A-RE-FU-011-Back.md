@@ -8,6 +8,8 @@
 
 ## Resumen
 
+> **Nota (2026-08-21, DUDA-027):** el cliente confirmó que Perú no soporta sustancias controladas en R16. Este requisito y su alcance de desarrollo aplican a la operación de **México**. Las menciones a Perú en este documento describen el comportamiento existente del código (condicionamiento por región) a título informativo; no se requiere desarrollo adicional para Perú, ya que el riesgo de tramitar/facturar un controlado en Perú se asume como **riesgo operativo comunicado al cliente**, no como un control de sistema.
+
 Este requisito reutiliza el flujo de tramitacion Credito existente (R16A-RE-FU-010) pero agrega:
 1. **Restricciones regulatorias:** ocultar Factura por Adelantado y Entrega con Remision cuando el pedido tiene sustancias controladas
 2. **Deteccion de controlados:** cadena tpPartidaPedido -> MarcaFamilia -> Familia -> catControl (Clave IN mundiales, nacionales, origen)

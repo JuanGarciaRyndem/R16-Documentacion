@@ -113,14 +113,14 @@ Incluye:
 * Generación del XML CFDI ni timbrado ante el PAC (resuelto por el aplicativo de Timbrado /api/v1/stamp/invoice).  
 * Notas de Crédito / cancelación SAT.  
 * Sección K (Factura Anticipo) — fuera de este diseño.  
-* Perú (SUNAT / UBL 2.1 \- RE-FU-022): Perú no timbra y utiliza el esquema de Proforma (quedó fuera de alcance de R16).
+* Perú (SUNAT / UBL 2.1 \- RE-FU-022): Perú no timbra y utiliza el esquema de Proforma (quedó fuera de alcance de R16). **[2026-08-21 · DUDA-052]** Confirmado: se cancela por completo la facturación de Perú en R16 (no solo se restringe a Prepago); no hay desarrollo de RE-FU-022 en este release.
 
 1.3 Pendientes y aclaraciones que condicionan el diseño
 
 | ID | Pendiente / Aclaración | Impacto |
 | :---- | :---- | :---- |
 | **PA-1** | Origen de datos de partidas (Clave SAT, ID interno, ClaveUnidad...) | ⚠️ **Bloqueante para el mapping por campo** — la arquitectura no cambia, el diccionario de mapeo sí. |
-| **PA-2** | Referencia bancaria del cliente | **Resuelto**: Se reutiliza directamente la lógica de referencia bancaria (Banamex/no-Banamex) ya resuelta e implementada en el módulo de Proforma (compartida con Perú). |
+| **PA-2** | Referencia bancaria del cliente | **Resuelto** [2026-08-21 · DUDA-059]: Se reutiliza directamente la lógica de referencia bancaria (Banamex/no-Banamex) ya resuelta e implementada en el módulo de Proforma (compartida con Perú); no hay reglas propias para la Factura. |
 | **PA-5** | Certificaciones/logos vigentes por emisora | Assets de las plantillas. |
 | DEP-018/019 | Tablas CFDI/Archivo en BD Finanzas, bucket facturas, Aplicativo de Timbrado (/api/v1/stamp/invoice) | Prerrequisito de infraestructura. |
 

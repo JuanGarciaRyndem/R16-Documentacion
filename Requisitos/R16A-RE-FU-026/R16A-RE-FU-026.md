@@ -5,7 +5,7 @@
 | **ID** | R16A-RE-FU-026 |
 | **Título** | Validar Cobro: Paso 2 México |
 | **Módulo / Épica** | Validar Cobro |
-| **Historia de Usuario** | Yo como **Gestor de Cobranza / Analista de Cuentas por Cobrar (denominación pendiente resolver)**, quiero contar con la segunda pantalla del wizard de Validar Cobro (Paso 2 - Asociación) para asociar los cobros capturados con las proformas y facturas pendientes del cliente y aplicar opcionalmente sus Notas de Crédito, para conciliar lo recibido contra lo adeudado y dejar la asociación lista para emitir los documentos fiscales. |
+| **Historia de Usuario** | Yo como **Gestor de Cobranza**, quiero contar con la segunda pantalla del wizard de Validar Cobro (Paso 2 - Asociación) para asociar los cobros capturados con las proformas y facturas pendientes del cliente y aplicar opcionalmente sus Notas de Crédito, para conciliar lo recibido contra lo adeudado y dejar la asociación lista para emitir los documentos fiscales. |
 | **Prioridad** | Alta |
 | **Estado** | Propuesto |
 | **Requisito asociado** | R16.2M-RE-FU-002 |
@@ -163,4 +163,4 @@ El tipo de inconsistencia "Pago Incompleto Vencido" marca el pedido como "Pendie
 - ** Pendiente verificar la vigencia de Notas de Crédito en el sistema: ¿las NCs tienen fecha de caducidad?, ¿cómo se determina que una NC sigue "vigente" para ser ofrecida en el catálogo de aplicables?, ¿hay reglas de expiración? **
 - ** Pendiente confirmar el cuerpo del correo de notificación al cliente cuando se marca inconsistencia "Pago Insuficiente": qué información lleva, formato, plantilla, mecanismo de envío. **
 - ** Pendiente confirmar la fuente oficial del Tipo de Cambio del día para conversiones en el Paso 2 (propuesta estándar fiscal: TC FIX Banxico DOF — transversal con Paso 1). **
-- ** Pendiente resolver formalmente la denominación canónica del rol operativo entre "Gestor de Cobranza" y "Analista de Cuentas por Cobrar" (transversal). **
+- **(Resuelto DUDA-047, 2026-08-21):** la denominación canónica del rol operativo en la documentación funcional es "Gestor de Cobranza"; se eliminan las menciones a "Analista de Cuentas por Cobrar" como nombre del rol.

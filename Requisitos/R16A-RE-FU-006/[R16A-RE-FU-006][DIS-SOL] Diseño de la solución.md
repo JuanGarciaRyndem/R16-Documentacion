@@ -6,8 +6,8 @@
 | :---- | :---- |
 | **PROYECTO** | R16 \- Adquisiciones |
 | **REFERENCIA** | AUI- FOR-01 |
-| **VERSIÓN** | 1.20 |
-| **FECHA** | 31 jul 2026 |
+| **VERSIÓN** | 1.21 |
+| **FECHA** | 21 ago 2026 |
 | **AUTOR** | [Jose Armando Santiago Lorenzo](mailto:jose.santiago@ryndem.mx) |
 | **REVISOR** | [Juan David García Cruz](mailto:juan.garcia@ryndem.mx) |
 
@@ -213,15 +213,15 @@ flowchart TD
 | CA-2 | Selector de Banco muestra catálogo de bancos del grupo PROQUIFA | Cubierto | Catálogo genérico ya existente `POST /catBanco` — retorna la entidad completa (`IdCatBanco`, `Banco`, `RequiereCodigoValidador`, entre otros); no requiere endpoint propio de RE-006 |
 | CA-3 | Selector de Cuenta filtra por banco seleccionado | Cubierto | Catálogo ya existente `POST /vEmpresaDatosBancarios` (reutilizado, sin desarrollo nuevo) con `QueryInfo { filtros: { IdCatBanco } }` — retorna cuentas del banco seleccionado; scope de FE el componente en cascada |
 | CA-4 | Sucursal se autopobla desde la cuenta seleccionada (solo lectura) | Cubierto | Campo `Sucursal` incluido en respuesta de `POST /vEmpresaDatosBancarios`; read-only en FE |
-| CA-5 | CódigoValidador se acepta como input manual sin validación de formato/longitud | Cubierto | `CodigoValidador varchar(50)` sin constraint de formato; longitud provisional 50 — pendiente confirmar máximo con cliente (DUDA-015 abierta) |
+| CA-5 | CódigoValidador se acepta como input manual sin validación de formato/longitud | Cubierto | `CodigoValidador varchar(50)` — ~~sin constraint de formato; longitud provisional 50 — pendiente confirmar máximo con cliente (DUDA-015 abierta)~~. **Cerrado 2026-08-21 (DUDA-015):** `varchar(50)` es la longitud definitiva en BD (compatibilidad/holgura futura); la regla de negocio/Frontend acota la captura a 3 caracteres alfanuméricos, sin acentos ni espacios en blanco |
 | CA-6 | Persistencia de nueva asignación o modificación — referencia generada/actualizada a nivel cliente | Cubierto | Flujo 1 pasos 4-5: referencia calculada por `BankReferenceBO` y persistida en `ReferenciaVigente` al guardar la asignación; Flujo 2: RE-006 la expone por endpoint y RE-016 la lee |
-| CA-7 | Cliente puede tener múltiples cuentas asignadas sin límite máximo definido | Cubierto | INSERT permite múltiples registros por cliente. La selección de cuenta al generar la proforma se resuelve por empresa emisora (RT-08, Flujo 2). El tope máximo de cuentas por cliente sigue sin definir con cliente (DUDA-118, no bloqueante) |
+| CA-7 | Cliente puede tener múltiples cuentas asignadas sin límite máximo definido | Cubierto | INSERT permite múltiples registros por cliente. La selección de cuenta al generar la proforma se resuelve por empresa emisora (RT-08, Flujo 2). ~~El tope máximo de cuentas por cliente sigue sin definir con cliente (DUDA-118, no bloqueante)~~ — **Cerrado 2026-08-21 (DUDA-118):** el cliente confirmó que NO se limita el número de cuentas bancarias por cliente |
 | CA-8 | Eliminación lógica de asignación — `Activo = 0`, no DELETE físico | Cubierto | `DELETE /ClienteDatosBancarios?IdClienteDatosBancarios={guid}` ejecuta `UPDATE Activo = 0` |
 | CA-E1 | CódigoValidador vacío → error, no guarda (solo cuentas Banamex — no aplica a no-Banamex) | Cubierto | Validación en `ClienteDatosBancariosBO` paso 3; responde `400 Bad Request` |
 | CA-E2 | Cuentas con `Activo = 0` no aparecen en selector | Cubierto | Filtro `EmpresaDatosBancarios.Activo = 1` en endpoint `POST /vEmpresaDatosBancarios` |
 | CA-EC1 | Asignación duplicada (misma cuenta al mismo cliente) bloqueada | Cubierto | Validación de duplicado en `ClienteDatosBancariosBO` paso 3; responde `400 Bad Request` (mismo código que el resto de validaciones de este endpoint, sin distinción de `409`) |
 | CA-EC2 | Cuenta inactivada/eliminada post-asignación: proformas existentes intactas; no se generan nuevas con esa cuenta | Cubierto | Proformas existentes conservan su snapshot en PDF (OBS-013). El endpoint de RE-006 no devuelve asignaciones cuya cuenta esté inactiva (`EmpresaDatosBancarios.Activo = 0`), así que RE-016 recibe vacío → `ReferenciaPago = null`. No se permite crear nuevas asignaciones sobre cuentas inactivas (RT-01). El sistema no altera asignaciones existentes de forma automática |
-| CA-12 | Sin restricción de rol — cualquier usuario con acceso a cartera puede operar | Cubierto | Sin middleware de rol en controller (DUDA-017 cerrada) |
+| CA-12 | Sin restricción de rol — cualquier usuario con acceso a cartera puede operar | Cubierto | Sin middleware de rol en controller (DUDA-017 cerrada — desestimada para R16, corresponde al alcance de R7) |
 | CA-13 | Endpoint de consulta expone la referencia como contrato para RE-016 | Cubierto | `POST /vClienteDatosBancarios` con `IdCliente`/`IdCatBanco`/`IdCatMoneda`/`IdEmpresa`, todos opcionales; resuelve relaciones internamente; responde siempre arreglo (RT-10). La tupla de 4 filtros no garantiza unicidad → arreglo (RT-11) |
 | CA-14 | Cambio de `Cliente.Nombre` regenera `ReferenciaVigente` de las asignaciones activas | Cubierto | Flujo 3 (RF-15): hook transaccional en `ClienteBO` recalcula todas las asignaciones activas en la misma transacción; fallo → rollback; proformas emitidas intactas (RT-12) |
 
@@ -733,7 +733,7 @@ var referencia = _bankReferenceBO.Build(
 
 ## **3\. Casos críticos**
 
-- **Cliente con múltiples cuentas:** cliente con varias asignaciones activas → cada una conserva su propia `ReferenciaVigente`; al generar la proforma el factory de RE-016 elige la de la empresa emisora (RT-08). Si hay varias para la misma empresa, gana la más reciente (`FechaUltimaActualizacion DESC`). *(DUDA-118: mecanismo cerrado por diseño; resta confirmar con cliente sólo si existe un tope máximo de cuentas por cliente — no bloqueante.)*
+- **Cliente con múltiples cuentas:** cliente con varias asignaciones activas → cada una conserva su propia `ReferenciaVigente`; al generar la proforma el factory de RE-016 elige la de la empresa emisora (RT-08). Si hay varias para la misma empresa, gana la más reciente (`FechaUltimaActualizacion DESC`). *(DUDA-118: mecanismo cerrado por diseño; ~~resta confirmar con cliente sólo si existe un tope máximo de cuentas por cliente — no bloqueante~~ — **cerrado 2026-08-21:** el cliente confirmó que NO existe tope máximo de cuentas por cliente.)*
 - **Nombre de cliente muy corto:** cliente con nombre de 1 o 2 caracteres → S2 y/o S3 usan fallback `'X'`; referencia Banamex se genera sin error.
 - **CódigoValidador modificado tras generar PDF:** la proforma ya generada conserva la referencia original (snapshot en PDF); `ReferenciaVigente` se actualiza para proformas futuras.
 - **Cuenta inactivada/eliminada tras asignación:** la asignación permanece en BD sin alteración automática; las proformas ya generadas conservan su snapshot. Para proformas nuevas, la cuenta inactiva (`EmpresaDatosBancarios.Activo = 0`) no se considera → `ReferenciaPago = null` (RT-08). No se permiten nuevas asignaciones sobre cuentas inactivas (RT-01). *(CA-EC2 cerrado: el sistema no toca proformas existentes y sólo impide crear nuevas referencias sobre cuentas inactivas.)*
@@ -767,6 +767,7 @@ var referencia = _bankReferenceBO.Build(
 | 1.18 | 30 jul 2026 | Jose Armando Santiago Lorenzo | Corrección de v1.17: verificado contra código real, el controller de consulta queda separado del CRUD | Anexo A.15 | — |
 | 1.19 | 31 jul 2026 | Jose Armando Santiago Lorenzo | Corrección de redacción en S6 (moneda) — verificado contra doc del cliente y matriz | Anexo A.16 | — |
 | 1.20 | 31 jul 2026 | Jose Armando Santiago Lorenzo | JD revierte la regla de idioma de la 2ª revisión (v1.6/A.4) — BO de entidad/vista vuelven a Español | Anexo A.17 | — |
+| 1.21 | 21 ago 2026 | Jose Armando Santiago Lorenzo | Cierre de dudas de cliente: longitud/formato de `CodigoValidador` (DUDA-015) y tope de cuentas por cliente (DUDA-118) | Anexo A.18 | — |
 
 ---
 
@@ -851,3 +852,7 @@ Comentarios de la 1ª revisión de JD (24-jun-2026) y las correcciones/verificac
 ## **A.17 — JD revierte la regla de idioma de A.4 (v1.7), a media ejecución del PR #207 (v1.20)**
 
 **v1.20 (31 jul 2026) — Regla de idioma de código nuevo, refinada:** la regla de A.4/v1.7 ("BO de entidad nuevo = Inglés") no reflejaba bien el patrón ya establecido en el resto de PQF2 (Catálogo, Logística) — JD la refinó al ver el resultado real aplicado en el PR #207 (`ProquifaDotNet`). Regla vigente: **BO de entidad `<CRUD>` y BO de vista, con sus extensions, van en Español** (coherencia con el modelo de BD, que está en Español) — mismo patrón ya usado en el resto del repo (`vEmpresaDatosBancariosBO`, `vClienteBO`); **lógica de negocio/utilería sin entidad propia sigue en Inglés** (ej. `BankReferenceBO`, sin cambio); **controllers**: Español si heredan de `ApiController`/`IControllerModelBO<Entidad>`, Inglés si no (los controllers de esta asignación ya cumplían, sin cambio). Código revertido: `ClientBankDataBO`→`ClienteDatosBancariosBO`, `vClientBankDataBO`→`vClienteDatosBancariosBO` (+ extensions, controllers, tests, `.csproj`). Commit en `feature/r16-phase-01-R16A-RE-FU-006`, `Refs: R16A-1428`, pusheado. Se corrigen también las notas de A.4 (arrows que habían quedado autorreferenciales tras una sincronización previa) para conservar el registro histórico del primer rename (6-jul, Español→Inglés). Sincronizado a RAD (decisión #32) y DIS interno (INT-1.18). Monedas reales del ecosistema hoy (MXN/USD/PEN) hacen que ambas formulaciones coincidan en la práctica — sin cambio de comportamiento observable.
+
+## **A.18 — Cierre de dudas de cliente: longitud de `CodigoValidador` y tope de cuentas por cliente (v1.21)**
+
+**v1.21 (21 ago 2026) — Cierre de dudas pendientes de cliente (DUDA-015, DUDA-118):** (1) **DUDA-015** — el cliente confirmó que el Código Validador es **alfanumérico, con longitud máxima de 3 caracteres**, sin acentos ni espacios en blanco (regla de negocio/Frontend); `varchar(50)` en BD queda confirmado como longitud **definitiva** (no provisional), reservada por compatibilidad y holgura futura. (2) **DUDA-118** — el cliente confirmó que **NO existe tope máximo** de cuentas bancarias asignables por cliente; el mecanismo de selección de cuenta al generar la proforma ya estaba cerrado por diseño (RT-08) y no cambia. Actualizado CA-5, CA-7 y el caso crítico de "Cliente con múltiples cuentas". Sin cambios de código ni de contrato de API — ambas dudas ya estaban implementadas de forma compatible con el cierre; se corrige únicamente la documentación de estado ("abierta"/"pendiente confirmar" → cerrada).

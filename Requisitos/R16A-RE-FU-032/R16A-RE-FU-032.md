@@ -34,7 +34,7 @@ El sistema debe contar con un módulo independiente de Notas de Crédito para Re
 
 La generación exige seleccionar el **motivo** desde un catálogo de tres opciones que determina automáticamente la modalidad de captura (por partidas o manual) y el tipo de relación con el CFDI origen. Cuando el motivo es **Devolución de mercancía**, el usuario elige entre TipoRelacion `01` y `03`; en los otros dos motivos el TipoRelacion se deriva automáticamente. El precio unitario en modalidad por partidas se hereda de la factura origen y no es editable.
 
-La **forma de pago** de la NC se resuelve automáticamente mediante la comparación entre el monto de la NC y el **saldo pendiente** de la factura origen: si la NC es menor o igual al saldo pendiente se resuelve como **condonación** (FormaPago `15`) y reduce el saldo pendiente de la factura, de modo que en Validar Cobro se cobre únicamente la diferencia; si la NC excede el saldo pendiente, el **excedente** se elige como **devolución de dinero** (FormaPago real) o como **saldo a favor** disponible para consumo en facturas futuras (FormaPago `23` — Compensación).
+La **forma de pago** de la NC se resuelve automáticamente mediante la comparación entre el monto de la NC y el **saldo pendiente** de la factura origen: si la NC es menor o igual al saldo pendiente se resuelve como **condonación** (FormaPago `15`) y reduce el saldo pendiente de la factura, de modo que en Validar Cobro se cobre únicamente la diferencia; si la NC excede el saldo pendiente, el **excedente** se elige como **devolución de dinero** (FormaPago real) o como **saldo a favor** disponible para consumo en facturas futuras (FormaPago `23` — ~~Compensación~~ **Novación**, corregido por DUDA-098).
 
 El módulo se acopla a Validar Cobro: las NCs **con saldo a favor disponible** quedan disponibles para su aplicación durante la asociación de cobros; las NCs sin saldo a favor no aparecen. Las NCs históricas previas al go-live no se importan desde Legacy. **No existe módulo de Notas de Crédito para Región Perú** al no haber timbrado en su alcance.
 
@@ -127,7 +127,7 @@ La FormaPago de la NC se determina automáticamente comparando el monto de la NC
 Cuando la NC genera excedente (Regla 8), el usuario elige el destino:
 
 - **Devolución de dinero al cliente** → FormaPago real de la devolución (Transferencia, Efectivo, Tarjeta, etc.).
-- **Saldo a favor** disponible para consumo en facturas futuras → FormaPago = `23` (Compensación).
+- **Saldo a favor** disponible para consumo en facturas futuras → FormaPago = `23` (~~Compensación~~ **Novación** — corregido por DUDA-098: el catálogo SAT c_FormaPago define `17` como Compensación y `23` como Novación; la etiqueta anterior era incorrecta, el valor numérico `23` siempre fue correcto).
 
 Antes de avanzar al Paso 3 el sistema exige la elección del destino cuando aplica.
 
@@ -355,7 +355,7 @@ La Regla 12 permite múltiples NCs sobre una misma factura, pero el sistema no v
 **Criterio G4 — Destino del excedente: saldo a favor**
 **Dado que** existe un excedente,
 **Cuando** el usuario elige dejarlo como saldo a favor,
-**Entonces** el sistema deberá asignar `FormaPago = 23` (Compensación) y registrar el saldo a favor disponible para consumo en facturas futuras.
+**Entonces** el sistema deberá asignar `FormaPago = 23` (~~Compensación~~ **Novación** — DUDA-098) y registrar el saldo a favor disponible para consumo en facturas futuras.
 
 **Criterio G5 — Validación de avance al Paso 3**
 **Dado que** existe un excedente,
@@ -377,7 +377,7 @@ La Regla 12 permite múltiples NCs sobre una misma factura, pero el sistema no v
 **Criterio H3 — FormaPago según resolución automática**
 **Dado que** existe la generación del XML,
 **Cuando** el sistema asigna FormaPago,
-**Entonces** deberá usar el valor resuelto por la Sección G (`15` Condonación, forma real de devolución, o `23` Compensación).
+**Entonces** deberá usar el valor resuelto por la Sección G (`15` Condonación, forma real de devolución, o `23` ~~Compensación~~ **Novación** — DUDA-098).
 
 **Criterio H4 — Moneda, TipoCambio e Impuestos heredados de la factura origen**
 **Dado que** existe la generación del XML,
@@ -531,7 +531,8 @@ La Regla 12 permite múltiples NCs sobre una misma factura, pero el sistema no v
 - **Cancelación de facturas y NCs:** no se ofrece esa función en el sistema para ningún documento fiscal (Regla 18). Decisión documentada y acordada con el cliente.
 - **Relación de una NC con más de una factura origen:** fuera de alcance; cada NC se emite contra exactamente una factura origen.
 - Cumplimiento fiscal SAT validado contra Apéndice 5 Anexo 20 vigente: TipoDeComprobante `E`, TipoRelacion `01` o `03` según motivo con UUID factura origen, UsoCFDI `G02` default, MetodoPago `PUE` fijo.
-- **FormaPago automática** vía comparación NC vs SaldoPendiente (Sección G): `15` Condonación (con reducción del saldo pendiente de la factura), forma real (devolución), o `23` Compensación (saldo a favor).
+- **FormaPago automática** vía comparación NC vs SaldoPendiente (Sección G): `15` Condonación (con reducción del saldo pendiente de la factura), forma real (devolución), o `23` ~~Compensación~~ **Novación** (saldo a favor). Corrección de nombre por DUDA-098 (el valor `23` ya era correcto; el catálogo SAT c_FormaPago asigna `23`=Novación y `17`=Compensación).
+- **Regla de FormaPago ampliada y cerrada (DUDA-098):** el cálculo se basa en `SaldoPendiente = Factura.Total − Factura.TotalCobrado` (antes de aplicar la NC). Si `NC.Monto ≤ SaldoPendiente`, la NC solo toca dinero nunca cobrado y `FormaPago = 15` (Condonación) **siempre, sin excepción**; nuevo `SaldoPendiente = SaldoPendiente − NC.Monto`. Si `NC.Monto > SaldoPendiente`, la NC toca dinero ya cobrado y el usuario decide el destino del excedente: si se devuelve, `FormaPago` = la forma real de la devolución; si queda como saldo a favor, `FormaPago = 23` (Novación). Ver `Guia_Tecnica_Notas_de_Credito_MX.md` para el detalle técnico completo (tablas, mapeo con `EstatusAplicacionNC` y validaciones).
 - **Herencia de moneda, TC y estructura de impuestos** de la factura origen (Regla 7).
 - **Consumo del saldo a favor** en Validar Cobro (Sección M): disponibilidad acotada a NCs con saldo disponible; conversión con TC heredado.
 - **Serie `B2`** para el foliado de las Notas de Crédito de PROQUIFA México. Folio consumido únicamente al timbrar.
@@ -540,9 +541,10 @@ La Regla 12 permite múltiples NCs sobre una misma factura, pero el sistema no v
 - **Estatus de aplicación de la NC**: Sin saldo a favor / Saldo disponible / Aplicada parcialmente / Aplicada totalmente.
 - **Función operativa: Analista de Cuentas por Pagar; rol: Gestor de Cobranza.** (Cerrada la denominación canónica del rol.)
 - **Cierre de dudas resueltas:**
-  - FormaPago en modalidad manual: resuelto con la mecánica de SaldoPendiente + Excedente.
-  - Claves de producto y unidad en la modalidad sin partidas: convención `84111506` / `ACT` documentada por el SAT (Apéndice 5).
-  - Políticas de autorización por monto: resuelto — no aplica código de autorización.
+  - FormaPago en modalidad manual (**DUDA-098**): resuelto con la mecánica de SaldoPendiente + Excedente; `15` (Condonación) siempre que `NC ≤ SaldoPendiente`, forma real o `23` (Novación, no Compensación) cuando `NC > SaldoPendiente`; `99` nunca es válido en una NC.
+  - Claves de producto y unidad en la modalidad sin partidas (**DUDA-100**): convención `84111506` / `ACT` documentada por el SAT (Apéndice 5) — no es decisión fiscal abierta.
+  - Foliador serie de las NC de México (**DUDA-101**): confirmada como `B2`, resuelta en conjunto con DUDA-113.
+  - Políticas de autorización por monto (**DUDA-102**): resuelto — no aplica código de autorización.
 - **Nota sobre la Guía Técnica de Notas de Crédito:** la Guía Técnica indica actualmente el TipoRelacion `03` como fijo para devolución de mercancía; según la Regla 3 el TipoRelacion es elección del usuario entre `01` y `03` en ese motivo. La Guía Técnica requiere actualización para reflejar esta regla.
 
 ### Documentos de referencia del cliente
@@ -556,7 +558,11 @@ La Regla 12 permite múltiples NCs sobre una misma factura, pero el sistema no v
 | Bloque | Cambio principal |
 |---|---|
 | Motivos y modalidades | Catálogo de 3 motivos con derivación automática de modalidad y TipoRelacion (Regla 3). Devolución de mercancía permite elegir `01` o `03`; los otros dos motivos derivan `01`. Precio unitario heredado no editable; captura por partida en piezas. Se retira el TipoRelacion fijo en `01` que era incorrecto. |
-| FormaPago / SaldoPendiente / Excedente | Mecánica automática (Sección G). Condonación reduce el saldo pendiente de la factura origen (Regla 11). Excedente con dos destinos: devolución (forma real) o saldo a favor (`23` Compensación). Se retira la regla de política de intentar NC antes que devolución. |
+| FormaPago / SaldoPendiente / Excedente | Mecánica automática (Sección G). Condonación reduce el saldo pendiente de la factura origen (Regla 11). Excedente con dos destinos: devolución (forma real) o saldo a favor (`23` ~~Compensación~~ **Novación**). Se retira la regla de política de intentar NC antes que devolución. |
+| 2026-08-21 — Cierre DUDA-098 | Corrección de nomenclatura: `FormaPago 23` es **Novación** (no Compensación) según catálogo SAT c_FormaPago; el valor numérico ya era correcto en todo el documento, solo la etiqueta estaba mal. Se documenta explícitamente la regla completa de SaldoPendiente + Excedente (nunca `99`). |
+| 2026-08-21 — Cierre DUDA-100 | Confirmado: `ClaveProdServ=84111506` / `ClaveUnidad=ACT` es la convención documentada en el Apéndice 5 SAT para NC sin partidas reales, no una decisión fiscal abierta (Criterio F5, ya reflejado correctamente). |
+| 2026-08-21 — Cierre DUDA-101 | Serie del foliador confirmada como **B2**, resuelta en conjunto con DUDA-113 (fuera de este batch). Ya reflejado correctamente en Regla 17 / Criterio N1 / Sección de Alcance. |
+| 2026-08-21 — Cierre DUDA-102 | Confirmado: no aplica código de autorización por monto para las NC en R16 (PMO #54). Ya reflejado correctamente en Observaciones. |
 | Cancelación de documentos | Se retira la cancelación condicional de la factura origen. Regla 18 extendida: sin función de cancelación para facturas ni NCs. Sección de cancelación condicional (4 criterios) eliminada. |
 | Región Perú | Se retira la referencia al módulo NC para Perú (no existe al no haber timbrado). |
 | Wizard 4→3 pasos y vista unificada | Wizard de 3 pasos; la vista de la NC emitida se unifica con la vista de detalle. Sección K renombrada; criterios de banner y equivalencia retirados; Sección J navega a detalle. |

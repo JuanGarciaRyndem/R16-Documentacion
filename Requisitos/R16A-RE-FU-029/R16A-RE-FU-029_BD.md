@@ -3,6 +3,9 @@
 **Bases de Datos:** ProquifaDotNet (lectura/escritura) + ProquifaDotNetTimbrado (lectura/escritura)
 **Versión:** 1.0
 
+> ⚠️ **FUERA DE ALCANCE DE R16 — Cancelación de facturación Perú (2026-08-21)**
+> La facturación electrónica de Perú se CANCELÓ POR COMPLETO. Ver DUDA-092/093/094 (hoja "R16 - Dudas a Cliente", cerradas como Descartadas por este mismo motivo). Todo el impacto en BD descrito a continuación (tablas, catálogos, scripts de timbrado SUNAT) queda sin objeto para R16.
+
 ---
 
 ## Resumen

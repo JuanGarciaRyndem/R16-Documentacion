@@ -1,5 +1,8 @@
 # Impacto en Back — R16A-RE-FU-029
 **Requisito:** Validar Cobro: Paso 3 Perú — Facturación y Envío
+
+> ⚠️ **FUERA DE ALCANCE DE R16 — Cancelación de facturación Perú (2026-08-21)**
+> La facturación electrónica de Perú se CANCELÓ POR COMPLETO. Ver DUDA-092/093/094 (hoja "R16 - Dudas a Cliente", cerradas como Descartadas por este mismo motivo). Todo el impacto en Back descrito a continuación (endpoints de timbrado CPE, catálogos SUNAT, envío con adjuntos fiscales) queda sin objeto para R16.
 **Aplicativos:** ProquifaDotNet (.NET Framework 4.8) + ProquifaDotNet.Finanzas (.NET Core 10) + ProquifaDotNet.Timbrado (.NET Core 10) + DocumentBuilder
 **Módulo:** Validar Cobro — Wizard Paso 3 (Perú)
 **Impacto:** Scripts BD ProquifaDotNet (1 catálogo nuevo + 2 ALTER tablas + 1 ALTER vista) + Endpoints Finanzas: inicialización Paso 3 Perú, auto-guardado catálogos SUNAT, previsualización PDF, timbrado CPE único (sin cascada), envío vía ProquifaDotNet.EnvioCorreo con adjuntos + acciones post-envío (FEE, Confirmación de Pedido). Comunicación Finanzas → Timbrado vía API. **Sin transferencia a Legacy. Solo Perú — operaciones unitarias por línea, tipo único: Factura electrónica.**

@@ -30,7 +30,7 @@ La NC aplica exclusivamente a **clientes prepago** y a **facturas vigentes con a
 | BD — ALTER tabla           | ProquifaDotNet            | `fccNotaCreditoPartida`: ADD 6 columnas R16                                                               |
 | BD — DML catálogo          | ProquifaDotNet            | `catUsoCFDI`: INSERT G02 si no existe                                                                     |
 | BD — DML catálogo          | ProquifaDotNet            | `catTipoCFDI`: INSERT NOTA_CREDITO (prereq RE-028)                                                        |
-| BD — DML foliador          | ProquifaDotNet (Finanzas) | `EmpresaFolio`: INSERT 4 filas Serie "P2" (GOL, MUN, PRO, PQF)                                            |
+| BD — DML foliador          | ProquifaDotNet (Finanzas) | `EmpresaFolio`: INSERT 4 filas Serie ~~"P2"~~ **"B2"** (confirmado, DUDA-101) (GOL, MUN, PRO, PQF)                                            |
 | BD — DML templates         | DocumentBuilder           | `DocumentTemplate`: INSERT 4 templates PDF NC México                                                      |
 | BD — DML bucket            | ProquifaDotNet            | `RegionConfiguracionMinioBucket`: INSERT bucket NC MEX si no existe                                       |
 | BD — Tabla catálogo        | ProquifaDotNet            | `catMotivoCancelacionSAT`: CREATE TABLE + DML 4 claves c_MotivoCancelacion SAT                            |
@@ -41,7 +41,7 @@ La NC aplica exclusivamente a **clientes prepago** y a **facturas vigentes con a
 | Previsualización PDF       | ProquifaDotNet.Finanzas   | `CreditNotePdfMappingService.MapearPreviewAsync()` — sin sello, sin UUID                            |
 | Wizard Paso 3              | ProquifaDotNet.Finanzas   | Confirmación, resumen, previsualización PDF, acción Timbrar                                               |
 | Construcción XML CFDI E    | ProquifaDotNet.Finanzas   | Armado del `CreditNoteRequest`: CFDI 4.0 TipoDocumento=E, conceptos, impuestos                      |
-| Timbrado NC                | ProquifaDotNet.Timbrado   | Generación CFDI E + PAC TurboPac + `INSERT CFDIGenerada` + `UPDATE EmpresaFolio` Serie P2                 |
+| Timbrado NC                | ProquifaDotNet.Timbrado   | Generación CFDI E + PAC TurboPac + `INSERT CFDIGenerada` + `UPDATE EmpresaFolio` Serie ~~P2~~ **B2**                 |
 | Cancelación factura        | ProquifaDotNet.Timbrado   | Llamada condicional al PAC para cancelar la factura origen ante el SAT                                    |
 | Persistencia post-timbre   | ProquifaDotNet.Finanzas   | `PersistCreditNotePdfService`: DocumentBuilder → `PQF.Catalogos.SubirArchivo` (bucket + file; ProquifaDotNet sube a MinIO e inserta `Archivo`) → `UPDATE fccNotaCredito` |
 | Correo automático          | ProquifaDotNet.Finanzas   | Envío con PDF + XML adjuntos al timbrar (Para = contacto; CC = ESAC + CxC)                                |
@@ -62,7 +62,7 @@ La NC aplica exclusivamente a **clientes prepago** y a **facturas vigentes con a
 | `CFDIGeneradaRelacionado`                      | Pre-R16   | INSERT UUID factura origen con ClaveTipoRelacion='01'                                  |
 | `CFDICancelacion`                              | Pre-R16   | INSERT condicional si usuario cancela factura origen                                    |
 | `CFDI`                                         | Pre-R16   | Poblado por Timbrado con UUID SAT, sello y certificado                                 |
-| `EmpresaFolio` (estructura)                    | RE-019    | Foliador UPDLOCK atómico; RE-032 agrega filas Serie "P2"                               |
+| `EmpresaFolio` (estructura)                    | RE-019    | Foliador UPDLOCK atómico; RE-032 agrega filas Serie ~~"P2"~~ **"B2"** (confirmado, DUDA-101) |
 | PAC TurboPac                                   | RE-019    | Mismo cliente/servicio para timbrar la NC vía ProquifaDotNet.Timbrado                  |
 | `catTipoCFDI` (tabla)                          | RE-028 T1 | RE-032 inserta clave NOTA_CREDITO                                                      |
 | `Archivo`                                      | Pre-R16   | PDF + XML de la NC almacenados en MinIO                                                |
@@ -87,7 +87,7 @@ Se agregan 13 columnas a la tabla existente para soportar el módulo R16:
 | ----------------------------- | ---------------- | ------- | ------------------------------------------------------------------------ |
 | `IdEmpresa`                   | uniqueidentifier | No      | Empresa emisora (GOL, MUN, PRO, PQF)                                    |
 | `IdCliente`                   | uniqueidentifier | No      | Cliente receptor                                                         |
-| `Serie`                       | varchar(10)      | Sí      | Serie "P2" ⚠️ pendiente validar con PMO                                |
+| `Serie`                       | varchar(10)      | Sí      | ~~Serie "P2" ⚠️ pendiente validar con PMO~~ **Resuelto (DUDA-101): "B2"** (formato/longitud vinculados a DUDA-113) |
 | `Modalidad`                   | varchar(20)      | No      | 'POR_PARTIDAS' \| 'MANUAL'                                              |
 | `Motivo`                      | varchar(50)      | Sí      | Clave del motivo SAT principal                                           |
 | `IdCatNotaCreditoEstado`      | uniqueidentifier | No      | FK `catNotaCreditoEstado` — default PENDIENTE (ver A8)                  |
@@ -137,7 +137,7 @@ Discriminador de tipo CFDI para las NCs. Prereq: RE-028 crea la tabla `catTipoCF
 
 > Ver script en `R16A-RE-FU-032_BD.md` — DML catTipoCFDI.
 
-### A5 — DML EmpresaFolio — Serie "P2"
+### A5 — DML EmpresaFolio — Serie ~~"P2"~~ "B2" (confirmada, DUDA-101)
 
 4 filas en `ProquifaDotNet.EmpresaFolio` (propiedad Finanzas) para GOL, MUN, PRO, PQF.
 
@@ -247,7 +247,7 @@ La resolución del bucket y la subida a MinIO **no las hace Finanzas directament
    Subtotal = Monto / (1 + TasaIVA)
    IVA      = Monto - Subtotal
    ```
-4. Al armar el XML, Finanzas usa ClaveProdServ=84111506 y ClaveUnidad=ACT como default. ⚠️ Pendiente confirmar con PROQUIFA (Criterio F5).
+4. Al armar el XML, Finanzas usa ClaveProdServ=84111506 y ClaveUnidad=ACT como default. ~~⚠️ Pendiente confirmar con PROQUIFA~~ **Confirmado (2026-08-21, DUDA-100): es la convención SAT Apéndice 5, no una decisión abierta** (Criterio F5).
 
 **Resultado esperado:** `fccNotaCredito` en estado PENDIENTE con `ConceptoManual` y `ObservacionesManual` poblados.
 
@@ -271,7 +271,7 @@ La resolución del bucket y la subida a MinIO **no las hace Finanzas directament
 | ------------ | ---------------------------------------------------- |
 | `Moneda`     | `CFDIGenerada.Moneda` de la factura origen           |
 | `TipoCambio` | TC del día del timbrado (null si MXN)                |
-| `FormaPago`  | `CFDIGenerada.FormaPago` de la factura origen pagada (típicamente '03') — ⚠️ modalidad manual pendiente confirmar (Regla 7) |
+| `FormaPago`  | ~~`CFDIGenerada.FormaPago` de la factura origen pagada (típicamente '03') — ⚠️ modalidad manual pendiente confirmar (Regla 7)~~ **Resuelto (2026-08-21, DUDA-098):** no se hereda de la factura origen — se calcula comparando `NC.Monto` vs `SaldoPendiente` de la factura. `NC ≤ SaldoPendiente` → `15` (Condonación), siempre; `NC > SaldoPendiente` → forma real de la devolución, o `23` (Novación) si queda como saldo a favor. `99` queda formalmente excluido (la NC siempre es `PUE`). Aplica igual en ambas modalidades (por partidas y manual). Ver `Guia_Tecnica_Notas_de_Credito_MX.md`. |
 | `RegimenFiscalEmisor` | `Empresa.RegimenFiscal` de la empresa emisora |
 | `RegimenFiscalReceptor` | `DatosFacturacionCliente.RegimenFiscal` |
 | `CodigoPostalReceptor` | `DatosFacturacionCliente.CodigoPostal` |
@@ -288,8 +288,8 @@ Por cada partida con `CantidadNC > 0`, un nodo `Concepto` con:
 
 *Modalidad manual (Criterio F5):*
 Un único nodo `Concepto` con:
-- `ClaveProdServ` = `84111506` (default ⚠️ pendiente confirmar)
-- `ClaveUnidad` = `ACT` (default ⚠️ pendiente confirmar)
+- `ClaveProdServ` = `84111506` (default — **confirmado, DUDA-100**)
+- `ClaveUnidad` = `ACT` (default — **confirmado, DUDA-100**)
 - `Cantidad` = `1`
 - `ValorUnitario` = Subtotal capturado
 - `Descripcion` = `ConceptoManual` capturado por el usuario
@@ -451,7 +451,7 @@ Fecha, Cobrador, Folio NC (acción → PDF), XML (descarga), Emisor, Monto+Moned
 **Flujo:**
 1. Timbrado recibe `CreditNoteRequest` en `POST /api/v1/stamp/credit-note` (StampingController, RE-018).
 2. Construye XML CFDI 4.0 TipoDocumento='E' con todos los nodos (Emisor, Receptor, CfdiRelacionados TipoRelacion='01', Conceptos, Impuestos, MetodoPago='PUE').
-3. Obtiene folio con UPDLOCK atómico: `SELECT UltimoFolio+1 FROM EmpresaFolio WITH (UPDLOCK) WHERE Serie='P2' AND IdEmpresa=@IdEmpresa`.
+3. Obtiene folio con UPDLOCK atómico: `SELECT UltimoFolio+1 FROM EmpresaFolio WITH (UPDLOCK) WHERE Serie='B2' AND IdEmpresa=@IdEmpresa` (serie confirmada `B2`, DUDA-101 — corrige el `'P2'` de versiones previas).
 4. Envía XML al PAC TurboPac.
 5. Recibe XML timbrado con `TimbreFiscalDigital` (UUID SAT, sello SAT, certificado).
 6. INSERT `CFDIGenerada` (TipoDocumento='E', MetodoDePago='PUE', UsoCFDI='G02', IdCatTipoCFDI=NOTA_CREDITO).
@@ -467,7 +467,7 @@ Fecha, Cobrador, Folio NC (acción → PDF), XML (descarga), Emisor, Monto+Moned
 
 ### C1.1 — Contrato `CreditNoteRequest` / `CreditNoteResponse`
 
-Contrato del endpoint `POST /api/v1/stamp/credit-note`. Todos los campos del XML se calculan en Finanzas antes del timbrado (sección B4); Timbrado solo resuelve el folio (UPDLOCK sobre `EmpresaFolio`, Serie "P2", empresa resuelta por el RFC del emisor) y la fecha de emisión al momento de timbrar.
+Contrato del endpoint `POST /api/v1/stamp/credit-note`. Todos los campos del XML se calculan en Finanzas antes del timbrado (sección B4); Timbrado solo resuelve el folio (UPDLOCK sobre `EmpresaFolio`, Serie "B2" — confirmada, DUDA-101, corrige "P2", empresa resuelta por el RFC del emisor) y la fecha de emisión al momento de timbrar.
 
 **El request no lleva IDs de negocio** (`IdFccNotaCredito`, `IdEmpresa`, `IdCliente`, Id de la factura origen): contiene únicamente los datos necesarios para timbrar. La vinculación de la NC con `fccNotaCredito` y con la factura origen la conserva Finanzas, que al recibir el response ejecuta la persistencia post-timbrado (sección B6, paso 4).
 
@@ -484,8 +484,10 @@ namespace ProquifaDotNet.Timbrado.Application.DTOs.CreditNote
         public required string CaptureMode { get; set; }
 
         // ── Comprobante (CFDI 4.0) ────────────────────────────────────────
-        /// <summary>Serie del foliador de NC. Fijo "P2" (pendiente P3 — validar con PMO).</summary>
-        public string Series { get; set; } = "P2";
+        /// <summary>Serie del foliador de NC. Confirmada "B2" (DUDA-101/DUDA-113; corrige el
+        /// literal "P2" usado en versiones previas de este contrato — formato/longitud exactos
+        /// del foliador siguen vinculados a DUDA-113).</summary>
+        public string Series { get; set; } = "B2";
 
         /// <summary>Fijo "E" — Egreso (Regla 6). Atributo TipoDeComprobante.</summary>
         public string VoucherType { get; set; } = "E";
@@ -493,8 +495,10 @@ namespace ProquifaDotNet.Timbrado.Application.DTOs.CreditNote
         /// <summary>Fijo "PUE" — inmutable (Regla 6). Atributo MetodoPago.</summary>
         public string PaymentMethod { get; set; } = "PUE";
 
-        /// <summary>Heredada de CFDIGenerada.FormaPago de la factura origen pagada (típicamente "03").
-        /// Modalidad manual: pendiente P4. Atributo FormaPago.</summary>
+        /// <summary>Resuelto por DUDA-098 — NO se hereda de la factura origen en ningún caso.
+        /// Se calcula comparando NC.Monto vs SaldoPendiente de la factura: "15" (Condonación)
+        /// si NC ≤ SaldoPendiente; forma real de la devolución o "23" (Novación) si NC > SaldoPendiente.
+        /// Nunca "99". Aplica igual en ambas modalidades. Atributo FormaPago.</summary>
         public required string PaymentForm { get; set; }
 
         /// <summary>Heredada de CFDIGenerada.Moneda de la factura origen.</summary>
@@ -515,7 +519,7 @@ namespace ProquifaDotNet.Timbrado.Application.DTOs.CreditNote
 
         // ── Conceptos ─────────────────────────────────────────────────────
         /// <summary>Por partidas: un elemento por partida con CantidadNC > 0.
-        /// Manual: un único elemento (ClaveProdServ 84111506 / ClaveUnidad ACT — pendiente P5).</summary>
+        /// Manual: un único elemento (ClaveProdServ 84111506 / ClaveUnidad ACT — confirmado, DUDA-100).</summary>
         public required List<CreditNoteConcept> Concepts { get; set; }
 
         // ── Totales ───────────────────────────────────────────────────────
@@ -558,9 +562,9 @@ namespace ProquifaDotNet.Timbrado.Application.DTOs.CreditNote
 
     public class CreditNoteConcept
     {
-        /// <summary>ClaveProdServ — heredada del CFDIGeneradaConcepto origen; manual: 84111506 (pendiente P5).</summary>
+        /// <summary>ClaveProdServ — heredada del CFDIGeneradaConcepto origen; manual: 84111506 (confirmado, DUDA-100).</summary>
         public required string ProductServiceKey { get; set; }
-        /// <summary>ClaveUnidad — heredada del concepto origen; manual: "ACT" (pendiente P5).</summary>
+        /// <summary>ClaveUnidad — heredada del concepto origen; manual: "ACT" (confirmado, DUDA-100).</summary>
         public required string UnitKey { get; set; }
         /// <summary>NoIdentificacion — código interno del producto. Null en modalidad manual.</summary>
         public string? IdentificationNumber { get; set; }
@@ -603,7 +607,7 @@ namespace ProquifaDotNet.Timbrado.Application.DTOs.CreditNote
         public required Guid CfdiId { get; set; }
         /// <summary>UUID SAT de la NC.</summary>
         public required string Uuid { get; set; }
-        /// <summary>Serie asignada ("P2").</summary>
+        /// <summary>Serie asignada ("B2" — confirmada, DUDA-101/DUDA-113).</summary>
         public required string Series { get; set; }
         /// <summary>Folio asignado por el foliador (EmpresaFolio, UPDLOCK).</summary>
         public required string Folio { get; set; }
@@ -619,11 +623,11 @@ namespace ProquifaDotNet.Timbrado.Application.DTOs.CreditNote
 
 | Propiedad del request | Nodo/atributo CFDI 4.0 | Origen del dato en Finanzas |
 | --- | --- | --- |
-| `Series` | `cfdi:Comprobante@Serie` | Fijo "P2" (pendiente P3) |
-| — (asignado por Timbrado) | `@Folio` | `EmpresaFolio` UPDLOCK (Serie P2 + empresa resuelta por `Issuer.Rfc`) |
+| `Series` | `cfdi:Comprobante@Serie` | Fijo "B2" (confirmado, DUDA-101/DUDA-113) |
+| — (asignado por Timbrado) | `@Folio` | `EmpresaFolio` UPDLOCK (Serie B2 + empresa resuelta por `Issuer.Rfc`) |
 | `VoucherType` | `@TipoDeComprobante` | Fijo "E" (Regla 6) |
 | `PaymentMethod` | `@MetodoPago` | Fijo "PUE" (Regla 6) |
-| `PaymentForm` | `@FormaPago` | `CFDIGenerada.FormaPago` factura origen (pendiente P4 en manual) |
+| `PaymentForm` | `@FormaPago` | Calculado por SaldoPendiente vs Excedente (DUDA-098) — no heredado de la factura origen |
 | `Currency` / `ExchangeRate` | `@Moneda` / `@TipoCambio` | `CFDIGenerada.Moneda`; TC del día (null si MXN) |
 | `ExpeditionPlace` | `@LugarExpedicion` | CP de la empresa emisora |
 | `Issuer.*` | `cfdi:Emisor` | `Empresa` (RFC, Razón Social, RegimenFiscal) |
@@ -638,7 +642,7 @@ namespace ProquifaDotNet.Timbrado.Application.DTOs.CreditNote
 ```json
 {
   "captureMode": "POR_PARTIDAS",
-  "series": "P2",
+  "series": "B2",
   "voucherType": "E",
   "paymentMethod": "PUE",
   "paymentForm": "03",
@@ -724,7 +728,7 @@ namespace ProquifaDotNet.Timbrado.Application.DTOs.CreditNote
 - `FactorType` = "Exento" ⇒ `RateOrQuota` y `Amount` del traslado en null (consistente con el perfil fiscal RE-FU-000).
 - Error del PAC ⇒ no se persiste nada y se retorna el detalle a Finanzas (Regla 16 / Criterio J5).
 
-**Pendientes que afectan este contrato:** P3 (`Series`/`Folio`), P4 (`PaymentForm` en manual), P5 (`ProductServiceKey`/`UnitKey` default en manual).
+**Pendientes que afectan este contrato:** ~~P3 (`Series`/`Folio`), P4 (`PaymentForm` en manual), P5 (`ProductServiceKey`/`UnitKey` default en manual)~~ — **P3 resuelto parcialmente (DUDA-101: serie `B2`; formato/longitud exactos vinculados a DUDA-113), P4 resuelto (DUDA-098), P5 resuelto (DUDA-100)**, ver Pendientes.
 
 ### C2 — Endpoint: Cancelar CFDI (`POST /api/v1/stamp/cancel` — cancelación condicional de factura origen)
 
@@ -876,7 +880,7 @@ WHERE cne.Clave IN ('VIGENTE','ENVIADA')
 | Módulo                          | Validar Cobro (subproceso)                | Módulo independiente NC                        |
 | CFDI tipo                       | I (Ingreso) / P (Pago)                   | E (Egreso)                                     |
 | Tabla principal                 | `fccDocumentoFiscalCobro` (nueva RE-028)  | `fccNotaCredito` (existente, extendida)        |
-| Foliador serie                  | P (Complemento de Pago)                  | P2 (Nota de Crédito)                           |
+| Foliador serie                  | P (Complemento de Pago)                  | ~~P2~~ **B2** (Nota de Crédito — confirmado, DUDA-101) |
 | ETL Legacy                      | No aplica (RE-028/029/030)               | Sí — nuevo paquete SSIS a PCconnect            |
 | Cancelación factura origen      | No aplica                                | Condicional (totalidad + mismo mes calendario) |
 | Modalidades de captura          | N/A                                      | Por partidas / Manual                          |
@@ -890,9 +894,9 @@ WHERE cne.Clave IN ('VIGENTE','ENVIADA')
 | -- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------- |
 | P1 | Verificar `catUsoCFDI` G02 en BD real (query SSMS)                                                               | A3 / B4                       |
 | P2 | Verificar bucket MinIO 'notas_credito' en `RegionConfiguracionMinioBucket` (query SSMS)                          | E1                            |
-| P3 | Validar Serie "P2" y formato de folio con PMO (Regla 9)                                                          | A5 / C1                       |
-| P4 | Confirmar FormaPago en modalidad manual — '99' fiscalmente incorrecto para NC PUE (Regla 7)                      | B3 / B4                       |
-| P5 | Confirmar ClaveProdServ y ClaveUnidad default para modalidad manual (candidato: 84111506 / ACT — Criterio F5)    | B3 / B4                       |
+| P3 | ~~Validar Serie "P2" y formato de folio con PMO (Regla 9)~~ — **RESUELTO PARCIAL (2026-08-21, DUDA-101):** serie confirmada `B2`; formato/longitud exactos vinculados a DUDA-113 | A5 / C1                       |
+| P4 | ~~Confirmar FormaPago en modalidad manual — '99' fiscalmente incorrecto para NC PUE (Regla 7)~~ — **RESUELTO (2026-08-21, DUDA-098):** aplica en ambas modalidades por SaldoPendiente vs Excedente (`15`/forma real/`23` Novación); `99` queda excluido | B3 / B4                       |
+| P5 | ~~Confirmar ClaveProdServ y ClaveUnidad default para modalidad manual (candidato: 84111506 / ACT — Criterio F5)~~ — **RESUELTO (2026-08-21, DUDA-100):** convención confirmada | B3 / B4                       |
 | P6 | Recibir estructura de tablas PCconnect para completar mapeo ETL SSIS                                             | F3 / F4                       |
 | P7 | ~~Confirmar si endpoint Cancelar CFDI ya existe en Timbrado~~ — **RESUELTO:** el endpoint `POST /api/v1/stamp/cancel` pertenece a RE-FU-018 (allí se crea); RE-032 solo lo reutiliza (ver C2), sin crear uno nuevo | Resuelto — C2 / RE-FU-018     |
 | P8 | Confirmar plantilla final del asunto/cuerpo del correo NC (PMO #31)                                              | B6 paso 5                     |
@@ -908,4 +912,4 @@ WHERE cne.Clave IN ('VIGENTE','ENVIADA')
 | B2 | `fccNotaCreditoPartida.NumeroDePiezas` es `int` — productos con cantidad fraccionaria requieren cambio a `decimal(18,6)`           | ALTER TABLE fccNotaCreditoPartida    |
 | B3 | Estructura PCconnect desconocida — paquete SSIS no puede diseñarse completamente hasta tener el esquema destino                    | ETL SSIS                             |
 | B4 | ~~`catMotivoCancelacionSAT` no existe como tabla catálogo~~ — **RESUELTA:** la tabla se crea en este requisito (sección A7 / BD cambio #8) y se expone vía servicio de catálogo en Finanzas (B9); el front ya no hardcodea las claves | Resuelta — A7 + B9                  |
-| B5 | Políticas de autorización por monto (PMO #54) fuera de scope en R16 — si se requieren en el futuro, impactan el wizard Paso 2     | Wizard Paso 2                        |
+| B5 | Políticas de autorización por monto (PMO #54) fuera de scope en R16 — **confirmado (2026-08-21, DUDA-102): no aplica código de autorización**; si se requieren en el futuro, impactan el wizard Paso 2 | Wizard Paso 2                        |

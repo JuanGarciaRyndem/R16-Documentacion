@@ -25,10 +25,10 @@
 ## Negocio / Cliente (PROQUIFA)
 
 - **Catálogo de Tipos de Inconsistencia del Paso 1** — los 6 registros iniciales de `catTipoInconsistenciaCobro` son propuesta; el catálogo definitivo lo debe entregar PROQUIFA Tesorería antes del desarrollo. (Riesgo 1 del requisito)
-- **Foliador COB: global vs por región** — confirmar si el consecutivo es compartido MEX+PER (una fila en `fccPagoClienteConsecutivo`, como el foliador global de proforma) o independiente por región (una fila/prefijo por región). Impacta la Tarea 4 del KB (que cambia de SEQUENCE a tabla + SP) y a RE-025. *(El formato ya se resolvió: 4 dígitos — ver Decisiones en el contexto.)*
+- ~~**Foliador COB: global vs por región** — confirmar si el consecutivo es compartido MEX+PER (una fila en `fccPagoClienteConsecutivo`, como el foliador global de proforma) o independiente por región (una fila/prefijo por región).~~ **Resuelto — DUDA-072 (21/08/2026):** consecutivo **independiente por región**, con prefijo propio por región: México = `COM` (CO=Cobro, M=México), Perú = `COP` (CO=Cobro, P=Perú); mismo formato mmddaa-consecutivo en ambas, ej. "COM-071726-1" / "COP-071726-1". Prefijos intuitivos en pantalla. Impacta la Tarea 4 del KB (que cambia de SEQUENCE a tabla + SP) y a RE-025 — actualizar ambos para el esquema por región. *(El formato de longitud del consecutivo, si aplica, sigue lo ya resuelto: 4 dígitos — ver Decisiones en el contexto.)*
 ## Fiscal
 
-- **Resolver las dudas del documento de propuestas** — [R16-RE024-PROPUESTAS-DUDAS-073-074.md](R16-RE024-PROPUESTAS-DUDAS-073-074.md): **DUDA-073** (fuente oficial del TC, día aplicable = `FechaPago` en lectura DOF, y valor oficial vs venta como vara de los pagos cruzados) y **DUDA-074** (moneda base / dos TCs por cobro). Las propuestas están formalizadas en ese documento con su pregunta de confirmación por duda; **pendiente únicamente la validación del cliente**. Las decisiones internas de soporte ya están en el contexto (Decisiones); al resolverse, espejear al contexto lo que cambie — incluidas las **validaciones del campo Fecha del cobro** anotadas en la DUDA-073 (fecha no futura; advertencia si es posterior a la recepción del correo).
+- ~~**Resolver las dudas del documento de propuestas** — DUDA-073 y DUDA-074, pendiente validación del cliente.~~ **Resuelto:** **DUDA-073** (fuente oficial del TC = DOF/Banxico Oficial, sin margen 2.5%, de la fecha del comprobante, campo editable) y **DUDA-074** (dos TCs por cobro: MXN fiscal + moneda de facturación operativo) fueron confirmadas por el cliente — ver OBS-049 y OBS-050 en el requisito, ya reflejadas en el documento y en el impacto BD. Sigue pendiente únicamente lo ya anotado aparte: las **validaciones del campo Fecha del cobro** (fecha no futura; advertencia si es posterior a la recepción del correo), que no forman parte de estas dos dudas resueltas.
 
 ## Técnico
 
@@ -201,4 +201,4 @@ Ya resuelto: es el mismo cobro con la etiqueta del monto cambiada (Criterio B1),
 
 ## Transversal (compartido con RE-023)
 
-- **Denominación canónica del rol** — "Gestor de Cobranza" vs "Analista de Cuentas por Cobrar".
+- ~~**Denominación canónica del rol** — "Gestor de Cobranza" vs "Analista de Cuentas por Cobrar".~~ **(Resuelto DUDA-047, 2026-08-21):** denominación canónica del rol operativo = "Gestor de Cobranza".

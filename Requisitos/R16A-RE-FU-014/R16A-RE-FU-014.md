@@ -84,6 +84,9 @@ Al confirmarse el envío exitoso del correo de la proforma, el sistema genera au
 **Regla 11 — Cierre del pendiente de Tramitar Pedido al completar la acción**
 Una vez completados el envío del correo de la proforma y la generación del pendiente en Validar Cobro, el sistema cierra y elimina el pendiente del pedido en la bandeja de Tramitar Pedido, de modo que el pedido ya no aparece como acción pendiente para el ESAC.
 
+**Regla 12 — Conservación del folio de proforma ante reintento de envío (DUDA-030, resuelta 2026-08-21)**
+El folio de proforma ya asignado se CONSERVA (se consume) hasta que el envío del correo se complete exitosamente. Si el envío falla, el sistema debe reintentar con el MISMO folio de proforma; no se descarta el folio asignado ni se genera uno nuevo por cada intento fallido de envío. Esto evita huecos innecesarios en la numeración lineal global del foliador de proformas por simples reintentos de envío.
+
 ---
 
 ## Riesgos
@@ -146,7 +149,13 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 - **Cuando** el ESAC decide no continuar (cancela la previsualización),
 - **Entonces** el sistema deberá permitir volver al pedido sin enviar la proforma.
 
-> ** Pendiente definir la política del folio de proforma ya asignado: si se conserva para el reintento o se descarta. **
+> ~~Pendiente definir la política del folio de proforma ya asignado: si se conserva para el reintento o se descarta.~~
+> **Resuelto (DUDA-030, 2026-08-21):** el folio de proforma se conserva/reintenta con el MISMO folio hasta que el envío se complete exitosamente; no se descarta ni se asigna uno nuevo en cada intento fallido (ver Regla 12).
+
+**Criterio C2b — Reintento de envío conserva el mismo folio de proforma**
+- **Dado** que el envío del correo de la proforma falla tras haberse asignado el folio de proforma,
+- **Cuando** el ESAC o el sistema reintenta el envío,
+- **Entonces** el sistema deberá reutilizar el mismo folio de proforma ya asignado, sin descartarlo ni generar uno nuevo, hasta que el envío se complete exitosamente.
 
 **Criterio C3 — Pantalla de datos de envío con CC editable y ESAC incluido**
 - **Dado** que el usuario llegó al paso de envío del correo,
@@ -190,3 +199,9 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 - El flujo de envío del correo de proforma requiere dos pasos secuenciales en la UI: primero previsualizar y aceptar el PDF; después confirmar los datos de envío del correo.
 - El pendiente del pedido en la bandeja del módulo Tramitar Pedido se cierra automáticamente al completarse la acción de tramitar.
 - Aplicable a las operaciones de México y Perú. Las diferencias regionales (transferencia a Legacy) se materializan en módulos posteriores al de Tramitar Pedido.
+
+## Cambios
+
+| Fecha | Cambio | Referencia |
+|---|---|---|
+| 2026-08-21 | Se resuelve la política del folio de proforma ante reintento de envío fallido: se conserva/consume el mismo folio hasta el envío exitoso (no se descarta ni se reasigna). Se agrega Regla 12 y Criterio C2b; se cierra la nota pendiente bajo el Criterio C2. | DUDA-030 |

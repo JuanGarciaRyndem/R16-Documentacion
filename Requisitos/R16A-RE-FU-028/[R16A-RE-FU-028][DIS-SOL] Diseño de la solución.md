@@ -34,7 +34,7 @@ Hazte estas preguntas rápidas:
 
 **Bloqueantes activos (detalle en Reglas técnicas y Modelo de Datos):**
 
-1. ==**B1 — Tipo de relación SAT `07` para Factura Anticipo de controlados sin confirmar.** Bloquea el Escenario C de timbrado. Dueño: asesor fiscal PROQUIFA / Irma Andrade.==
+1. ~~**B1 — Tipo de relación SAT `07` para Factura Anticipo de controlados sin confirmar.** Bloquea el Escenario C de timbrado. Dueño: asesor fiscal PROQUIFA / Irma Andrade.~~ **RESUELTO — DUDA-088 (2026-08-21):** la Factura Anticipo NO usa relación 07; esa relación aplica en la Factura Final (fuera de alcance). Ver `Guia_Tecnica_Facturas_Ingreso_MX.md` §6. Escenario C desbloqueado.
 2. ==**B3 — Payload y consumidor de la transferencia a Legacy (E3/E6, factura+PDF) sin definir.** Dueño: Arquitectura.==
 3. ==**B4 — Granularidad de la Fecha Estimada de Entrega (cabecera vs. partida) sin decidir.** Dueño: Operaciones MX.==
 4. ==**Acceso al repositorio `ProquifaDotNet.Finanzas`/`.Timbrado` (.NET Core 10) pendiente.** Sin él no se pudo verificar el orquestador del Paso 3 a nivel de código — las rutas de archivo de este documento son **propuestas**, no confirmadas. Dueño: Lead técnico.==
@@ -149,7 +149,7 @@ Body del paso 2:
 3. Si la línea es `FACTURA` o `FACTURA_ANTICIPO` con Método PUE: `Timbrado` genera 1 CFDI (`TipoDocumento = 'I'`).
 4. Si la línea es `FACTURA` con Método PPD: `Timbrado` genera **2 CFDIs en cascada** — Factura PPD y, de inmediato, el Complemento relacionado vía `CFDIGeneradaRelacionado` (no un `ALTER` nuevo — ver Modelo de Datos).
    - Si el Complemento falla tras la Factura PPD exitosa: la línea transiciona a `GENERADO_COMPLEMENTO_PENDIENTE` (estado limbo, ver Reglas técnicas RT-11); la Factura PPD **permanece vigente ante SAT** y el único reintento permitido es `POST /api/v1/validate-collection/fiscalDocumentLine/{idLinea}/stamp (retry Complemento)`.
-5. Si la línea es `FACTURA_ANTICIPO`: se timbra con TipoRelacion **07** en el XML. ==**B1 — bloqueante fiscal:** el `07` exige un CFDI de Anticipo previo al cual aplicar; el flujo directo puede ser rechazado por el PAC/SAT. Pendiente confirmar con asesor fiscal PROQUIFA (Duda #3 del RAD).==
+5. Si la línea es `FACTURA_ANTICIPO`: ~~se timbra con TipoRelacion **07** en el XML.~~ ~~**B1 — bloqueante fiscal:** el `07` exige un CFDI de Anticipo previo al cual aplicar; el flujo directo puede ser rechazado por el PAC/SAT. Pendiente confirmar con asesor fiscal PROQUIFA (Duda #3 del RAD).~~ **CORREGIDO — DUDA-088 (2026-08-21):** se timbra SIN `TipoRelacion`/`CfdiRelacionados` (la relación 07 es de la Factura Final, fuera de alcance, generada en Legacy). Conforme `Guia_Tecnica_Facturas_Ingreso_MX.md` §6: `ClaveProdServ=84111506`, `ClaveUnidad=ACT`, descripción "Anticipo del bien o servicio". Brecha B1 resuelta.
 6. Si la línea es `COMPLEMENTO_PAGO`: se timbra 1 CFDI Pago, relacionado al UUID de la Factura Anticipo (`tpProformaAdelanto.IdCFDIGenerada`) vía `CFDIGeneradaRelacionado`. UsoCFDI fijo `CP01` — el seed de este valor en `catUsoCFDI` lo trae RE-FU-030; coordinar su ejecución.
 7. Timbrado exitoso: transición a `GENERADO` (irreversible); persistencia del PDF definitivo (reuso RE-FU-021) → MinIO.
 8. Fallo del PAC: la línea permanece `PENDIENTE` con el error correspondiente (ver Manejo de Errores).
@@ -188,7 +188,7 @@ Body del paso 1:
 | CA-6 | Timbrar la línea y transicionar a GENERADO | Cubierto | Flujo 3 pasos 3-7 |
 | CA-7 | Cascada PPD: 2 CFDIs (Factura + Complemento) en una sola acción | Cubierto | Flujo 3 paso 4, `CFDIGeneradaRelacionado` |
 | CA-8 | Fallo parcial de la cascada no re-timbra la Factura PPD | Cubierto | Flujo 3 paso 4, estado `GENERADO_COMPLEMENTO_PENDIENTE` (RT-11) |
-| CA-9 | Factura Anticipo de controlados se timbra con relación fiscal correcta | ==Pendiente== | ==Bloqueado por B1 — regla fiscal sin confirmar== |
+| CA-9 | Factura Anticipo de controlados se timbra con relación fiscal correcta | **Cubierto** | **RESUELTO — DUDA-088:** sin relación 07 (esa es de la Factura Final, fuera de alcance) — ver Flujo 3 paso 5 |
 | CA-10 | Incluir NCs aplicadas en `CfdiRelacionados` | Cubierto | `CFDIGeneradaRelacionado` con `ClaveTipoRelacion = 01` (mismo patrón que usa RE-FU-032) |
 | CA-11 | Enviar CFDI(s) al cliente y transicionar a ENVIADO | Cubierto | Flujo 4 pasos 1-3 |
 | CA-12 | Establecer FEE al enviar (solo México) | ==Pendiente== | ==Bloqueado por B4 — granularidad sin decidir== |
@@ -212,7 +212,7 @@ Body del paso 1:
 | RT-06 | Fallback de Uso CFDI cuando `tpPedido.IdCatUsoCFDI` y `DatosFacturacionCliente.IdCatUsoCFDI` son ambos `NULL`: definir valor (candidato `S01`, no `P01` — deprecado por el SAT en CFDI 4.0). |
 | RT-07 | El Método de Pago por línea es editable en FACTURA/FACTURA_ANTICIPO; fijo `PPD` en COMPLEMENTO_PAGO (normativa SAT). Confirmar si la edición por línea sobrescribe `tpPedido.IdCatMetodoDePagoCFDI` (NOT NULL) o es independiente por documento. |
 | RT-08 | Inmutabilidad post-timbrado (legal SAT): `PENDIENTE → GENERADO` es irreversible; corrección solo vía Notas de Crédito. El backend es el único guardián — sin bypass client-side. |
-| RT-09 | Operación individual por línea — sin acciones masivas; el timbrado/envío de una línea no bloquea otras. |
+| RT-09 | Operación individual por línea — sin acciones masivas; el timbrado/envío de una línea no bloquea otras. (Confirmado con cliente, DUDA-050: aceptó timbrado uno a uno, no masivo.) |
 | RT-10 | FEE: reusar `FechaEstimadaEntregaBO` (cálculo por partida + homologación, ya existente). `tpPedido.FechaEstimadaEntrega` no existe en BD — no crear ese `ALTER` sin resolver primero B4. |
 | RT-11 | Estado limbo de la cascada PPD: `GENERADO_COMPLEMENTO_PENDIENTE` persiste `IdCFDIGeneradaFactura` y deja `IdCFDIGeneradaComplemento = NULL`; el reintento invoca **solo** el timbrado del Complemento con el UUID de la Factura vigente, nunca re-timbra la Factura. |
 | RT-12 | Transferencia a Legacy: el canal es `PQF.Logistica TramitarPedido` → aplicativo `LegacySync`. Contrato de payload por evento (E1/E2/E3/E6) pendiente de definir (B3). |

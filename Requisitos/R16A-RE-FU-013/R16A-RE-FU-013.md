@@ -40,7 +40,8 @@ El sistema debe permitir, en el módulo Tramitar Pedido, la tramitación de pedi
 - Pedidos prepago sin sustancias controladas (variante cubierta en requisitos independientes del bloque Prepago).
 - Pedidos con activación de Factura por Adelantado: en México no se permite con controlados porque el CFDI de venta de primera mano exige el dato del pedimento aduanero, inexistente al facturar por adelantado (los radio buttons no aparecen).
 - Pedidos con marca de Entrega con Remisión (no permitida por regla regulatoria cuando hay controlados; los radio buttons no aparecen).
-- Región Perú: el manejo de Sustancias Controladas no está contemplado dentro del alcance de esta release para Perú (confirmado por el cliente — Duda 061). Este flujo (Prepago con controlados) se acota a Región México. El sistema no restringe el avance por código; el control es operativo (ver Riesgo 3).
+- Región Perú: el manejo de Sustancias Controladas no está contemplado dentro del alcance de esta release para Perú (confirmado por el cliente — Duda 061). Este flujo (Prepago con controlados) se acota a Región México. El sistema no restringe el avance por código; el control es operativo (ver Riesgo 3 y DUDA-027).
+- Región Perú — Factura por Adelantado con controlados: confirmado (DUDA-029) que, igual que en México, la exclusión de Factura por Adelantado con productos controlados es también el criterio esperado para Perú. El tratamiento es el mismo que el de DUDA-027: manejo operativo, no restringido por código; no hay una validación de sistema distinta por región para este caso.
 - La validación de presencia de Licencia Sanitaria y Aviso de Responsable Sanitario del cliente, que ocurre en el módulo Pretramitar Pedido antes de llegar a Tramitar Pedido.
 - La validación del cobro de la proforma, la emisión de la factura anticipo, el timbrado fiscal, el cálculo de la FEE y la generación de la Confirmación de Pedido. Todas esas acciones ocurren en el módulo Validar Cobro y se cubren en requisitos independientes.
 
@@ -49,7 +50,7 @@ El sistema debe permitir, en el módulo Tramitar Pedido, la tramitación de pedi
 ## Reglas de Negocio
 
 **Regla 1 — No visualización de Factura por Adelantado y Entrega con Remisión**
-Para pedidos que contienen al menos una sustancia controlada tipo Mundial, Nacional u Origen, el sistema no muestra los radio buttons de Factura por Adelantado ni de Entrega con Remisión. Estas opciones no aparecen en la pantalla.
+Para pedidos que contienen al menos una sustancia controlada tipo Mundial, Nacional u Origen, el sistema no muestra los radio buttons de Factura por Adelantado ni de Entrega con Remisión. Estas opciones no aparecen en la pantalla. Esta exclusión aplica de forma consistente para México y Perú (DUDA-029): en México es una restricción de sistema por el requisito fiscal-aduanero del pedimento; en Perú, dado que el manejo de controlados no está en alcance de esta release y no hay bloqueo por código, la exclusión de Factura por Adelantado con controlados queda como el mismo criterio esperado a nivel operativo, no como una validación de sistema adicional.
 
 **Regla 2 — Generación automática de proforma al tramitar**
 Al ejecutar la acción de tramitar un pedido prepago con sustancias controladas, el sistema genera automáticamente una proforma en formato PDF.
@@ -81,6 +82,9 @@ Una vez ejecutada exitosamente la acción de tramitar, completado el envío del 
 **Regla 11 — Composición regionalizada del panel de Información de Facturación**
 El panel de Información de Facturación de Tramitar Pedido es transversal a ambas regiones y muestra los datos del cliente tomados del catálogo, en modo solo lectura. Los campos comunes a México y Perú son: Razón Social, identificador fiscal (RFC para México / RUC para Perú), Moneda, Quién Factura (empresa emisora), Condiciones de Pago (plazo comercial; ej. "60 Días", "Prepago 100%") y Comentarios para la Facturación. Los campos fiscales se regionalizan según la Región del cliente: para México se muestran Uso CFDI y Método de Pago (catálogos SAT); para Perú estos se reemplazan por Tipo de Operación (catálogo 51 SUNAT) y Condición de Pago SUNAT (Contado/Crédito). Los campos Forma de Pago (medio) y correo de envío no se muestran en este panel en ninguna región.
 
+**Regla 12 — Conservación del folio de proforma ante reintento de envío (DUDA-030)**
+El folio de proforma asignado al tramitar se consume (se conserva) hasta que el envío del correo se complete exitosamente. Si el envío falla y el ESAC reintenta, el sistema reutiliza el MISMO folio ya asignado; no se descarta el folio ni se asigna uno nuevo en cada intento fallido.
+
 ---
 
 ## Riesgos
@@ -94,7 +98,7 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 **Riesgo 3 — Avance de pedidos con controlados de Región Perú (riesgo operativo asumido)**
 El manejo de Sustancias Controladas para Región Perú no está contemplado en el alcance de esta release (confirmado por el cliente — Duda 061). Se decidió **no restringirlo por código**, para evitar desarrollo y reversa cuando Perú habilite controlados más adelante. En consecuencia, el sistema no impide que un pedido con controlados de un cliente Perú avance hacia la tramitación; el control es operativo, no de sistema.
 
-> **Decisión acordada entre Osmar y Robert:** el flujo para Perú con controlados queda como control operativo del equipo. No se implementa bloqueo en sistema. Se asume el riesgo y se comunica al equipo operativo.
+> **Decisión acordada entre Osmar y Robert (confirmada en DUDA-027):** el flujo para Perú con controlados queda como control operativo del equipo. No se implementa bloqueo en sistema. Se asume el riesgo y se comunica al equipo operativo.
 
 ---
 
@@ -146,7 +150,12 @@ El manejo de Sustancias Controladas para Región Perú no está contemplado en e
 - **Cuando** el ESAC decide no continuar (cancela la previsualización),
 - **Entonces** el sistema deberá permitir volver al pedido sin enviar la proforma.
 
-> **Pendiente definir** la política del folio de proforma ya asignado: si se conserva para el reintento o se descarta.
+> ~~**Pendiente definir** la política del folio de proforma ya asignado: si se conserva para el reintento o se descarta.~~ **Resuelto (DUDA-030):** el folio se consume/conserva hasta el envío exitoso; ver Criterio C2bis y Regla 12.
+
+**Criterio C2bis — Conservación del folio de proforma en reintento de envío**
+- **Dado** que la proforma ya tiene folio asignado y el envío del correo falla o el ESAC cancela la previsualización,
+- **Cuando** el ESAC reintenta el envío,
+- **Entonces** el sistema deberá reutilizar el mismo folio de proforma ya asignado, sin descartarlo ni generar uno nuevo, hasta que el envío se complete exitosamente (DUDA-030).
 
 **Criterio C3 — Pantalla de datos de envío con CC editable y ESAC incluido**
 - **Dado** que el usuario llegó al paso de envío del correo,
@@ -184,3 +193,4 @@ El manejo de Sustancias Controladas para Región Perú no está contemplado en e
 - La validación de documentos regulatorios del cliente (Licencia Sanitaria y Aviso de Responsable Sanitario) ocurre antes de llegar a Tramitar Pedido (responsabilidad del módulo Pretramitar Pedido).
 - Los campos de información fiscal del módulo están actualmente configurados conforme a las normas fiscales de México. Para pedidos peruanos se espera capacitación al equipo operativo para clarificar el manejo de estos campos en contexto peruano.
 - Aplicable a las operaciones de México y Perú. Las diferencias regionales (transferencia a Legacy, foliador del pedido) se materializan en módulos posteriores al de Tramitar Pedido.
+- **Trazabilidad (2026-08-21):** DUDA-027 confirma que el avance de un controlado de Perú hacia facturación no tiene bloqueo técnico y se asume como riesgo operativo comunicado al cliente (Riesgo 3). DUDA-029 confirma que la exclusión de Factura por Adelantado con controlados aplica igual para México y Perú, con control operativo y no por código (Regla 1, Alcance). DUDA-030 resuelve que el folio de proforma se conserva y reintenta con el mismo folio hasta el envío exitoso, sin descartarlo (Regla 12, Criterio C2bis).

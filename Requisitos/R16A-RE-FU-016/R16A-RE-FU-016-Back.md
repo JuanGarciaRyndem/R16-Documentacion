@@ -251,8 +251,8 @@ ProquifaDotNet (Venta Interna)     ProquifaDotNet.Finanzas          DocumentBuil
 
 | # | Duda | Impacto |
 |---|------|---------|
-| 1 | ¿Sección Cliente muestra Alias o Razón Social? | Define campo en DTO |
-| 2 | ¿Regla exacta de cálculo de Vigencia? | Define lógica |
+| 1 | ~~¿Sección Cliente muestra Alias o Razón Social?~~ **Resuelto (DUDA-034, 2026-08-21): Razón Social.** | El DTO debe mapear `cliente.nombre` a la Razón Social del cliente (DatosFacturacionCliente), no al Alias |
+| 2 | ~~¿Regla exacta de cálculo de Vigencia?~~ **Resuelto (DUDA-033, 2026-08-21): 30 días naturales desde la generación.** | La lógica de cálculo de `header.vigencia` = fecha de generación + 30 días naturales |
 | 3 | ¿Endpoint proforma dedicado o genérico en DocumentBuilder? | Recomendación: dedicado (patrón Quotation) |
 
 ---

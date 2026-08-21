@@ -215,7 +215,7 @@ END;
 
 | Región | ClaveISO | Texto de la Leyenda | Estado |
 |--------|----------|---------------------|--------|
-| México | MEX | 'Producto sujeto a regulación sanitaria. Para procesar el pedido se requiere: Licencia Sanitaria vigente y Aviso de Responsable Sanitario.' | ⚠️ PENDIENTE confirmar texto final con cliente/UX |
+| México | MEX | 'Producto sujeto a regulación sanitaria. Para procesar el pedido se requiere: Licencia Sanitaria vigente y Aviso de Responsable Sanitario.' | ✅ **Resuelto (DUDA-019, 2026-08-21):** texto definitivo; ~~PENDIENTE confirmar texto final con cliente/UX~~ — la decisión es interna (Ryndem/PROQUIFA), NO se consulta al cliente |
 | Perú | PER | [placeholder DIGEMID] | ⚠️ PENDIENTE: confirmar denominación exacta con cliente |
 
 > El texto de la leyenda no se almacena en BD — es una constante en la capa de aplicación.
@@ -315,8 +315,8 @@ ORDER BY cot.FechaCotizacion DESC;
 | 1 | `fnEsProductoControlado` incompleta | Solo detecta Mundiales y Nacionales — falta Origen | Ejecutar `ALTER FUNCTION` (script Sección 4) | Alta |
 | 2 | `catControl.Controlado = 0` en todos | El flag bit `Controlado` está en 0 para todos los registros | Verificar si debe actualizarse o si la lógica usa solo `Clave` | Media |
 | 3 | Texto leyenda Perú indefinido | Denominación DIGEMID no confirmada por cliente | Confirmar con cliente antes de desarrollo | Alta |
-| 4 | Texto leyenda México sin confirmar | Texto definitivo es decisión UX/Marketing del cliente | Confirmar texto exacto con cliente | Media |
-| 5 | Ubicación leyenda en PDF sin definir | Encabezado, sección dedicada o pie de página | Definir en sprint de diseño UI | Media |
+| 4 | ~~Texto leyenda México sin confirmar~~ | **Resuelto (DUDA-019, 2026-08-21):** el texto es decisión interna del equipo Ryndem/PROQUIFA (UX/Marketing); NO es decisión del cliente ni requiere su confirmación. Se usa el texto base definitivo. | Cerrado | — |
+| 5 | ~~Ubicación leyenda en PDF sin definir~~ | **Resuelto (DUDA-019, 2026-08-21):** la ubicación es decisión interna del equipo Ryndem/PROQUIFA (UX/Marketing), no se consulta con el cliente. | Definir posición final en sprint de diseño UI interno (sin bloqueo de cliente) | Baja |
 | 6 | Leyenda no parametrizable en BD | Texto de leyenda como constante en código — difícil de actualizar | Evaluar tabla `catLeyendaRegulatoriaRegion` | Baja |
 
 ---
@@ -338,7 +338,7 @@ ORDER BY cot.FechaCotizacion DESC;
 
 | # | Riesgo | Mitigación |
 |---|--------|------------|
-| 1 | Leyenda redundante para clientes con documentos cargados | Comportamiento intencional R16 — documentado |
+| 1 | Leyenda redundante para clientes con documentos cargados | Comportamiento intencional R16 — documentado. **Resuelto (DUDA-020, 2026-08-21):** se mantiene la leyenda genérica/universal (se muestra siempre que hay ≥1 producto controlado, sin importar si el cliente ya tiene documentos regulatorios cargados); se descarta la variante dinámica. |
 | 2 | Denominación Perú no definida | **No iniciar desarrollo para PE** hasta confirmar con cliente |
 
 ---

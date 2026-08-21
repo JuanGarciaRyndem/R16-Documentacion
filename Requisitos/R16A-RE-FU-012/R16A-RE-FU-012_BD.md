@@ -205,7 +205,7 @@ paralelo). Ver `R16A-RE-FU-015_BD.md`, seccion "Migracion de tpProformaAdelanto"
 | # | Gap | Accion |
 |---|-----|--------|
 | 1 | ~~Relacion tpProformaAdelanto con tpPedido no es FK directa~~ | **Resuelto por la migración**: `fccFactura.IdTPPedido` es FK directa y obligatoria |
-| 2 | Rol que gestiona FAA no confirmado | Finanzas o Coordinador de Planeacion - confirmar con cliente |
+| 2 | ~~Rol que gestiona FAA no confirmado (Finanzas o Coordinador de Planeacion)~~ | **Resuelto (DUDA-028, 2026-08-21)**: no se define en este requisito; el rol responsable queda determinado por los permisos/roles de acceso al módulo Factura por Adelantado (ver DUDA-047) |
 | 3 | Pendiente 'Relacionar facturas' en Legacy | Mecanismo PQF2->Legacy para este pendiente fuera de scope |
 | 4 | Migración de `fccPagoFacturaAdelanto.IdTPProformaAdelanto` → `IdFccFactura` | Ver `R16A-RE-FU-026_BD.md`/`R16A-RE-FU-027-Back.md` — impacta la asociación de cobro para FAA de Crédito |
 

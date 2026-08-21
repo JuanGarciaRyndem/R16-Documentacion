@@ -52,14 +52,14 @@ El sistema genera el PDF de Proforma únicamente cuando el pedido es en modalida
 La Proforma se diferencia según la empresa emisora del pedido (una de las cuatro del grupo PROQUIFA México) en logo, color institucional, dirección y razón social legal correspondiente.
 
 **Regla 3 — Foliador global con prefijo PRF**
-El folio de la Proforma usa el foliador global lineal PQF2 para Proformas (un solo contador sin segmentación por empresa) en formato MMDDAA-Consecutivo, con prefijo "PRF-" en la representación visual del documento (ejemplo: "PRF-031826-691").
+El folio de la Proforma usa el foliador global lineal PQF2 para Proformas (un solo contador sin segmentación por empresa) en formato MMDDAA-Consecutivo, con prefijo "PRF-" en la representación visual del documento (ejemplo: "PRF-031826-691"). El prefijo "PRF-" es **exclusivamente visual**: en base de datos se almacena únicamente el número de folio, sin el prefijo; la transferencia del dato a Legacy debe considerarse sin el prefijo. *(DUDA-032, Resuelta)*
 
-> ** Pendiente confirmar si el prefijo se persiste también en el folio interno almacenado en base de datos. **
+> ~~Pendiente confirmar si el prefijo se persiste también en el folio interno almacenado en base de datos.~~ Resuelto — ver DUDA-032: el prefijo es solo visual, no se persiste en BD.
 
 **Regla 4 — Vigencia del documento**
-La Proforma calcula y muestra una fecha de vigencia en formato DD/MM/YYYY.
+La Proforma calcula y muestra una fecha de vigencia en formato DD/MM/YYYY. La vigencia es de **30 días naturales**, contados a partir del momento de la **generación** de la Proforma. *(DUDA-033, Resuelta)*
 
-> ** La regla exacta del cálculo de la vigencia queda como duda formal del proyecto, pendiente de confirmar con el cliente. **
+> ~~La regla exacta del cálculo de la vigencia queda como duda formal del proyecto, pendiente de confirmar con el cliente.~~ Resuelto — ver DUDA-033: 30 días naturales desde la generación.
 
 **Regla 5 — Generación bajo demanda durante el flujo previo al envío**
 Al presionar "Tramitar" para un pedido Prepago sin Factura por Adelantado de cliente México, el sistema genera el PDF de la Proforma dinámicamente, leyendo los datos vigentes en ese momento desde las fuentes (Catálogo de Clientes, Pedido, Catálogo de Cuentas Bancarias, Tabla de Empresas, Referencia Bancaria del Cliente), y lo muestra en previsualización. En esta etapa el PDF no se almacena en base de datos.
@@ -89,10 +89,12 @@ Los paneles del documento se arman desde las fuentes indicadas: datos de partida
 
 ## Riesgos
 
-**Riesgo 1 — Consumo prematuro del folio en la previsualización**
-Si el sistema reserva un folio del foliador global PQF2 al generar el PDF en la previsualización pero el usuario abandona sin enviar, ese folio quedaría huérfano generando huecos en la numeración consecutiva. La numeración consecutiva sin huecos puede ser un requisito fiscal o de auditoría.
+**Riesgo 1 — Consumo prematuro del folio en la previsualización (Resuelto)**
+Si el sistema reservara un folio del foliador global PQF2 al generar el PDF en la previsualización pero el usuario abandonara sin enviar, ese folio quedaría huérfano generando huecos en la numeración consecutiva. La numeración consecutiva sin huecos puede ser un requisito fiscal o de auditoría.
 
-> ** Pendiente decisión técnica: definir si el folio se reserva al generar el PDF de previsualización (consume folio aunque no se envíe) o exclusivamente al confirmar el envío exitoso (sin huecos). **
+Resuelto: el folio **se consume hasta el envío correcto** — se reserva/reintenta con el mismo folio hasta que el envío se complete exitosamente; no se descarta en cada intento fallido, evitando huecos. *(DUDA-031, Resuelta)*
+
+> ~~Pendiente decisión técnica: definir si el folio se reserva al generar el PDF de previsualización (consume folio aunque no se envíe) o exclusivamente al confirmar el envío exitoso (sin huecos).~~ Resuelto — ver DUDA-031.
 
 **Riesgo 2 — Tipo de cambio inconsistente entre Proforma y validación de pago posterior**
 Si el tipo de cambio mostrado en la Proforma difiere del aplicado al recibir el pago en Validar Cobro, el cliente puede recibir documentos con montos distintos en moneda local generando confusión.
@@ -121,25 +123,25 @@ Si el tipo de cambio mostrado en la Proforma difiere del aplicado al recibir el 
 **Criterio A4 — Folio con prefijo PRF**
 - **Dado** que el sistema renderiza la cabecera,
 - **Cuando** incluye el folio del documento,
-- **Entonces** deberá mostrar el folio con formato "PRF-MMDDAA-Consecutivo" (ejemplo: "PRF-031826-691"). El consecutivo corresponde al foliador global lineal PQF2.
+- **Entonces** deberá mostrar el folio con formato "PRF-MMDDAA-Consecutivo" (ejemplo: "PRF-031826-691"). El consecutivo corresponde al foliador global lineal PQF2. El prefijo "PRF-" es solo visual (no se persiste en BD, ver DUDA-032) y el folio se consume hasta el envío exitoso, sin huecos por intentos fallidos (ver DUDA-031).
 
-> ** El momento exacto en que se consume el folio (al previsualizar vs al confirmar envío) queda como duda técnica del proyecto. **
+> ~~El momento exacto en que se consume el folio (al previsualizar vs al confirmar envío) queda como duda técnica del proyecto.~~ Resuelto — ver DUDA-031: se consume al confirmar envío exitoso.
 
 **Criterio A5 — Vigencia del documento**
 - **Dado** que el sistema renderiza la cabecera,
 - **Cuando** incluye el campo Vigencia,
-- **Entonces** deberá mostrar la fecha de vigencia en formato DD/MM/YYYY.
+- **Entonces** deberá mostrar la fecha de vigencia en formato DD/MM/YYYY, calculada como **30 días naturales** a partir de la fecha de generación de la Proforma.
 
-> ** Regla exacta del cálculo pendiente confirmar. **
+> ~~Regla exacta del cálculo pendiente confirmar.~~ Resuelto — ver DUDA-033: 30 días naturales desde la generación.
 
 ### Sección B — Identificación del cliente
 
 **Criterio B1 — Identificación del cliente**
 - **Dado** que el sistema renderiza la sección Cliente,
 - **Cuando** incluye el identificador del cliente,
-- **Entonces** deberá mostrar el Alias del cliente desde el Catálogo de Clientes.
+- **Entonces** deberá mostrar la ~~Alias~~ **Razón Social** del cliente desde el Catálogo de Clientes.
 
-> ** Pendiente confirmar si el dato fuente correcto es Alias o Razón Social. **
+> ~~Pendiente confirmar si el dato fuente correcto es Alias o Razón Social.~~ Resuelto — ver DUDA-034: debe mostrarse la Razón Social.
 
 ### Sección C — Tabla de partidas
 
@@ -173,18 +175,18 @@ Si el tipo de cambio mostrado en la Proforma difiere del aplicado al recibir el 
 **Criterio D5 — Leyenda "Pago en una sola exhibición"**
 - **Dado** que el sistema renderiza el final de la sección de pago,
 - **Cuando** incluye la leyenda de exhibición,
-- **Entonces** deberá mostrar el texto "PAGO EN UNA SOLA EXHIBICIÓN" como leyenda fiscal obligatoria SAT.
+- **Entonces** deberá mostrar el texto "PAGO EN UNA SOLA EXHIBICIÓN" como leyenda fiscal obligatoria SAT. Esta leyenda es **fija para toda Proforma** (el esquema Prepago siempre asume PUE), independiente de la configuración de Método de Pago del cliente.
 
-> ** Confirmar si siempre es PUE. **
+> ~~Confirmar si siempre es PUE.~~ Resuelto — ver DUDA-035: la leyenda es fija, la proforma siempre se enfoca a PUE.
 
 ### Sección E — Datos bancarios
 
-**Criterio E1 — Doble cuenta visible siempre**
+**Criterio E1 — Cuentas activas más recientes de la empresa que factura**
 - **Dado** que el sistema renderiza la sección de datos bancarios,
 - **Cuando** arma el contenido,
-- **Entonces** deberá mostrar SIEMPRE las dos cuentas (una en M.N. y una en DLS) del grupo PROQUIFA México, independientemente de la moneda del pedido. Los campos por cuenta son: Moneda, Banca, Sucursal, Cuenta, CLABE y REF. CLIENTE.
+- **Entonces** deberá mostrar las **dos cuentas activas más recientes** (según Fecha de última actualización) de la empresa que factura, independientemente de la moneda del pedido. Si solo existe una cuenta activa, se muestra únicamente esa; si hay más de dos registradas, se toman las dos más recientes. Este mismo mecanismo aplica también a Proformas de Perú. Los campos por cuenta son: Moneda, Banca, Sucursal, Cuenta, CLABE y REF. CLIENTE.
 
-> ** Confirmar si siempre se muestran M.N y DLS o puede variar, ej. EUR. **
+> ~~Confirmar si siempre se muestran M.N y DLS o puede variar, ej. EUR.~~ Resuelto — ver DUDA-036: se muestran las dos cuentas activas más recientes (o solo una si es lo único activo).
 
 **Criterio E2 — Referencia bancaria del cliente (REF. CLIENTE)**
 - **Dado** que el sistema renderiza la REF. CLIENTE de cada cuenta,
@@ -203,11 +205,11 @@ Si el tipo de cambio mostrado en la Proforma difiere del aplicado al recibir el 
 **Criterio G1 — Pedido, Parciales, Contacto, Lugar**
 - **Dado** que el sistema renderiza la sección de entrega,
 - **Cuando** incluye los datos de entrega,
-- **Entonces** deberá mostrar: Número de pedido interno; Parciales (SI/NO) según configuración del pedido; Contacto de entrega del pedido (si no existe, mostrar "NINGUNO"); Lugar de entrega completo (dirección).
+- **Entonces** deberá mostrar: Número de pedido interno; Parciales (SI/NO) según configuración del pedido; Contacto (Título+Contacto, con referencia a la tabla Pedidos en Legacy; si no existe, mostrar "NINGUNO"); Lugar de entrega completo (dirección).
 
 > ** Aplica la misma duda de generación de folio interno, ya que no se ha enviado el pedido aún. **
 
-> ** Confirmar si es el contacto de entrega, contacto del cliente o contacto que realizó el pedido. **
+> ~~Confirmar si es el contacto de entrega, contacto del cliente o contacto que realizó el pedido.~~ Resuelto — ver DUDA-037: el campo Contacto se llena con Título+Contacto, con referencia a la tabla Pedidos en Legacy.
 
 ### Sección H — Pie legal de la empresa emisora
 
@@ -262,9 +264,9 @@ Si el tipo de cambio mostrado en la Proforma difiere del aplicado al recibir el 
 **Criterio J3 — Persistencia del PDF al confirmar envío exitoso del correo**
 - **Dado** que el sistema confirma que el correo de envío al cliente fue exitoso,
 - **Cuando** se completa el envío,
-- **Entonces** deberá persistir el PDF final en base de datos como artefacto histórico inmutable. El pendiente en Tramitar Pedido se cierra.
+- **Entonces** deberá persistir el PDF final como artefacto histórico inmutable. El PDF se almacena en el sistema como archivo/binario y no sufre regeneración: es el PDF generado originalmente el que se conserva y consulta, no se reconstruye a partir de datos. El pendiente en Tramitar Pedido se cierra.
 
-> ** Pendiente decisión técnica del tipo de almacenamiento del PDF (binario completo vs snapshot estructurado). **
+> ~~Pendiente decisión técnica del tipo de almacenamiento del PDF (binario completo vs snapshot estructurado).~~ Resuelto — ver DUDA-039: se almacena como archivo/binario, sin regeneración posterior.
 
 **Criterio J4 — Consulta del PDF histórico desde Validar Cobro**
 - **Dado** que una Proforma fue enviada y persistida,
@@ -293,24 +295,24 @@ Si el tipo de cambio mostrado en la Proforma difiere del aplicado al recibir el 
 - El foliador es global lineal PQF2 para Proformas (un solo contador sin segmentación por empresa).
 - La paginación automática del PDF cuando las partidas exceden una página es comportamiento ya existente en PQF2.
 
-> ** Pendiente confirmar la regla exacta de Vigencia del documento. **
+> ~~Pendiente confirmar la regla exacta de Vigencia del documento.~~ Resuelto (2026-08-21) — ver DUDA-033: 30 días naturales desde la generación.
 
-> ** Pendiente confirmar si el prefijo "PRF-" del folio aplica solo a la representación visual del PDF o también se persiste en el folio interno almacenado en base de datos. **
+> ~~Pendiente confirmar si el prefijo "PRF-" del folio aplica solo a la representación visual del PDF o también se persiste en el folio interno almacenado en base de datos.~~ Resuelto (2026-08-21) — ver DUDA-032: solo visual, no se persiste en BD.
 
-> ** Pendiente confirmar si la sección Cliente muestra el Alias del cliente o la Razón Social. **
+> ~~Pendiente confirmar si la sección Cliente muestra el Alias del cliente o la Razón Social.~~ Resuelto (2026-08-21) — ver DUDA-034: Razón Social.
 
-> ** Pendiente confirmar si los pedidos Prepago siempre son Método de Pago PUE. **
+> ~~Pendiente confirmar si los pedidos Prepago siempre son Método de Pago PUE.~~ Resuelto (2026-08-21) — ver DUDA-035: la leyenda PUE es fija.
 
-> ** Pendiente confirmar si la sección de Datos Bancarios siempre muestra las dos cuentas M.N. y DLS. **
+> ~~Pendiente confirmar si la sección de Datos Bancarios siempre muestra las dos cuentas M.N. y DLS.~~ Resuelto (2026-08-21) — ver DUDA-036: dos cuentas activas más recientes (o solo una si es lo único activo).
 
 > ** Pendiente respecto al folio interno del pedido que aparece en la sección de Entrega. **
 
-> ** Pendiente definir qué dato fuente corresponde al campo "Contacto" de la sección de Entrega. **
+> ~~Pendiente definir qué dato fuente corresponde al campo "Contacto" de la sección de Entrega.~~ Resuelto (2026-08-21) — ver DUDA-037: Título+Contacto, referencia tabla Pedidos en Legacy.
 
 > ** Pendiente validar con el cliente la vigencia de las certificaciones del pie del documento (ISO 9001:2015, NEEC). **
 
 > ** Pendiente validar con el cliente la vigencia de los logos de catálogos farmacéuticos. **
 
-> ** Pendiente decisión técnica: tipo de almacenamiento del PDF persistido en base de datos. **
+> ~~Pendiente decisión técnica: tipo de almacenamiento del PDF persistido en base de datos.~~ Resuelto (2026-08-21) — ver DUDA-039: archivo/binario, sin regeneración.
 
-> ** Pendiente decisión técnica del momento de consumo del folio del foliador PQF2. **
+> ~~Pendiente decisión técnica del momento de consumo del folio del foliador PQF2.~~ Resuelto (2026-08-21) — ver DUDA-031: al confirmar envío exitoso, sin huecos.

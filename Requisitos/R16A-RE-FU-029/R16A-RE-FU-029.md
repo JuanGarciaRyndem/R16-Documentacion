@@ -1,5 +1,8 @@
 # R16A-RE-FU-029 — Validar Cobro: Paso 3 Perú
 
+> ⚠️ **FUERA DE ALCANCE DE R16 — Cancelación de facturación Perú (2026-08-21)**
+> Este requisito queda fuera de alcance de R16: la facturación electrónica de Perú (timbrado ante SUNAT, Factura electrónica CPE tipo 01) se CANCELÓ POR COMPLETO. Así lo documenta la resolución/respuesta de las dudas cerradas DUDA-092, DUDA-093 y DUDA-094 (hoja "R16 - Dudas a Cliente", todas Descartadas por este mismo motivo raíz). Todo el contenido de este documento —incluyendo Reglas de Negocio, Riesgos y Criterios de Aceptación referidos al timbrado/envío de facturas en Perú— queda sin efecto y pendiente de re-evaluación de alcance (¿se mantiene únicamente el envío de la Confirmación de Pedido para Perú, sin documentos fiscales? — ver DUDA-094). El campo "Estado" de la tabla siguiente no ha sido actualizado a nivel de gestión de requisito; se deja constancia aquí para no perder trazabilidad.
+
 | Campo | Valor |
 |---|---|
 | **ID** | R16A-RE-FU-029 |
@@ -330,3 +333,4 @@ Entonces el sistema deberá considerar el wizard cerrado para ese cliente.
 - ** Pendiente — formato del asunto y plantilla del cuerpo del correo de envío para Perú. **
 - ** Pendiente — mecánica de referencia de la NC peruana (catálogo 09 SUNAT) en la emisión; se define en R16A-RE-FU-033/035. **
 - ** Pendiente — maquetas de Validar Cobro Perú no disponibles; el detalle de la pantalla se validará contra ellas cuando lleguen. **
+- ** [2026-08-21] FUERA DE ALCANCE — La facturación de Perú se cancela por completo. Cierre formal documentado en DUDA-092 (escenario de cobro contra factura existente, Regla 4), DUDA-093 (parámetros proforma→factura, Regla 5) y DUDA-094 (asunto/plantilla de correo, Regla 12), las tres Descartadas por el mismo motivo raíz. Este requisito y sus Pendientes estructurales quedan sin objeto; solo podría subsistir el envío de la Confirmación de Pedido para Perú (sin documentos fiscales), pendiente de definición formal de alcance. **

@@ -27,12 +27,12 @@ sección reserva el análisis de impacto ETL.
 > ⚠️ **Pendientes que afectan BD:**
 > — `catUsoCFDI` G02: existencia pendiente de verificar con query SSMS.
 > — Bucket MinIO para NCs México: pendiente de verificar en `RegionConfiguracionMinioBucket`.
-> — Serie "P2" en `EmpresaFolio`: formato del folio pendiente de validar con PMO (Regla 9).
+> — ~~Serie "P2" en `EmpresaFolio`: formato del folio pendiente de validar con PMO (Regla 9).~~ **RESUELTO (2026-08-21, DUDA-101):** la serie confirmada para las NC de México es **`B2`**, no `P2`. Resuelto en conjunto con DUDA-113 (fuera de este batch); el formato/longitud exactos del foliador siguen sin detallarse en este documento — ver esa duda antes de ejecutar el DML. Todo el DML y los ejemplos de esta sección que muestran `'P2'` deben leerse como `'B2'` una vez validado el detalle.
 > — `catTipoCFDI`: tabla creada en RE-028 como prerequisito; RE-032 inserta clave `NOTA_CREDITO`.
-> — FormaPago en modalidad manual: pendiente de confirmar (PMO — Regla 7 del requisito).
-> — ClaveProdServ y ClaveUnidad en modalidad manual: recomendación SAT 84111506/ACT pendiente
->   de confirmar con PROQUIFA.
+> — ~~FormaPago en modalidad manual: pendiente de confirmar (PMO — Regla 7 del requisito).~~ **RESUELTO (2026-08-21, DUDA-098):** no se hereda un valor fijo de la factura origen — se calcula comparando `NC.Monto` contra el `SaldoPendiente` de la factura (`Factura.Total − Factura.TotalCobrado`, antes de aplicar la NC). `NC ≤ SaldoPendiente` → `FormaPago = 15` (Condonación) siempre; `NC > SaldoPendiente` → forma real de devolución o `FormaPago = 23` (Novación, no Compensación) si queda como saldo a favor. `FormaPago = 99` nunca es válido en una NC (exige `MetodoPago=PPD`, y la NC siempre es `PUE`). Ver `Guia_Tecnica_Notas_de_Credito_MX.md` para el detalle completo.
+> — ~~ClaveProdServ y ClaveUnidad en modalidad manual: recomendación SAT 84111506/ACT pendiente de confirmar con PROQUIFA.~~ **RESUELTO (2026-08-21, DUDA-100):** `84111506` / `ACT` es la convención documentada en el Apéndice 5 SAT para NC sin partidas reales — no es una decisión fiscal abierta, queda fija.
 > — Estructura PCconnect (Legacy): pendiente de recibir para documentar mapeo ETL completo.
+> — Políticas de autorización por monto (PMO #54): **confirmado (2026-08-21, DUDA-102)** que no aplican a las NC en R16 — no requieren cambios de BD.
 
 ---
 
@@ -98,7 +98,7 @@ módulo R16 de Notas de Crédito México.
 | ----------------------------- | ---------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | `IdEmpresa`                   | uniqueidentifier | No      | FK `Empresa` — empresa emisora (GOL, MUN, PRO, PQF)                                                                                         |
 | `IdCliente`                   | uniqueidentifier | No      | FK `Cliente` — cliente receptor de la NC                                                                                                    |
-| `Serie`                       | varchar(10)      | Sí      | Serie del foliador interno. Valor: 'P2' (⚠️ pendiente validar con PMO)                                                                      |
+| `Serie`                       | varchar(10)      | Sí      | Serie del foliador interno. ~~Valor: 'P2' (⚠️ pendiente validar con PMO)~~ **Resuelto (DUDA-101): 'B2'** — formato/longitud exactos vinculados a DUDA-113 |
 | `Modalidad`                   | varchar(20)      | No      | 'POR_PARTIDAS' o 'MANUAL'                                                                                                                   |
 | `Motivo`                      | varchar(50)      | Sí      | Clave del motivo principal. Ej: 'DEVOLUCION', 'DESCUENTO_BONIFICACION'                                                                      |
 | `IdCatNotaCreditoEstado`      | uniqueidentifier | No      | FK `catNotaCreditoEstado` — estado de la NC. Default: estado PENDIENTE. Ciclo: PENDIENTE → VIGENTE (timbrada) → ENVIADA; CANCELADA terminal |
@@ -177,11 +177,11 @@ Se inserta una fila por cada NC timbrada con los siguientes valores fijos:
 | `TipoDocumento` | `'E'` — Egreso                                          |
 | `MetodoDePago`  | `'PUE'` — fijo e inmutable (Regla 6 del requisito)      |
 | `UsoCFDI`       | `'G02'` — default (Devoluciones, descuentos o bonif.)   |
-| `FormaPago`     | Heredada de la factura origen pagada (típicamente '03') |
+| `FormaPago`     | ~~Heredada de la factura origen pagada (típicamente '03')~~ **Resuelto (DUDA-098):** `15` (Condonación) si `NC ≤ SaldoPendiente`; forma real o `23` (Novación) si `NC > SaldoPendiente` — nunca `99` (ver sección de FormaPago en el diccionario y `Guia_Tecnica_Notas_de_Credito_MX.md`) |
 | `Moneda`        | Heredada de la factura origen (MXN / USD / EUR)         |
 | `TipoDeCambio`  | TC del día del timbrado (null si MXN)                   |
-| `Serie`         | 'P2' (⚠️ pendiente confirmar con PMO)                   |
-| `Folio`         | Consecutivo del foliador `EmpresaFolio` Serie 'P2'      |
+| `Serie`         | ~~'P2' (⚠️ pendiente confirmar con PMO)~~ **Resuelto (DUDA-101): 'B2'** |
+| `Folio`         | Consecutivo del foliador `EmpresaFolio` Serie ~~'P2'~~ **'B2'**      |
 
 #### CFDIGeneradaRelacionado (sin ALTER)
 
@@ -257,17 +257,23 @@ FROM dbo.catTipoCFDI WHERE Clave = 'NOTA_CREDITO';
 
 ---
 
-## DML — EmpresaFolio: Serie "P2" para NC México
+## DML — EmpresaFolio: Serie ~~"P2"~~ "B2" para NC México
 
-Las NCs de México usan Serie "P2" por empresa del grupo PROQUIFA México. Se insertan 4 filas
+> ⚠️ **Corrección (2026-08-21, DUDA-101):** la serie confirmada es **`B2`**, no `P2`. El
+> script SQL de esta sección todavía usa el literal `'P2'` heredado de la versión anterior del
+> requisito — se conserva sin editar porque el formato y la longitud máxima definitivos del
+> foliador quedan resueltos en conjunto con DUDA-113 (fuera de este batch), y no corresponde
+> inventar aquí ese detalle. Antes de ejecutar el DML, reemplazar todo literal `'P2'` por
+> `'B2'` y confirmar `FormatoFolio`/`LongitudMaxima` con la resolución de DUDA-113.
+
+Las NCs de México usan Serie ~~"P2"~~ **"B2"** por empresa del grupo PROQUIFA México. Se insertan 4 filas
 en `ProquifaDotNet.EmpresaFolio` (propiedad Finanzas).
 
 > **Nota:** la base de datos es una sola — `ProquifaDotNet`. "Propiedad Finanzas" indica que la tabla
 > la consume/gestiona la solución ProquifaDotNet.Finanzas vía su Scaffold EF Core, no que exista
 > una base de datos separada.
 
-> ⚠️ **Brecha:** El esquema definitivo del foliador Serie "P2" (formato, longitud máxima)
-> está pendiente de validar con PMO (Regla 9 del requisito).
+> ⚠️ **Brecha (parcialmente resuelta):** ~~El esquema definitivo del foliador Serie "P2" (formato, longitud máxima) está pendiente de validar con PMO (Regla 9 del requisito).~~ La serie ya está confirmada (`B2`, DUDA-101/DUDA-113); lo que sigue pendiente es únicamente el formato y la longitud máxima exactos del foliador.
 
 ```sql
 -- Prerequisito: EmpresaFolio y las 4 empresas México deben existir (RE-019)
@@ -651,11 +657,12 @@ Referenciada por `fccNotaCredito.IdCatNotaCreditoEstado` (FK formal, N:1).
 | -- | --------------------------------------------------------------------------------------------------------- | ----------------------------- |
 | P1 | Verificar existencia de `catUsoCFDI` G02 en BD real (query SSMS)                                        | DML catUsoCFDI                |
 | P2 | Verificar bucket MinIO para NCs en `RegionConfiguracionMinioBucket` (query SSMS)                        | MinIO                         |
-| P3 | Validar Serie "P2" y formato de folio con PMO (Regla 9 del requisito)                                   | DML EmpresaFolio              |
+| P3 | ~~Validar Serie "P2" y formato de folio con PMO (Regla 9 del requisito)~~ — **RESUELTO PARCIAL (2026-08-21, DUDA-101):** serie confirmada `B2`; solo queda pendiente el formato/longitud exacto, vinculado a DUDA-113 | DML EmpresaFolio              |
 | P4 | Recibir estructura de tablas PCconnect para completar mapeo ETL SSIS                                    | ETL PCconnect                 |
-| P5 | Confirmar FormaPago en modalidad manual (Regla 7 — ⚠️ '99' fiscalmente incorrecto para NC PUE)          | CFDIGenerada / fccNotaCredito |
-| P6 | Confirmar ClaveProdServ y ClaveUnidad default para modalidad manual (candidato SAT: 84111506 / ACT)     | CFDIGeneradaConcepto          |
+| P5 | ~~Confirmar FormaPago en modalidad manual (Regla 7 — ⚠️ '99' fiscalmente incorrecto para NC PUE)~~ — **RESUELTO (2026-08-21, DUDA-098):** se resuelve por comparación NC vs SaldoPendiente — `15` Condonación / forma real / `23` Novación; `99` queda formalmente excluido | CFDIGenerada / fccNotaCredito |
+| P6 | ~~Confirmar ClaveProdServ y ClaveUnidad default para modalidad manual (candidato SAT: 84111506 / ACT)~~ — **RESUELTO (2026-08-21, DUDA-100):** convención confirmada, `84111506` / `ACT` (Apéndice 5 SAT) | CFDIGeneradaConcepto          |
 | P7 | Confirmar estructura de `catTipoCFDI` con RE-028 para validar columnas del INSERT de NOTA_CREDITO       | DML catTipoCFDI               |
+| P8 | Políticas de autorización por monto (PMO #54) — **RESUELTO (2026-08-21, DUDA-102):** no aplica código de autorización para NC en R16; sin impacto en BD | — |
 
 ---
 

@@ -7,13 +7,13 @@
 | **Servidor** | RYNL010 |
 | **Versión** | 1.0 |
 | **Generado por** | GitHub Copilot in SSMS |
-| **Alcance** | Solo clientes México (MEX). Perú: pendiente definición. |
+| **Alcance** | Clientes México (MEX) y Perú (PE) — Perú sin Código Validador; referencia por default con razón social del cliente (**Cerrado 2026-08-21, DUDA-018**). Este diccionario documenta en detalle el modelo México; ver `R16A-RE-FU-006.md` Regla 9 para el detalle de Perú. |
 
 ---
 
 ## Resumen Ejecutivo
 
-Asignación de cuentas bancarias del grupo PROQUIFA a clientes y captura del Código Validador por combinación cliente-cuenta. La referencia bancaria se **arma al configurar/actualizar la cuenta del cliente** y se persiste como **referencia vigente del cliente** en `ClienteDatosBancarios.ReferenciaVigente`; al generar una proforma, esa referencia se **casa al PDF** (snapshot inmutable en `tpProformaPedido.ReferenciaPago`) y las proformas históricas conservan su referencia. Solo se regenera la referencia vigente si cambia un dato fuente (banco, cuenta, Código Validador, `Cliente.Nombre` o `Cliente.Clave`). Adicionalmente, cada cambio del Código Validador se registra en el Aplicativo Nuevo ProquifaDotNet.BitacoraCambios (historial completo: valor anterior/nuevo, autor y fecha — actualización 2026-07-07, sustituye la rotación de un nivel de OBS-014). Funcionalidad **NUEVA en ProquifaDotNet R16**. Solo aplica a clientes México.
+Asignación de cuentas bancarias del grupo PROQUIFA a clientes y captura del Código Validador por combinación cliente-cuenta. La referencia bancaria se **arma al configurar/actualizar la cuenta del cliente** y se persiste como **referencia vigente del cliente** en `ClienteDatosBancarios.ReferenciaVigente`; al generar una proforma, esa referencia se **casa al PDF** (snapshot inmutable en `tpProformaPedido.ReferenciaPago`) y las proformas históricas conservan su referencia. Solo se regenera la referencia vigente si cambia un dato fuente (banco, cuenta, Código Validador, `Cliente.Nombre` o `Cliente.Clave`). Adicionalmente, ~~cada cambio del Código Validador se registra en el Aplicativo Nuevo ProquifaDotNet.BitacoraCambios (historial completo: valor anterior/nuevo, autor y fecha — actualización 2026-07-07, sustituye la rotación de un nivel de OBS-014)~~. **Corrección 2026-08-21 (DUDA-120):** el cliente reconfirmó el modelo original de OBS-014 — se conservan a nivel de datos únicamente el valor **actual (vigente)** y el **inmediatamente anterior**, con autor y fecha; NO se requiere bitácora completa en ProquifaDotNet.BitacoraCambios ni vista en pantalla. Esta decisión reemplaza la actualización de 2026-07-07 mencionada arriba. Funcionalidad **NUEVA en ProquifaDotNet R16**.
 
 > **⚠️ Hallazgo crítico** — La tabla de relación cliente-cuenta con Código Validador (**`ClienteDatosBancarios`**) **NO existe en la BD actual** y debe crearse como nuevo objeto en R16. Debe incluir el campo **`ReferenciaVigente`** para almacenar la referencia armada del cliente. El campo `tpProformaPedido.ReferenciaPago` (varchar 80) ya existe y recibe el snapshot inmutable de la referencia vigente al generar el PDF de la proforma en firme.
 
@@ -54,21 +54,24 @@ tpProformaPedido.ReferenciaPago  ← snapshot inmutable copiado de ClienteDatosB
 
 ## 1. ClienteDatosBancarios (TABLA NUEVA — R16)
 
-**Propósito:** Relación N:N entre `Cliente` y `DatosBancarios` del grupo PROQUIFA. Persiste el Código Validador por combinación cliente-cuenta y **la referencia bancaria vigente armada** (Regla 4, nivel 1). El historial del Código Validador NO lleva columnas propias: cada cambio se registra en ProquifaDotNet.BitacoraCambios (tabla afectada, campo, valor anterior/nuevo, usuario, fecha — actualización 2026-07-07, sustituye a OBS-014).
+**Propósito:** Relación N:N entre `Cliente` y `DatosBancarios` del grupo PROQUIFA. Persiste el Código Validador por combinación cliente-cuenta y **la referencia bancaria vigente armada** (Regla 4, nivel 1). ~~El historial del Código Validador NO lleva columnas propias: cada cambio se registra en ProquifaDotNet.BitacoraCambios (tabla afectada, campo, valor anterior/nuevo, usuario, fecha — actualización 2026-07-07, sustituye a OBS-014).~~ **Corrección 2026-08-21 (DUDA-120):** el historial SÍ lleva columnas propias (modelo de dos niveles de OBS-014, reconfirmado por el cliente): valor actual (vigente) e inmediatamente anterior, con autor y fecha. Ver columnas `CodigoValidadorAnterior`, `FechaModificacionAnterior`, `IdUsuarioModificacionAnterior` agregadas más abajo (alineado con `DIS_INT_006.md`).
 
 | Columna Propuesta          | Tipo             | Nulo | Descripción                                                                                                                 |
 | -------------------------- | ---------------- | ---- | --------------------------------------------------------------------------------------------------------------------------- |
 | `IdClienteDatosBancarios`  | uniqueidentifier | NO   | PK. Default: NEWID()                                                                                                        |
 | `IdCliente`                | uniqueidentifier | NO   | FK — `Cliente`                                                                                                              |
 | `IdDatosBancarios`         | uniqueidentifier | NO   | FK — `DatosBancarios` (cuenta del grupo PROQUIFA)                                                                           |
-| `CodigoValidador`          | varchar(50)      | NO   | Código validador capturado manualmente por el usuario                                                                       |
+| `CodigoValidador`          | varchar(50)      | NO   | Código validador capturado manualmente por el usuario. Longitud de BD definitiva (DUDA-015); la captura queda acotada a 3 caracteres alfanuméricos, sin acentos ni espacios, por regla de negocio/Frontend. |
 | `ReferenciaVigente`        | varchar(80)      | SÍ   | **Referencia bancaria armada vigente del cliente** (Regla 4 nivel 1, OBS-013). Se regenera solo ante cambio de dato fuente. |
 | `FechaReferenciaVigente`   | datetime         | SÍ   | Fecha y hora en que se generó/actualizó la referencia vigente. Útil para auditoría y troubleshooting.                       |
+| `CodigoValidadorAnterior`          | varchar(50) | SÍ   | **(DUDA-120, reincorporada 2026-08-21)** Valor inmediatamente anterior del Código Validador — historial de dos niveles (OBS-014). |
+| `FechaModificacionAnterior`        | datetime    | SÍ   | **(DUDA-120)** Fecha de la modificación que dejó vigente el valor anterior.                                                |
+| `IdUsuarioModificacionAnterior`    | uniqueidentifier | SÍ | **(DUDA-120)** Autor de la modificación que dejó vigente el valor anterior.                                                |
 | `FechaRegistro`            | datetime         | NO   | Default: GETDATE()                                                                                                          |
 | `FechaUltimaActualizacion` | datetime         | NO   | Default: GETDATE()                                                                                                          |
 | `Activo`                   | bit              | NO   | 1 = Asignación activa, 0 = Eliminada. Default: 1                                                                            |
 
-> **⚠️ Pendiente** — Confirmar longitud máxima de `CodigoValidador` con el cliente. Actualmente propuesto como `varchar(50)` — ajustar antes de ejecutar en producción.
+> ~~**⚠️ Pendiente** — Confirmar longitud máxima de `CodigoValidador` con el cliente. Actualmente propuesto como `varchar(50)` — ajustar antes de ejecutar en producción.~~ **Cerrado 2026-08-21 (DUDA-015)** — `varchar(50)` queda confirmado como longitud definitiva en BD (compatibilidad y holgura futura); la regla de negocio/Frontend limita la captura a 3 caracteres alfanuméricos, sin acentos ni espacios en blanco.
 
 > **Nota — Disparadores de regeneración de `ReferenciaVigente`:** además del CREATE/UPDATE en `ClienteDatosBancarios` (cambio de banco, cuenta o Código Validador), debe regenerarse cuando cambia `Cliente.Nombre` o `Cliente.Clave` (segmentos S1-S4 de la fórmula Banamex). La estrategia de actualización en cascada (hook en `ClienteBO.Actualizar` o job batch) queda como decisión de diseño técnico — ver `R16A-RE-FU-006-Back.md`.
 
@@ -86,10 +89,14 @@ CREATE TABLE dbo.ClienteDatosBancarios (
     IdDatosBancarios         uniqueidentifier NOT NULL
         CONSTRAINT FK_ClienteDatosBancarios_DatosBancarios
         FOREIGN KEY REFERENCES dbo.DatosBancarios(IdDatosBancarios),
-    CodigoValidador              varchar(50)      NOT NULL,   -- Pendiente definir longitud maxima con cliente
+    CodigoValidador              varchar(50)      NOT NULL,   -- DUDA-015 (cerrada 2026-08-21): varchar(50) definitivo en BD; captura acotada a 3 caracteres alfanumericos sin acentos/espacios
     -- OBS-013: referencia vigente del cliente (Regla 4 nivel 1)
     ReferenciaVigente            varchar(80)      NULL,
     FechaReferenciaVigente       datetime         NULL,
+    -- DUDA-120 (reincorporada 2026-08-21): historial de dos niveles (OBS-014)
+    CodigoValidadorAnterior          varchar(50)      NULL,
+    FechaModificacionAnterior        datetime         NULL,
+    IdUsuarioModificacionAnterior    uniqueidentifier NULL,
     FechaRegistro                datetime         NOT NULL
         CONSTRAINT DF_ClienteDatosBancarios_FechaRegistro    DEFAULT (GETDATE()),
     FechaUltimaActualizacion datetime         NOT NULL
@@ -149,7 +156,7 @@ CREATE NONCLUSTERED INDEX IX_ClienteDatosBancarios
 |---|---|---|---|
 | Banamex | 002 | 40002 | ✅ Sí |
 
-> La identificación de Banamex en la lógica de referencia se recomienda hacer por `IdCatBanco` o `Clave = '002'` en lugar del cruce con Beneficiario/Empresa, cuya condición de moneda aparece truncada en la documentación del cliente.
+> La identificación de Banamex en la lógica de referencia se recomienda hacer por `IdCatBanco` o `Clave = '002'` en lugar del cruce con Beneficiario/Empresa. ~~cuya condición de moneda aparece truncada en la documentación del cliente~~ — **Cerrado 2026-08-21 (DUDA-016):** la condición de moneda para identificar Banamex, antes truncada en la documentación recibida, quedó completada por el cliente en documento aparte. Ver además `DIS_INT_006.md` (ADR-9), que sustituye esta identificación por el flag de negocio `catBanco.RequiereCodigoValidador`.
 
 ---
 
@@ -327,12 +334,12 @@ ORDER BY c.Nombre;
 | # | Gap | Descripción | Acción | Prioridad |
 |---|---|---|---|---|
 | 1 | `ClienteDatosBancarios` no existe | Tabla de relación cliente-cuenta con `ReferenciaVigente` ausente en BD | Crear tabla con todos los campos (script Sección 1); el historial del Código Validador se registra en ProquifaDotNet.BitacoraCambios, no en columnas propias | Alta |
-| 2 | Longitud `CodigoValidador` indefinida | Cliente no especificó longitud máxima ni formato | Confirmar con cliente antes de crear tabla | Alta |
-| 3 | Lógica identificación Banamex truncada | Condición de moneda en documentación del cliente incompleta | Usar `Clave = '002'` en `catBanco` como simplificación | Media |
+| 2 | ~~Longitud `CodigoValidador` indefinida~~ | **Cerrado 2026-08-21 (DUDA-015):** `varchar(50)` en BD, captura acotada a 3 caracteres alfanuméricos sin acentos/espacios | Sin acción pendiente | Cerrado |
+| 3 | ~~Lógica identificación Banamex truncada~~ | **Cerrado 2026-08-21 (DUDA-016):** condición de moneda completada por el cliente | Usar `Clave = '002'` en `catBanco` como simplificación (o `RequiereCodigoValidador` per `DIS_INT_006.md`) | Cerrado |
 | 4 | Campo `Clave` en `Cliente` no verificado | Segmento S4 depende de `Cliente.Clave` que podría no existir en BD | Verificar existencia/tipo en `Cliente`; si no existe, agregar columna permanente o definir fuente alternativa (no apoyarse en tabla ETL de migración a largo plazo) | Alta |
 | 5 | `ReferenciaPago` varchar(80) | Nombres de clientes largos podrían exceder 80 caracteres | Verificar longitud máx de nombres de clientes | Media |
-| 6 | Sin restricción de rol | Asignación de cuentas sin validación de rol | Confirmar con cliente si debe restringirse a Coordinador Tesorería | Media |
-| 7 | Modelo Perú no definido | Lógica bancaria Perú fuera de alcance R16 | Levantar como duda formal del proyecto | Baja |
+| 6 | ~~Sin restricción de rol~~ | **Cerrado 2026-08-21 (DUDA-017):** el cliente desestimó restringir a Coordinador de Tesorería para R16 — corresponde al alcance de R7 | Sin acción en R16 | Cerrado |
+| 7 | ~~Modelo Perú no definido~~ | **Cerrado 2026-08-21 (DUDA-018):** Perú sin Código Validador; referencia por default con razón social del cliente (mismo camino que no-Banamex) | Ver Regla 9 en `R16A-RE-FU-006.md` | Cerrado |
 | 8 | Sin validación `CodigoValidador` | Input manual sin reglas de formato | Confirmar con cliente si se requiere validación | Media |
 | 9 | Trigger de regeneración de `ReferenciaVigente` por cambio en datos del cliente | Si cambia `Cliente.Nombre` o `Cliente.Clave`, los segmentos S1-S4 quedan obsoletos en `ReferenciaVigente` de todas las asignaciones activas del cliente | Definir mecanismo (hook en `ClienteBO.Actualizar`, job batch o trigger BD) y documentarlo en el diseño técnico | Alta |
 | 10 | Selector de cuentas en pantalla | El selector debe traer las cuentas del **grupo PROQUIFA** (vía `EmpresaDatosBancarios` cruzado con `DatosBancarios`), no todas las cuentas activas | Endpoint debe consultar `EmpresaDatosBancarios` con `Activo = 1` filtrando por banco | Alta |
@@ -351,8 +358,8 @@ ORDER BY c.Nombre;
 | Regla 5 | Generación al configurar cuenta + casado al PDF | Cálculo en BO (`ReferenciaBancariaBO.Construir`) → persistido en `ReferenciaVigente`; al generar PDF, copia a `ReferenciaPago` |
 | Regla 6 | Referencia no-Banamex = nombre del cliente | `Cliente.Nombre` como cadena directa |
 | Regla 7 | Referencia Banamex = 7 segmentos | Concatenación determinista al armar la `ReferenciaVigente` |
-| Regla 8 | Identificación Banamex | Por `catBanco.Clave = '002'` (propuesta simplificada) |
-| Regla 9 | Edición sin restricción de rol | Sin control de rol en BD — pendiente confirmar |
+| Regla 8 | Identificación Banamex | Por `catBanco.Clave = '002'` (propuesta simplificada); condición de moneda cerrada (DUDA-016) |
+| Regla 9 | Edición sin restricción de rol | Sin control de rol en BD — cerrado, descartado para R16 (DUDA-017); corresponde al alcance de R7 |
 
 ---
 
@@ -360,9 +367,9 @@ ORDER BY c.Nombre;
 
 | # | Riesgo | Mitigación |
 |---|---|---|
-| 1 | `CodigoValidador` sin validación de formato | Confirmar reglas con cliente antes de desarrollo |
-| 2 | Sin restricción de rol sobre asignación de cuentas | Confirmar con cliente si aplica restricción |
-| 3 | Modelo Perú no definido | Levantar como duda formal — clientes PE sin referencia |
+| 1 | ~~`CodigoValidador` sin validación de formato~~ | **Cerrado (DUDA-015):** alfanumérico, máximo 3 caracteres, sin acentos ni espacios |
+| 2 | ~~Sin restricción de rol sobre asignación de cuentas~~ | **Cerrado (DUDA-017):** descartado para R16, corresponde a R7 |
+| 3 | ~~Modelo Perú no definido~~ | **Cerrado (DUDA-018):** referencia por razón social del cliente, sin Código Validador |
 | ~~Antiguo R1~~ | ~~Inconsistencia entre proformas re-emitidas~~ | **Retirado** — OBS-013 introduce persistencia en dos niveles y snapshot inmutable en PDF |
 | ~~Antiguo R5~~ | ~~Pérdida de trazabilidad al sobrescribir `CodValidador`~~ | **Retirado** — OBS-014 introduce historial de un nivel (valor actual + anterior con autor y fecha) |
 

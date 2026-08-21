@@ -9,7 +9,8 @@
 Paso 2 wizard VC Peru: asociacion N:N cobros <-> proformas/facturas.
 UI identica a MEX (RE-FU-026). Diferencia clave: SIN Complemento de Pago,
 asociacion es solo operativa (conciliacion interna). Empresa emisora unica: GOLPERU.
-Tolerancia pendiente de definir (equivalente a 100 MXN de MEX).
+~~Tolerancia pendiente de definir (equivalente a 100 MXN de MEX).~~
+**[DUDA-086 — Resuelta, 2026-08-21]** Tolerancia PER = MISMA regla que MEX (tolerancia equivalente); montos límite configurables a nivel BD.
 
 ---
 
@@ -38,7 +39,7 @@ Tolerancia pendiente de definir (equivalente a 100 MXN de MEX).
 | Empresa emisora documentos | GOL/MUN/PRO/PQF (4 opciones)      | GOLPERU (siempre)                                |
 | Moneda base conversiones   | MXN                               | **PEN**                                          |
 | Moneda NC                  | MXN/USD                           | MXN/USD/**PEN**                                  |
-| Tolerancia pago de menos   | 100 MXN (confirmada)              | **Pendiente de definir**                         |
+| Tolerancia pago de menos   | 100 MXN (confirmada)              | **Misma regla que MEX (equivalente), configurable en BD — DUDA-086** |
 | Cancelacion fiscal         | Via CFDI cancelacion SAT          | **Via Nota de Credito SUNAT**                    |
 | Estado de Cuenta           | fccSaldoFavorCliente (MEX)        | fccSaldoFavorCliente (misma tabla, IdRegion=PER) |
 
@@ -121,7 +122,7 @@ La tabla fccSaldoFavorCliente (creada en RE-FU-026) ya soporta PER porque:
     SI Saldo > 0:   Sobrepago -> fccSaldoFavorCliente + avanza Paso 3
     SI -T <= Saldo < 0: Tolerancia -> fccSaldoFavorCliente + avanza Paso 3
     SI Saldo < -T:  Bloquea Paso 3, requiere inconsistencia
-    (T = umbral tolerancia Peru - PENDIENTE DE DEFINIR)
+    (T = umbral tolerancia Peru - misma regla que MEX, equivalente y configurable en BD — DUDA-086, resuelta 2026-08-21)
 
 ---
 
@@ -129,9 +130,9 @@ La tabla fccSaldoFavorCliente (creada en RE-FU-026) ya soporta PER porque:
 
 | # | Brecha | Bloqueante | Accion |
 |---|--------|-----------|--------|
-| B1 | Tolerancia pago de menos Peru (monto + moneda) | SI | Confirmar con PROQUIFA Tesoreria |
+| B1 | ~~Tolerancia pago de menos Peru (monto + moneda)~~ — **DUDA-086 Resuelta:** misma regla que MEX, configurable en BD | NO (resuelta) | Parametrizar umbral en BD (config regional) |
 | B2 | Fuente TC Peru (no DOF) | SI | Confirmar fuente (SBS?) |
-| B3 | Mecanica fiscal NC peruana cat.09 SUNAT | SI | RE-FU-033/035 |
+| B3 | ~~Mecanica fiscal NC peruana cat.09 SUNAT~~ — **DUDA-087 Descartada:** se cancela facturacion Peru en R16, no aplica desarrollar | NO (descartada) | Ninguna — fuera de alcance |
 | B4 | Mecanismo transferencia 'Pago Incompleto Vencido' | Media | Definir canal |
 
 ---
@@ -140,10 +141,10 @@ La tabla fccSaldoFavorCliente (creada en RE-FU-026) ya soporta PER porque:
 
 | # | Gap | Tipo | Accion |
 |---|-----|------|--------|
-| 1 | Tolerancia Peru: monto + moneda + tratamiento | Negocio | Confirmar Tesoreria |
+| 1 | ~~Tolerancia Peru: monto + moneda + tratamiento~~ — **DUDA-086 Resuelta:** misma regla que MEX, configurable en BD | Negocio | Cerrado — parametrizar en BD |
 | 2 | fccSaldoFavorCliente necesita campo PEN | Tecnico | Verificar al ejecutar RE-FU-026 |
-| 3 | NC peruana: referencia SUNAT cat.09 | Fiscal | RE-FU-033/035 |
-| 4 | Mecanismo cancelacion pedido Peru (NC SUNAT) | Tecnico | RE-FU-033/035 |
+| 3 | ~~NC peruana: referencia SUNAT cat.09~~ — **DUDA-087 Descartada:** se cancela facturacion Peru en R16 | Fiscal | Cerrado — no aplica |
+| 4 | ~~Mecanismo cancelacion pedido Peru (NC SUNAT)~~ — **DUDA-087 Descartada:** no aplica NC peruana como via de cancelacion; mecanismo de transferencia del estado sigue pendiente por separado | Tecnico | Cerrado (via NC) — pendiente definir canal alterno |
 
 ---
 

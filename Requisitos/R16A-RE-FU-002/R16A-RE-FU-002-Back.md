@@ -19,6 +19,7 @@
 | 6 | **Regla 1 y GAP-04 ampliados:** Gerente de Tesorería también puede asignar Cobradores (además del Coordinador de Tesorería) | OBS-003 |
 | 7 | **Módulos consumidores:** se agrega Notas de Crédito al alcance de visibilidad por cartera | OBS-004 |
 | 8 | **Regla 4 matizada:** redistribución por pantalla/módulo — solo pendientes abiertos al nuevo cobrador; trabajo previo se conserva. Nuevo **Criterio C4** | OBS-005 |
+| 9 | Trazabilidad (2026-08-21): confirmado con cliente que el punto de corte "trabajado" vs. "en proceso" es por pantalla/módulo y que los avances parciales del wizard no cierran un pendiente — consistente con lo ya documentado en la fila 8 | DUDA-116 (deriva de OBS-005) |
 
 ---
 

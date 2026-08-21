@@ -537,9 +537,9 @@ Foliador por empresa/serie. `UltimoFolio` es el **consecutivo** — el entero qu
 |---|-----|------|--------|
 | 1 | UltimoFolio inicial por empresa | Técnico | Inicializar `EmpresaFolio.UltimoFolio` al valor de producción vigente (Mungen 2374, Golocaer 7156, Proquifa 20913, Proveedora QF 143103) antes del go-live |
 | 2 | Lote del producto al timbrar FAA | Negocio | No disponible - confirmar |
-| 3 | Politica ante caida del PAC | Tecnico | Definir reintento/encolamiento |
+| ~~3~~ | ~~Politica ante caida del PAC~~ | Tecnico | **[Resuelto — DUDA-050]** Timbrado es síncrono, un solo intento por petición (sin reintento propio); el reintento/encolamiento ante fallo del PAC es responsabilidad de Finanzas (contador de reintentos + notificación a soporte). Cliente aceptó que el timbrado sea uno a uno, no masivo/por lote. Ver `R16A-RE-FU-019.md`, Notas Adicionales, y `Diagramas/Diagrama Secuencia Encolamiento Finanzas y Timbrado Factura.md`. |
 | ~~4~~ | ~~Rol operativo~~ | Negocio | **[Resuelto — Duda 047]** Rol: **Gestor de Cobranza**. Puesto de trabajo: **Analista de Cuentas por Pagar**. |
-| 5 | Alias vs RazonSocial | Negocio | Confirmar dato fuente |
+| ~~5~~ | ~~Alias vs RazonSocial~~ | Negocio | **[Resuelto — DUDA-048]** El cliente se identifica por RAZÓN SOCIAL (homologado con el resto de Facturación), no por Alias. |
 | ~~6~~ | ~~Estructura tabla legacy `consecutivo`~~ | — | **[Resuelto]** El folio de Factura México proviene de `EmpresaFolio` (PQF2/Finanzas) con UPDLOCK atómico — sin dependencia de Legacy. Ver `Analisis/Foliados-Documentos.md`, sección Factura. |
 | 7 | Nivel de configuración ClaveProdServ/ClaveUnidad/PerfilFiscal | Negocio/Técnico | Confirmar si cada campo se configura a nivel Producto, Familia, o con precedencia Producto→Familia — y si los 3 campos comparten el mismo nivel o cada uno puede tener el suyo (ver sección "Datos del producto") |
 | 8 | IEPS — confirmar si algún producto lo requiere | Negocio | Solo agregar la 4ª fila de PerfilFiscal (IEPS) si PROQUIFA confirma que algún producto lo requiere; no crear sin esa confirmación |

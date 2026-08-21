@@ -7,11 +7,11 @@
 
 ## Resumen
 Validacion de documentos regulatorios al **Tramitar** el pedido (L05 — OBS-023: movida desde L04).
-Cuando el pedido tiene sustancias controladas y el cliente **no tiene** documentos regulatorios registrados:
-- Si `ppPedido.AceptaEntregasParciales = 1`: tramitar solo partidas elegibles + retener controladas sin docs + generar pedido hijo para las controladas retenidas.
-- Si `ppPedido.AceptaEntregasParciales = 0`: bloquear el tramitado completo.
+Cuando el pedido tiene sustancias controladas y el cliente **no tiene** documentos regulatorios registrados, el sistema **retiene el pedido completo** en su folio original — sin bifurcación.
 
-> **OBS-023:** La validación regulatoria se mueve de `L04.PretramitarPedido` (VerificarPedidoTramitableBO) a `L05.TramitarPedido` (TramitarPedidoBO). Se agrega bifurcación por entregas parciales.
+> **⚠️ OBSOLETO (2026-08-14) — retirada la bifurcación por entregas parciales.** El cliente confirmó que los pedidos mixtos (controladas + no controladas) no ocurren en la operación real; se retiró la mecánica de `AceptaEntregasParciales` / pedido hijo descrita originalmente aquí (ver detalle de columnas más abajo, marcadas igualmente como obsoletas). Ver `R16A-RE-FU-009.md` Regla 4 y Criterio B3 (bloqueo total, folio original) y `R16A-RE-FU-009_DIS-SOL_Revision.md` H-02.
+>
+> **OBS-023 (vigente):** La validación regulatoria se mueve de `L04.PretramitarPedido` (VerificarPedidoTramitableBO) a `L05.TramitarPedido` (TramitarPedidoBO).
 
 ---
 
@@ -35,25 +35,26 @@ Cuando el pedido tiene sustancias controladas y el cliente **no tiene** document
 
 ---
 
-## Cambios Estructurales (OBS-023)
+## Cambios Estructurales (OBS-023) — ⚠️ OBSOLETO, ver nota arriba
 
 | Tabla | Campo | Tipo | Estado | Descripción |
 |-------|-------|------|--------|-------------|
-| `ppPedido` | `AceptaEntregasParciales` | `bit NOT NULL DEFAULT(0)` | ✨ NUEVO R16 | El usuario acepta que se tramiten solo las partidas elegibles, reteniendo las controladas sin documentación |
-| `tpPedido` | `IdPedidoOrigenControlado` | `uniqueidentifier NULL` | ✨ NUEVO R16 | FK al `tpPedido` padre cuando este pedido es un hijo generado para partidas controladas retenidas |
+| `ppPedido` | `AceptaEntregasParciales` | `bit NOT NULL DEFAULT(0)` | ❌ **Retirado (2026-08-14)** | Ya no aplica — no hay bifurcación por entregas parciales; el pedido se retiene completo |
+| `tpPedido` | `IdPedidoOrigenControlado` | `uniqueidentifier NULL` | ❌ **Retirado (2026-08-14)** | Ya no aplica — no se generan pedidos hijo para controladas retenidas |
 
-**Scripts:**
+**Scripts (NO ejecutar — mecánica retirada, se conservan solo como referencia histórica):**
 
 ```sql
--- OBS-023: bifurcación por entregas parciales
-ALTER TABLE dbo.ppPedido
-    ADD AceptaEntregasParciales bit NOT NULL
-        CONSTRAINT DF_ppPedido_AceptaEntregasParciales DEFAULT (0);
-
-ALTER TABLE dbo.tpPedido
-    ADD IdPedidoOrigenControlado uniqueidentifier NULL
-        CONSTRAINT FK_tpPedido_PedidoOrigenControlado
-            FOREIGN KEY REFERENCES dbo.tpPedido(IdTpPedido);
+-- OBSOLETO (2026-08-14): bifurcación por entregas parciales retirada.
+-- Ver R16A-RE-FU-009.md Regla 4 / Criterio B3 (bloqueo total, folio original).
+-- ALTER TABLE dbo.ppPedido
+--     ADD AceptaEntregasParciales bit NOT NULL
+--         CONSTRAINT DF_ppPedido_AceptaEntregasParciales DEFAULT (0);
+--
+-- ALTER TABLE dbo.tpPedido
+--     ADD IdPedidoOrigenControlado uniqueidentifier NULL
+--         CONSTRAINT FK_tpPedido_PedidoOrigenControlado
+--             FOREIGN KEY REFERENCES dbo.tpPedido(IdTpPedido);
 ```
 
 ---
@@ -62,7 +63,7 @@ ALTER TABLE dbo.tpPedido
 
 | Objeto | Tipo | Estado | Rol en Validacion |
 |--------|------|--------|-------------------|
-| ppPedido | Tabla | Existente + **ALTER** (OBS-023) | Cabecera del pedido - IdRegion, Tramitado, AceptaEntregasParciales |
+| ppPedido | Tabla | Existente — sin ALTER | Cabecera del pedido - IdRegion, Tramitado |
 | ppPartidaPedido | Tabla | Existente | Partidas con IdProducto - detectar si es controlado |
 | MarcaFamilia | Tabla | Existente | Vincula Producto -> Familia |
 | Familia | Tabla | Existente | IdCatControl determina si es controlado |
@@ -88,7 +89,7 @@ ALTER TABLE dbo.tpPedido
 
 ## Tablas Clave
 
-### ppPedido (cabecera — ALTER: AceptaEntregasParciales)
+### ppPedido (cabecera — sin ALTER; ver nota de obsolescencia arriba)
 
 | Columna | Tipo | Uso en Validacion |
 |---------|------|-------------------|
@@ -97,13 +98,13 @@ ALTER TABLE dbo.tpPedido
 | Tramitado | bit | 0=En pretramitacion / 1=Tramitado |
 | IdContactoCliente | uniqueidentifier | -> ContactoCliente -> IdCliente |
 | IdCatEstadoPretramitacionPedido | uniqueidentifier | Estado del pedido |
-| **AceptaEntregasParciales** | **bit NOT NULL DEFAULT(0)** | **NUEVO OBS-023 — si 1: tramitar elegibles + retener controladas sin docs** |
+| ~~AceptaEntregasParciales~~ | ~~bit NOT NULL DEFAULT(0)~~ | ❌ **Retirado (2026-08-14)** — no aplica, ver nota de obsolescencia |
 
-### tpPedido (ALTER: IdPedidoOrigenControlado — OBS-023)
+### tpPedido (sin ALTER; ver nota de obsolescencia arriba)
 
 | Columna | Tipo | Uso |
 |---------|------|-----|
-| **IdPedidoOrigenControlado** | **uniqueidentifier NULL** | **NUEVO OBS-023 — FK al tpPedido padre cuando este pedido es hijo de partidas controladas retenidas** |
+| ~~IdPedidoOrigenControlado~~ | ~~uniqueidentifier NULL~~ | ❌ **Retirado (2026-08-14)** — no se generan pedidos hijo |
 
 ### ppPartidaPedido (partidas - sin cambios estructurales)
 
@@ -138,8 +139,8 @@ ALTER TABLE dbo.tpPedido
 |-------------------|--------|-------------|
 | Licencia Sanitaria | MEX | Documento COFEPRIS requerido para controlados |
 | Aviso de Responsable Sanitario | MEX | Documento COFEPRIS requerido para controlados |
-| [Pendiente confirmar] | PER | Documento equivalente DIGEMID |
-| [Pendiente confirmar] | PER | Documento equivalente DIGEMID |
+| ~~[Pendiente confirmar]~~ | ~~PER~~ | **Descartado (DUDA-027)** — Perú no soporta sustancias controladas en R16; riesgo operativo asumido, sin documentos regulatorios que registrar |
+| ~~[Pendiente confirmar]~~ | ~~PER~~ | **Descartado (DUDA-027)** — ídem |
 
 ---
 
@@ -175,10 +176,9 @@ ALTER TABLE dbo.tpPedido
             VERIFICAR que existan en ArchivoCliente:
               - IdCatUsoArchivoSistema = 'Licencia Sanitaria'
               - IdCatUsoArchivoSistema = 'Aviso de Responsable Sanitario'
-        SI @ClaveRegion = 'PER' ENTONCES
-            VERIFICAR que existan en ArchivoCliente:
-              - IdCatUsoArchivoSistema = [doc DIGEMID 1]
-              - IdCatUsoArchivoSistema = [doc DIGEMID 2]
+        -- DESCARTADO (DUDA-027): Perú no soporta sustancias controladas en R16;
+        -- no se construye rama de validación para PER. La detección de controlados
+        -- y su tramitación/facturación en Perú se asumen como riesgo operativo.
 
         -- 5. Si falta alguno -> BLOQUEAR
         SI falta algun documento ENTONCES
@@ -230,7 +230,7 @@ ALTER TABLE dbo.tpPedido
 | 1 | INSERT catUsoArchivoSistema (Licencia Sanitaria) | INSERT | Alta | Prerequisito para carga docs (RE-FU-003) |
 | 2 | INSERT catUsoArchivoSistema (Aviso Resp. Sanitario) | INSERT | Alta | Prerequisito para carga docs (RE-FU-003) |
 | 3 | ALTER FUNCTION fnEsProductoControlado (agregar 'origen') | ALTER | Alta | Compartido con RE-FU-007 |
-| 4 | INSERT catUsoArchivoSistema (docs DIGEMID Peru) | INSERT | Media | Pendiente confirmar denominacion |
+| ~~4~~ | ~~INSERT catUsoArchivoSistema (docs DIGEMID Peru)~~ **Descartado (DUDA-027)** | — | — | Perú no soporta controlados en R16 |
 
 ---
 
@@ -250,9 +250,9 @@ ALTER TABLE dbo.tpPedido
 |---|-----|--------|
 | 1 | catUsoArchivoSistema vacio | Insertar tipos de documento MEX antes de desarrollo |
 | 2 | ArchivoCliente sin registros | Prerequisito: RE-FU-003 debe estar operativo |
-| 3 | Denominacion docs Peru no definida | Confirmar con cliente antes de insertar |
+| 3 | ~~Denominacion docs Peru no definida~~ **Descartado (DUDA-027)** | Cerrado — Perú no soporta sustancias controladas en R16, no se insertan documentos regulatorios para esa región |
 | 4 | fnEsProductoControlado sin 'origen' | Ejecutar ALTER FUNCTION |
-| 5 | Puntos de entrada alternos a Tramitar | Confirmar si se re-valida en esos flujos |
+| 5 | ~~Puntos de entrada alternos a Tramitar~~ **Resuelto (DUDA-024)** | Cerrado — la validación se ejecuta en Tramitar Pedido (último paso), punto por el que convergen todos los caminos (Pretramitar, validar ajustes, aceptar OC, pedido intramitable). No requiere acción adicional |
 
 ---
 

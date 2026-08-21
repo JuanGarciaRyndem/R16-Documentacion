@@ -37,7 +37,9 @@ Datos tecnicos SAT del TimbreFiscalDigital (UUID, sellos, cadena, QR) — UUID d
 `CFDIGenerada`, sellos/cadena original leidos directamente del XML del PAC (no se
 persisten como columnas).
 PDF persistido en Minio (bucket 'facturas') via tabla Archivo, referenciado desde
-`CFDIGenerada.IdArchivoPdf`.
+`CFDIGenerada.IdArchivoPdf`. **[2026-08-21 · DUDA-039]** Confirmado: el PDF se almacena como
+archivo (no snapshot estructurado) y no sufre regeneracion — se conserva siempre el PDF
+generado originalmente al timbrar.
 Aplica a FAA (RE-FU-019) y a Validar Cobro. Solo Region MEX.
 
 ---

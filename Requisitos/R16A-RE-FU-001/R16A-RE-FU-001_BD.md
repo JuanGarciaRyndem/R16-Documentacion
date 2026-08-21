@@ -1,9 +1,9 @@
-﻿# Diccionario de Datos — Catálogo de Cuentas Bancarias PROQUIFA
+# Diccionario de Datos — Catálogo de Cuentas Bancarias PROQUIFA
 
 **Requisito:** R16A-RE-FU-001
 **Base de Datos:** ProquifaDotNet
 **Servidor:** RYNL010
-**Versión:** 1.4 — `IdRegion` en `EmpresaDatosBancarios` + Vista `vEmpresaDatosBancarios`
+**Versión:** 1.5 — Perú (GOLPERU) en alcance R16, campos `Swift`/`Iban` opcionales y `catMoneda` PEN (DUDA-001/DUDA-124, 2026-08-21)
 
 ---
 
@@ -20,8 +20,9 @@ de información para módulos de cobro y pago.
 | **MUN** | Mungen |
 | **PRO** | Proquifa |
 | **PQF** | Proveedora Químico Farmacéutica |
+| **GOLPERU** | Golocaer S.A.C. (Perú) |
 
-> ⚠️ Fuera de alcance R16: **GOLPERU** (Golocaer S.A.C. — Perú)
+> ~~⚠️ Fuera de alcance R16: **GOLPERU** (Golocaer S.A.C. — Perú)~~ **En alcance (DUDA-001, resuelta 25/7/2026)** — el modelo de cuentas bancarias de Golocaer S.A.C. (Perú) conforme a normativa SUNAT quedó definido y confirmado por el cliente; GOLPERU se incorpora al catálogo. Ver campos nuevos en la sección "DatosBancarios" más abajo y R16A-RE-FU-001.md (Cambio #4).
 
 ---
 
@@ -48,11 +49,11 @@ Vista: vEmpresaDatosBancarios  (NUEVA R16)
 | `EmpresaDatosBancarios` | Tabla | ✏️ Existente — **IdRegion NUEVO R16** | Catálogo principal de cuentas bancarias |
 | `vEmpresaDatosBancarios` | Vista | 🆕 **NUEVA R16** | Vista operativa con unión completa |
 | `EmpresaRegion` | Tabla | ✅ Existente — sin cambios | Vincula Empresa con Región |
-| `DatosBancarios` | Tabla | ✅ Existente — sin cambios | Detalle de cuenta bancaria |
+| `DatosBancarios` | Tabla | ✏️ Existente — **`Swift`/`Iban` NUEVOS R16 (DUDA-001)** | Detalle de cuenta bancaria; agrega campos opcionales para soportar la estructura multi-región confirmada con cliente |
 | `Empresa` | Tabla | ✅ Existente — sin cambios | Empresas GOL/MUN/PRO/PQF |
 | `Region` | Tabla | ✅ Existente — sin cambios | MEX / PER |
 | `catBanco` | Catálogo | ✅ Existente — sin cambios | Instituciones bancarias |
-| `catMoneda` | Catálogo | ✅ Existente — sin cambios | MXN / USD |
+| `catMoneda` | Catálogo | ✏️ Existente — **agregar PEN (DUDA-001)** | MXN / USD / PEN |
 | `catMedioDePago` | Catálogo | ✅ Existente — sin cambios | Formas de pago |
 | `fcppOrdenDePago` | Tabla | ✅ Existente — consumidor | FK `IdEmpresaDatosBancarios` |
 | `fppEjecucionOrdenDePago` | Tabla | ✅ Existente — consumidor | FK `IdEmpresaDatosBancarios` |
@@ -123,7 +124,7 @@ SET    IdRegion                  = @IdMexico,
        FechaUltimaActualizacion  = GETDATE()
 WHERE  IdRegion IS NULL;
 
--- Paso 1.3 (cuando se incorpore Perú — fuera de alcance R16):
+-- Paso 1.3 (Perú — EN ALCANCE R16 tras DUDA-001; pendiente carga de cuentas reales GOLPERU):
 -- DECLARE @IdPeru uniqueidentifier = '8278ecd0-c337-4484-b008-5b5e65b0dfaf';
 -- INSERT INTO dbo.EmpresaDatosBancarios (..., IdRegion) VALUES (..., @IdPeru);
 ```
@@ -139,29 +140,29 @@ con todos los datos resueltos de Empresa, Región, Banco y Moneda.
 
 ### Columnas de la vista
 
-| Columna | Origen | Descripción |
-|---------|--------|-------------|
-| `IdEmpresaDatosBancarios` | EmpresaDatosBancarios | PK del registro |
-| `IdEmpresa` | EmpresaDatosBancarios | FK — Empresa |
-| `EmpresaPrefijo` | Empresa.Prefijo | GOL / MUN / PRO / PQF |
-| `EmpresaAlias` | Empresa.Alias | Nombre corto de la empresa |
-| `IdRegion` | EmpresaDatosBancarios | FK — Región |
-| `Region` | Region.Nombre | México / Perú |
-| `RegionClave` | Region.ClaveISO | MEX / PER |
-| `IdDatosBancarios` | EmpresaDatosBancarios | FK — DatosBancarios |
-| `IdCatBanco` | DatosBancarios | FK — catBanco |
-| `Banco` | catBanco.Banco | Nombre de la institución bancaria |
-| `ClaveBanco` | catBanco.Clave | Código del banco (ej. 002 = Banamex) |
-| `NumeroDeCuenta` | DatosBancarios | Número de cuenta |
-| `Clabe` | DatosBancarios | CLABE interbancaria |
-| `Beneficiario` | DatosBancarios | Empresa beneficiaria de la cuenta |
-| `Sucursal` | DatosBancarios | Sucursal bancaria |
-| `IdCatMoneda` | DatosBancarios | FK — catMoneda |
-| `ClaveMoneda` | catMoneda.ClaveMoneda | MXN / USD |
-| `Moneda` | catMoneda.Moneda | Pesos / Dólares |
-| `FechaRegistro` | EmpresaDatosBancarios | Fecha de alta |
-| `FechaUltimaActualizacion` | EmpresaDatosBancarios | Fecha de modificación |
-| `Activo` | EmpresaDatosBancarios | 1 = Vigente / 0 = No vigente |
+| Columna                    | Origen                | Descripción                          |
+| -------------------------- | --------------------- | ------------------------------------ |
+| `IdEmpresaDatosBancarios`  | EmpresaDatosBancarios | PK del registro                      |
+| `IdEmpresa`                | EmpresaDatosBancarios | FK — Empresa                         |
+| `EmpresaPrefijo`           | Empresa.Prefijo       | GOL / MUN / PRO / PQF                |
+| `EmpresaAlias`             | Empresa.Alias         | Nombre corto de la empresa           |
+| `IdRegion`                 | EmpresaDatosBancarios | FK — Región                          |
+| `Region`                   | Region.Nombre         | México / Perú                        |
+| `RegionClave`              | Region.ClaveISO       | MEX / PER                            |
+| `IdDatosBancarios`         | EmpresaDatosBancarios | FK — DatosBancarios                  |
+| `IdCatBanco`               | DatosBancarios        | FK — catBanco                        |
+| `Banco`                    | catBanco.Banco        | Nombre de la institución bancaria    |
+| `ClaveBanco`               | catBanco.Clave        | Código del banco (ej. 002 = Banamex) |
+| `NumeroDeCuenta`           | DatosBancarios        | Número de cuenta                     |
+| `Clabe`                    | DatosBancarios        | CLABE interbancaria                  |
+| `Beneficiario`             | DatosBancarios        | Empresa beneficiaria de la cuenta    |
+| `Sucursal`                 | DatosBancarios        | Sucursal bancaria                    |
+| `IdCatMoneda`              | DatosBancarios        | FK — catMoneda                       |
+| `ClaveMoneda`              | catMoneda.ClaveMoneda | MXN / USD                            |
+| `Moneda`                   | catMoneda.Moneda      | Pesos / Dólares                      |
+| `FechaRegistro`            | EmpresaDatosBancarios | Fecha de alta                        |
+| `FechaUltimaActualizacion` | EmpresaDatosBancarios | Fecha de modificación                |
+| `Activo`                   | EmpresaDatosBancarios | 1 = Vigente / 0 = No vigente         |
 
 ### Script — Paso 2 (ejecutar DESPUÉS del Paso 1)
 
@@ -219,18 +220,25 @@ LEFT  JOIN dbo.catMoneda             m   ON db.IdCatMoneda       = m.IdCatMoneda
 
 ## 4. DatosBancarios
 
-**Propósito:** Detalle de cada cuenta bancaria. Sin cambios en R16.
+**Propósito:** Detalle de cada cuenta bancaria.
+**Cambio R16:** Agregar `Swift` e `Iban` (opcionales) — estructura de campos confirmada con cliente en DUDA-001.
 
 | Columna | Tipo | Nulo | Descripción |
 |---------|------|:----:|-------------|
 | `IdDatosBancarios` | uniqueidentifier | NO | PK |
 | `IdCatBanco` | uniqueidentifier | SÍ | FK → catBanco |
 | `NumeroDeCuenta` | varchar(20) | SÍ | Número de cuenta |
-| `Beneficiario` | varchar(200) | SÍ | Empresa beneficiaria |
-| `Clabe` | varchar(200) | SÍ | CLABE interbancaria |
+| `Beneficiario` | varchar(200) | SÍ | Nombre del beneficiario / titular de la cuenta |
+| `Clabe` | varchar(200) | SÍ | CLABE interbancaria (18 dígitos — aplica a cuentas México) |
 | `IdCatMoneda` | uniqueidentifier | SÍ | FK → catMoneda |
-| `Sucursal` | varchar(50) | SÍ | Sucursal bancaria |
+| `Sucursal` | varchar(50) | SÍ | Sucursal/agencia bancaria. **Opcional (DUDA-001/DUDA-124)** |
 | `NumeroTarjeta` | varchar(20) | SÍ | Número de tarjeta |
+| 🆕 **`Swift`** | **varchar(11)** | **SÍ** | **NUEVO R16 (DUDA-001) — Código SWIFT/BIC, opcional** |
+| 🆕 **`Iban`** | **varchar(34)** | **SÍ** | **NUEVO R16 (DUDA-001) — Código IBAN, opcional (solo si la cuenta tiene contraparte europea)** |
+
+> ℹ️ **Nota (DUDA-001, resuelta 25/7/2026):** estructura de cuenta bancaria confirmada con cliente: Empresa del grupo titular, Región (México/Perú), Banco, Moneda (MXN/USD/PEN, etc.), Número de cuenta, CLABE (México), Beneficiario/titular, Sucursal (opcional), SWIFT/BIC (opcional), IBAN (opcional). No es exclusiva de México — soporta operación multi-región.
+>
+> ℹ️ **Nota (DUDA-124, resuelta 10/7/2026):** `Sucursal` se mantiene como campo **NO requerido** (opcional). **Pendiente de validación:** confirmar que los registros migrados de Legacy/PConnect que cuentan con dato de Sucursal lo conserven también en PQF2 (revalidar consistencia de datos antes de cierre).
 
 ---
 
@@ -395,8 +403,9 @@ WHERE  IdEmpresaDatosBancarios  = @IdCuenta;
 | 1 | `IdRegion` ausente en `EmpresaDatosBancarios` | Columna nueva requerida | Ejecutar Script Paso 1 | 🔴 Alta |
 | 2 | `vEmpresaDatosBancarios` no existe | Vista nueva requerida | Ejecutar Script Paso 2 tras Paso 1 | 🔴 Alta |
 | 3 | `Empresa` sin `IdRegion` propio | Región vía `EmpresaRegion` | Sin cambio estructural — usar JOIN | ℹ️ Info |
-| 4 | Cuentas Perú fuera de alcance R16 | GOLPERU no incluida | Deuda técnica — `IdRegion=PER` cuando aplique | 🟢 Baja |
+| 4 | ~~Cuentas Perú fuera de alcance R16~~ ~~GOLPERU no incluida~~ | **Resuelto (DUDA-001, 25/7/2026)** — modelo SUNAT definido; agregar `Swift`/`Iban` (opcionales), `catMoneda` PEN, y poblar `IdRegion=PER` | Aplicar cambios de estructura y cargar cuentas reales GOLPERU | 🔴 Alta |
 | 5 | Sin UI en R16 | Gestión manual en BD | Validaciones en BD y auditoría | 🟡 Media |
+| 6 | Consistencia de `Sucursal` vs Legacy | Confirmar que los registros migrados de Legacy con dato de Sucursal lo conserven en PQF2 | **Pendiente (DUDA-124)** — revalidar antes de cierre | 🟡 Media |
 
 ---
 
@@ -406,11 +415,11 @@ WHERE  IdEmpresaDatosBancarios  = @IdCuenta;
 |:-:|--------|------------|:---------:|
 | 1 | Vista creada antes del ALTER | Fallará con `Invalid column name IdRegion` — ejecutar Paso 1 primero | 🔴 Alta |
 | 2 | Registros sin `IdRegion` tras ALTER | Ejecutar UPDATE del Paso 1.2 inmediatamente | 🔴 Alta |
-| 3 | Modelo Perú no definido | Definir en release posterior con `IdRegion = PER` | 🟢 Baja |
+| 3 | ~~Modelo Perú no definido~~ | **Resuelto (DUDA-001, 25/7/2026)** — estructura de cuentas Perú (SUNAT) definida y confirmada con cliente; ver sección "DatosBancarios" | 🟢 Baja (cerrado) |
 | 4 | Sin UI — errores manuales | Validaciones en BD y auditoría | 🟡 Media |
 
 ---
 
 **Generado por:** GitHub Copilot in SSMS
-**Versión:** 1.4 — `IdRegion` en `EmpresaDatosBancarios` + Vista `vEmpresaDatosBancarios`
+**Versión:** 1.5 — Perú (GOLPERU) en alcance R16, campos `Swift`/`Iban` opcionales y `catMoneda` PEN (DUDA-001/DUDA-124, 2026-08-21)
 **Base de Datos:** ProquifaDotNet

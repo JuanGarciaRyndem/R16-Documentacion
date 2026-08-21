@@ -107,7 +107,8 @@ ALTER TABLE dbo.fccSaldoFavorCliente
 
 **Campos:** `IdFCCNotaCredito`, `Folio`, `Monto`, `PEN`, `MontoPEN`, `ClaveMoneda`
 
-> ⚠️ La mecánica fiscal de referencia de la NC peruana (catálogo 09 SUNAT, cómo se vincula al CPE original) se desarrolla en RE-FU-033/035 y **no se implementa en este Paso 2**. Aquí solo se aplica operativamente al adeudo.
+> ⚠️ ~~La mecánica fiscal de referencia de la NC peruana (catálogo 09 SUNAT, cómo se vincula al CPE original) se desarrolla en RE-FU-033/035 y **no se implementa en este Paso 2**. Aquí solo se aplica operativamente al adeudo.~~
+> **[DUDA-087 — Descartada, 2026-08-21]** Se cancela la facturación de Perú en R16; no aplica desarrollar la mecánica de NC peruana (catálogo 09 SUNAT) ni su aplicación al adeudo en este Paso.
 
 ### B3 — Cálculo dinámico del saldo de la asociación (motor central del Paso 2) — Perú
 
@@ -129,7 +130,8 @@ SaldoAsociacion = (SumaCobrosAplicados + SumaNCAplicadas) - SumaAdeudoDocumentos
 | < 0 AND ABS ≤ T (umbral Perú)    | Tolerancia     | Permite avanzar; registra `ToleranciaAplicada` en `fccSaldoFavorCliente` (PEN=1) |
 | < 0 AND ABS > T (umbral Perú)    | Insuficiente   | Bloquea avance; requiere inconsistencia o dejar pendiente                        |
 
-> ⚠️ **Umbral de tolerancia Perú (T) pendiente de definir con PROQUIFA Tesorería.** En México es 100 MXN (Política Interna). Para Perú: monto, moneda y tratamiento cuando la facturación no es PEN están sin confirmar.
+> ⚠️ ~~Umbral de tolerancia Perú (T) pendiente de definir con PROQUIFA Tesorería. En México es 100 MXN (Política Interna). Para Perú: monto, moneda y tratamiento cuando la facturación no es PEN están sin confirmar.~~
+> **[DUDA-086 — Resuelta, 2026-08-21]** Se aplica la MISMA regla de tolerancia que México (tolerancia equivalente para Perú); los montos límite deben ser configurables a nivel BD.
 
 ### B4 — Persistencia de la asociación en ProquifaDotNet — Perú
 
@@ -172,14 +174,14 @@ Todo en una sola transacción; rollback completo si cualquier operación falla.
 
 ## Brechas
 
-> ⚠️ **BRECHA BLOQUEANTE — Umbral de tolerancia Perú (B1)**
-> El umbral equivalente a los 100 MXN de México no está definido para Perú: monto, moneda y tratamiento cuando la facturación no es PEN. Sin él, el escenario de pago de menos no puede gobernarse automáticamente en el Paso 2.
+> ⚠️ ~~BRECHA BLOQUEANTE — Umbral de tolerancia Perú (B1)~~ **[DUDA-086 — Resuelta, 2026-08-21: cerrada]**
+> ~~El umbral equivalente a los 100 MXN de México no está definido para Perú: monto, moneda y tratamiento cuando la facturación no es PEN. Sin él, el escenario de pago de menos no puede gobernarse automáticamente en el Paso 2.~~ Se aplica la MISMA regla que México (tolerancia equivalente); los montos límite deben ser configurables a nivel BD.
 
 > ⚠️ **BRECHA BLOQUEANTE — Fuente del TC para Perú (B2)**
 > El TC capturado en el Paso 1 Perú (RE-FU-025) no tiene fuente oficial definida. No aplica el DOF mexicano. Posiblemente SBS (Superintendencia de Banca y Seguros del Perú), pendiente confirmar. Es brecha transversal: afecta RE-FU-017, 020, 022, 025 y 027.
 
-> ⚠️ **BRECHA BLOQUEANTE — Mecánica fiscal NC peruana catálogo 09 SUNAT (B3)**
-> La aplicación de NCs al adeudo en el Paso 2 es operativa, pero el referenciado fiscal de la NC peruana (catálogo 09, vinculación al CPE original) se define en RE-FU-033/035. Hasta que se resuelva, la aplicación de NCs en Perú no puede implementarse completamente.
+> ⚠️ ~~BRECHA BLOQUEANTE — Mecánica fiscal NC peruana catálogo 09 SUNAT (B3)~~ **[DUDA-087 — Descartada, 2026-08-21: cerrada por no aplicabilidad]**
+> ~~La aplicación de NCs al adeudo en el Paso 2 es operativa, pero el referenciado fiscal de la NC peruana (catálogo 09, vinculación al CPE original) se define en RE-FU-033/035. Hasta que se resuelva, la aplicación de NCs en Perú no puede implementarse completamente.~~ Se cancela la facturación de Perú en R16; no aplica desarrollar esta mecánica ni la aplicación de NCs en el Paso 2.
 
 > ⚠️ **BRECHA MEDIA — Mecanismo de transferencia "Pago Incompleto Vencido" (B4)**
 > El marcado del pedido como "Pendiente de cancelación" notifica para gestión externa. El canal de transferencia del estado a Finanzas/Tesorería no está definido.

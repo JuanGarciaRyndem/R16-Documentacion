@@ -1,7 +1,7 @@
 # Impacto en BD - Diseno y Generacion PDF Proforma Peru
 **Requisito:** R16A-RE-FU-017
 **Base de Datos:** ProquifaDotNet
-**Version:** 3.0 (rev. 2026-07-21 — DIS-SOL v1.2 + Decisión "Quitar Perú" + catMoneda.Leyenda DDL + B2 resuelto)
+**Version:** 3.1 (rev. 2026-08-21 — trazabilidad DUDA-009/018/041/042/044/054: B8/B9/B10 cerradas)
 
 ---
 
@@ -174,16 +174,16 @@ Logos se resuelven por Prefijo en DocumentBuilder, no en BD.
 
 | # | Brecha | Impacto | Accion |
 |---|--------|---------|--------|
-| B1 | 0 cuentas bancarias GOLPERU en BD — **criterio de visualización resuelto** (2 cuentas activas más recientes, DUDA-118/036) | PDF sin datos bancarios reales | INSERT EmpresaDatosBancarios + DatosBancarios para bancos peruanos de Golocaer (BCP, BBVA Continental u otros). **Brecha DML abierta.** |
+| B1 | 0 cuentas bancarias GOLPERU en BD — **criterio de visualización resuelto** (2 cuentas activas más recientes, mismo mecanismo que México — DUDA-044 / DUDA-118/036) | PDF sin datos bancarios reales | INSERT EmpresaDatosBancarios + DatosBancarios para bancos peruanos de Golocaer (BCP, BBVA Continental u otros). **Brecha DML abierta.** |
 | ~~B2~~ | ~~REF.CLIENTE Peru no definida~~ **[Resuelto — Duda FU-006/FU-017]** | ~~PDF sin referencia de pago~~ | Perú usa Razón Social por default (mismo camino que no-Banamex, RE-FU-006 Regla 6-PER). No requiere columna DDL adicional. **Cerrado.** |
 | B3 | Direccion legal y datos de contacto GOLPERU no capturados | Pie del PDF incompleto | Recopilar y UPDATE Empresa (GOLPERU): direccion legal Peru + telefonos + web + correo Peru |
 | B4 | Disclaimer SUNAT no validado legalmente | Riesgo legal | Validar con asesor contable peruano |
 | B5 | Detracciones/Percepciones no confirmadas | Posible omision regulatoria | Confirmar con asesor contable peruano. **Bloquea habilitacion productiva de Peru (OBS-032).** |
 | B6 | Certificaciones GOLPERU Peru desconocidas | Pie del PDF incompleto | Confirmar ISO/metodos de pago Peru |
 | B7 | Logos farmaceuticos Peru no definidos | Pie del PDF incompleto | Confirmar lista (USP, EDQM, Microbiologics) |
-| B8 | Titulo: Proforma vs Factura Proforma | Ambiguedad documento | Confirmar con cliente |
-| B9 | Nomenclatura: SOLES vs NUEVOS SOLES | Texto en letra incorrecto | Confirmar (SOLES es oficial desde 2015) |
-| B10 — [Parcialmente resuelto — OBS-TC 2026-07-21] | ~~TC SUNAT compra/venta vs interno~~ **Dónde persiste:** resuelto — `tpProformaPedido.TipoCambio` (nuevo). **Pendiente de negocio:** confirmar si el valor proviene del TC SUNAT publicado (compra/venta) o TC interno corporativo — eso determina cómo se obtiene, no dónde se guarda. Ver RE-FU-016_BD.md OBS-TC. | Monto puede variar si fuente TC incorrecta | Confirmar con finanzas (solo el origen del valor) |
+| ~~B8~~ | ~~Titulo: Proforma vs Factura Proforma~~ **[Resuelto — DUDA-041]** | Título confirmado: "Proforma" | Cerrado |
+| ~~B9~~ | ~~Nomenclatura: SOLES vs NUEVOS SOLES~~ **[Resuelto — DUDA-042]** | Nomenclatura confirmada: "SOLES" (oficial desde 2015) | Cerrado |
+| ~~B10~~ | ~~TC SUNAT compra/venta vs interno~~ **[Resuelto — DUDA-054]** **Dónde persiste:** `tpProformaPedido.TipoCambio` (nuevo, ver OBS-TC). **Origen del valor:** ya existe un tipo de cambio para Perú (Soles) — es el mismo que actualmente usa el sistema para Pedidos que no están en USD. No se requiere una fuente nueva o distinta (SUNAT publicado ni interno corporativo separado). | Resuelto | Cerrado |
 
 ---
 

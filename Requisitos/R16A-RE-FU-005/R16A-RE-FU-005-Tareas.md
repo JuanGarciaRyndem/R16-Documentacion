@@ -8,9 +8,25 @@
 | **Revisión aplicada** | R16A-RE-FU-005 Revision.md |
 
 ---
+
+## Actualización 2026-08-21 — Cierre de dudas (batch "R16 - Dudas a Cliente")
+
+Con el cierre de las siguientes dudas, y en el contexto general de **cancelación de la facturación de Región Perú**, se cancelan las Tareas 2, 3 y 5 (ver detalle tachado en cada tarea) y se acota el alcance de la Tarea 1:
+
+- **DUDA-008** (Descartada): no se desarrolla la bandera Agente de Retención del IGV para clientes Perú.
+- **DUDA-009** (Resuelta): no aplica Detracción SPOT para la operación de PROQUIFA.
+- **DUDA-010** (Descartada): no se desarrolla el cálculo de Percepción del IGV.
+- **DUDA-012** (Descartada): se descarta la denominación "Condición de Pago" para Perú — no hay facturación en Perú.
+- **DUDA-014** (Descartada): se descartan los catálogos fiscales SUNAT específicos por producto para Perú.
+
+Estas tareas quedan **canceladas**; se conservan tachadas para trazabilidad, no se eliminan.
+
+---
 ## Tarea 1
 
 ### R16A-RE-FU-005  GAP-01  [ UPDATE-TABL-CH ] Agregar `IdRegion` a `catMetodoDePagoCFDI`, `catUsoCFDI` y `catMedioDePago`
+
+> **Nota 2026-08-21 (DUDA-012 / DUDA-014 — cancelación facturación Perú):** el alcance de esta tarea se acota a `catMedioDePago` (Forma de Pago), que sigue regionalizado según el requisito vigente (Regla 5). Agregar `IdRegion` a `catMetodoDePagoCFDI` y `catUsoCFDI` **ya no aplica**: no habrá registros Perú para estos catálogos (ver cancelación de Tarea 2), y `catUsoCFDI` se despliega sin diferenciación por región (Regla 4 del requisito vigente).
 
 **Aplicativos:**
 ProquifaNet 2 — Base de datos ProquifaDotNet
@@ -65,7 +81,9 @@ SELECT COUNT(*) AS SinRegion_MedioPago FROM dbo.catMedioDePago WHERE IdRegion IS
 ---
 ## Tarea 2
 
-### R16A-RE-FU-005  GAP-02  [ QUERY-CH ] Insertar registros PE en `catMetodoDePagoCFDI` (CONT/CRED) y `catUsoCFDI` (01/03/08)
+### ~~R16A-RE-FU-005  GAP-02  [ QUERY-CH ] Insertar registros PE en `catMetodoDePagoCFDI` (CONT/CRED) y `catUsoCFDI` (01/03/08)~~
+
+> **CANCELADA — 2026-08-21 (DUDA-012):** se descarta la denominación "Condición de Pago" para Perú y la inserción de registros PE en estos catálogos — "no hay facturación en Perú" (Resolución DUDA-012), en el contexto general de cancelación de la facturación de Región Perú. No ejecutar los INSERT siguientes.
 
 **Aplicativos:**
 ProquifaNet 2 — Base de datos ProquifaDotNet
@@ -122,7 +140,9 @@ SELECT ClaveUso, Uso, Activo FROM dbo.catUsoCFDI WHERE IdRegion = @PER;
 ---
 ## Tarea 3
 
-### R16A-RE-FU-005  GAP-03  [ UPDATE-TABL-CH ] Agregar campos PE a `DatosFacturacionCliente` (`AgenteRetencionIGV`, `SujetoDetraccion`, `TasaDetraccion`)
+### ~~R16A-RE-FU-005  GAP-03  [ UPDATE-TABL-CH ] Agregar campos PE a `DatosFacturacionCliente` (`AgenteRetencionIGV`, `SujetoDetraccion`, `TasaDetraccion`)~~
+
+> **CANCELADA — 2026-08-21 (DUDA-008 / DUDA-009):** esta tarea quedaba condicionada a que los Pendientes P5 y P6 se resolvieran como "No aplica" (ver "Consideraciones previas" original), y así ocurrió: P5 = DUDA-008 (Descartada — no se desarrolla Agente de Retención del IGV) y P6 = DUDA-009 (Resuelta — no aplica Detracción SPOT para la operación de PROQUIFA). Conforme al propio criterio de la tarea, se cancela. No ejecutar el `ALTER TABLE` siguiente.
 
 **Aplicativos:**
 ProquifaNet 2 — Base de datos ProquifaDotNet
@@ -174,6 +194,8 @@ FROM dbo.DatosFacturacionCliente;
 ## Tarea 4
 
 ### R16A-RE-FU-005  GAP-04  [ IMP-EXIST-SERVICE ] Aplicar filtro de región en `catMetodoDePagoCFDIController`, `catUsoCFDIController` y `catMedioDePagoController`
+
+> **Nota 2026-08-21 (DUDA-012 / DUDA-014):** el filtro por región solo aplica a `catMedioDePagoController` (Forma de Pago, regionalizado por el requisito vigente). Para `catMetodoDePagoCFDIController` y `catUsoCFDIController` ya no aplica: no existen registros PE que filtrar (ver cancelación de Tarea 2) y Uso de CFDI se despliega sin diferenciación por región.
 
 **Aplicativos:**
 ProquifaNet 2 — WebApi.Catalogos
@@ -316,7 +338,9 @@ public QueryResult<catMedioDePago> QueryResult([FromBody] QueryInfo info)
 ---
 ## Tarea 5
 
-### R16A-RE-FU-005  GAP-05  [ BD-OBJ-CH ] Revisar y actualizar `vDatosFacturacionCliente` para exponer campos PE
+### ~~R16A-RE-FU-005  GAP-05  [ BD-OBJ-CH ] Revisar y actualizar `vDatosFacturacionCliente` para exponer campos PE~~
+
+> **CANCELADA — 2026-08-21:** esta tarea dependía de la Tarea 3 (GAP-03), que se cancela por cierre de DUDA-008 y DUDA-009 (ver nota en esa tarea). Conforme a su propio criterio ("Si la Tarea 3 se cancela ... esta tarea también se cancela"), se cancela.
 
 **Aplicativos:**
 ProquifaNet 2 — Base de datos ProquifaDotNet

@@ -38,7 +38,7 @@ El sistema debe generar un PDF de Proforma al tramitar un pedido Prepago sin Fac
 - Pedidos Crédito sin Factura por Adelantado ni Crédito/Prepago con Factura por Adelantado.
 - Pedidos para clientes con Región México. Esa funcionalidad se documenta en requisito independiente.
 - Otras empresas del grupo PROQUIFA. Solo Golocaer S.A.C. opera actualmente en Perú; las cuatro empresas del grupo México (Golocaer S.A. de C.V., Mungen S.A. de C.V., Proquifa S.A. de C.V., Proveedora Quimico Farmaceutica S.A. de C.V.) no emiten proformas para clientes Perú.
-- Régimen de Detracciones SUNAT (SPOT). ** Bajo análisis preliminar, los productos típicos de PROQUIFA NO están en los anexos sujetos a detracción de la R.S. 183-2004/SUNAT. La aplicabilidad final debe confirmarse con asesor contable peruano antes de habilitar el módulo productivamente. **
+- ~~Régimen de Detracciones SUNAT (SPOT). Bajo análisis preliminar, los productos típicos de PROQUIFA NO están en los anexos sujetos a detracción de la R.S. 183-2004/SUNAT. La aplicabilidad final debe confirmarse con asesor contable peruano antes de habilitar el módulo productivamente.~~ **[Resuelto — DUDA-009]** El cliente confirmó que NO aplica Detracción SPOT para la operación de PROQUIFA. Régimen de Detracciones fuera de alcance de forma definitiva.
 - Régimen de Percepciones SUNAT del IGV. ** Bajo análisis preliminar, Golocaer S.A.C. NO está designada por SUNAT como Agente de Percepción y sus productos no están en el Apéndice 1 de la Ley N° 29173. La aplicabilidad final debe confirmarse con asesor contable peruano antes de habilitar el módulo productivamente. **
 - ~~Generación de Proforma Perú mientras la facturación / timbrado Perú no esté habilitada productivamente (OBS-032).~~ **[Anulado — Decisión "Quitar Perú" 2026-07-17]** OBS-032 ya no bloquea este requisito. La Proforma Perú se genera sin precondición de timbrado.
 
@@ -94,8 +94,8 @@ Los paneles del documento se arman desde las fuentes indicadas: datos de partida
 Riesgo 1 — Disclaimer legal SUNAT pendiente de validación
 El disclaimer propuesto en el documento es una redacción aproximada basada en el marco normativo SUNAT. La redacción legal exacta debe ser validada por asesor contable o legal peruano antes de uso productivo. Un disclaimer mal redactado podría generar confusión en el cliente o exposición legal innecesaria.
 
-Riesgo 2 — Régimen de Detracciones y Percepciones SUNAT con aplicabilidad pendiente de confirmar
-Bajo análisis preliminar, los productos típicos de PROQUIFA (estándares químico-biológicos, cepas Microbiologics, sustancias controladas, columnas cromatográficas, equipos de laboratorio) no están en los anexos de Detracción de la R.S. 183-2004/SUNAT, y Golocaer S.A.C. no sería Agente de Percepción del IGV bajo la Ley N° 29173 para sus productos típicos. ** Confirmar formalmente con asesor contable peruano antes de habilitar Perú productivamente. Si algún producto cae en algún anexo de Detracción o si SUNAT designa a Golocaer S.A.C. como Agente de Percepción en el futuro, el sistema deberá adaptarse para reflejar el régimen aplicable. **
+Riesgo 2 — Régimen de Percepciones SUNAT con aplicabilidad pendiente de confirmar
+~~Bajo análisis preliminar, los productos típicos de PROQUIFA (estándares químico-biológicos, cepas Microbiologics, sustancias controladas, columnas cromatográficas, equipos de laboratorio) no están en los anexos de Detracción de la R.S. 183-2004/SUNAT~~. **[Resuelto — DUDA-009]** El cliente confirmó que NO aplica Detracción SPOT para la operación de PROQUIFA; este punto queda cerrado. Pendiente de confirmar continúa siendo únicamente el Régimen de Percepciones: bajo análisis preliminar Golocaer S.A.C. no sería Agente de Percepción del IGV bajo la Ley N° 29173 para sus productos típicos. ** Confirmar formalmente con asesor contable peruano antes de habilitar Perú productivamente. Si SUNAT designa a Golocaer S.A.C. como Agente de Percepción en el futuro, el sistema deberá adaptarse para reflejar el régimen aplicable. **
 
 Riesgo 3 — Tipo de cambio inconsistente entre Proforma y validación de pago posterior
 Si el tipo de cambio mostrado en la Proforma difiere del aplicado al recibir el pago en Validar Cobro, el cliente puede recibir documentos con montos distintos en moneda local generando confusión. La regla es la misma que en México: el tipo de cambio es el del día de generación de la Proforma.
@@ -175,7 +175,7 @@ Entonces deberá mostrar el monto en palabras según la moneda:
 Criterio D3 — Tipo de Cambio (cuando aplica)
 Dado que la moneda de facturación del cliente NO es soles peruanos,
 Cuando el sistema renderiza la sección de pago,
-Entonces deberá mostrar el tipo de cambio aplicado a la conversión. El tipo de cambio es el del día de generación. ** Pendiente confirmar si para Perú aplica el tipo de cambio SUNAT publicado (compra/venta) o un tipo de cambio interno corporativo. **
+Entonces deberá mostrar el tipo de cambio aplicado a la conversión. El tipo de cambio es el del día de generación. ~~Pendiente confirmar si para Perú aplica el tipo de cambio SUNAT publicado (compra/venta) o un tipo de cambio interno corporativo.~~ **[Resuelto — DUDA-054]** Ya existe un tipo de cambio para Perú (Soles): es el mismo que actualmente usa el sistema para Pedidos que no están en USD. No se requiere una fuente nueva o distinta.
 
 Criterio D4 — Condiciones de Pago
 Dado que el sistema renderiza la sección de pago,
@@ -194,7 +194,7 @@ SECCIÓN E — DATOS BANCARIOS
 Criterio E1 — Cuentas bancarias de Golocaer S.A.C. Perú
 Dado que el sistema renderiza la sección de datos bancarios,
 Cuando arma el contenido,
-Entonces deberá mostrar las **dos cuentas activas más recientes** de Golocaer S.A.C. Perú. **[Resuelto — DUDA-118/036, alineado con RE-FU-016]** Se muestran siempre las dos cuentas activas más recientes, independientemente de la moneda del pedido (mismo criterio que México). Las cuentas se obtienen de `EmpresaDatosBancarios` filtradas por `IdRegion = PER`; los datos concretos (bancos, monedas, CCI) se capturan como DML en la brecha B1.
+Entonces deberá mostrar las **dos cuentas activas más recientes** de Golocaer S.A.C. Perú. **[Resuelto — DUDA-044 / DUDA-118/036, alineado con RE-FU-016]** Se muestran siempre las dos cuentas activas más recientes, independientemente de la moneda del pedido (mismo criterio que México). Las cuentas se obtienen de `EmpresaDatosBancarios` filtradas por `IdRegion = PER`; los datos concretos (bancos, monedas, CCI) se capturan como DML en la brecha B1.
 Los campos por cuenta esperados son: Moneda, Banca, Sucursal, Cuenta, CCI (Código de Cuenta Interbancario de 20 dígitos, en lugar de CLABE) y REF. CLIENTE.
 
 Criterio E2 — Referencia bancaria del cliente (REF. CLIENTE) **[Resuelto — Duda FU-006/FU-017]**
@@ -315,7 +315,7 @@ Entonces el sistema no deberá ofrecer esa funcionalidad. El pendiente está cer
   - Régimen de Pago: SUNAT clasifica Contado/Crédito sin el concepto "Pago en una sola exhibición" del SAT.
   - Sello NEEC: NO aplica a Perú (programa SAT exclusivo México).
   - Logo FEUM: NO aplica a Perú (farmacopea mexicana).
-- Régimen de Detracciones (SPOT) y Régimen de Percepciones del IGV: bajo análisis preliminar NO aplican a los productos típicos de Golocaer S.A.C. Perú. Sin embargo, esta validación debe ser confirmada por asesor contable peruano antes de habilitar Perú productivamente. Si en el futuro algún producto se incorpora a los anexos de Detracción o si SUNAT designa a Golocaer S.A.C. como Agente de Percepción, el sistema debe adaptarse.
+- ~~Régimen de Detracciones (SPOT) y Régimen de Percepciones del IGV: bajo análisis preliminar NO aplican a los productos típicos de Golocaer S.A.C. Perú. Sin embargo, esta validación debe ser confirmada por asesor contable peruano antes de habilitar Perú productivamente.~~ **[Resuelto parcialmente — DUDA-009]** El Régimen de Detracciones (SPOT) NO aplica a la operación de PROQUIFA — confirmado por el cliente, cerrado de forma definitiva. El Régimen de Percepciones del IGV permanece pendiente de confirmación formal por asesor contable peruano. Si en el futuro SUNAT designa a Golocaer S.A.C. como Agente de Percepción, el sistema debe adaptarse.
 
 ═══════════════════════════════════════════════════════════════
 BRECHAS PENDIENTES DE RESOLUCIÓN ANTES DE HABILITAR PERÚ
@@ -325,7 +325,7 @@ Las siguientes brechas se documentan formalmente y deben resolverse antes de hab
 
 ~~B1 — Modelo de cuentas bancarias de Golocaer S.A.C. Perú~~ **[Parcialmente resuelto — DUDA-118/036]**
 ~~No se conocen los bancos peruanos donde Golocaer opera, ni la cantidad de cuentas que se muestran en la Proforma, ni las monedas (PEN únicamente o PEN + USD), ni el formato del CCI de 20 dígitos. Pendiente capturar y configurar.~~
-El criterio de visualización está resuelto: se muestran las **dos cuentas activas más recientes** (mismo criterio que RE-FU-016 México). La brecha pendiente restante es de **datos (DML)**: insertar los registros reales en `EmpresaDatosBancarios` + `DatosBancarios` para los bancos peruanos de Golocaer S.A.C. (BCP, BBVA Continental u otros). Ver RE-FU-017_BD.md brecha B1.
+El criterio de visualización está resuelto **[DUDA-044 / DUDA-118/036]**: se usa el mismo mecanismo que México (mostrar las cuentas/referencias configuradas), con las **dos cuentas activas más recientes** (mismo criterio que RE-FU-016 México). La brecha pendiente restante es de **datos (DML)**: insertar los registros reales en `EmpresaDatosBancarios` + `DatosBancarios` para los bancos peruanos de Golocaer S.A.C. (BCP, BBVA Continental u otros). Ver RE-FU-017_BD.md brecha B1.
 
 ~~B2 — Modelo de Referencia Bancaria Perú (Código Validador)~~ **[Resuelto — Duda FU-006/FU-017]**
 ~~La lógica para construir la REF. CLIENTE que permite identificar pagos del cliente en cuentas peruanas no está definida. La lógica México (Banamex 7 segmentos / no-Banamex nombre directo) es exclusiva del Legacy mexicano y no replica al contexto peruano. Pendiente definir mecanismo de identificación de pagos por banco peruano.~~
@@ -337,8 +337,8 @@ Dirección legal, teléfonos, web institucional, correo de ventas y redes social
 B4 — Disclaimer legal SUNAT
 Texto exacto del disclaimer validado por asesor legal peruano. Propuesta documentada: "ESTE ES UN DOCUMENTO INFORMATIVO PREVIO A LA EMISIÓN DEL COMPROBANTE DE PAGO ELECTRÓNICO (CPE). CARECE DE VALIDEZ FISCAL Y TRIBUTARIA CONFORME AL REGLAMENTO DE COMPROBANTES DE PAGO Y RESOLUCIÓN DE SUPERINTENDENCIA N° 097-2012/SUNAT."
 
-B5 — Régimen de Detracciones y Percepciones
-Confirmación formal por asesor contable peruano de que los productos típicos de PROQUIFA NO están sujetos a Detracción (R.S. 183-2004/SUNAT) y de que Golocaer S.A.C. NO sería Agente de Percepción para sus productos (Ley N° 29173).
+~~B5 — Régimen de Detracciones y Percepciones~~ **[Detracción resuelta — DUDA-009; Percepción sigue abierta]**
+~~Confirmación formal por asesor contable peruano de que los productos típicos de PROQUIFA NO están sujetos a Detracción (R.S. 183-2004/SUNAT) y de que Golocaer S.A.C. NO sería Agente de Percepción para sus productos (Ley N° 29173).~~ El Régimen de Detracciones (SPOT) queda cerrado: el cliente confirmó que NO aplica a la operación de PROQUIFA (DUDA-009). Pendiente restante: confirmación formal por asesor contable peruano de que Golocaer S.A.C. NO sería Agente de Percepción del IGV para sus productos (Ley N° 29173).
 
 B6 — Certificaciones aplicables a Golocaer S.A.C. Perú
 ISO 9001 o equivalente, métodos de pago aceptados (medios peruanos), y cualquier otra certificación de calidad vigente en el mercado peruano.
@@ -354,10 +354,10 @@ El título confirmado es **"Proforma"**. Ver Criterio A3.
 ~~Confirmar si la nomenclatura aceptada es "SOLES" (oficial desde 2015) o "NUEVOS SOLES" (denominación previa que aún aparece en algunas implementaciones).~~
 La nomenclatura correcta es **"SOLES"** (oficial desde 2015). No usar "NUEVOS SOLES". Ver Criterio D2.
 
-B10 — Tipo de cambio aplicado en Perú
-Confirmar si para Perú aplica el tipo de cambio SUNAT publicado (compra/venta) o un tipo de cambio interno corporativo.
+~~B10 — Tipo de cambio aplicado en Perú~~ **[Resuelto — DUDA-054]**
+~~Confirmar si para Perú aplica el tipo de cambio SUNAT publicado (compra/venta) o un tipo de cambio interno corporativo.~~ Ya se cuenta con un tipo de cambio para Perú (Soles): es el mismo que actualmente usa el sistema para Pedidos que no están en USD. No se requiere una fuente nueva o distinta. Ver Criterio D3.
 
-Mientras las brechas abiertas no se resuelvan, el cliente Perú no puede recibir Proforma productiva con el formato adaptado. Se recomienda programar sesión específica para resolución integral del modelo Perú. **[Actualizado — Decisión "Quitar Perú" 2026-07-17]** ~~La precondición operativa de OBS-032 (no generar Proforma Perú mientras la facturación Perú no esté habilitada) sigue vigente hasta el cierre de B1–B5 + módulo de timbrado SUNAT.~~ OBS-032 ya no bloquea este requisito: la Proforma Perú procede íntegramente y el ciclo de vida cierra en `CompletadaSinFactura` (ver RE-FU-029). Las brechas B3–B7 y B10 permanecen abiertas (datos / validación legal); B1 permanece abierta solo en su componente de datos DML. Las brechas B2, B8 y B9 están resueltas.
+Mientras las brechas abiertas no se resuelvan, el cliente Perú no puede recibir Proforma productiva con el formato adaptado. Se recomienda programar sesión específica para resolución integral del modelo Perú. **[Actualizado — Decisión "Quitar Perú" 2026-07-17]** ~~La precondición operativa de OBS-032 (no generar Proforma Perú mientras la facturación Perú no esté habilitada) sigue vigente hasta el cierre de B1–B5 + módulo de timbrado SUNAT.~~ OBS-032 ya no bloquea este requisito: la Proforma Perú procede íntegramente y el ciclo de vida cierra en `CompletadaSinFactura` (ver RE-FU-029). Las brechas B3, B4, B6 y B7 permanecen abiertas (datos / validación legal); B5 permanece abierta solo en su componente de Percepción (Detracción cerrada por DUDA-009); B1 permanece abierta solo en su componente de datos DML. Las brechas B2, B8, B9 y B10 están resueltas. **[Actualización 2026-08-21 — ver DUDA-009, DUDA-044, DUDA-054]**
 
 
 ---
@@ -370,3 +370,4 @@ Mientras las brechas abiertas no se resuelvan, el cliente Perú no puede recibir
 | 2   | 2026-06-25 | OBS-032     | Incorporación explícita de la precondición OBS-032 en el cuerpo del requisito: se agrega nota de precondición en "Requisito Funcional", nueva viñeta en Alcance / No aplica a, y Regla 0 — la generación de Proforma Perú depende de que la facturación / timbrado Perú esté habilitada productivamente; mientras no lo esté, no se generan Proformas Perú ni pendientes asociados, evitando ruido operativo. Renumeración de brechas a secuencia continua B1–B10. |
 | 3   | 2026-07-17 | Duda FU-006/FU-017 | Resolución referencia bancaria Perú (B2): Perú no tiene mecanismo de Código Validador; REF. CLIENTE usa Razón Social por default (mismo camino que bancos no-Banamex, RE-FU-006 Regla 6-PER). Criterio E2 y Brecha B2 actualizados. |
 | 4   | 2026-07-21 | DIS-SOL v1.2 / Decisión "Quitar Perú" 2026-07-17 | Actualización integral tras validación del Diseño de Solución v1.2: (1) OBS-032 anulada como bloqueante — la Proforma Perú procede íntegramente; ciclo cierra en `CompletadaSinFactura` (RE-FU-029). Regla 0 y precondición en Requisito Funcional marcadas como anuladas. (2) Criterio A3: título "Proforma" confirmado (DUDA-041). (3) Criterio B1: dato fuente confirmado como Razón Social (DIS-SOL v1.1). (4) Criterio D2: nomenclatura "SOLES" confirmada (DUDA-042). (5) Criterio D5: leyenda Contado/Crédito como texto fijo en plantilla GOLPERU_PER_PRO, no campo DTO (DUDA-043). (6) Criterio E1: se muestran las dos cuentas activas más recientes (DUDA-118/036). (7) Brechas B8 y B9 cerradas (DUDA-041, DUDA-042). (8) Brecha B1 parcialmente resuelta en criterio de visualización; DML pendiente. |
+| 5   | 2026-08-21 | DUDA-009 / DUDA-018 / DUDA-041 / DUDA-042 / DUDA-043 / DUDA-044 / DUDA-054 | Revisión de trazabilidad de dudas cerradas de la hoja "R16 - Dudas a Cliente": (1) DUDA-009 — Régimen de Detracciones (SPOT) cerrado de forma definitiva (NO aplica); se separa de Percepciones del IGV, que sigue pendiente. Actualizados Alcance/No aplica a, Riesgo 2, Notas Adicionales y Brecha B5. (2) DUDA-044 — se agrega cita cruzada en Criterio E1 y Brecha B1 (mismo mecanismo que México, ya reflejado vía DUDA-118/036). (3) DUDA-054 — Criterio D3 y Brecha B10 cerrados: el tipo de cambio de Perú ya existe (el usado para pedidos no-USD), no se requiere fuente nueva. (4) DUDA-018, DUDA-041, DUDA-042 y DUDA-043 verificadas: ya estaban correctamente reflejadas en el documento, sin cambios de contenido. |

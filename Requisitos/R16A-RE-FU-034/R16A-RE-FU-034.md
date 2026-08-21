@@ -5,7 +5,7 @@ R16A-RE-FU-034		Diseño y generación de Documentos: NDC México	Notas de Crédi
 - MetodoPago=PUE fijo (regla SAT inmutable: NCs siempre PUE).
 - FormaPago heredada de la factura origen pagada (típicamente 03 Transferencia).
 - Multi-divisa: hereda Moneda de la factura origen (no editable), preserva TipoCambio del día del timbrado.
-- Cancelación condicional de la factura origen en el mismo flujo: cuando la NC es por totalidad + mismo mes calendario, el sistema dispara cancelación SAT de la factura origen con motivo seleccionado del catálogo c_MotivoCancelacion.
+- ~~Cancelación condicional de la factura origen en el mismo flujo: cuando la NC es por totalidad + mismo mes calendario, el sistema dispara cancelación SAT de la factura origen con motivo seleccionado del catálogo c_MotivoCancelacion.~~ **[DUDA-125, resuelta]** DESCARTADO: NC al 100% y cancelación de factura origen son mecanismos EXCLUYENTES; no existe cancelación de factura desde el sistema en este módulo.
 - Timbrado vía PAC TurboPac con UUID asignado por el SAT.
 - PDF representativo con identidad visual de la empresa emisora (logo, paleta corporativa, iconografía de certificaciones del giro químico-farmacéutico), consistente con Factura México y Complemento de Pago México.
 - PDF con la información completa de la NC: emisor, receptor, datos del comprobante, motivo y tipo de relación, referencia a factura origen, partidas o concepto manual con importes e impuestos desglosados, totales, sellos y trazabilidad SAT, código QR de verificación.
@@ -26,13 +26,13 @@ Regla 3 — CfdiRelacionados obligatorio TipoRelacion 01
 El XML de la NC incluye obligatoriamente el nodo CfdiRelacionados con TipoRelacion=01 (Nota de crédito de los documentos relacionados) y el UUID de la factura origen.
 
 Regla 4 — UsoCFDI receptor G02 default
-El UsoCFDI del receptor de la NC es G02 (Devoluciones, descuentos o bonificaciones) por default. ** Validar si debe ser editable según el receptor; la política PQF2 mantiene G02. **
+El UsoCFDI del receptor de la NC es G02 (Devoluciones, descuentos o bonificaciones) por default. ~~** Validar si debe ser editable según el receptor; la política PQF2 mantiene G02. **~~ **[DUDA-110, resuelta]** UsoCFDI queda FIJO en G02, NO editable según el receptor. El G03 observado en el ejemplo real B-128 es un ERROR (dato heredado de Legacy incorrecto), no una regla a replicar.
 
 Regla 5 — MetodoPago PUE fijo
 El MetodoPago de la NC es PUE (Pago en Una Exhibición) fijo, no editable, conforme regla SAT inmutable.
 
 Regla 6 — FormaPago heredada de factura origen
-El FormaPago de la NC se hereda de la factura origen pagada (típicamente 03 Transferencia electrónica). ** Validar el comportamiento cuando la factura origen no esté pagada. **
+El FormaPago de la NC se hereda de la factura origen pagada (típicamente 03 Transferencia electrónica). ~~** Validar el comportamiento cuando la factura origen no esté pagada. **~~ **[DUDA-111, resuelta]** El mecanismo completo de FormaPago (incluyendo el caso de factura origen no pagada) está detallado en el documento técnico "Guia_Tecnica_Notas_de_Credito_MX.md": FormaPago=15 (Condonación) cuando la NC no excede el Saldo Pendiente no cobrado; FormaPago=23 (Novación) o la forma real de devolución cuando la NC excede el Saldo Pendiente (Excedente).
 
 Regla 7 — Moneda y TipoCambio heredados
 La Moneda de la NC se hereda de la factura origen (no editable) y el TipoCambio se captura del día del timbrado para monedas extranjeras.
@@ -41,16 +41,17 @@ Regla 8 — Conceptos en modalidad por partidas
 En modalidad por partidas (motivo Devolución de mercancía), el nodo Conceptos del XML contiene un nodo Concepto por cada partida con Cant. NC > 0, heredando ClaveProdServ, ClaveUnidad, NoIdentificacion, ValorUnitario, Descripción y configuración de impuestos del concepto original, y recalculando importes con la Cant. NC.
 
 Regla 9 — Conceptos en modalidad manual
-En modalidad manual (motivo Descuento o bonificación), el nodo Conceptos contiene un único Concepto con ClaveProdServ=84111506 (Servicios de facturación) y ClaveUnidad=ACT (Actividad) por default, Cantidad=1, Descripcion = concepto capturado por el usuario, ValorUnitario e Importe = Monto Total NC capturado, y ObjetoImp según corresponda al producto/servicio facturado en la factura origen. ** Confirmar el ObjetoImp aplicable en modalidad manual. **
+En modalidad manual (motivo Descuento o bonificación), el nodo Conceptos contiene un único Concepto con ClaveProdServ=84111506 (Servicios de facturación) y ClaveUnidad=ACT (Actividad) por default, Cantidad=1, Descripcion = concepto capturado por el usuario, ValorUnitario e Importe = Monto Total NC capturado, y ObjetoImp según corresponda al producto/servicio facturado en la factura origen. ~~** Confirmar el ObjetoImp aplicable en modalidad manual. **~~ **[DUDA-112, resuelta]** Se confirma ClaveProdServ=84111506/ClaveUnidad=ACT para todos los casos de descuento/bonificación en modalidad manual; el mecanismo completo (incluyendo ObjetoImp heredado de la factura origen) está detallado en "Guia_Tecnica_Notas_de_Credito_MX.md".
 
 Regla 10 — Impuestos trasladados calculados
 El sistema calcula automáticamente el IVA al 16% o la tasa correspondiente al producto, agregando el nodo Impuestos con los TrasladosTotales sumados.
 
 Regla 11 — Totales reales en moneda de factura origen
-El SubTotal y el Total del comprobante root de la NC son los valores reales en la moneda de la factura origen (a diferencia del CFDI tipo P, donde son 0). ** Pendiente validar con asesor fiscal: el patrón canónico del proyecto indica que PROQUIFA opera la NC sin campo Descuento explícito (el ajuste se refleja directamente en SubTotal/Total), pero esta fila lo redactó como ""Descuento si aplica"". Confirmar si el campo Descuento del comprobante root debe poblarse o debe omitirse en las NC de PROQUIFA. **
+El SubTotal y el Total del comprobante root de la NC son los valores reales en la moneda de la factura origen (a diferencia del CFDI tipo P, donde son 0). ~~** Pendiente validar con asesor fiscal: el patrón canónico del proyecto indica que PROQUIFA opera la NC sin campo Descuento explícito (el ajuste se refleja directamente en SubTotal/Total), pero esta fila lo redactó como ""Descuento si aplica"". Confirmar si el campo Descuento del comprobante root debe poblarse o debe omitirse en las NC de PROQUIFA. **~~ **[DUDA-109, descartada]** Era una confusión con la modalidad de captura de descuento/bonificación; no hay contradicción real que resolver. Se mantiene el patrón existente: sin campo Descuento explícito en el comprobante root.
 
-Regla 12 — Cancelación condicional de factura origen
-Cuando la NC se generó con la opción de cancelar la factura origen activa (NC por totalidad + mismo mes calendario), al procesar el timbrado exitoso de la NC el sistema dispara la cancelación SAT de la factura origen vía TurboPac con el motivo del catálogo c_MotivoCancelacion seleccionado en el Paso 2 del wizard.
+Regla 12 — Cancelación condicional de factura origen — **DESCARTADA [DUDA-125, resuelta]**
+~~Cuando la NC se generó con la opción de cancelar la factura origen activa (NC por totalidad + mismo mes calendario), al procesar el timbrado exitoso de la NC el sistema dispara la cancelación SAT de la factura origen vía TurboPac con el motivo del catálogo c_MotivoCancelacion seleccionado en el Paso 2 del wizard.~~
+**[DUDA-125, resuelta]** Este mecanismo queda DESCARTADO. NC al 100% y cancelación SAT de la factura origen son mecanismos EXCLUYENTES, nunca combinados: para devolución total de mercancía se usa SIEMPRE Nota de Crédito al 100%, NUNCA cancelación de la factura origen desde el sistema. Se QUITA la opción de cancelar la factura origen del módulo de Notas de Crédito; no existe pantalla de cancelación de facturas contemplada. Si operativamente se decide cancelar la factura en vez de generar NC, eso ocurre FUERA DEL SISTEMA.
 
 Regla 13 — Foliado consecutivo por empresa
 El folio interno de la NC es consecutivo continuo por empresa emisora, con serie distintiva propuesta. El UUID lo asigna el SAT. ** Esquema del foliador y serie distintiva pendiente de validar. **
@@ -72,8 +73,9 @@ Cuando el timbrado falla, la NC no se persiste como vigente; el usuario puede re
 Riesgo 1 — Cálculo erróneo de impuestos al heredar/recalcular partidas
 Si el sistema calcula incorrectamente los importes y los impuestos trasladados al recalcular partidas con Cant. NC, el SAT puede rechazar el timbrado o generar inconsistencias entre la NC y la factura origen.
 
-Riesgo 2 — Cancelación de factura origen fallida tras NC timbrada
-Si la NC se timbra exitosamente pero la cancelación SAT de la factura origen falla (caso totalidad + mismo mes con opción activa), queda una inconsistencia operativa: la NC existe vigente pero la factura origen también.
+Riesgo 2 — Cancelación de factura origen fallida tras NC timbrada — **DESCARTADO [DUDA-125, resuelta]**
+~~Si la NC se timbra exitosamente pero la cancelación SAT de la factura origen falla (caso totalidad + mismo mes con opción activa), queda una inconsistencia operativa: la NC existe vigente pero la factura origen también.~~
+**[DUDA-125, resuelta]** Riesgo ya no aplica: al quedar descartado el mecanismo de cancelación condicional (ver Regla 12), no existe cancelación de factura origen disparada por el sistema que pueda fallar.
 
 ## Criterios de Aceptación
 
@@ -193,21 +195,23 @@ Entonces deberá calcular automáticamente IVA al 16% o la tasa correspondiente 
 Criterio G2 — Totales reales en moneda de factura origen
 Dado la generación de la NC,
 Cuando el sistema arma el comprobante root,
-Entonces SubTotal y Total deberán ser los valores reales en la moneda de la factura origen. ** Campo Descuento del comprobante root pendiente de validar con asesor fiscal (ver Regla 11): definir si se puebla o se omite según la operación de PROQUIFA. **
+Entonces SubTotal y Total deberán ser los valores reales en la moneda de la factura origen. ~~** Campo Descuento del comprobante root pendiente de validar con asesor fiscal (ver Regla 11): definir si se puebla o se omite según la operación de PROQUIFA. **~~ **[DUDA-109, descartada]** Se mantiene el patrón sin campo Descuento explícito (ver Regla 11).
 
 ═══════════════════════════════════════════════════════════════
-SECCIÓN H — CANCELACIÓN CONDICIONAL DE FACTURA ORIGEN
+SECCIÓN H — CANCELACIÓN CONDICIONAL DE FACTURA ORIGEN — **DESCARTADA [DUDA-125, resuelta]**
 ═══════════════════════════════════════════════════════════════
 
-Criterio H1 — Cancelación SAT de factura origen tras timbrado de NC
+**[DUDA-125, resuelta]** Esta sección completa queda DESCARTADA. NC al 100% y cancelación SAT de la factura origen son mecanismos EXCLUYENTES: se usa SIEMPRE Nota de Crédito al 100% para devolución total de mercancía, NUNCA cancelación de la factura origen desde el sistema. No existe pantalla ni opción de cancelación de factura en el módulo de Notas de Crédito. Se conserva el texto original tachado abajo únicamente para trazabilidad histórica.
+
+~~Criterio H1 — Cancelación SAT de factura origen tras timbrado de NC
 Dado que la NC se confirmó con la opción de cancelar la factura origen activa (NC por totalidad + mismo mes calendario),
 Cuando el timbrado de la NC es exitoso,
-Entonces el sistema deberá disparar la cancelación SAT de la factura origen vía TurboPac con el motivo c_MotivoCancelacion seleccionado.
+Entonces el sistema deberá disparar la cancelación SAT de la factura origen vía TurboPac con el motivo c_MotivoCancelacion seleccionado.~~
 
-Criterio H2 — Manejo de error en cancelación de factura origen
+~~Criterio H2 — Manejo de error en cancelación de factura origen
 Dado que la cancelación SAT de la factura origen falla,
 Cuando el sistema procesa la respuesta,
-Entonces deberá notificar al usuario del fallo y permitir reintento posterior según la política transversal. La NC ya timbrada permanece vigente.
+Entonces deberá notificar al usuario del fallo y permitir reintento posterior según la política transversal. La NC ya timbrada permanece vigente.~~
 
 ═══════════════════════════════════════════════════════════════
 SECCIÓN I — TIMBRADO Y PERSISTENCIA
@@ -323,12 +327,13 @@ Entonces el asunto y cuerpo seguirán la plantilla definida. ** Plantilla pendie
 - La NC no es un módulo independiente: se dispara desde el Paso 3 del wizard del módulo Notas de Crédito al confirmar el timbrado.
 - Estructura del CFDI tipo E validada contra el ejemplo real B-128 entregado por el cliente: TipoDeComprobante=E, CfdiRelacionados TipoRelacion=01 con UUID padre 66099124-f173-a87d-55d9-336a3b6ad3f6, Emisor PROQUIFA RFC PRO970821ML3 Régimen 601, Receptor NATURES TOUCH MEXICO RFC NTM230915DQ8 Régimen 601, Moneda USD, TipoCambio 19.17, SubTotal 48.00, Total 55.68 (sin campo Descuento), FormaPago=03 (Transferencia), MetodoPago=PUE, Concepto ClaveProdServ 41116132 ClaveUnidad H87, IVA 16%, RfcProvCertif QSO100827UB0 (TurboPac).
 - Cumplimiento fiscal SAT vigente CFDI 4.0 (Apéndice 5 Anexo 20).
-- Cancelación condicional de factura origen en el mismo flujo cuando la NC es totalidad + mismo mes, con motivo del catálogo c_MotivoCancelacion seleccionado en el Paso 2 del wizard. Tras timbrado exitoso de la NC, el sistema dispara la cancelación SAT de la factura origen vía TurboPac. Si la cancelación falla, la NC ya timbrada permanece vigente y se permite reintento.
+- ~~Cancelación condicional de factura origen en el mismo flujo cuando la NC es totalidad + mismo mes, con motivo del catálogo c_MotivoCancelacion seleccionado en el Paso 2 del wizard. Tras timbrado exitoso de la NC, el sistema dispara la cancelación SAT de la factura origen vía TurboPac. Si la cancelación falla, la NC ya timbrada permanece vigente y se permite reintento.~~ **[DUDA-125, resuelta — 2026-08-21]** Mecanismo DESCARTADO: NC al 100% y cancelación SAT de la factura origen son EXCLUYENTES. Se retira la opción de cancelación de factura del módulo de Notas de Crédito; no hay pantalla de cancelación de facturas contemplada. Si se decide cancelar en vez de emitir NC, ocurre fuera del sistema.
 - Foliado consecutivo continuo por empresa emisora del grupo PROQUIFA México con serie distintiva propuesta (pendiente validar esquema final).
 - Diseño del PDF: identidad visual por empresa emisora (logo + paleta corporativa: Golocaer naranja, Mungen verde, Proquifa cyan, Proveedora Quimico Farmaceutica cyan), consistente con Factura México y Complemento de Pago México, con iconografía de certificaciones del giro químico-farmacéutico en el pie. Esta fila documenta qué información debe contener el PDF, no la disposición visual literal (cintas, posicionamiento, dimensiones).
-- ** Pendiente (duda fiscal): FormaPago en modalidad manual, comportamiento si la factura origen no estuviera pagada (escenario raro en R16 prepago). Validar con asesor fiscal. **
-- ** Pendiente (duda fiscal): ClaveProdServ y ClaveUnidad en modalidad manual, confirmar que 84111506/ACT son apropiados para todos los casos de descuento/bonificación. Validar con asesor fiscal. **
-- ** Pendiente (duda fiscal): UsoCFDI receptor G02 fijo. En el ejemplo B-128 aparece G03 (discrepancia legacy vs SAT); la política PQF2 fija G02 por default. Validar si debe ser editable según el receptor. **
+- ~~** Pendiente (duda fiscal): FormaPago en modalidad manual, comportamiento si la factura origen no estuviera pagada (escenario raro en R16 prepago). Validar con asesor fiscal. **~~ **[DUDA-111, resuelta — 2026-08-21]** Ver Regla 6: mecanismo completo documentado en "Guia_Tecnica_Notas_de_Credito_MX.md" (FormaPago=15 Condonación o 23/forma real según Saldo Pendiente/Excedente).
+- ~~** Pendiente (duda fiscal): ClaveProdServ y ClaveUnidad en modalidad manual, confirmar que 84111506/ACT son apropiados para todos los casos de descuento/bonificación. Validar con asesor fiscal. **~~ **[DUDA-112, resuelta — 2026-08-21]** Confirmado 84111506/ACT para todos los casos de descuento/bonificación en modalidad manual. Ver Regla 9 y "Guia_Tecnica_Notas_de_Credito_MX.md".
+- ~~** Pendiente (duda fiscal): UsoCFDI receptor G02 fijo. En el ejemplo B-128 aparece G03 (discrepancia legacy vs SAT); la política PQF2 fija G02 por default. Validar si debe ser editable según el receptor. **~~ **[DUDA-110, resuelta — 2026-08-21]** UsoCFDI queda FIJO en G02, NO editable. El G03 de B-128 es un error de dato heredado de Legacy, no una regla a replicar. Ver Regla 4.
+- **[DUDA-125, resuelta — 2026-08-21]** Cancelación condicional de la factura origen (antigua Regla 12, Riesgo 2, Sección H) queda DESCARTADA: NC al 100% y cancelación SAT de la factura origen son mecanismos EXCLUYENTES; se elimina del alcance del módulo de Notas de Crédito toda opción de cancelación de la factura origen. Si se decide cancelar en vez de emitir NC, ocurre fuera del sistema.
 - ** Pendiente: validación de la serie del foliador final. **
 - ** Pendiente: vigencia de la iconografía de certificaciones del giro químico-farmacéutico (ISO, NEEC, edQM, FELUM, USP, Microbiologics, APACOR, CHATA, Pharmaffiliates, Amex). **
 - ** Pendiente: PMO #31, plantilla del cuerpo del correo de envío (transversal Proforma / Factura / NC / Complemento de Pago / Inconsistencia de Pago). **"									

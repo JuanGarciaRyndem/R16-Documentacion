@@ -297,6 +297,8 @@ WHERE c.object_id = OBJECT_ID('dbo.fccPagoCliente')
 
 > Para R16 se debe agregar la etiqueta ‘Cobro’ al modelo de entrenamiento del Mailbot en esta configuración por región.
 
+> **✅ Confirmado (DUDA-119, 2026-08-21) — Soporte multi-correo por región.** El Mailbot **debe** poder monitorear **más de una cuenta de correo por región**: México requiere `ventas@proquifa.com.mx` (cotizaciones/pedidos, ya atendido) **y** `crédito@proquifa.net` (Buzón de Cobros, nuevo en R16). Esto es alcance de R16 (independiente de si el rediseño de Buzones — OBS-006 — entra o no en R16). `RegionConfiguracionMailBot` ya soporta esto de forma natural: **una fila por cuenta de correo monitoreada**, no una fila por región (`IdRegion` deja de ser único por configuración — puede repetirse una vez por cada `CorreoElectronico` adicional de esa región). Cualquier componente que asuma "un correo = una región" (por ejemplo, el watch/topic de Gmail en la Propuesta 2, ver `R16A-RE-FU-008-v2_Propuesta2.md` y `R16A-RE-FU-008-P2-Back.md`) debe ajustarse para registrar un watch por cada `CorreoElectronico` configurado.
+
 ---
 
 ## Filtrado de Bandeja por Cobrador
@@ -464,6 +466,7 @@ WHERE cat.Clave = 'pago'
 | 4 | Cliente no identificable en correo | `IdCliente` nullable en `CorreoRecibidoCliente` | Confirmar con cliente quién atiende estos correos | Media |
 | 5 | Sin proceso ‘Cobranza’ en `catProceso` | `catProceso` no tiene proceso Cobros/Cobranza | Insertar registro según nomenclatura acordada | Alta |
 | 6 | Segregación regional sin validar | `CorreoRecibido.IdRegion` existe — confirmar que Mailbot lo popula | Validar con equipo técnico | Media |
+| 7 | ~~Un solo correo por región~~ | **Cerrado — DUDA-119 (2026-08-21).** El Mailbot debe soportar más de un correo por región (México: `ventas@proquifa.com.mx` + `crédito@proquifa.net`) | Ajustar diseño técnico (watch/topic Gmail por correo, no por región) — ver sección 9 | Alta |
 
 ---
 
@@ -473,6 +476,7 @@ WHERE cat.Clave = 'pago'
 |---|---|---|
 | Regla 1 | Clasificación automática por Mailbot | `catClasificacionCorreoRecibido.Clave = ‘cobro’` |
 | Regla 2 | Sin criterios configurables | Entrenamiento del Mailbot — sin tabla de criterios |
+| Regla 2.1 | Mailbot con IA para clasificación y precarga | **Confirmado — DUDA-023 (2026-08-21).** La propuesta de Mailbot SÍ incluye IA, tanto para clasificar el correo como para leer el comprobante adjunto y precargar datos (monto, fecha, referencia) en Validar Cobro. Ver `SubtotalMailBot`/`IvaMailBot`/`TotalMailBot`/`MxnMailBot`/`UsdMailBot` en `fccFolioPagoCliente` (sección 5) |
 | Regla 3 | Reflejo en Buzón del Gestor | `CorreoRecibidoCliente` → filtro por `IdUsuarioCobrador` |
 | Regla 4 | Pendiente automático en Validar Cobro | INSERT en `fccFolioPagoCliente` al clasificar |
 | Regla 5 | Visibilidad por cobrador y región | JOIN `ClienteCartera.IdUsuarioCobrador` + `CorreoRecibido.IdRegion` |

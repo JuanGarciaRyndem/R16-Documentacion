@@ -5,7 +5,7 @@
 | **ID** | R16A-RE-FU-025 |
 | **Título** | Validar Cobro: Paso 1 Perú |
 | **Módulo / Épica** | Validar Cobro |
-| **Historia de Usuario** | Yo como **Gestor de Cobranza / Analista de Cuentas por Cobrar (denominación pendiente de resolver)**, quiero contar con la primera pantalla del wizard de Validar Cobro (Paso 1 - Captura del Cobro) para clientes con Región Perú, donde reviso el correo y el comprobante de pago recibidos y capturo los datos del cobro, para registrar de forma trazable los pagos recibidos de clientes Prepago de Golocaer S.A.C. y continuar con la asociación al documento por cobrar. |
+| **Historia de Usuario** | Yo como **Gestor de Cobranza**, quiero contar con la primera pantalla del wizard de Validar Cobro (Paso 1 - Captura del Cobro) para clientes con Región Perú, donde reviso el correo y el comprobante de pago recibidos y capturo los datos del cobro, para registrar de forma trazable los pagos recibidos de clientes Prepago de Golocaer S.A.C. y continuar con la asociación al documento por cobrar. |
 | **Prioridad** | Alta |
 | **Estado** | Propuesto |
 | **Requisito asociado** | R16.2M-RE-FU-002 |
@@ -40,7 +40,7 @@ El sistema debe contar con la primera pantalla del wizard de Validar Cobro (Paso
 ### No aplica a
 
 - Wizard de Validar Cobro para Región México: se documenta en R16A-RE-FU-024.
-- Catálogo SUNAT de medio de pago: SUNAT no exige declarar el medio de pago específico en el comprobante (a diferencia del catálogo SAT c_FormaPago mexicano). En Perú el campo "Medio de pago" del Paso 1 se propone con un catálogo interno de PROQUIFA (transferencia, depósito, cheque, efectivo, etc.) que NO es requerido fiscalmente por SUNAT pero sirve para control interno de Tesorería. ** Catálogo interno de medio de pago para Perú pendiente de definir con PROQUIFA (Tesorería). **
+- Catálogo SUNAT de medio de pago: SUNAT no exige declarar el medio de pago específico en el comprobante (a diferencia del catálogo SAT c_FormaPago mexicano). ~~En Perú el campo "Medio de pago" del Paso 1 se propone con un catálogo interno de PROQUIFA (transferencia, depósito, cheque, efectivo, etc.) que NO es requerido fiscalmente por SUNAT pero sirve para control interno de Tesorería.~~ *(Propuesta inicial superada — ver DUDA-076: no se trata de reutilizar sin más un catálogo genérico tipo México.)* **Resolución (DUDA-076, cerrada):** el campo se **regionaliza**: "Medio de pago"/"Forma de Pago" queda **obligatorio solo para México**; para Perú **deja de ser obligatorio**. El cliente entregó (18/08) la lista definitiva de medios de pago válidos para Perú, pero como **imagen**, no como texto/listado — por lo tanto el **catálogo exacto de valores para Perú aún no está disponible como texto** y queda **pendiente de captura formal** una vez transcrita esa imagen. ** Pendiente: transcribir el catálogo definitivo Perú desde la imagen del cliente (18/08) y cargarlo en catMedioDePago. **
 - Cuentas destino: las cuentas de PROQUIFA México no aplican; se usan las cuentas bancarias de Golocaer S.A.C. Perú. ** Modelo de cuentas bancarias de Golocaer S.A.C. Perú pendiente de definir (ver R16A-RE-FU-006). **
 - Fuente del tipo de cambio: el TC FIX Banxico/DOF no aplica; para Perú la fuente del tipo de cambio es la peruana. ** Fuente oficial del TC para Perú pendiente de definir (no aplica el DOF mexicano). **
 - Generación de Complemento de Pago a partir de la vinculación del cobro: NO aplica a Perú (SUNAT no tiene Complemento de Pago). La vinculación cobro↔factura es operativa, no fiscal (se desarrolla en R16A-RE-FU-027 y R16A-RE-FU-029).
@@ -68,10 +68,17 @@ Al seleccionar un correo del listado, el detalle muestra: asunto, cuerpo, hora, 
 Para continuar al Paso 2, el sistema valida que el usuario haya seleccionado uno de los adjuntos del correo como comprobante de pago. Si no hay selección, el sistema bloquea la continuación y muestra el error correspondiente.
 
 **Regla 6 — Datos del formulario del cobro**
-El formulario de captura del cobro ofrece: Folio del cobro (COB-mmddaa-consecutivo, generado por el sistema con la fecha efectiva del cobro); Monto recibido (obligatorio); Fecha del cobro (obligatorio, datepicker, día efectivo del cobro); Medio de pago (obligatorio, combo de catálogo interno de PROQUIFA — ver Regla 7); Cuenta origen (obligatorio, texto libre, cuenta del cliente); Cuenta destino (obligatorio, combo de las cuentas bancarias de Golocaer S.A.C. Perú); Moneda del cobro (obligatorio, combo); Tipo de Cambio (calculado automáticamente con el TC del día vs la moneda de facturación, no modificable); Notas del cobro (opcional, texto libre).
+El formulario de captura del cobro ofrece: Folio del cobro (COB-mmddaa-consecutivo, generado por el sistema con la fecha efectiva del cobro); Monto recibido (obligatorio); Fecha del cobro (obligatorio, datepicker, día efectivo del cobro); Medio de pago (~~obligatorio~~ **NO obligatorio para Perú — ver Regla 7 y DUDA-076**, combo de catálogo interno Perú); Cuenta origen (obligatorio, texto libre, cuenta del cliente); Cuenta destino (obligatorio, combo de las cuentas bancarias de Golocaer S.A.C. Perú); Moneda del cobro (obligatorio, combo); Tipo de Cambio (calculado automáticamente con el TC del día vs la moneda de facturación, no modificable); Notas del cobro (opcional, texto libre).
 
-**Regla 7 — Medio de pago con catálogo interno (no fiscal)**
-El campo "Medio de pago" del Paso 1 Perú se captura con un catálogo interno de PROQUIFA (transferencia, depósito, cheque, efectivo, etc.) para control de Tesorería. A diferencia de México (donde se usa el catálogo SAT c_FormaPago), SUNAT no exige declarar el medio de pago específico en el comprobante; por ello el campo no tiene fundamento fiscal en Perú, pero se propone mantenerlo para conciliación interna del cobro. ** Catálogo interno de medio de pago para Perú pendiente de definir con PROQUIFA (Tesorería). **
+**Regla 7 — Medio de pago regionalizado: NO obligatorio en Perú, catálogo pendiente de transcripción (DUDA-076)**
+~~El campo "Medio de pago" del Paso 1 Perú se captura con un catálogo interno de PROQUIFA (transferencia, depósito, cheque, efectivo, etc.) para control de Tesorería... se propone mantenerlo para conciliación interna del cobro.~~ *(Redacción original superada por la resolución de DUDA-076 — no se asume que el campo sea obligatorio ni que el catálogo mexicano/genérico aplique.)*
+
+**Resolución DUDA-076 (cerrada):** el campo "Forma de Pago"/"Medio de pago" se **regionaliza**: es **obligatorio únicamente para México**; en Perú (05/08) **deja de ser obligatorio** — SUNAT no exige declarar el medio de pago específico en el comprobante, por lo que en Perú el dato pasa a ser opcional/informativo para Tesorería, no un requisito de captura. El 18/08 el cliente compartió la lista definitiva de medios de pago válidos para Perú, pero **entregada como imagen**, no como texto. En consecuencia:
+- (a) el campo queda regionalizado (obligatorio solo en México);
+- (b) para Perú **no es obligatorio**;
+- (c) existe ya una lista definitiva del cliente, pero **su transcripción a valores discretos del catálogo (catMedioDePago) sigue pendiente** — no se cuenta con el listado exacto en texto.
+
+** Pendiente/Gap abierto: transcribir el catálogo definitivo de medios de pago Perú a partir de la imagen entregada por el cliente (18/08) y cargarlo en BD. No se debe asumir ni inventar los valores mientras tanto. **
 
 **Regla 8 — Tipo de cambio del día capturado con el cobro**
 Cuando la moneda del cobro y/o la moneda de facturación del cliente involucran una moneda distinta a PEN, el sistema calcula automáticamente el TC del día de esa moneda no-PEN respecto a PEN: si el cobro es en PEN con cliente de facturación en moneda extranjera, captura el TC de la moneda de facturación vs PEN; si el cobro es en moneda extranjera, captura el TC de la moneda del cobro vs PEN; si el cobro es en PEN con facturación en PEN, el TC es N/A. El valor es solo lectura. Este TC capturado se conserva con el cobro y se utiliza en el Paso 2 (conversiones operativas) y en el Paso 3 cuando aplique. ** Fuente oficial del TC para Perú pendiente de definir (no aplica el DOF mexicano). **
@@ -107,8 +114,8 @@ El cobro capturado en el Paso 1 se vinculará posteriormente a un documento (Pas
 
 ## Riesgos
 
-**Riesgo 1 — Catálogo interno de medio de pago para Perú pendiente**
-El catálogo interno de medio de pago del Paso 1 Perú no está definido. Como SUNAT no exige este dato fiscalmente, su definición depende enteramente de la necesidad de control interno de PROQUIFA (Tesorería).
+**Riesgo 1 — Catálogo de valores de medio de pago para Perú pendiente de transcripción (DUDA-076)**
+DUDA-076 (cerrada) resolvió que el campo se regionaliza y deja de ser obligatorio para Perú, y que el cliente ya entregó (18/08) la lista definitiva de medios de pago válidos — pero como imagen. El riesgo remanente es exclusivamente operativo: transcribir esa imagen a valores discretos del catálogo (catMedioDePago) antes de poder cargarlo en BD; no persiste incertidumbre de negocio sobre obligatoriedad.
 
 **Riesgo 2 — Cuentas bancarias de Golocaer S.A.C. Perú no disponibles**
 Las cuentas destino del Paso 1 Perú son las de Golocaer S.A.C., cuyo modelo bancario no está registrado en el sistema (ver R16A-RE-FU-006).
@@ -194,10 +201,10 @@ Dado que el usuario captura el cobro,
 Cuando el sistema renderiza el campo,
 Entonces deberá ofrecer un datepicker obligatorio. La fecha corresponde al día efectivo en que el cliente realizó el pago (no la fecha de llegada del correo).
 
-**Criterio D4 — Medio de pago (catálogo interno)**
+**Criterio D4 — Medio de pago (catálogo interno, NO obligatorio en Perú — DUDA-076)**
 Dado que el usuario captura el cobro,
 Cuando el sistema renderiza el campo,
-Entonces deberá ofrecer un combo obligatorio con un catálogo interno de PROQUIFA (transferencia, depósito, cheque, efectivo, etc.). SUNAT no exige este dato fiscalmente; el campo sirve para control interno de Tesorería. ** Catálogo interno pendiente de definir con PROQUIFA (Tesorería). **
+Entonces deberá ofrecer un combo **NO obligatorio** (regionalización DUDA-076: obligatorio solo en México) con el catálogo interno de medio de pago Perú. SUNAT no exige este dato fiscalmente. El cliente entregó el 18/08 la lista definitiva de valores para Perú, pero como imagen; ** el listado exacto de valores queda pendiente de transcripción formal a partir de esa imagen antes de poder cargar el catálogo en BD. **
 
 **Criterio D5 — Cuenta origen**
 Dado que el usuario captura el cobro,
@@ -255,11 +262,12 @@ Entonces el sistema deberá ofrecer: Cancelar (regresa al listado principal de V
 - Fila para el Paso 1 (Captura del Cobro) del wizard de Validar Cobro de la Región Perú, contraparte de R16A-RE-FU-024 (México). Estado depende de la resolución de las brechas Perú.
 - La estructura UI es idéntica a la de México; las diferencias son exclusivamente catálogos y el identificador fiscal (RUC).
 - Diferencia de fondo vs México — vinculación cobro↔factura sin efecto fiscal: en Perú no existe el Complemento de Pago, por lo que asociar un cobro a una factura NO genera documento fiscal ni se reporta a SUNAT (la factura peruana ya se emitió completa con su IGV). La vinculación se mantiene como herramienta operativa interna de conciliación (qué cobro saldó qué factura, actualización de saldos), no como acto fiscal. Se desarrolla en R16A-RE-FU-027 (asociación) y R16A-RE-FU-029 (facturación/sin efecto fiscal).
-- Diferencia — Medio de pago: en México se usa el catálogo SAT c_FormaPago; en Perú SUNAT no exige declarar el medio de pago en el comprobante, por lo que se propone un catálogo interno de PROQUIFA para control de Tesorería. ** Catálogo interno pendiente de definir (Tesorería). **
+- Diferencia — Medio de pago: en México se usa el catálogo SAT c_FormaPago y el campo es obligatorio; en Perú, por resolución de **DUDA-076 (cerrada)**, el campo se regionaliza y **deja de ser obligatorio**. El cliente entregó el 18/08 la lista definitiva de valores para Perú, pero como imagen. ** Pendiente: transcribir el catálogo definitivo Perú desde la imagen (18/08) y cargarlo en catMedioDePago; no inventar valores mientras tanto. **
+- **Trazabilidad (2026-08-21):** actualización de este documento conforme a la resolución de DUDA-076 — "Medio de pago" regionalizado (obligatorio solo México, no obligatorio en Perú); catálogo Perú entregado por el cliente el 18/08 como imagen, transcripción de valores pendiente.
 - Diferencia — Cuentas destino: cuentas de Golocaer S.A.C. Perú en lugar de PROQUIFA México. ** Modelo bancario pendiente (ver R16A-RE-FU-006). **
 - Diferencia — Fuente del tipo de cambio: no aplica el DOF mexicano; fuente peruana pendiente de definir.
 - El RUC del cliente proviene del campo `DatosFacturacionCliente.RFC` (tabla preexistente; R16A-RE-FU-004 cancelado — la validación de formato RUC queda pendiente de definir en el requisito que lo implemente).
 - ** Pendiente — catálogo de tipos de inconsistencia del Paso 1 (Tesorería), transversal con México. **
 - ** Pendiente — confirmar si el folio del cobro (COB-mmddaa-NNNN) es consecutivo por región o global. **
 - ** Pendiente — alcance técnico de la asistencia automatizada propuesta (no comprometido en R16). **
-- ** Pendiente — denominación canónica del rol operativo, transversal con México. **
+- **(Resuelto DUDA-047, 2026-08-21):** la denominación canónica del rol operativo en la documentación funcional es "Gestor de Cobranza"; se eliminan las menciones a "Analista de Cuentas por Cobrar" como nombre del rol.

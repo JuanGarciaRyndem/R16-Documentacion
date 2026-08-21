@@ -52,15 +52,18 @@ Sin Complemento de Pago posterior — vinculacion cobro/factura es solo operativ
 
 ---
 
-## Catálogo Medio de Pago Peru (catMedioDePago)
+## Catálogo Medio de Pago Peru (catMedioDePago) — Resolucion DUDA-076 (cerrada)
 
     catMedioDePago tiene ClaveFormaDePago varchar(2) NULLABLE
     -> Soporta registros SIN clave SAT (para Peru)
     -> NO requiere ALTER TABLE
 
-**DML propuesto (catalogo interno Peru - pendiente confirmar con Tesoreria):**
+**Resolucion DUDA-076:** el campo "Forma de Pago" se REGIONALIZA. Es obligatorio (ObligatorioEnCliente) SOLO para Mexico; para Peru deja de ser obligatorio. El cliente entrego el 18/08 la lista definitiva de medios de pago validos para Peru, pero como IMAGEN (no como texto). El catalogo exacto de valores para Peru NO esta disponible en texto todavia.
+
+~~**DML propuesto (catalogo interno Peru - pendiente confirmar con Tesoreria):**~~ *(Propuesta placeholder anterior a DUDA-076 — NO ejecutar tal cual: los valores no fueron confirmados por el cliente, solo son ilustrativos.)*
 
     -- Created by GitHub Copilot in SSMS - review carefully before executing
+    -- PLACEHOLDER OBSOLETO (pre-DUDA-076) - NO ejecutar sin transcribir el catalogo real
     -- Catalogo interno medio de pago Peru (SUNAT no exige este campo fiscalmente)
     -- ClaveFormaDePago = NULL porque no es catalogo SAT
     INSERT INTO [dbo].[catMedioDePago]
@@ -70,7 +73,9 @@ Sin Complemento de Pago posterior — vinculacion cobro/factura es solo operativ
         (N'Deposito bancario',      1, 0, NULL, 'PER-DEP', 0),
         (N'Cheque',                 0, 0, NULL, 'PER-CHQ', 0),
         (N'Efectivo',               0, 0, NULL, 'PER-EFE', 0);
-    -- Ajustar opciones al catalogo real que defina PROQUIFA Tesoreria
+    -- OBSOLETO: reemplazar por los valores reales una vez transcrita la imagen del cliente (18/08)
+
+**GAP ABIERTO (2026-08-21, DUDA-076):** el cliente ya entrego la lista definitiva de medios de pago Peru, pero en formato imagen. Pendiente: transcribir esa imagen a valores de texto y generar el DML real de catMedioDePago para Peru. No usar el INSERT placeholder anterior como valores finales.
 
 ---
 
@@ -159,7 +164,7 @@ Sin Complemento de Pago posterior — vinculacion cobro/factura es solo operativ
 | # | Brecha | Bloqueante | Accion |
 |---|--------|-----------|--------|
 | B1 | Cuentas bancarias GOLPERU (0 registros) | SI | INSERT EmpresaDatosBancarios PER |
-| B2 | Catalogo interno medio de pago Peru | SI | Definir con PROQUIFA Tesoreria + INSERT |
+| B2 | Catalogo interno medio de pago Peru: valores entregados por cliente (18/08) como IMAGEN, pendiente transcripcion (DUDA-076) | SI | Transcribir imagen a texto + INSERT |
 | B3 | Fuente TC Peru (no DOF) | SI | Confirmar fuente oficial (SBS?) |
 | B4 | Catalogo TipoInconsistenciaCobro (compartido con MEX) | SI | Solicitar a Tesoreria |
 | B5 | Consecutivo folio: global vs por region | Negocio | Confirmar con cliente |
@@ -171,7 +176,7 @@ Sin Complemento de Pago posterior — vinculacion cobro/factura es solo operativ
 | # | Gap | Tipo | Accion |
 |---|-----|------|--------|
 | 1 | Cuentas bancarias GOLPERU | Datos | INSERT (depende de Golocaer SAC) |
-| 2 | Catalogo medio pago interno Peru | Negocio | Definir con Tesoreria |
+| 2 | Catalogo medio pago interno Peru: campo ya regionalizado y NO obligatorio para Peru (DUDA-076); valores entregados por cliente el 18/08 como IMAGEN, pendiente de transcripcion a texto | Negocio/Operativo | Transcribir imagen del cliente + INSERT |
 | 3 | Fuente oficial TC Peru | Tecnico | Confirmar (propuesta: SBS Peru) |
 | 4 | Foliador COB global vs por region | Negocio | Confirmar con cliente |
 | 5 | Buzon Cobros Peru sin datos | Operativo | Brechas modelo bancario Peru |

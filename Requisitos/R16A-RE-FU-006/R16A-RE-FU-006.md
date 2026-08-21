@@ -67,7 +67,7 @@ Cada asignación se compone seleccionando primero la **Empresa** emisora del gru
 **Regla 3 — Código Validador condicionado al banco (solo Banamex)**
 La captura del Código Validador aplica exclusivamente cuando la cuenta seleccionada pertenece a **Banamex**. En ese caso el campo es obligatorio. Para cuentas de cualquier otro banco (México no-Banamex o Perú) el campo permanece **bloqueado** y el sistema no solicita ni acepta captura del Código Validador.
 
-> **Resuelto** — El Código Validador es **alfanumérico, con longitud máxima de 3 caracteres**, sin acentos ni espacios en blanco.
+> **Resuelto (DUDA-015)** — El Código Validador es **alfanumérico, con longitud máxima de 3 caracteres**, sin acentos ni espacios en blanco (restricción de negocio/Frontend). A nivel de base de datos el campo se reserva con longitud máxima de 50 caracteres para compatibilidad y futuras extensiones, sin cambiar esta regla de captura (ver `R16A-RE-FU-006_BD.md` y `DIS_INT_006.md`).
 
 **Regla 4 — Persistencia en dos niveles: referencia vigente del cliente y referencia casada al PDF de proformas y facturas**
 La referencia bancaria se persiste en dos niveles:
@@ -97,7 +97,7 @@ Para cuentas de Banamex, la referencia bancaria se compone por la concatenación
 | 7        | Código Validador (campo `CodValidador` de la relación cliente-cuenta)                                             | —                                                                                                 |
 
 **Regla 8 — Identificación de cuentas de Banamex y alcance del encadenamiento**
-La determinación de si una cuenta pertenece a Banamex parte del encadenamiento **Empresa → Banco → Cuenta**: la empresa emisora del grupo determina los bancos disponibles, y el banco elegido (Banamex u otro) activa o bloquea la captura del Código Validador. El filtrado de cuentas seleccionables aplica las tres condiciones confirmadas por el cliente: (1) la cuenta debe pertenecer a la empresa seleccionada; (2) la cuenta debe pertenecer al banco seleccionado; (3) la moneda de la cuenta debe corresponder a la condición operativa vigente.
+La determinación de si una cuenta pertenece a Banamex parte del encadenamiento **Empresa → Banco → Cuenta**: la empresa emisora del grupo determina los bancos disponibles, y el banco elegido (Banamex u otro) activa o bloquea la captura del Código Validador. El filtrado de cuentas seleccionables aplica las tres condiciones confirmadas por el cliente: (1) la cuenta debe pertenecer a la empresa seleccionada; (2) la cuenta debe pertenecer al banco seleccionado; (3) la moneda de la cuenta debe corresponder a la condición operativa vigente (**DUDA-016**: la condición de moneda para identificar Banamex, antes truncada en la documentación recibida del cliente, quedó completada y cerrada por el cliente en documento aparte).
 
 **Regla 9 — Referencia para clientes de Región Perú (sin Código Validador)**
 Para clientes de la Región Perú no existe mecanismo de Código Validador. El sistema establece automáticamente la referencia bancaria con la **razón social del cliente** como cadena directa, sin transformación adicional (mismo camino que la Regla 6 para bancos no-Banamex). La referencia armada se casa al PDF de las proformas y facturas emitidas al cliente siguiendo la Regla 5.
@@ -110,7 +110,7 @@ Para clientes de la Región Perú no existe mecanismo de Código Validador. El s
 Aunque el Código Validador queda acotado a 3 caracteres alfanuméricos sin acentos ni espacios, el input manual siempre expone a errores humanos que rompan la identificación de pagos. Mitigación: capacitación operativa y trazabilidad por auditoría (valor anterior conservado).
 
 **Riesgo 2 — Sin restricción de rol sobre la asignación de cuentas bancarias**
-La asignación de cuentas del grupo PROQUIFA a clientes y la captura del Código Validador tienen implicaciones financieras. En R16 esta funcionalidad se implementa sin restricción de rol (queda fuera del alcance de R16 la restricción por rol; se puede evaluar en releases posteriores).
+La asignación de cuentas del grupo PROQUIFA a clientes y la captura del Código Validador tienen implicaciones financieras. En R16 esta funcionalidad se implementa sin restricción de rol. **Resuelto (DUDA-017)** — el cliente desestimó esta restricción de rol (p. ej. Coordinador de Tesorería) para R16: este tipo de control de roles corresponde al alcance del release **R7**, no de R16.
 
 > **Riesgos retirados** — El riesgo de inconsistencia entre proformas re-emitidas por reconstrucción dinámica queda descartado por OBS-013 (persistencia en dos niveles + snapshot inmutable en PDF). El riesgo del modelo Perú no definido queda cerrado por la respuesta del cliente: Perú usa razón social por default sin Código Validador (Regla 9). El riesgo de pérdida de trazabilidad por sobrescritura del Código Validador queda descartado por el historial de dos niveles (valor actual + inmediatamente anterior con autor y fecha).
 
@@ -224,13 +224,14 @@ La asignación de cuentas del grupo PROQUIFA a clientes y la captura del Código
 - La funcionalidad provee insumos al módulo **Buzón de Cobros** (identificación automática de pagos entrantes contra la referencia armada). La integración entre ambos módulos se detalla en los requisitos correspondientes al Buzón de Cobros.
 
 **Resueltos (dudas cerradas):**
-- **Código Validador:** longitud máxima 3 caracteres, alfanumérico, sin acentos ni espacios en blanco.
-- **Aplicabilidad Perú:** sin Código Validador; referencia por default con razón social del cliente (Regla 9).
-- **Restricción por rol:** fuera del alcance de R16.
-- **Tope de cuentas asignables por cliente:** no se limita.
-- **Condición de moneda para identificación de Banamex:** cerrada con las tres condiciones confirmadas por el cliente (empresa, banco, moneda — ver Regla 8).
+- **Código Validador (DUDA-015):** longitud máxima 3 caracteres, alfanumérico, sin acentos ni espacios en blanco (regla de negocio/Frontend); a nivel de base de datos el campo se reserva con longitud máxima de 50 caracteres para compatibilidad y futuras extensiones.
+- **Condición de moneda para identificación de Banamex (DUDA-016):** cerrada con las tres condiciones confirmadas por el cliente (empresa, banco, moneda — ver Regla 8); el texto original recibido del cliente sobre esta condición estaba truncado y quedó completado.
+- **Restricción por rol (DUDA-017):** fuera del alcance de R16 — corresponde al release R7.
+- **Aplicabilidad Perú (DUDA-018):** sin Código Validador; referencia por default con razón social del cliente (Regla 9).
+- **Tope de cuentas asignables por cliente (DUDA-118):** no se limita.
+- **Trazabilidad del Código Validador (DUDA-120):** se conservan a nivel de datos el valor actual (vigente) y el inmediatamente anterior con autor y fecha; no se requiere bitácora completa ni vista en pantalla en R16.
+- **Clave del cliente (DUDA-122):** se mantienen las claves del sistema Legacy; los clientes Legacy ya se vinculan con PQF2 en la base de datos intermedia y existe un procedimiento (`spObtenerClienteLegacyId`, desarrollado por Armando) para obtener la Clave Legacy a partir del ID de Cliente de PQF2 — corresponde al campo `Clave`/`ClienteLegacy` usado en el segmento 4 de la referencia Banamex, con relleno de ceros a la izquierda si tiene menos de 4 caracteres (Regla 7 segmento 4).
 - **Razón social del cliente:** dato empleado al construir la referencia bancaria (Reglas 4, 6, 7 y 9; Criterios B2, B3, C2, C3 y C4).
-- **Clave del cliente:** corresponde al campo `Clave` de la tabla de clientes y se rellena con ceros a la izquierda si tiene menos de 4 caracteres (Regla 7 segmento 4).
 
 ---
 
@@ -252,3 +253,4 @@ La asignación de cuentas del grupo PROQUIFA a clientes y la captura del Código
 | 12  | 2026-08-05 | Unicidad cliente-cuenta | Alcance precisa la unicidad de la combinación cliente-cuenta y excluye la asignación repetida en "No aplica a". Regla 2 incorpora la unicidad. Criterio B4 acotado a cuentas distintas. Criterio B5 nuevo (unicidad); criterios renumerados como B6 y B7. Criterio B6 precisa que la eliminación libera la cuenta para volver a asignarse. Observaciones agregan el bullet de unicidad. |
 | 13  | 2026-08-05 | Cierres de dudas | Se cierran los pendientes de: longitud CV (3 caracteres alfanumérico sin acentos ni espacios), tope de cuentas asignables por cliente (no se limita), restricción de rol (fuera de R16), condición de moneda truncada (tres condiciones confirmadas). Se corrige la exclusión del historial del CV en "No aplica a": se conservan el valor vigente y el inmediatamente anterior con autor y fecha. Regla 7 segmento 4 precisa que la clave del cliente corresponde al campo `Clave` de la tabla y se ejemplifica el relleno de ceros. |
 | 14  | 2026-08-07 | Cierres de dudas | Reglas 4, 6, 7 y 9 y Criterios B2, B3, C2, C3 y C4: se define la **razón social del cliente** como el dato empleado al construir la referencia bancaria. Regla 7 segmento 4 y Reglas 4 y 9: se precisa que el cliente cuenta con una clave que forma parte de la composición de la referencia. Observaciones alineadas. |
+| 15  | 2026-08-21 | Trazabilidad DUDA-015/016/017/018/118/120/122 | Se citan explícitamente en Regla 3, Regla 8, Riesgo 2 y "Resueltos" los números de duda cerrada correspondientes a: longitud/formato del Código Validador (DUDA-015, incluida precisión de longitud 50 en BD vs. 3 en captura), condición de moneda para Banamex (DUDA-016), restricción de rol diferida a R7 (DUDA-017), aplicabilidad Perú (DUDA-018), tope de cuentas por cliente (DUDA-118), trazabilidad de dos niveles del Código Validador (DUDA-120) y mantenimiento de la clave de cliente Legacy vía procedimiento de vinculación (DUDA-122). Sin cambios de contenido funcional; se corrigen además inconsistencias de formato del Código Validador encontradas en `DIS_INT_006.md` y `R16A-RE-FU-006-Cambio.md` (decían "numérico, 2 dígitos, 01–99"). |

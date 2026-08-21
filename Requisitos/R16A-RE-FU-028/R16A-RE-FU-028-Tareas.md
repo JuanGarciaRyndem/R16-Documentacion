@@ -8,7 +8,7 @@
 >
 > **Dependencias externas:** RE-FU-026 completo (asociación Paso 2 cerrada con `fccPagoFacturaPedido` y `fccPagoFacturaAdelanto`). RE-FU-019 completo (`CFDIGenerada`, `EmpresaFolio`, `ApiCallerStamping`). RE-FU-021 completo (`InvoicePdfMappingService`, `PersistInvoicePdfService`, templates `*_MEX_FAC`).
 >
-> **Brechas bloqueantes activas:** B1 (relación SAT tipo 07), B3 (mecanismo ETL Legacy), B4 (FEE: granularidad y reglas), B6 (política fallo cascada PPD). Las tareas T5, T12, T15, T17 dependen de resolverlas antes de implementar. Ver `R16A-RE-FU-028_BD.md` y `R16A-RE-FU-028-Back.md` — sección Brechas.
+> **Brechas bloqueantes activas:** ~~B1 (relación SAT tipo 07)~~ B1 **resuelto — DUDA-088:** la Factura Anticipo NO usa relación 07 (esa es de la Factura Final, fuera de alcance) — ver `Guia_Tecnica_Facturas_Ingreso_MX.md` §6. B3 (mecanismo ETL Legacy), B4 (FEE: granularidad y reglas), B6 (política fallo cascada PPD). Las tareas T5, T12, T15, T17 dependen de resolverlas antes de implementar. Ver `R16A-RE-FU-028_BD.md` y `R16A-RE-FU-028-Back.md` — sección Brechas.
 >
 > **Nota — `*_MEX_COP` y ETL Complemento/NC:** El diseño de la plantilla Complemento de Pago y sus transferencias a Legacy corresponden a R16A-RE-FU-030 y R16A-RE-FU-032/034 respectivamente. Este requisito solo implementa las plantillas `*_MEX_CDP` (Confirmación de Pedido) y los ETL E1/E2/E3/E6 (Buzón, Proforma, Factura, PDF Factura).
 
@@ -87,7 +87,7 @@ CREATE TABLE [dbo].[catTipoDocumentoFiscal](
         CONSTRAINT [DF_catTipoDocumentoFiscal_Id]    DEFAULT (NEWID()),
     [Clave]                     varchar(30)      NOT NULL,
         -- 'FACTURA'          -> CFDI Ingreso PUE o PPD (proforma sin controlados)
-        -- 'FACTURA_ANTICIPO' -> CFDI Ingreso rel. 07 SAT (proforma con controlados)
+        -- 'FACTURA_ANTICIPO' -> CFDI Ingreso (proforma con controlados) -- DUDA-088: SIN rel. 07 (es de la Factura Final, fuera de alcance)
         -- 'COMPLEMENTO_PAGO' -> CFDI Pagos 2.0 (FAA existente con cobro asociado)
     [Descripcion]               nvarchar(150)    NOT NULL,
     [Activo]                    bit              NOT NULL
@@ -102,7 +102,7 @@ CREATE TABLE [dbo].[catTipoDocumentoFiscal](
 GO
 INSERT INTO dbo.catTipoDocumentoFiscal (Clave, Descripcion) VALUES
     ('FACTURA',          'Factura — CFDI Ingreso (proforma sin productos controlados)'),
-    ('FACTURA_ANTICIPO', 'Factura Anticipo — CFDI Ingreso rel. 07 SAT (proforma con productos controlados)'),
+    ('FACTURA_ANTICIPO', 'Factura Anticipo — CFDI Ingreso (proforma con productos controlados)'), -- DUDA-088: sin rel. 07 SAT (es de la Factura Final, fuera de alcance)
     ('COMPLEMENTO_PAGO', 'Complemento de Pago — CFDI Pagos 2.0 (Factura por Adelanto existente)');
 GO
 
@@ -142,7 +142,7 @@ CREATE TABLE [dbo].[catTipoCFDI](
     [Clave]             varchar(20)      NOT NULL,
         -- 'FACTURA_PPD'       -> Factura generada con método PPD
         -- 'FACTURA_PUE'       -> Factura generada con método PUE
-        -- 'FACTURA_ANTICIPO'  -> Factura Anticipo tipo relación 07 SAT (controlados)
+        -- 'FACTURA_ANTICIPO'  -> Factura Anticipo (controlados) -- DUDA-088: SIN tipo de relacion 07 SAT (es de la Factura Final, fuera de alcance)
         -- 'COMPLEMENTO_PAGO'  -> CFDI Pagos 2.0
     [Descripcion]       nvarchar(150)    NOT NULL,
     [Activo]            bit              NOT NULL
@@ -158,7 +158,7 @@ GO
 INSERT INTO dbo.catTipoCFDI (Clave, Descripcion) VALUES
     ('FACTURA_PPD',      'Factura — CFDI Ingreso con método de pago PPD (Pago en parcialidades o diferido)'),
     ('FACTURA_PUE',      'Factura — CFDI Ingreso con método de pago PUE (Pago en una sola exhibición)'),
-    ('FACTURA_ANTICIPO', 'Factura Anticipo — CFDI Ingreso con tipo de relación 07 SAT (productos controlados)'),
+    ('FACTURA_ANTICIPO', 'Factura Anticipo — CFDI Ingreso (productos controlados)'), -- DUDA-088: sin tipo de relacion 07 SAT (es de la Factura Final, fuera de alcance)
     ('COMPLEMENTO_PAGO', 'Complemento de Pago — CFDI Pagos 2.0');
 GO
 
@@ -246,7 +246,10 @@ GO
 ALTER TABLE dbo.CFDIGenerada
     ADD IdCFDIRelacionado uniqueidentifier NULL;
         -- Para IdCatTipoCFDI -> 'COMPLEMENTO_PAGO': referencia al IdCFDIGenerada de la Factura PPD relacionada
-        -- Para IdCatTipoCFDI -> 'FACTURA_ANTICIPO': NULL (la relación tipo 07 se arma en XML al timbrar)
+        -- Para IdCatTipoCFDI -> 'FACTURA_ANTICIPO': NULL. -- DUDA-088: CORREGIDO, no es porque
+        -- "la relacion tipo 07 se arma en XML al timbrar" (eso es falso) -- es porque la Factura
+        -- Anticipo no lleva CfdiRelacionados/relacion 07 en absoluto (esa relacion es de la
+        -- Factura Final, fuera de alcance). Ver Guia_Tecnica_Facturas_Ingreso_MX.md seccion 6.
         -- NULL para FACTURA_PPD y FACTURA_PUE
         -- FK blanda (sin FOREIGN KEY de BD): la integridad se garantiza a nivel de servicio
 GO
@@ -775,7 +778,7 @@ Ver sección *"CREATE VIEW vfccDocumentoFiscalCobro"* en `R16A-RE-FU-028_BD.md` 
 - Para el **Complemento en cascada PPD**: el `IdCFDIRelacionado` en `CFDIGenerada` se popula con el `IdCFDIGenerada` de la Factura PPD del mismo flujo. Finanzas envía este UUID como parte del request.
 - El endpoint recibe: tipo de CFDI, datos emisor/receptor, partidas, `CFDIRelacionados` (NCs + UUID FAA si aplica), `IdCFDIRelacionado` (UUID Factura PPD para Complemento cascada).
 - Retorna a Finanzas: UUID, Folio, Serie, FechaEmision del CFDI timbrado.
-- ⚠️ Brecha B1: el tipo de relación SAT para Factura Anticipo de controlados (¿07?) está pendiente de confirmar con asesor fiscal.
+- ~~⚠️ Brecha B1: el tipo de relación SAT para Factura Anticipo de controlados (¿07?) está pendiente de confirmar con asesor fiscal.~~ **RESUELTO — DUDA-088 (2026-08-21):** la Factura Anticipo NO usa relación 07; esa relación es de la Factura Final (fuera de alcance).
 
 **Objetivo general:**
 Extender el endpoint de timbrado en ProquifaDotNet.Timbrado para soportar los cuatro tipos de CFDI del Paso 3 (FACTURA_PUE, FACTURA_PPD, FACTURA_ANTICIPO, COMPLEMENTO_PAGO), con inserción del discriminador `IdCatTipoCFDI` y soporte del campo `IdCFDIRelacionado` para el Complemento en cascada PPD.
@@ -1047,7 +1050,7 @@ Implementar en Finanzas el servicio central de timbrado del Paso 3 con los cuatr
   2. Invocar `PersistInvoicePdfService.PersistirAsync` para la Factura.
   3. Timbrar Complemento (`TipoCFDI=COMPLEMENTO_PAGO`, `IdCFDIRelacionado=UUID Factura PPD`). **El PDF del Complemento es responsabilidad de RE-FU-030.**
   4. `UPDATE fccDocumentoFiscalCobro SET EstadoLinea=GENERADO, IdCFDIGeneradaFactura, IdCFDIGeneradaComplemento, FechaGeneracion`.
-- **Escenario C — FACTURA_ANTICIPO:** igual que A con `TipoCFDI=FACTURA_ANTICIPO` y tipo de relación 07 SAT en `CFDIRelacionados`.
+- **Escenario C — FACTURA_ANTICIPO:** igual que A con `TipoCFDI=FACTURA_ANTICIPO`. ~~y tipo de relación 07 SAT en `CFDIRelacionados`~~ **CORREGIDO — DUDA-088:** sin `CfdiRelacionados`/relación 07 (esa relación es de la Factura Final, fuera de alcance) — ver `Guia_Tecnica_Facturas_Ingreso_MX.md` §6.
 - **Escenario D — COMPLEMENTO_PAGO desde FAA:**
   1. Timbrar Complemento (`TipoCFDI=COMPLEMENTO_PAGO`, `IdCFDIRelacionado=UUID FAA`).
   2. `UPDATE fccDocumentoFiscalCobro SET EstadoLinea=GENERADO, IdCFDIGeneradaFactura=@IdComplemento, FechaGeneracion`.

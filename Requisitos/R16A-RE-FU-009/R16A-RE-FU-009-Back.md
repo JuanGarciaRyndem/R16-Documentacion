@@ -16,12 +16,14 @@ El requisito introduce una **validación de documentos regulatorios** en el mód
 
 > **OBS-023:** La validación se mueve de `L04.PretramitarPedido` (VerificarPedidoTramitableBO) a **`L05.TramitarPedido` (TramitarPedidoBO)**. La lógica en `VerificarPedidoTramitableBO` ya NO llama a `ValidarDocumentosRegulatoriosBO`.
 
+> **⚠️ OBSOLETO (2026-08-14):** los puntos 1 y 5 (columnas `AceptaEntregasParciales`/`IdPedidoOrigenControlado` y la bifurcación por entregas parciales / pedido hijo) fueron **retirados**. El cliente confirmó que los pedidos mixtos (controladas + no controladas) no ocurren en la operación real; el requisito vigente (`R16A-RE-FU-009.md`, Regla 4 / Criterio B3) define que, ante documentación regulatoria faltante, el sistema **retiene siempre el pedido completo** en su folio original, sin bifurcación ni pedido hijo. Ver `R16A-RE-FU-009_DIS-SOL_Revision.md` H-02/H-03/H-04. El resto de este documento (puntos 2–4) sigue vigente.
+
 El impacto en BackEnd incluye:
-1. Scripts BD: ALTER `ppPedido` (AceptaEntregasParciales) + ALTER `tpPedido` (IdPedidoOrigenControlado).
+1. ~~Scripts BD: ALTER `ppPedido` (AceptaEntregasParciales) + ALTER `tpPedido` (IdPedidoOrigenControlado).~~ **Retirado.**
 2. Scripts BD para catálogos y función.
 3. Nueva clase `ValidarDocumentosRegulatoriosBO` en `L05.TramitarPedido\Validaciones\`.
-4. DTO extendido `ResultadoValidacionRegulatoria` con soporte para resultado parcial (partidas tramitables vs. retenidas).
-5. Bifurcación en `TramitarPedidoBO`: si `AceptaEntregasParciales=1`, tramitar elegibles + crear pedido hijo para controladas retenidas.
+4. DTO `ResultadoValidacionRegulatoria` (`EsValido`, `Mensaje`) — ya no requiere soporte de resultado parcial (partidas tramitables vs. retenidas), pues el pedido se retiene o se tramita como unidad completa.
+5. ~~Bifurcación en `TramitarPedidoBO`: si `AceptaEntregasParciales=1`, tramitar elegibles + crear pedido hijo para controladas retenidas.~~ **Retirado.** `TramitarPedidoBO` solo necesita: si la validación falla, bloquear el pedido completo (excepción con mensaje genérico); si pasa, continuar el flujo existente.
 
 ---
 
@@ -33,7 +35,7 @@ El impacto en BackEnd incluye:
 | :-: | ------------------------ | ------------------------------------------------- | :-------: | --------------------------- |
 |  1  | `catUsoArchivoSistema`   | INSERT — 'Licencia Sanitaria' (MEX)               |   Alta    | Prerequisito para RE-FU-003 |
 |  2  | `catUsoArchivoSistema`   | INSERT — 'Aviso de Responsable Sanitario' (MEX)   |   Alta    | Prerequisito para RE-FU-003 |
-|  3  | `catUsoArchivoSistema`   | INSERT — [docs DIGEMID PER] (pendiente confirmar) |   Media   | Denominación pendiente      |
+|  3  | ~~`catUsoArchivoSistema`~~ | ~~INSERT — [docs DIGEMID PER]~~ **Descartado (DUDA-027)** |   —    | No aplica — Perú no soporta sustancias controladas en R16 (riesgo operativo asumido, sin bloqueo por sistema) |
 |  4  | `fnEsProductoControlado` | ALTER FUNCTION — agregar clave `'origen'`         |   Alta    | Compartido con RE-FU-007    |
 
 ### 1.2 Tablas involucradas (sin cambios estructurales)
@@ -82,26 +84,26 @@ PretramitarPedidoTramitarController
 > **Cambio OBS-023:** La validación se ejecuta ahora en **`TramitarPedidoBO.Process()`** (L05), NO en `VerificarPedidoTramitableBO.Procesar()` (L04).
 > `VerificarPedidoTramitableBO` ya **no** llama a `ValidarDocumentosRegulatoriosBO`.
 
-Dentro de `TramitarPedidoBO.Process()`, después de separar partidas controladas / no controladas:
-1. Llamar a `ValidarDocumentosRegulatoriosBO.ValidarConResultadoParcial(idPPPedido)`.
-2. Si resultado = todo válido → tramitar normalmente (flujo existente).
-3. Si resultado = controladas sin docs:
-   - Si `ppPedido.AceptaEntregasParciales = 1` → tramitar solo partidas no controladas + crear pedido hijo para las controladas retenidas (con `IdPedidoOrigenControlado` apuntando al padre).
-   - Si `ppPedido.AceptaEntregasParciales = 0` → bloquear completo (excepción con mensaje genérico).
+Dentro de `TramitarPedidoBO.Process()`:
+1. Llamar a `ValidarDocumentosRegulatoriosBO.Validar(idPPPedido)`.
+2. Si resultado = válido (no tiene controladas, o las tiene y los documentos están registrados) → tramitar normalmente el pedido completo (flujo existente).
+3. Si resultado = inválido (tiene controladas y falta al menos un documento) → **bloquear el pedido completo** (excepción con mensaje genérico), sin excepción por composición del pedido ni entrega parcial.
+
+> ~~Si resultado = controladas sin docs: Si `ppPedido.AceptaEntregasParciales = 1` → tramitar solo partidas no controladas + crear pedido hijo...~~ **Retirado (2026-08-14)** — ver nota de obsolescencia al inicio del documento.
 
 ### 2.3 Componentes nuevos (OBS-023)
 
 | # | Archivo | Proyecto | Tipo | Descripción |
 |:-:|---------|----------|------|-------------|
-| 1 | `L05.TramitarPedido\Validaciones\ValidarDocumentosRegulatoriosBO.cs` | `Logic.Pqf.Logistica` | **NUEVO** | Lógica de validación regulatoria — retorna resultado con detalle de partidas tramitables y retenidas |
-| 2 | `L05.TramitarPedido\Validaciones\Models\ResultadoValidacionRegulatoria.cs` | `Logic.Pqf.Logistica` | **NUEVO** | DTO extendido: `EsValido`, `Mensaje`, `PartidasTramitables`, `PartidasRetenidasPorControladas` |
-| 3 | `L05.TramitarPedido\Liberar\CrearPedidoHijoControladoBO.cs` | `Logic.Pqf.Logistica` | **NUEVO** | Crea pedido hijo (`tpPedido`) para las partidas controladas retenidas, con `IdPedidoOrigenControlado` = padre |
+| 1 | `L05.TramitarPedido\Validaciones\ValidarDocumentosRegulatoriosBO.cs` | `Logic.Pqf.Logistica` | **NUEVO** | Lógica de validación regulatoria — retorna válido/inválido para el pedido completo (sin detalle de partidas tramitables/retenidas, ver obsolescencia) |
+| 2 | `L05.TramitarPedido\Validaciones\Models\ResultadoValidacionRegulatoria.cs` | `Logic.Pqf.Logistica` | **NUEVO** | DTO: `EsValido`, `Mensaje` — ~~`PartidasTramitables`, `PartidasRetenidasPorControladas`~~ **retirado (2026-08-14)** |
+| 3 | ~~`L05.TramitarPedido\Liberar\CrearPedidoHijoControladoBO.cs`~~ | ~~`Logic.Pqf.Logistica`~~ | ❌ **Retirado (2026-08-14)** | No se crean pedidos hijo — el pedido se retiene completo en su folio original |
 
 ### 2.4 Componentes existentes a modificar (OBS-023)
 
 | # | Archivo | Proyecto | Cambio |
 |:-:|---------|----------|--------|
-| 1 | `L05.TramitarPedido\Liberar\TramitarPedidoBO.cs` | `Logic.Pqf.Logistica` | Agregar bifurcación: llamar a `ValidarDocumentosRegulatoriosBO` + lógica de entrega parcial / pedido hijo |
+| 1 | `L05.TramitarPedido\Liberar\TramitarPedidoBO.cs` | `Logic.Pqf.Logistica` | Llamar a `ValidarDocumentosRegulatoriosBO`; si inválido, bloquear el pedido completo (excepción con mensaje genérico) — ~~+ lógica de entrega parcial / pedido hijo~~ retirado |
 | 2 | `L04.PretramitarPedido\Tramite\VerificarPedidoTramitableBO.cs` | `Logic.Pqf.Logistica` | **QUITAR** la llamada a `ValidarDocumentosRegulatoriosBO` (si se había agregado) — ahora está en L05 |
 | 3 | `Productos\ProductoBO.TipoExtensions.cs` | `Logic.Pqf.Catalogos` | **Evaluar** — Verificar que `ProductoMarcaFamilia.Controlado` cubre `origen`. Si no, ajustar lógica o usar query directa a catControl. |
 
@@ -181,15 +183,17 @@ WHERE ua.Activo = 1
 | `POST /PretramitarPedido/transaccion` | `PretramitarPedidoTramitarController` | La validación se ejecuta internamente via `VerificarPedidoTramitableBO`; el controller ya maneja `Response.Status = false` con `BadRequest`. **No requiere cambios en el controller.** |
 | `POST /ValidarAjusteOC/transaccion` | `PretramitarPedidoTramitarController` | Mismo flujo — usa `PretramitarPedidoTransaccionBO` que invoca `TramitarPedidoBO` → `VerificarPedidoTramitableBO`. **Automáticamente cubierto.** |
 
-### 3.2 Endpoints que NO pasan por la validación (Riesgo 5 del requisito)
+### 3.2 Puntos de entrada alternos a Tramitar (Riesgo 5 del requisito) — Resuelto vía DUDA-024
 
 | Punto de entrada | Controlador probable | Nota |
 |------------------|---------------------|------|
 | Gestionar Intramitable → OC corregida → Validar Ajustes → Tramitar | `POST /ValidarAjusteOC/transaccion` | ✅ **Cubierto** — usa el mismo `PretramitarPedidoTransaccionBO` |
-| "Tramitar con errores" desde Gestionar Intramitable | Por identificar | ⚠️ **Pendiente confirmar** si usa `TramitarPedidoBO.Process()` o un bypass |
-| Aceptación de OC Interna por el cliente | Por identificar | ⚠️ **Pendiente confirmar** si dispara la validación |
+| "Tramitar con errores" desde Gestionar Intramitable | Por identificar | ✅ **Cubierto** — ver resolución DUDA-024 |
+| Aceptación de OC Interna por el cliente | Por identificar | ✅ **Cubierto** — ver resolución DUDA-024 |
 
-> Si `VerificarPedidoTramitableBO.Procesar()` es el punto único de validación pre-tramitación y todos los flujos pasan por él, la validación regulatoria queda cubierta automáticamente.
+> **DUDA-024 (Resuelta, 2026-08-14 aprox.):** se cerró moviendo la validación regulatoria a Tramitar Pedido (último paso), no a Pretramitar. Como todos los caminos hacia Tramitar Pedido — Pretramitar, validar ajustes, aceptar orden de compra, pedido intramitable ("tramitar con errores") — pasan finalmente por Tramitar Pedido, validar ahí cubre los tres puntos de entrada con una sola validación, sobre un pedido ya limpio (inconsistencias de precio, cantidad, flete ya resueltas). Ya no queda pendiente confirmar en código si estos flujos hacen bypass: por diseño, todos convergen en el paso donde se ejecuta la validación.
+>
+> Nota de consistencia interna: esta sección todavía describe el punto de inserción como si dependiera de `VerificarPedidoTramitableBO.Procesar()` (L04). Según OBS-023 (§2.2 de este mismo documento) y el requisito vigente, el punto de inserción real es `TramitarPedidoBO.Process()` (L05) — el diagrama de flujo de PARTE 8 debe actualizarse para no citar `VerificarPedidoTramitableBO` como el punto único de validación.
 
 ---
 
@@ -245,7 +249,7 @@ Esto es **comportamiento esperado** — no es un error ni un cambio en ETLs.
 | T4 | Crear `ResultadoValidacionRegulatoria.cs` — DTO de resultado | `ALG-BASIC-LOGIC` | `Logic.Pqf.Logistica` |
 | T5 | Modificar `VerificarPedidoTramitableBO.cs` — integrar llamada a validación regulatoria | `IMP-EXIST-SERVICE` | `Logic.Pqf.Logistica` |
 | T6 | Verificar/ajustar `ProductoBO.EsControlado()` para que cubra `origen` | `ALG-BASIC-LOGIC` | `Logic.Pqf.Catalogos` |
-| T7 | Script BD: INSERT `catUsoArchivoSistema` (docs DIGEMID PER — pendiente denominación) | `UPDATE-TABL-CH` | BD ProquifaDotNet |
+| ~~T7~~ | ~~Script BD: INSERT `catUsoArchivoSistema` (docs DIGEMID PER)~~ **Descartada (DUDA-027)** | — | — |
 
 ---
 
@@ -253,9 +257,9 @@ Esto es **comportamiento esperado** — no es un error ni un cambio en ETLs.
 
 | # | Gap | Descripción | Acción requerida | Responsable |
 |:-:|-----|-------------|-----------------|-------------|
-| 1 | Denominación docs regulatorios Perú | No se ha confirmado el nombre exacto de los documentos DIGEMID equivalentes | Confirmar con cliente antes de insertar en `catUsoArchivoSistema` | Cliente / Negocio |
+| 1 | ~~Denominación docs regulatorios Perú~~ **Descartado (DUDA-027)** | Ya no aplica: se confirmó que Perú no soporta sustancias controladas en R16; el riesgo de tramitar/facturar un controlado de Perú se asume como riesgo operativo, sin bloqueo técnico ni documentos regulatorios que insertar en `catUsoArchivoSistema` para esa región | Ninguna — cerrado | — |
 | 2 | ArchivoCliente sin registros | La tabla está vacía — RE-FU-003 (carga de docs) debe estar operativo antes de probar esta validación | Coordinar orden de desarrollo con RE-FU-003 | PM |
-| 3 | Puntos de entrada alternativos a Tramitar | "Tramitar con errores" y "Aceptación OC Interna" pueden no pasar por `VerificarPedidoTramitableBO` | Identificar el flujo en código y confirmar si la validación aplica | Dev BackEnd + Cliente |
+| 3 | ~~Puntos de entrada alternativos a Tramitar~~ **Resuelto (DUDA-024)** | "Tramitar con errores" y "Aceptación OC Interna" pasan por Tramitar Pedido, punto único donde se ejecuta la validación regulatoria (último paso) | Ninguna — cerrado. Ver §3.2 | — |
 | 4 | `ProductoMarcaFamilia.Controlado` vs `catControl` | Verificar si el campo `Controlado` de `ProductoMarcaFamilia` se actualiza cuando se agrega `origen` a la función | Revisar trigger/proceso que actualiza este campo | Dev BackEnd |
 | 5 | fnEsProductoControlado compartida con RE-FU-007 | El ALTER se ejecuta una sola vez — coordinar para no duplicar scripts | Script idempotente | Dev BackEnd |
 

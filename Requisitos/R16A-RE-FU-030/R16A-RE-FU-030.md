@@ -14,7 +14,7 @@
 
 ## Requisito Funcional
 
-El sistema debe generar un Complemento de Pago (CFDI tipo P) y su PDF representativo al confirmar un cobro en Validar Cobro contra una o más facturas con Método de Pago PPD, conforme a la normativa SAT vigente y con el branding de la empresa emisora del grupo PROQUIFA México. No existe pantalla ni módulo independiente para generarlo: el único disparador es la confirmación del cobro en el Paso 3 del wizard de Validar Cobro. El XML timbrado y el PDF se persisten en PQF2, se conservan por el plazo fiscal exigido y se envían automáticamente al cliente con copia al ESAC y al analista de Cuentas por Cobrar. La estructura se reutiliza para Perú si SUNAT exige documento equivalente; se documenta en requisito independiente.
+El sistema debe generar un Complemento de Pago (CFDI tipo P) y su PDF representativo al confirmar un cobro en Validar Cobro contra una o más facturas con Método de Pago PPD, conforme a la normativa SAT vigente y con el branding de la empresa emisora del grupo PROQUIFA México. No existe pantalla ni módulo independiente para generarlo: el único disparador es la confirmación del cobro en el Paso 3 del wizard de Validar Cobro. El timbrado se realiza uno a uno por Complemento de Pago (no masivo/por lote) *(DUDA-050)*. El XML timbrado y el PDF se persisten en PQF2, se conservan por el plazo fiscal exigido y se envían automáticamente al cliente con copia al ESAC y al analista de Cuentas por Cobrar. ~~La estructura se reutiliza para Perú si SUNAT exige documento equivalente; se documenta en requisito independiente.~~ *(Obsoleto: se cancela la facturación de Perú; no aplica ningún documento equivalente al Complemento de Pago para Perú — DUDA-099)*
 
 ---
 
@@ -28,7 +28,7 @@ El sistema debe generar un Complemento de Pago (CFDI tipo P) y su PDF representa
 - Estructura XML conforme a CFDI 4.0 Pagos20 v2.0 (Apéndice 6 Anexo 20 SAT vigente): cabecera fija, Emisor, Receptor con UsoCFDI=CP01, Concepto único fijo, Complemento Pagos20 con Totales, Pago y un Documento Relacionado con impuestos desglosados cuando aplique.
 - Multi-divisa con EquivalenciaDR (cuando MonedaDR ≠ MonedaP) y TipoCambioP (cuando MonedaP ≠ MXN).
 - Monto del Pago = ImpPagado del DoctoRelacionado (porción del cobro aplicada a la factura específica del Complemento de Pago).
-- Timbrado vía PAC TurboPac con UUID asignado por el SAT.
+- Timbrado vía PAC TurboPac con UUID asignado por el SAT, uno a uno por Complemento de Pago (el cliente aceptó que no sea masivo/por lote) *(DUDA-050)*.
 - Cascada de timbrado según Método de Pago elegido en líneas con proforma origen:
   - PUE: genera únicamente la Factura PUE (1 CFDI).
   - PPD: genera la Factura PPD y, en cascada inmediata, el Complemento de Pago asociado al cobro confirmado (2 CFDIs).
@@ -48,11 +48,11 @@ El sistema debe generar un Complemento de Pago (CFDI tipo P) y su PDF representa
 - Complementos de Pago que agrupen múltiples DoctosRelacionados en un único comprobante (la política operativa de R16 es un Complemento de Pago por factura).
 - Cancelación de Complementos de Pago (fuera del scope de R16, consistente con NC y cancelación standalone de facturas).
 - Inclusión de NCs aplicadas en el cobro como DoctoRelacionado del Complemento de Pago (las NCs son CFDI de Egreso y se relacionan a la factura origen desde la propia NC).
-- Generación del Complemento de Pago para Perú (requisito independiente si SUNAT exige documento equivalente).
+- Generación del Complemento de Pago para Perú: ~~(requisito independiente si SUNAT exige documento equivalente)~~ *(Obsoleto: se descarta — se cancela la facturación de Perú; no aplica ningún documento equivalente para Perú — DUDA-099)*.
 - Plantilla del cuerpo del correo de envío del Complemento de Pago (** PMO #31 transversal **).
 - Política formal de reintento ante fallo de timbrado PAC (** transversal con Factura por Adelantado, Notas de Crédito y Validar Cobro **).
 - Convención de hora en FechaPago (12:00:00 fija vs hora real del cobro) (** pendiente validar con asesor fiscal **).
-- Validación del esquema definitivo del foliador con serie "P" (** pendiente **).
+- ~~Validación del esquema definitivo del foliador con serie "P" (** pendiente **).~~ *(Actualizado: la serie "P" para el timbrado fiscal del Complemento de Pago ante el SAT queda CONFIRMADA internamente — DUDA-095. Sigue pendiente solo el detalle de formato/longitud del folio en `EmpresaFolio`, no la letra de la serie. No confundir con el folio interno por empresa del catálogo de empresas, OBS-031.)*
 
 ---
 
@@ -92,7 +92,7 @@ Cuando un DoctoRelacionado tiene MonedaDR ≠ MonedaP, el sistema incluye Equiva
 Cuando un DoctoRelacionado tiene ObjetoImpDR=02, el sistema incluye el sub-nodo ImpuestosDR/TrasladosDR. Si ObjetoImpDR=01, el sub-nodo se omite.
 
 **Regla 12 — Foliado consecutivo por empresa**
-El folio interno del Complemento de Pago es consecutivo continuo por empresa emisora, con serie "P" propuesta. El UUID lo asigna el SAT. ** Esquema del foliador con serie "P" pendiente de validar. **
+El folio del timbrado fiscal SAT del Complemento de Pago es consecutivo continuo por empresa emisora, con serie "P" ~~propuesta~~ **CONFIRMADA** *(DUDA-095)*. El UUID lo asigna el SAT. ~~Esquema del foliador con serie "P" pendiente de validar.~~ *(Actualizado: la letra de serie "P" ya no está en duda; queda pendiente solo el formato/longitud exactos del folio.)*
 
 **Regla 13 — Conservación XML 5 años**
 El XML timbrado del Complemento de Pago se conserva por un mínimo de 5 años (Art. 30 CFF).
@@ -247,7 +247,7 @@ Entonces no deberá incluir el sub-nodo ImpuestosDR.
 **Criterio F3 — Campos del TrasladoDR**
 Dado un TrasladoDR,
 Cuando el sistema lo arma,
-Entonces deberá incluir: BaseDR, ImpuestoDR=002, TipoFactorDR=Tasa, TasaOCuotaDR (0.160000), ImporteDR. ** Confirmar soporte para tasas distintas a 16%. **
+Entonces deberá incluir: BaseDR, ImpuestoDR=002, TipoFactorDR=Tasa, TasaOCuotaDR, ImporteDR. ~~** Confirmar soporte para tasas distintas a 16%. **~~ *(Resuelto — DUDA-097: no se requiere lógica propia de cálculo de tasas; TasaOCuotaDR toma el valor ya existente en la factura/DoctoRelacionado referenciado, sea 16%, 8% u otro. El Complemento de Pago solo refleja los datos ya presentes en la factura.)*
 
 ═══════════════════════════════════════════════════════════════
 SECCIÓN G — NODO TOTALES
@@ -403,15 +403,28 @@ Entonces el asunto y cuerpo seguirán la plantilla definida. ** Plantilla pendie
 - NCs aplicadas en el cobro no se incluyen como DoctoRelacionado del Complemento de Pago (las NCs son CFDI de Egreso y se relacionan a la factura origen desde la propia NC).
 - Convención del sistema legacy en los ejemplos analizados: FechaPago con hora fija 12:00:00. Pendiente validar si se mantiene o se captura hora real.
 - Cancelación de Complemento de Pago no incluida en este release (consistente con NC y cancelación standalone de facturas).
-- Foliado consecutivo continuo por empresa emisora del grupo PROQUIFA México con serie "P" propuesta (pendiente validar esquema final).
+- Foliado consecutivo continuo por empresa emisora del grupo PROQUIFA México con serie "P" ~~propuesta (pendiente validar esquema final)~~ **confirmada** (pendiente solo el formato/longitud del folio) *(DUDA-095)*.
+- Timbrado uno a uno por Complemento de Pago, no masivo/por lote (aceptado por el cliente) *(DUDA-050)*.
+- El IVA/tasa del Complemento de Pago no requiere lógica propia: se toma directamente de los datos ya existentes en la factura referenciada *(DUDA-097)*.
 - Diseño del PDF: identidad visual por empresa emisora (logo + paleta corporativa), con iconografía de certificaciones del giro químico-farmacéutico en el pie. Esta fila documenta qué información debe contener el PDF, no la disposición visual literal (cintas, posicionamiento, dimensiones).
 
 ### Pendientes
 
 - ** Pendiente: convención de FechaPago (hora fija 12:00:00 vs hora real del cobro). **
-- ** Pendiente: soporte para tasas de IVA distintas a 16% (frontera 8%, 0%) según escenarios del cliente. **
+- ~~** Pendiente: soporte para tasas de IVA distintas a 16% (frontera 8%, 0%) según escenarios del cliente. **~~ *(Resuelto — DUDA-097: no aplica desarrollo adicional; la tasa ya viene en la factura referenciada.)*
 - ** Pendiente: vigencia de la iconografía de certificaciones del giro químico-farmacéutico (ISO, NEEC, edQM, FELUM, USP, Microbiologics, APACOR, CHATA, Pharmaffiliates, Amex). **
 - ** Pendiente: mecanismo de reintento de timbrado en caso de error PAC (transversal con Factura por Adelantado, Notas de Crédito y Validar Cobro). **
 - ** Pendiente: plantilla del cuerpo del correo de envío (PMO #31, transversal Proforma/Factura/NC/Complemento/Inconsistencia). **
-- ** Pendiente: validación de la serie "P" en el foliador final. **
-- ** Para Perú: SUNAT no tiene equivalente directo del Complemento de Pago. Validar si aplica una fila Perú o no requiere este documento. **
+- ~~** Pendiente: validación de la serie "P" en el foliador final. **~~ *(Resuelto — DUDA-095: la serie "P" queda confirmada para el timbrado fiscal SAT del Complemento de Pago. Pendiente residual: solo formato/longitud exactos del folio en `EmpresaFolio`.)*
+- ~~** Para Perú: SUNAT no tiene equivalente directo del Complemento de Pago. Validar si aplica una fila Perú o no requiere este documento. **~~ *(Descartado — DUDA-099: se cancela la facturación de Perú; no aplica ningún documento equivalente al Complemento de Pago para Perú.)*
+
+---
+
+## Cambios
+
+| Fecha | Cambio | Referencia |
+|---|---|---|
+| 2026-08-21 | Confirmado: timbrado uno a uno por Complemento de Pago, no masivo/por lote (aceptado por el cliente). | DUDA-050 |
+| 2026-08-21 | Confirmada la serie "P" para el folio del timbrado fiscal SAT del Complemento de Pago (distinto del folio interno por empresa del catálogo de empresas, OBS-031). Queda pendiente solo el formato/longitud del folio. | DUDA-095 |
+| 2026-08-21 | Cerrado: no se requiere lógica propia de tasas de IVA; el Complemento de Pago toma la tasa/base ya existente en la factura referenciada. | DUDA-097 |
+| 2026-08-21 | Descartado: se cancela la facturación de Perú; no aplica ningún documento equivalente al Complemento de Pago para Perú. Se retira la mención de reutilización de estructura para Perú del Requisito Funcional y del Alcance. | DUDA-099 |

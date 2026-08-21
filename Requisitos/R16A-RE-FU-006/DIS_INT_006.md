@@ -276,7 +276,7 @@ tpProformaPedido.ReferenciaPago ◄── snapshot inmutable de ReferenciaVigent
 | `IdClienteDatosBancarios` | uniqueidentifier | NO | PK, `NEWID()` (no `NEWSEQUENTIALID()` — comentario JD, problemas con .NET Core; cambio INT-1.1) |
 | `IdCliente` | uniqueidentifier | NO | FK `Cliente` |
 | `IdEmpresaDatosBancarios` | uniqueidentifier | NO | FK `EmpresaDatosBancarios` (**divergencia resuelta** vs `IdDatosBancarios` de los `_BD.md`) |
-| `CodigoValidador` | varchar(50) | SÍ | Longitud provisional — DUDA-015 abierta |
+| `CodigoValidador` | varchar(50) | SÍ | ~~Longitud provisional — DUDA-015 abierta~~ — **Cerrado 2026-08-21 (DUDA-015):** `varchar(50)` es la longitud final a nivel de BD (compatibilidad/holgura futura). Regla de negocio/Frontend: solo se permite capturar 3 caracteres, alfanumérico, sin acentos ni espacios en blanco. |
 | `ReferenciaVigente` | varchar(200) | SÍ | Referencia armada; `varchar(200)` (holgura vs `varchar(80)` del snapshot — ver ADR nota) |
 | `FechaReferenciaVigente` | datetime | SÍ | Auditoría/troubleshooting |
 | `CodigoValidadorAnterior` | varchar(50) | SÍ | Historial 1 nivel (OBS-014) |
@@ -541,7 +541,7 @@ Stack heredado (constraint, no elección): **.NET / EF (`ProquifaDotNetEntities`
 - Stack existente ProquifaDotNet (.NET/EF/SQL Server/SSIS) — sin nueva infra.
 - El C# no accede a Legacy por EF directo (patrón del ecosistema → SP obligatorio).
 - ~~Solo clientes **México**; modelo bancario Perú no definido (BRECHA-03)~~ — **cerrado parcialmente INT-1.8**: la referencia no-Banamex (ADR-9) ya cubre Perú; pendiente confirmar con JD si BRECHA-03 tiene algo más fuera de la referencia (catálogo de cuentas/bancos peruano, etc.).
-- Longitud de `CodigoValidador` provisional `varchar(50)` hasta DUDA-015.
+- ~~Longitud de `CodigoValidador` provisional `varchar(50)` hasta DUDA-015.~~ — **Cerrado 2026-08-21:** `varchar(50)` es definitivo en BD; captura acotada a 3 caracteres alfanuméricos (sin acentos/espacios) por regla de negocio/Frontend (DUDA-015).
 
 **Divergencia documental resuelta:** los `_BD.md`/`_Back.md` de Juan David modelan FK `IdDatosBancarios` y S4 desde `Cliente.Clave`. Este diseño los sustituye por `IdEmpresaDatosBancarios` y `ClienteLegacy` respectivamente, con base en verificación live. Cualquier código generado desde esos docs (p.ej. `BankReferenceBO.Build(cliente, cuenta, cv)` con `cliente.Clave`) debe corregirse — ver [Apéndice B](#apéndice-b--código-clave-c).
 
@@ -553,8 +553,8 @@ Stack heredado (constraint, no elección): **.NET / EF (`ProquifaDotNetEntities`
 
 | # | Riesgo | Prob. | Impacto | Mitigación | Owner |
 |---|---|---|---|---|---|
-| R1 | `CodigoValidador` sin validación de formato/longitud → CV inválido rompe matching de pagos | M | A | Confirmar reglas con cliente (DUDA-015); `varchar(50)` provisional | Cliente/PMO |
-| R2 | Sin restricción de rol sobre datos financieros | M | M | Confirmar con cliente si restringir a Tesorería (P4); trazabilidad por `IdUsuarioModificacion` mientras tanto | Funcional/Cliente |
+| R1 | ~~`CodigoValidador` sin validación de formato/longitud → CV inválido rompe matching de pagos~~ — **Cerrado 2026-08-21 (DUDA-015):** regla de negocio definida (3 caracteres alfanuméricos, sin acentos ni espacios); `varchar(50)` en BD es definitivo, no provisional | B | A | Aplicar la validación de formato en el BO/Frontend según DUDA-015 | Desarrollo |
+| R2 | Sin restricción de rol sobre datos financieros | M | M | **DUDA-017 (2026-08-21):** desestimado para R16 — el control de roles sobre esta pantalla corresponde al alcance de R7, no de R16; trazabilidad por `IdUsuarioModificacion` mientras tanto | Funcional/Cliente |
 | R3 | `ReferenciaVigente` obsoleta si no se implementa Flujo 3 | M | A | **Cerrado aquí** por hook transaccional en `ClienteBO` (ADR-5) | Arquitectura |
 | R4 | Desbordamiento S4 (`ClienteLegacy` > 9,999) | B | M | Aceptado; unicidad por S7 (CV); escalar a 5 chars solo si Banamex lo exige | — |
 | R5 | Nombre de cliente > 80 chars trunca snapshot | **A (confirmado, no probabilístico)** | M | **Ya no es "verificar" — confirmado en vivo (RAD 4-jul): 2 clientes MEX activos, 101/105 chars.** Mitigación (ampliar `ReferenciaPago` a `varchar(200)` vs. truncar explícito) es decisión de **RE-016** (dueño del campo), pendiente de confirmar que llegó a Javi | RE-016 (Javi) — RE-006 sólo provee el dato de origen |
@@ -578,10 +578,10 @@ Stack heredado (constraint, no elección): **.NET / EF (`ProquifaDotNetEntities`
 # 16. Fuera de Alcance
 
 - Pantallas/componentes Angular de "Referencia de Pago" (scope FE; ver [§19](#19-contrato-de-frontend)).
-- Validación de formato/longitud del `CodigoValidador` (DUDA-015).
-- ~~Clientes de Perú (BRECHA-03)~~ — cerrado parcialmente INT-1.8 (ver §13, ADR-9): la referencia no-Banamex ya cubre Perú.
-- Bitácora completa del CV (más allá de 1 nivel) y su vista en pantalla (OBS-014 / DUDA-120).
-- Restricción por rol (DUDA-017 cerrada; posible reapertura con cliente, P4).
+- Validación de formato/longitud del `CodigoValidador` — regla ya definida por el cliente (DUDA-015, cerrada 2026-08-21: 3 caracteres alfanuméricos sin acentos ni espacios); implementarla en BO/Frontend queda fuera de este documento de diseño.
+- ~~Clientes de Perú (BRECHA-03)~~ — cerrado parcialmente INT-1.8 (ver §13, ADR-9): la referencia no-Banamex ya cubre Perú. **Confirmado además por DUDA-018 (2026-08-21):** Perú no tiene mecanismo de Código Validador; su referencia se genera por default con la Razón Social del cliente.
+- Bitácora completa del CV (más allá de 1 nivel) y su vista en pantalla (OBS-014 / DUDA-120 — **reconfirmado 2026-08-21:** el cliente solo requiere conservar el valor actual y el inmediatamente anterior con autor/fecha; no requiere bitácora completa ni vista en pantalla en R16).
+- Restricción por rol (DUDA-017 cerrada 2026-08-21: el cliente descartó este control para R16 — corresponde al alcance de R7; posible reapertura con cliente, P4).
 - Recálculo de referencias ya casadas a proformas emitidas (snapshot inmutable, OBS-015).
 - **Modificación de `tpProformaPedidoFactory`, generación de la proforma y casado de `ReferenciaPago`** — son de **RE-016** (ADR-6, INT-1.1). RE-006 solo expone el endpoint.
 - **Paquete SSIS para la carga inicial (Flujo A)** — reemplazado por script SQL de una sola ejecución (comentario JD, INT-1.1). El SSIS de Flujo B (ongoing) es **propiedad del cliente**; se extiende mapeando a columnas existentes, no se reemplaza.
@@ -593,12 +593,12 @@ Stack heredado (constraint, no elección): **.NET / EF (`ProquifaDotNetEntities`
 
 | ID | Pregunta | Owner | Impacto si cambia | Bloqueante |
 |---|---|---|---|---|
-| DUDA-015 | Longitud/formato máximo de `CodigoValidador` | Cliente/PMO | Ajustar `varchar(50)` + validación en BO | No |
-| DUDA-118 (residual) | ¿Tope máximo de cuentas por cliente? | Funcional/Cliente | Solo un límite de negocio; el mecanismo de selección ya está cerrado (RT-08) | No |
 | P4 | ¿Restringir a rol Coordinador de Tesorería? | Funcional/Cliente | Agregar middleware de rol en el controller | No |
 | P7 | ~~¿`MAX(LEN(Cliente.Nombre))` ≤ 80?~~ → **Confirmado: NO.** Máximo real 105 chars (2 clientes MEX activos, RAD 4-jul). Pendiente: decisión de mitigación (ampliar `ReferenciaPago` vs. truncar) — es de **RE-016**, no de RE-006 | RE-016 (Javi) | Truncamiento real del snapshot para esos 2 clientes si facturan no-Banamex | No (para RE-006; sí relevante para el alcance de RE-016) |
 
 **Cerradas en este diseño (no requieren cliente):** DUDA-118 mecanismo (RT-08), CA-EC2 (RT-08+RT-01), IdUsuarioModificacion (RT-09), mapeo idCuenta=CLABE, GAP-E (S4=ClienteLegacy), **GAP-07 (Flujo 3, ADR-5)**, **P7 (confirmado — ver arriba; la mitigación queda del lado de RE-016)**.
+
+**Cerradas por el cliente (2026-08-21):** DUDA-015 (longitud `CodigoValidador`: `varchar(50)` en BD, 3 caracteres alfanuméricos sin acentos ni espacios por regla de negocio/Frontend); DUDA-118 residual (no existe tope máximo de cuentas asignables por cliente — sin límite de negocio, además del mecanismo de selección ya cerrado en RT-08); DUDA-017 (restricción por rol descartada para R16, corresponde a R7); DUDA-120 (bitácora del CV se mantiene en 1 nivel: valor actual + inmediatamente anterior con autor/fecha, sin vista en pantalla); DUDA-016 (condición de moneda para identificar Banamex, antes truncada, quedó completada por el cliente — superada además por ADR-9, que reemplaza esa condición por el flag `catBanco.RequiereCodigoValidador`); DUDA-122 (se mantienen las claves de cliente Legacy — ya resuelto en este diseño vía `ClienteLegacy`/`spObtenerClienteLegacyId`, ver ADR-3 y GAP-E).
 
 ---
 
@@ -707,7 +707,7 @@ CREATE TABLE dbo.ClienteDatosBancarios
         CONSTRAINT FK_ClienteDatosBancarios_EmpresaDatosBancarios
             FOREIGN KEY REFERENCES dbo.EmpresaDatosBancarios(IdEmpresaDatosBancarios),
 
-    CodigoValidador                  varchar(50)      NULL,   -- DUDA-015: longitud provisional
+    CodigoValidador                  varchar(50)      NULL,   -- DUDA-015 (cerrada 2026-08-21): varchar(50) definitivo en BD; captura acotada a 3 caracteres alfanuméricos sin acentos/espacios por regla de negocio/Frontend
 
     -- Regla 4 nivel 1 (OBS-013): referencia vigente calculada en la escritura
     ReferenciaVigente                varchar(200)     NULL,   -- referencia real debe caber en 80 (snapshot)

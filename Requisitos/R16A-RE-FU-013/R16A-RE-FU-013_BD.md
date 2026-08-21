@@ -150,7 +150,7 @@ No renderiza FAA ni Entrega con Remisión. Datos de facturación en solo lectura
 | Restricción por código | ✅ Validaciones regulatorias activas | ❌ Sin restricción por código — control operativo |
 | Transferencia a Legacy (post-Validar Cobro) | ✅ | ❌ No aplica — operación termina en PQF2 |
 
-> **Controlados Perú (Duda 061):** El cliente confirmó que el manejo de sustancias controladas no está contemplado en el alcance de esta release para Perú. El sistema no restringe el avance de un pedido con controlados de cliente Perú (Riesgo 3 del requisito); el control es operativo, no de sistema.
+> **Controlados Perú (Duda 061 / DUDA-027):** El cliente confirmó que el manejo de sustancias controladas no está contemplado en el alcance de esta release para Perú. El sistema no restringe el avance de un pedido con controlados de cliente Perú (Riesgo 3 del requisito); el control es operativo, no de sistema. DUDA-029 confirma además que la exclusión de Factura por Adelantado con controlados aplica igual para México y Perú (mismo criterio operativo, sin validación adicional por código).
 
 ---
 
@@ -159,7 +159,7 @@ No renderiza FAA ni Entrega con Remisión. Datos de facturación en solo lectura
 | # | Gap | Acción | Propietario |
 |---|-----|--------|-------------|
 | 1 | `fnEsProductoControlado` sin soporte para tipo 'Origen' | ALTER FUNCTION — compartida con RE-FU-007/009/011. **No es propietaria de este requisito; se gestiona en RE-FU-007.** | RE-FU-007 |
-| 2 | Folio proforma lineal global | Verificar mecanismo actual de foliador en BD; crear nuevo caso en `FolioBO` si no existe contador global. **⚠️ Pendiente definir con el cliente:** política del folio si el ESAC cancela la previsualización (¿se conserva o se descarta?). Impacta GAP-01 del Back. | Este requisito |
+| 2 | Folio proforma lineal global | Verificar mecanismo actual de foliador en BD; crear nuevo caso en `FolioBO` si no existe contador global. ~~**⚠️ Pendiente definir con el cliente:** política del folio si el ESAC cancela la previsualización (¿se conserva o se descarta?).~~ **Resuelto (DUDA-030):** el folio se conserva/reutiliza para el reintento hasta el envío exitoso; no se descarta ni se asigna uno nuevo en cada intento fallido. Impacta GAP-01 del Back. | Este requisito |
 | 3 | PDF proforma vinculado a `tpProformaPedido` | No hay FK directa a la tabla de archivos — verificar campo `IdArchivoPDF` en `tpProformaPedido`. Necesario para recuperar el PDF en la previsualización (GAP-04 del Back). | Este requisito |
 
 ---

@@ -42,7 +42,7 @@ Se crean 2 tablas nuevas (inconsistencias) y 1 SEQUENCE (foliador COB).
 | 7   | **ALTER TABLE fccPagoCliente ADD FechaBloqueoTimbrado datetime NULL** *(trazabilidad del bloqueo)* | DDL  | ❌ Pendiente RE-FU-024    |
 | 8   | CREATE TABLE catTipoInconsistenciaCobro                                                             | DDL  | ❌ Pendiente              |
 | 9   | CREATE TABLE fccInconsistenciaCobro                                                                 | DDL  | ❌ Pendiente              |
-| 10  | CREATE SEQUENCE dbo.SeqFolioCobro                                                                   | DDL  | ❌ Pendiente              |
+| 10  | ~~CREATE SEQUENCE dbo.SeqFolioCobro~~ **CREATE SEQUENCE dbo.SeqFolioCobroMEX + dbo.SeqFolioCobroPER (DUDA-072)** | DDL  | ❌ Pendiente              |
 | 11  | **ALTER TABLE fccPagoCliente ADD TipoDeCambioMonedaFacturacion decimal(18,6) NULL** *(OBS-050 — doble TC fiscal+operativo)* | DDL  | ❌ Pendiente RE-FU-024    |
 
 > **Nota #5 — IdCatMoneda:** La pantalla del Paso 1 (Captura del Cobro) muestra un combo
@@ -71,7 +71,7 @@ Se crean 2 tablas nuevas (inconsistencias) y 1 SEQUENCE (foliador COB).
 | `IdCliente`                | uniqueidentifier        | NO   | FK Cliente                                               | Existente                                         |
 | `IdEmpresa`                | uniqueidentifier        | NO   | FK Empresa que recibe el cobro                           | Existente                                         |
 | `IdFCCFolioPagoCliente`    | uniqueidentifier        | SÍ   | FK fccFolioPagoCliente — vínculo correo Buzón            | Existente                                         |
-| `Folio`                    | varchar(80)             | SÍ   | Formato COB-mmddaa-NNNN al confirmar; NULL en borrador   | Existente                                         |
+| `Folio`                    | varchar(80)             | SÍ   | ~~Formato COB-mmddaa-NNNN~~ **Formato COM-mmddaa-consecutivo (México) / COP-mmddaa-consecutivo (Perú) — DUDA-072** al confirmar; NULL en borrador | Existente |
 | `Monto`                    | decimal(18,4)           | NO   | Monto recibido del cliente                               | Existente                                         |
 | `FechaPago`                | datetime                | SÍ   | Fecha efectiva del pago                                  | Existente                                         |
 | `TipoDeCambio`             | decimal                 | SÍ   | **TC vs MXN (uso fiscal — CFDI / Complemento de Pago)**. Pre-carga automática con **TC Oficial DOF (FIX Banxico) sin margen 2.5%** de la `FechaPago` (OBS-049). Editable; el valor persistido es el del formulario al guardar. | Existente |
@@ -230,9 +230,9 @@ CREATE TABLE [dbo].[fccInconsistenciaCobro](
 
 ---
 
-## SEQUENCE: SeqFolioCobro (Foliador COB)
+## SEQUENCE: SeqFolioCobro (Foliador COM/COP — DUDA-072 Resuelta)
 
-```sql
+~~```sql
 -- Created by GitHub Copilot in SSMS - review carefully before executing
 -- Ajustar START WITH al MAX consecutivo existente + 1 si ya hay folios en fccPagoCliente
 CREATE SEQUENCE dbo.SeqFolioCobro
@@ -242,14 +242,22 @@ CREATE SEQUENCE dbo.SeqFolioCobro
     NO CYCLE;
 -- Uso: 'COB-' + FORMAT(FechaPago,'MMddyy') + '-' + RIGHT('000000' + CAST(NEXT VALUE FOR dbo.SeqFolioCobro AS VARCHAR), 6)
 -- Pendiente confirmar: global (MEX+PER compartido) o por región (SeqFolioCobroMEX / SeqFolioCobroPER)
+```~~
+**Obsoleto — DUDA-072 (Resuelta, 2026-08-21):** el consecutivo NO es global; es independiente por región y cada región usa su propio prefijo.
+
+```sql
+CREATE SEQUENCE dbo.SeqFolioCobroMEX AS INT START WITH 1 INCREMENT BY 1 NO CYCLE;
+CREATE SEQUENCE dbo.SeqFolioCobroPER AS INT START WITH 1 INCREMENT BY 1 NO CYCLE;
+-- México: 'COM-' + FORMAT(FechaPago,'MMddyy') + '-' + CAST(NEXT VALUE FOR dbo.SeqFolioCobroMEX AS VARCHAR)
+-- Perú:   'COP-' + FORMAT(FechaPago,'MMddyy') + '-' + CAST(NEXT VALUE FOR dbo.SeqFolioCobroPER AS VARCHAR)
 ```
 
 | Aspecto | Valor |
 |---------|-------|
 | Campo BD | `fccPagoCliente.Folio` varchar(80) — ya existe |
-| Formato | `COB-mmddaa-NNNNNN` |
+| Formato | ~~`COB-mmddaa-NNNNNN`~~ **`COM-mmddaa-consecutivo`** (México) / **`COP-mmddaa-consecutivo`** (Perú) — DUDA-072 |
 | `mmddaa` | Fecha efectiva del cobro (`FechaPago`) |
-| Consecutivo | Global o por región — **pendiente confirmar** |
+| Consecutivo | ~~Global o por región — pendiente confirmar~~ **Independiente por región (Resuelto — DUDA-072)** |
 | Momento generación | Al confirmar el cobro (post-alerta de confirmación) |
 
 ---
@@ -257,10 +265,10 @@ CREATE SEQUENCE dbo.SeqFolioCobro
 ## Lógica del Folio COB
 
 ```
-Estado pre-captura:   fccPagoCliente.Folio = NULL  →  UI muestra 'COB-N' (consecutivo sesión)
+Estado pre-captura:   fccPagoCliente.Folio = NULL  →  UI muestra 'COB-N' (consecutivo sesión, no es el folio definitivo)
 Estado borrador:      fccPagoCliente.Folio = NULL  →  Confirmado = 0
-Estado capturado:     fccPagoCliente.Folio = 'COB-mmddaa-NNNNNN'  →  Confirmado = 1, BloqueadoPorTimbrado = 0  (editable via botón Editar)
-Estado inmutable:     fccPagoCliente.Folio = 'COB-mmddaa-NNNNNN'  →  Confirmado = 1, BloqueadoPorTimbrado = 1  (post-timbrado Paso 3, sin botón Editar)
+Estado capturado:     fccPagoCliente.Folio = 'COM-mmddaa-N'  →  Confirmado = 1, BloqueadoPorTimbrado = 0  (editable via botón Editar)  [DUDA-072: prefijo COM México / COP Perú]
+Estado inmutable:     fccPagoCliente.Folio = 'COM-mmddaa-N'  →  Confirmado = 1, BloqueadoPorTimbrado = 1  (post-timbrado Paso 3, sin botón Editar)
 ```
 
 ---
@@ -270,10 +278,10 @@ Estado inmutable:     fccPagoCliente.Folio = 'COB-mmddaa-NNNNNN'  →  Confirmad
 | Estado                         | `Confirmado` | `BloqueadoPorTimbrado` | `Folio`           | `Activo` | `IdCatMoneda`          | Acciones UI Paso 1                 |
 | ------------------------------ | ------------ | ---------------------- | ----------------- | -------- | ---------------------- | ---------------------------------- |
 | Auto-guardado (borrador)       | 0            | 0                      | NULL              | 1        | Poblado al seleccionar | Edición continua del formulario    |
-| Cobro capturado (editable)     | 1            | 0                      | COB-mmddaa-NNNNNN | 1        | Poblado                | Lectura + **botón Editar visible** |
-| Cobro inmutable (post-timbrar) | 1            | 1                      | COB-mmddaa-NNNNNN | 1        | Poblado                | Solo lectura (sin botón Editar)    |
-| Saldo a favor (post-timbrar)   | 1            | 1                      | COB-mmddaa-NNNNNN | 1        | Poblado                | Solo lectura (sin botón Editar)    |
-| Inconsistencia marcada         | 1            | 0 o 1                  | COB-mmddaa-NNNNNN | 0        | Poblado                | Lectura (Editar según bloqueo)     |
+| Cobro capturado (editable)     | 1            | 0                      | COM-mmddaa-N (DUDA-072) | 1        | Poblado                | Lectura + **botón Editar visible** |
+| Cobro inmutable (post-timbrar) | 1            | 1                      | COM-mmddaa-N (DUDA-072) | 1        | Poblado                | Solo lectura (sin botón Editar)    |
+| Saldo a favor (post-timbrar)   | 1            | 1                      | COM-mmddaa-N (DUDA-072) | 1        | Poblado                | Solo lectura (sin botón Editar)    |
+| Inconsistencia marcada         | 1            | 0 o 1                  | COM-mmddaa-N (DUDA-072) | 0        | Poblado                | Lectura (Editar según bloqueo)     |
 
 > El flip `BloqueadoPorTimbrado = 0 → 1` lo dispara el Paso 3 al timbrar el documento al que se aplicó el cobro (un cobro puede estar asociado a uno o más documentos; en cuanto se timbra **cualquiera**, el cobro queda inmutable).
 
@@ -316,11 +324,11 @@ Estado inmutable:     fccPagoCliente.Folio = 'COB-mmddaa-NNNNNN'  →  Confirmad
 | # | Gap | Tipo | Acción |
 |---|-----|------|--------|
 | 1 | Catálogo completo catTipoInconsistenciaCobro | Negocio | Solicitar a PROQUIFA Tesorería |
-| 2 | Foliador COB global vs por región | Negocio | Confirmar con cliente |
-| 3 | Fuente oficial TC del día para México | Técnico | ✅ Resuelta OBS-049 (10/08): **TC Oficial DOF (FIX Banxico)** de la `FechaPago` del comprobante, **sin margen 2.5%**. Campo editable, no bloquea el avance. Reutilizar catálogo/tabla existente de TC diarios en ProquifaDotNet (almacena Oficial + Venta por moneda). |
+| 2 | Foliador COB global vs por región | Negocio | ✅ Resuelta DUDA-072 (21/08): consecutivo **independiente por región**, con prefijo `COM` (México) / `COP` (Perú). Reemplaza `SeqFolioCobro` global por `SeqFolioCobroMEX` / `SeqFolioCobroPER`. |
+| 3 | Fuente oficial TC del día para México | Técnico | ✅ Resuelta OBS-049 (10/08; ver también DUDA-073, misma resolución): **TC Oficial DOF (FIX Banxico)** de la `FechaPago` del comprobante, **sin margen 2.5%**. Campo editable, no bloquea el avance. Reutilizar catálogo/tabla existente de TC diarios en ProquifaDotNet (almacena Oficial + Venta por moneda). |
 | 4 | Flags MXN/USD vs IdCatMoneda — coexistencia o deprecación | Técnico | Confirmar si se unifican o conviven |
-| 5 | Alcance asistencia automatizada IA | Técnico | No comprometido en R16 |
-| 6 | Moneda base del TC: MXN vs moneda facturación | Fiscal | ✅ Resuelta OBS-050 (10/08): se persisten **dos TC** en `fccPagoCliente` — `TipoDeCambio` (vs MXN, uso fiscal CFDI/CP) y `TipoDeCambioMonedaFacturacion` (vs moneda de facturación, uso operativo Paso 2). Requiere ALTER (fila 11 impacto). |
+| 5 | Alcance asistencia automatizada IA | Técnico | ✅ Resuelta DUDA-070 (21/08): la funcionalidad **SÍ está comprometida como alcance de R16**. Pendiente para construcción: diseño técnico del servicio de extracción (motor/IA, integración, contrato de datos sugeridos, manejo de baja confianza) — no documentado aún en este archivo de impacto BD; requiere análisis adicional antes del desarrollo. |
+| 6 | Moneda base del TC: MXN vs moneda facturación | Fiscal | ✅ Resuelta OBS-050 (10/08; ver también DUDA-074, misma resolución): se persisten **dos TC** en `fccPagoCliente` — `TipoDeCambio` (vs MXN, uso fiscal CFDI/CP) y `TipoDeCambioMonedaFacturacion` (vs moneda de facturación, uso operativo Paso 2). Requiere ALTER (fila 11 impacto). |
 | 7 | Fecha del pago cuando se aplica un saldo a favor previo | Fiscal | ✅ Resuelta OBS-051 (10/08): la `FechaPago` es la **fecha de aplicación** del saldo a la nueva factura, no la fecha en que se originó el saldo. Alineado a CRP 2.0 SAT. Sin impacto en esquema. |
 | 8 | TC para calcular cobertura del cobro contra factura/proforma | Fiscal + operativo | ✅ Resuelta OBS-052 (10/08): usar el **TC del pago** (`TipoDeCambioMonedaFacturacion`), NO el TC de emisión de la factura. Fundamento: Art. 8 Ley Monetaria EUM + Guía CFDI 4.0/CRP 2.0 (`EquivalenciaDR`). El diferencial contra el TC de emisión se registra como fluctuación cambiaria (LISR / NIF B-15), no como saldo del cliente. Implementación en Paso 2 (RE-FU-025 / RE-FU-026). |
 

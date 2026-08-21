@@ -21,7 +21,7 @@ Este requisito documenta el diseño e implementación de la capa de generación 
 Clase responsable de construir el `XDocument` con el XML CFDI 4.0 tipo E a partir del `NCDto` generado en el wizard. Sigue el mismo patrón que `FacturaXmlBuilder`.
 
 **Namespace:** `ProquifaDotNet.Finanzas.Application.Services.NC.Mexico`  
-**Dependencias:** `CFDIGeneradaRepository`, `CFDIGeneradaConceptoRepository`, `EmpresaRepository`, `ClienteRepository`, `catMotivoCancelacionSATRepository`
+**Dependencias:** `CFDIGeneradaRepository`, `CFDIGeneradaConceptoRepository`, `EmpresaRepository`, `ClienteRepository`, ~~`catMotivoCancelacionSATRepository`~~ **[DUDA-125, resuelta — 2026-08-21] Ya no aplica** — no hay cancelación de factura origen disparada desde este flujo.
 
 ---
 
@@ -41,14 +41,14 @@ Clase responsable de construir el `XDocument` con el XML CFDI 4.0 tipo E a parti
 | `Moneda`                   | Moneda heredada de la factura origen (`CFDIGenerada.Moneda`)                | B3       |
 | `TipoCambio`               | Tipo de cambio del día del timbrado (sólo si Moneda ≠ MXN)                 | B4       |
 | `MetodoPago`               | `"PUE"` fijo                                                                | B5       |
-| `FormaPago`                | Heredado de factura origen (`CFDIGenerada.FormaPago`, típicamente `"03"`)   | B6       |
+| `FormaPago`                | Heredado de factura origen (`CFDIGenerada.FormaPago`, típicamente `"03"`). **[DUDA-111, resuelta — 2026-08-21]** Mecanismo completo (incluyendo factura origen no pagada) en "Guia_Tecnica_Notas_de_Credito_MX.md": FormaPago=15 (Condonación) si la NC no excede el Saldo Pendiente; 23 (Novación) o la forma real de devolución si lo excede (Excedente). | B6       |
 | `SubTotal`                 | Suma de `Importe` de todos los `Concepto` (ver sección E / F)               | G2       |
-| `Total`                    | `SubTotal` + `TotalImpuestosTrasladados` (ver P3 Descuento pendiente)       | G2       |
+| `Total`                    | `SubTotal` + `TotalImpuestosTrasladados` (Descuento omitido — ver P3, DUDA-109 descartada)       | G2       |
 | `Sello`                    | Generado por TurboPac tras la firma del XML                                 | I2       |
 | `NoCertificado`            | Número CSD empresa emisora (TurboPac)                                       | —        |
 | `Certificado`              | Certificado en base64 empresa emisora (TurboPac)                            | —        |
 | `CondicionesDePago`        | Omitir (no aplica en NC)                                                    | —        |
-| `Descuento`                | ⚠️ **Pendiente P3** — validar con asesor fiscal si se puebla o se omite     | G2       |
+| `Descuento`                | ~~⚠️ **Pendiente P3** — validar con asesor fiscal si se puebla o se omite~~ **[DUDA-109, descartada — 2026-08-21]** Se omite el campo (sin cambio respecto al patrón implementado, confirmado contra B-128) | G2       |
 
 ---
 
@@ -79,7 +79,7 @@ Clase responsable de construir el `XDocument` con el XML CFDI 4.0 tipo E a parti
 | `Nombre`                    | Razón Social cliente (`Cliente.RazonSocial`)               | D2       |
 | `DomicilioFiscalReceptor`   | CP fiscal cliente (`Cliente.CodigoPostalFiscal`)           | D2       |
 | `RegimenFiscalReceptor`     | Régimen fiscal cliente (`Cliente.RegimenFiscal`)           | D2       |
-| `UsoCFDI`                   | `"G02"` por default (⚠️ ver pendiente UsoCFDI G02 vs G03)  | D3       |
+| `UsoCFDI`                   | `"G02"` **[DUDA-110, resuelta — 2026-08-21] FIJO, NO editable** — el G03 de B-128 es un error de dato Legacy, no una regla a replicar | D3       |
 
 ---
 
@@ -116,7 +116,7 @@ Un único nodo `Concepto`:
 | `Descripcion`        | Concepto libre capturado por el usuario en el wizard                          | F2       |
 | `ValorUnitario`      | `NCManualDto.MontoTotalNC`                                               | F2       |
 | `Importe`            | `MontoTotalNC` (igual a ValorUnitario × 1)                                    | F2       |
-| `ObjetoImp`          | ⚠️ **Pendiente P4** — confirmar valor aplicable en modalidad manual            | F2       |
+| `ObjetoImp`          | ~~⚠️ **Pendiente P4** — confirmar valor aplicable en modalidad manual~~ **[DUDA-112, resuelta — 2026-08-21]** Confirmado: heredado de la factura origen (ver "Guia_Tecnica_Notas_de_Credito_MX.md"); 84111506/ACT confirmados para todos los casos de descuento/bonificación | F2       |
 
 ---
 
@@ -162,8 +162,8 @@ Un único nodo `Concepto`:
 | TipoRelacion      | 01                                             | ✅ Fijo CfdiRelacionados                    |
 | UUID origen       | 66099124-f173-a87d-55d9-336a3b6ad3f6           | ✅ UUID de la factura origen en BD          |
 | RfcProvCertif     | QSO100827UB0 (TurboPac)                        | ✅ Constante PAC configurada                |
-| UsoCFDI           | ⚠️ B-128 tiene G03; política PQF2 fija G02     | ⚠️ **Pendiente confirmar** (ver Regla 4)    |
-| Descuento         | No aparece en B-128                            | ✅ Omitir campo en comprobante root         |
+| UsoCFDI           | ⚠️ B-128 tiene G03; política PQF2 fija G02     | ✅ **[DUDA-110, resuelta]** FIJO G02; G03 en B-128 es error Legacy    |
+| Descuento         | No aparece en B-128                            | ✅ Omitir campo en comprobante root **[DUDA-109, descartada]** |
 
 ---
 
@@ -314,7 +314,7 @@ Servicio que invoca DocumentBuilder para renderizar el template HTML con los dat
 | MetodoPago                 | PUE o PPD                                  | PUE fijo (inmutable)                                 |
 | FormaPago                  | Capturado en la factura                    | Heredado de la factura origen                        |
 | Conceptos                  | Desde pedido o manual                      | Heredados de factura origen (por partidas) o manual  |
-| Cancelación condicional    | No aplica                                  | Cancela factura origen si totalidad + mismo mes      |
+| Cancelación condicional    | No aplica                                  | ~~Cancela factura origen si totalidad + mismo mes~~ **[DUDA-125, resuelta] DESCARTADA** — NC al 100% y cancelación de factura origen son mecanismos excluyentes; no hay cancelación de factura origen desde este módulo      |
 | Serie foliador             | Serie factura por empresa                  | Serie NC México por empresa ("P2" propuesta)         |
 
 ---
@@ -324,10 +324,11 @@ Servicio que invoca DocumentBuilder para renderizar el template HTML con los dat
 | ID  | Descripción                                                                                   | Impacto                                           |
 | --- | --------------------------------------------------------------------------------------------- | ------------------------------------------------- |
 | P1  | Brecha B1 RE-032: `IdTPProformaPedido` NOT NULL en `fccNotaCredito`                           | Bloquea T1 RE-032 — resolver antes de iniciar     |
-| P2  | UsoCFDI G02 vs G03 (discrepancia ejemplo B-128)                                               | Afecta nodo Receptor del XML                      |
-| P3  | Campo `Descuento` comprobante root — validar con asesor fiscal                                | Afecta cálculo de Total y estructura del XML      |
-| P4  | `ObjetoImp` modalidad manual — confirmar valor para ClaveProdServ 84111506                    | Afecta nodo Impuestos del Concepto manual         |
+| P2  | ~~UsoCFDI G02 vs G03 (discrepancia ejemplo B-128)~~ **[DUDA-110, resuelta — 2026-08-21]** FIJO G02, NO editable; G03 en B-128 es error de dato Legacy | Afecta nodo Receptor del XML                      |
+| P3  | ~~Campo `Descuento` comprobante root — validar con asesor fiscal~~ **[DUDA-109, descartada — 2026-08-21]** Se mantiene el patrón sin campo Descuento | Afecta cálculo de Total y estructura del XML      |
+| P4  | ~~`ObjetoImp` modalidad manual — confirmar valor para ClaveProdServ 84111506~~ **[DUDA-112, resuelta — 2026-08-21]** Confirmado 84111506/ACT; ObjetoImp heredado de factura origen (ver "Guia_Tecnica_Notas_de_Credito_MX.md") | Afecta nodo Impuestos del Concepto manual         |
 | P5  | Serie del foliador NC México — validar nombre definitivo de la serie en `EmpresaFolio`         | Afecta atributo `Serie` del comprobante root      |
 | P6  | Vigencia iconografía certificaciones (ISO, NEEC, edQM, FELUM, USP, etc.)                      | Afecta Footer de los 4 templates                  |
 | P7  | Plantilla PMO #31 — asunto y cuerpo del correo                                                | Bloquea `SendCreditNoteMailService`               |
-| P8  | `FormaPago` cuando la factura origen no está pagada (escenario raro en R16 prepago)           | Afecta atributo FormaPago del comprobante root    |
+| P8  | ~~`FormaPago` cuando la factura origen no está pagada (escenario raro en R16 prepago)~~ **[DUDA-111, resuelta — 2026-08-21]** Mecanismo completo en "Guia_Tecnica_Notas_de_Credito_MX.md" (FormaPago=15/23/forma real según Saldo Pendiente y Excedente) | Afecta atributo FormaPago del comprobante root    |
+| P9  | **[DUDA-125, resuelta — 2026-08-21]** Cancelación condicional de factura origen DESCARTADA: NC al 100% y cancelación SAT son mecanismos EXCLUYENTES. Se elimina del alcance del backend toda lógica de cancelación de factura origen disparada por este flujo (incluye `catMotivoCancelacionSATRepository`, Regla 12/Sección H de RE-034). | Reduce alcance de `NCXmlBuilder`/orquestación: sin llamada a cancelación de factura origen |

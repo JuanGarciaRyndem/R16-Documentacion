@@ -81,7 +81,7 @@ Response 200 OK:
 {
     "referencia": "QUI2345002P07"
 }
--- Segmentos: Q·U·I (letras 1-3 del nombre, sin espacios) + 2345 (últimos 4 del ID Legacy) + 002 (código banco) + P (MXN) + 07 (CodigoValidador — numérico 01–99)
+-- Segmentos: Q·U·I (letras 1-3 del nombre, sin espacios) + 2345 (últimos 4 del ID Legacy) + 002 (código banco) + P (MXN) + 07 (CodigoValidador — ejemplo; el campo real es alfanumérico, máximo 3 caracteres, DUDA-015)
 
 Response 400 Bad Request:
 { "message": "El banco indicado no requiere Código Validador." }
@@ -95,7 +95,7 @@ Response 400 Bad Request:
 | `idEmpresa` | Guid | Empresa del grupo PROQUIFA que factura — `Empresa.IdEmpresa` |
 | `idBanco` | Guid | Banco seleccionado — `catBanco.IdCatBanco`, debe tener `RequiereCodigoValidador = true` |
 | `idEmpresaDatosBancarios` | Guid | Cuenta seleccionada — `EmpresaDatosBancarios.IdEmpresaDatosBancarios` |
-| `codigoValidador` | string(2) | Código Validador capturado por el usuario. **Numérico, siempre 2 dígitos con cero a la izquierda** (rango `01`–`99`). Se incluye en el segmento 7 de la referencia. Puede enviarse vacío (`""`) para obtener un preview parcial antes de capturarlo. |
+| `codigoValidador` | string(3) | Código Validador capturado por el usuario. ~~**Numérico, siempre 2 dígitos con cero a la izquierda** (rango `01`–`99`).~~ — **Corregido 2026-08-21 (DUDA-015):** el campo es **alfanumérico, máximo 3 caracteres**, sin acentos ni espacios en blanco (no está limitado a numérico ni a 2 dígitos). Se incluye en el segmento 7 de la referencia. Puede enviarse vacío (`""`) para obtener un preview parcial antes de capturarlo. |
 
 ### Implementación — Controller (delgado)
 
@@ -230,6 +230,7 @@ var seg3 = letras.Length > 2 ? letras[2].ToString() : "X";
 | #   | Pendiente                                                                                                                                                                   | Responsable |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
 | P1  | Validar que todos los registros de `catMoneda` distintos de MXN/USD deben quedar con `ReferenciaCuenta = 'D'` como comportamiento esperado. | Desarrollo  |
+| P2  | ~~Confirmar formato de `codigoValidador` (numérico vs. alfanumérico, longitud).~~ **Cerrado 2026-08-21 (DUDA-015):** alfanumérico, máximo 3 caracteres, sin acentos ni espacios. Se corrige la descripción del parámetro y el comentario del ejemplo en este documento (antes decían "numérico, 2 dígitos, 01–99"). | Cerrado |
 
 ---
 

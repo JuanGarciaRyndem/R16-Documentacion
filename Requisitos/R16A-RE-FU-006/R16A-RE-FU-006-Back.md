@@ -26,12 +26,12 @@
 
 ### 1.2 Capa de API (`WebApi.Catalogos`)
 
-| Archivo | Ruta HTTP | Estado |
-|---------|-----------|--------|
-| `Controllers\Configuracion\Clientes\Relaciones\vClienteDatosBancariosController.cs` | `/vClienteDatosBancarios` | Existente — vista de consulta |
-| `Controllers\Configuracion\Cuentas\DatosBancariosController.cs` | `/DatosBancarios` | Existente — CRUD de cuentas bancarias del grupo |
-| `Controllers\Configuracion\Empresas\EmpresaDatosBancariosController.cs` | `/EmpresaDatosBancarios` | Existente — catálogo de cuentas empresa |
-| *(no existe)* | `/ClienteDatosBancarios` | **NUEVO R16** — CRUD de relación cliente-cuenta-CódigoValidador |
+| Archivo                                                                             | Ruta HTTP                 | Estado                                                          |
+| ----------------------------------------------------------------------------------- | ------------------------- | --------------------------------------------------------------- |
+| `Controllers\Configuracion\Clientes\Relaciones\vClienteDatosBancariosController.cs` | `/vClienteDatosBancarios` | Existente — vista de consulta                                   |
+| `Controllers\Configuracion\Cuentas\DatosBancariosController.cs`                     | `/DatosBancarios`         | Existente — CRUD de cuentas bancarias del grupo                 |
+| `Controllers\Configuracion\Empresas\EmpresaDatosBancariosController.cs`             | `/EmpresaDatosBancarios`  | Existente — catálogo de cuentas empresa                         |
+| *(no existe)*                                                                       | `/ClienteDatosBancarios`  | **NUEVO R16** — CRUD de relación cliente-cuenta-CódigoValidador |
 
 ---
 
@@ -49,7 +49,7 @@
 | **R6** — Referencia no-Banamex = nombre del cliente | `Cliente.Nombre` como cadena directa sin transformación. | `ReferenciaBancariaBO.Construir()` retorna `cliente.Nombre`. | BO no existe |
 | **R7** — Referencia Banamex = 7 segmentos | Concatenación determinista: 3 letras + 4 chars clave + código banco + P/D + CódValidador. | `ReferenciaBancariaBO.ConstruirBanamex()`. | BO no existe |
 | **R8** — Identificación Banamex por `Clave = "002"` | Cruce con `catBanco.Clave = "002"` (simplificación propuesta). | Consulta `catBanco` en el BO de referencia. | Pendiente confirmar con desarrollo |
-| **R9** — Sin restricción de rol | Sin control de rol. Acceso por cartera del cliente. | Sin middleware de rol en controller. | Sin restricción en controllers de cliente — correcto, pendiente confirmar con cliente |
+| **R9** — Sin restricción de rol | Sin control de rol. Acceso por cartera del cliente. | Sin middleware de rol en controller. | Sin restricción en controllers de cliente — correcto, cerrado por DUDA-017 (2026-08-21): descartado para R16, corresponde al alcance de R7 |
 
 ---
 
@@ -246,7 +246,7 @@ var tpProformaPedido = new tpProformaPedido
 
 **Archivo a crear:** `WebApi.Catalogos\Controllers\Configuracion\Clientes\ClienteDatosBancariosController.cs`
 **Impacto:** Regla R1 — la pantalla Referencia de Pago no tiene endpoint para leer ni guardar la relación cliente-cuenta.
-**Cambio requerido:** Controller con `QueryResult`, `Obtener`, `GuardarOActualizar` y `Desactivar`. Sin restricción de rol (pendiente R9 / P4).
+**Cambio requerido:** Controller con `QueryResult`, `Obtener`, `GuardarOActualizar` y `Desactivar`. Sin restricción de rol (R9, cerrado por DUDA-017 — corresponde a R7, no a R16).
 
 ```csharp
 // NUEVO — ClienteDatosBancariosController.cs
@@ -297,14 +297,19 @@ namespace WebApi.Controllers.Configuracion.Clientes
 
 ---
 
-### GAP-06 — Historial de `CodigoValidador`: registro en ProquifaDotNet.BitacoraCambios (actualización 2026-07-07, sustituye a OBS-014)
+### GAP-06 — Historial de `CodigoValidador`: ~~registro en ProquifaDotNet.BitacoraCambios (actualización 2026-07-07, sustituye a OBS-014)~~ — historial de dos niveles reconfirmado (DUDA-120, 2026-08-21)
 
 **Archivo:** `Logic.Pqf.Catalogos\Clientes\DatosBancarios\ClienteDatosBancariosBO.cs`
 **Impacto:** Al actualizar `CodigoValidador`, el código anterior se pierde. Se requiere trazabilidad completa de los cambios.
-**Cambio requerido:** Al guardar o actualizar el `CodigoValidador` en `_GuardarOActualizar`, registrar el cambio en el Aplicativo Nuevo **ProquifaDotNet.BitacoraCambios** (Reglas al diseñar — regla 8) vía `ApiCallerBitacoraCambios`, con: tabla afectada (`ClienteDatosBancarios`), id del registro, campo (`CodigoValidador`), valor anterior, valor nuevo, usuario y fecha. Cada cambio genera un registro nuevo — historial completo, sin límite de niveles. Se **eliminan** las columnas de rotación de un nivel (`CodigoValidadorAnterior`, `FechaModificacionAnterior`, `IdUsuarioModificacionAnterior`) del diseño de `ClienteDatosBancarios`.
+**Cambio requerido:** ~~Al guardar o actualizar el `CodigoValidador` en `_GuardarOActualizar`, registrar el cambio en el Aplicativo Nuevo **ProquifaDotNet.BitacoraCambios** (Reglas al diseñar — regla 8) vía `ApiCallerBitacoraCambios`, con: tabla afectada (`ClienteDatosBancarios`), id del registro, campo (`CodigoValidador`), valor anterior, valor nuevo, usuario y fecha. Cada cambio genera un registro nuevo — historial completo, sin límite de niveles. Se **eliminan** las columnas de rotación de un nivel (`CodigoValidadorAnterior`, `FechaModificacionAnterior`, `IdUsuarioModificacionAnterior`) del diseño de `ClienteDatosBancarios`.~~
+
+**Corrección 2026-08-21 (DUDA-120):** el cliente reconfirmó el modelo original de OBS-014 — historial de **dos niveles**, NO bitácora completa en BitacoraCambios. Al guardar o actualizar el `CodigoValidador` en `_GuardarOActualizar`, si el valor cambia, el valor "actual" pasa a `CodigoValidadorAnterior` (con `FechaModificacionAnterior` e `IdUsuarioModificacionAnterior`) y el anterior previo se sobrescribe (no se conserva). Se **reincorporan** las columnas `CodigoValidadorAnterior`, `FechaModificacionAnterior`, `IdUsuarioModificacionAnterior` al diseño de `ClienteDatosBancarios` (ver `R16A-RE-FU-006_BD.md` sección 1 y `DIS_INT_006.md`, que ya las contemplaba). Sin componente de UI en R16.
 
 ```csharp
-// DESPUÉS — ClienteDatosBancariosBO.cs con registro en BitacoraCambios (sustituye la rotación OBS-014)
+// OBSOLETO (ver corrección DUDA-120 arriba) — este bloque registraba en BitacoraCambios; el diseño vigente
+// rota CodigoValidadorAnterior/FechaModificacionAnterior/IdUsuarioModificacionAnterior en la misma fila,
+// sin llamar a un servicio externo de bitácora. Se conserva como referencia histórica.
+// ANTES (superado) — ClienteDatosBancariosBO.cs con registro en BitacoraCambios
 protected override Guid _GuardarOActualizar(ClienteDatosBancarios entity)
 {
     entity.FechaUltimaActualizacion = DateTime.Now;
@@ -435,10 +440,10 @@ ORDER BY LEN(c.Nombre) DESC;
 | # | Pendiente | Responsable |
 |---|-----------|-------------|
 | P1 | Confirmar lógica completa de identificación de Banamex (condición de moneda truncada en documento cliente). Propuesta: usar `catBanco.Clave = "002"`. | Desarrollo / Cliente |
-| ~~P2~~ | ~~Confirmar longitud máxima y formato del `CodigoValidador`.~~ **[Resuelto]** El Código Validador es **numérico, siempre 2 dígitos con cero a la izquierda** (rango `01`–`99`). El Front siempre envía exactamente 2 caracteres; la columna en BD puede ser mayor (varchar(50) provisional) pero el valor nunca excederá 2 caracteres. | Cerrado |
+| ~~P2~~ | ~~Confirmar longitud máxima y formato del `CodigoValidador`.~~ ~~**[Resuelto]** El Código Validador es **numérico, siempre 2 dígitos con cero a la izquierda** (rango `01`–`99`). El Front siempre envía exactamente 2 caracteres; la columna en BD puede ser mayor (varchar(50) provisional) pero el valor nunca excederá 2 caracteres.~~ **[Corregido 2026-08-21, DUDA-015]** Esta especificación era incorrecta. El Código Validador es **alfanumérico, máximo 3 caracteres**, sin acentos ni espacios en blanco. La columna en BD es `varchar(50)` **definitiva** (no provisional), reservada para compatibilidad y futuras extensiones. | Cerrado |
 | P3 | Confirmar si el campo `Clave` existe en la tabla `Cliente` y su tipo de dato (para segmento 4 de la referencia Banamex). Si no existe, decidir entre agregarlo permanentemente o definir fuente alternativa (no depender de tabla ETL `Carga_ClientesR1` a largo plazo). | Desarrollo |
-| P4 | Validar con el cliente si la asignación de cuentas y captura del CódValidador debe restringirse al rol Coordinador de Tesorería. | Funcional / Cliente |
-| P5 | Confirmar si puede haber más de una cuenta bancaria activa por cliente y si se requiere tope máximo. | Funcional / Cliente |
+| ~~P4~~ | ~~Validar con el cliente si la asignación de cuentas y captura del CódValidador debe restringirse al rol Coordinador de Tesorería.~~ **[Cerrado 2026-08-21, DUDA-017]** El cliente desestimó esta restricción de rol para R16 — corresponde al alcance del release R7. | Cerrado |
+| ~~P5~~ | ~~Confirmar si puede haber más de una cuenta bancaria activa por cliente y si se requiere tope máximo.~~ **[Cerrado 2026-08-21, DUDA-118]** NO se limita el número de cuentas bancarias por cliente. | Cerrado |
 | ~~P6~~ | ~~Confirmar si la funcionalidad aplica para clientes de Perú. Modelo bancario PE no definido.~~ **[Resuelto — Duda FU-006/FU-017]** Perú no tiene mecanismo de Código Validador; la referencia se genera por default con la **Razón Social** del cliente (mismo camino que bancos no-Banamex). La pantalla de captura no aplica para Perú. Ver Regla 6-PER en el requisito. | Cerrado |
 | P7 | Verificar longitud máxima de `Cliente.Nombre` en BD para asegurar que varchar(80) de `ReferenciaPago` en `tpProformaPedido` es suficiente. | Desarrollo |
 | P8 | Decidir mecanismo de regeneración de `ReferenciaVigente` ante cambio en `Cliente.Nombre` o `Cliente.Clave` (GAP-07: hook en `ClienteBO` vs trigger BD vs lazy). | Arquitectura |
@@ -451,7 +456,7 @@ ORDER BY LEN(c.Nombre) DESC;
 - [ ] La tabla `ClienteDatosBancarios` existe en BD con PK, FK a `Cliente` y FK a `DatosBancarios`, e incluye `ReferenciaVigente` y `FechaReferenciaVigente` (sin columnas de historial).
 - [ ] Existen el índice filtrado `UX_ClienteDatosBancarios_ClienteCuentaActiva (IdCliente, IdDatosBancarios) WHERE Activo = 1` y el índice `IX_ClienteDatosBancarios (IdCliente, IdDatosBancarios, Activo)`.
 - [ ] `ClienteDatosBancariosBO` permite insertar, actualizar y consultar la relación cliente-cuenta y **arma + persiste** `ReferenciaVigente` al CREATE/UPDATE.
-- [ ] Al guardar o modificar el `CodigoValidador`, el BO registra el cambio en ProquifaDotNet.BitacoraCambios (valor anterior, nuevo, usuario, fecha) sin bloquear el guardado (GAP-06).
+- [ ] Al guardar o modificar el `CodigoValidador`, el BO rota el valor anterior a `CodigoValidadorAnterior` (con `FechaModificacionAnterior` e `IdUsuarioModificacionAnterior`), sin bitácora completa externa (GAP-06, corregido por DUDA-120 el 2026-08-21).
 - [ ] El endpoint `PUT /ClienteDatosBancarios` guarda correctamente la combinación con su `CodigoValidador` y devuelve `ReferenciaVigente` calculada.
 - [ ] `ReferenciaBancariaBO.Construir()` retorna `Cliente.Nombre` para cuentas de bancos distintos de Banamex.
 - [ ] `ReferenciaBancariaBO.Construir()` retorna la concatenación de 7 segmentos para cuentas de Banamex (`catBanco.Clave = "002"`).

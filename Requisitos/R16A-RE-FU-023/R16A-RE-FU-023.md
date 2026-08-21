@@ -12,7 +12,7 @@
 
 ## Requisito Funcional
 
-Yo como ** Gestor de Cobranza / Analista de Cuentas por Cobrar (denominación pendiente resolver) **, quiero contar con la pantalla principal de Validar Cobro que liste los clientes de mi cartera con pendientes y me ofrezca la acción adecuada según su estado (realizar cobros o gestionar cobranza), para priorizar y dar seguimiento al cobro de cada cliente desde un único punto de entrada.
+Yo como **Gestor de Cobranza**, quiero contar con la pantalla principal de Validar Cobro que liste los clientes de mi cartera con pendientes y me ofrezca la acción adecuada según su estado (realizar cobros o gestionar cobranza), para priorizar y dar seguimiento al cobro de cada cliente desde un único punto de entrada.
 
 **Descripción:**
 El sistema debe contar con una pantalla principal del módulo Validar Cobro que muestre el listado de clientes de la cartera del usuario que tengan pendientes (cobros recibidos pendientes de aplicar o proformas/facturas pendientes de cobrar). Por cada cliente, el sistema ofrece una acción contextual según su estado: cuando existen cobros recibidos pendientes de aplicar, conduce al wizard de tres pasos (Captura → Asociación → Facturación y Envío); cuando no hay cobros recibidos, abre la gestión de cobranza del cliente. La pantalla es estructuralmente la misma para Región México y Región Perú, con visibilidad filtrada por la cartera asignada al usuario, que opera clientes de una sola región. Las diferencias operativas entre regiones se manifiestan en las pantallas internas del wizard, documentadas en requisitos independientes.
@@ -78,13 +78,13 @@ Al presionar "Realizar Cobros" en un cliente, el sistema navega a la pantalla de
 ## Riesgos
 
 **Riesgo 1 — Modificación de fecha estimada sin trazabilidad de quién y cuándo**
-La fecha estimada de pago es un campo de uso operativo que cambia frecuentemente. Si no se registra el historial de cambios, se pierde información de seguimiento. ** Pendiente confirmar si el registro del histórico de modificaciones de la fecha estimada (con usuario y timestamp) está dentro del alcance R16 o se trata como tema operativo posterior. **
+La fecha estimada de pago es un campo de uso operativo que cambia frecuentemente. Si no se registra el historial de cambios, se pierde información de seguimiento. ~~Pendiente confirmar si el registro del histórico de modificaciones de la fecha estimada (con usuario y timestamp) está dentro del alcance R16 o se trata como tema operativo posterior.~~ (tachado: pregunta cerrada — ver DUDA-066). **Resolución (DUDA-066):** el histórico SÍ está dentro de alcance, pero se conservan en BD únicamente DOS valores — el actual (vigente) y el inmediatamente anterior, con usuario y fecha — NO es bitácora completa. Ante una nueva modificación, el "actual" pasa a "anterior" y el anterior previo se sobrescribe. Solo registra cambios hechos desde el sistema; NO requiere vista en pantalla dedicada (se considera parte de la bitácora de movimientos general del sistema).
 
-**Riesgo 2 — Solapamiento de denominación de rol**
-La denominación del rol que opera el módulo aparece como "Gestor de Cobranza" en la matriz del cliente y como "Analista de Cuentas por Cobrar" en sesiones de revisión de pantallas. ** Pendiente resolver formalmente la denominación canónica antes del desarrollo. **
+**Riesgo 2 — Solapamiento de denominación de rol (Resuelto DUDA-047, 2026-08-21)**
+~~La denominación del rol que opera el módulo aparece como "Gestor de Cobranza" en la matriz del cliente y como "Analista de Cuentas por Cobrar" en sesiones de revisión de pantallas.~~ **Resolución (DUDA-047):** la denominación canónica del rol en la documentación funcional es "Gestor de Cobranza".
 
 **Riesgo 3 — Cliente Perú sin Buzón de Cobros equivalente operativo**
-Para clientes Perú, el Buzón de Cobros y su flujo de recepción de correos de cobro depende de configuración operativa específica (cuentas bancarias Perú, formato de comprobantes de cobro peruanos, etc.) que tiene brechas pendientes. Si la operación Perú no tiene un Buzón de Cobros poblado, los clientes Perú aparecerán siempre con cero cobros recibidos y solo podrá usarse "Gestionar Cobranza" hasta que se resuelvan las brechas de cobro Perú.
+~~Para clientes Perú, el Buzón de Cobros y su flujo de recepción de correos de cobro depende de configuración operativa específica (cuentas bancarias Perú, formato de comprobantes de cobro peruanos, etc.) que tiene brechas pendientes. Si la operación Perú no tiene un Buzón de Cobros poblado, los clientes Perú aparecerán siempre con cero cobros recibidos y solo podrá usarse "Gestionar Cobranza" hasta que se resuelvan las brechas de cobro Perú.~~ (tachado: riesgo cerrado — ver DUDA-069). **Resolución (DUDA-069):** las brechas de referencias de pago y modelo de cuentas para Perú YA ESTÁN RESUELTAS (ver DUDA-001 y DUDA-018) — ya no bloquean que lleguen cobros de Perú al listado de Validar Cobro.
 
 ---
 
@@ -189,7 +189,7 @@ Entonces el sistema deberá guardar las fechas estimadas actualizadas en los ped
 **Criterio E5 — Cancelación de pedido por falta de pago**
 Dado que el usuario presiona "Cancelar Pedido" en un pedido del modal,
 Cuando el sistema procesa la acción,
-Entonces deberá cancelar el pedido por falta de pago: el pedido cambia a estado "Cancelado por falta de pago" y sale del listado de Validar Cobro y del modal "Gestionar Cobranza" del cliente. La cancelación queda registrada con trazabilidad de quién la ejecutó y cuándo. ** Pendiente confirmar si la cancelación dispara cancelación de la proforma o factura asociada y si propaga cancelación y/o transferencias a otros sistemas (Legacy). **
+Entonces deberá cancelar el pedido por falta de pago: el pedido cambia a estado "Cancelado por falta de pago" y sale del listado de Validar Cobro y del modal "Gestionar Cobranza" del cliente. La cancelación queda registrada con trazabilidad de quién la ejecutó y cuándo. ~~Pendiente confirmar si la cancelación dispara cancelación de la proforma o factura asociada y si propaga cancelación y/o transferencias a otros sistemas (Legacy).~~ (tachado en la parte de Legacy: pregunta cerrada — ver DUDA-068; la reversa de proforma/factura sigue documentada en Regla 9). **Resolución (DUDA-068):** hasta el momento NO se ha transferido ningún dato relacionado con pedidos o cobros hacia Legacy, por lo que toda la información permanece íntegramente dentro de ProquifaDotNet/Finanzas — NO hay propagación de la cancelación hacia Legacy porque no existe transferencia previa que revertir.
 
 **Criterio E6 — Cancelación sin restricción de vigencia automática**
 Dado que un pedido aparece en el modal "Gestionar Cobranza",
@@ -213,12 +213,12 @@ Entonces el sistema deberá descartar los cambios de fecha estimada no confirmad
 - La fecha estimada de pago capturada en el modal es referencia operativa del equipo de Cobranza para seguimiento al cliente. NO genera bloqueos automáticos en el sistema.
 - La vigencia de proforma (30 días) y de factura (mes corriente) confirmada por el cliente para cancelaciones por falta de pago es referencia operativa, no bloqueo técnico del sistema. El operador puede cancelar antes o después según criterio.
 - El buscador único filtra por nombre de cliente o identificador fiscal (RFC en México, RUC en Perú) en tiempo real. No hay filtros adicionales por estado, monto, región u otros criterios.
-- ** Pendiente resolver formalmente la denominación canónica del rol operativo entre "Gestor de Cobranza" y "Analista de Cuentas por Cobrar". **
-- ** Pendiente confirmar si la cancelación de pedido desde "Gestionar Cobranza" dispara cancelación de la proforma o factura asociada y si propaga cancelación y/o transferencias a otros sistemas (Legacy). **
-- **Decisión OBS-046:** el Saldo Pendiente del listado se muestra siempre dolarizado en USD para homogeneizar la comparación entre clientes, independientemente de la moneda de facturación de cada cliente.
+- **(Resuelto DUDA-047, 2026-08-21):** la denominación canónica del rol operativo en la documentación funcional es "Gestor de Cobranza"; se eliminan las menciones a "Analista de Cuentas por Cobrar" como nombre del rol.
+- ~~Pendiente confirmar si la cancelación de pedido desde "Gestionar Cobranza" dispara cancelación de la proforma o factura asociada y si propaga cancelación y/o transferencias a otros sistemas (Legacy).~~ (tachado en la parte de Legacy: pregunta cerrada — ver DUDA-068). **Resolución (DUDA-068):** no hay propagación hacia Legacy porque, hasta el momento, no se ha transferido ningún dato de pedidos/cobros hacia Legacy (nada que revertir). Queda pendiente por separado confirmar la reversa de proforma/factura asociada.
+- **Decisión OBS-046:** el Saldo Pendiente del listado se muestra siempre dolarizado en USD para homogeneizar la comparación entre clientes, independientemente de la moneda de facturación de cada cliente. **Trazabilidad (DUDA-067):** la conversión usa el tipo de cambio de cada documento origen (proforma/factura), no el del día de consulta ni uno unificado — detalle técnico en `_BD.md` / `-Back.md`.
 - **Decisión OBS-047:** el orden por defecto del listado es por antigüedad de los cobros recibidos pendientes de aplicar (el cliente con el cobro más antiguo aparece primero). Los clientes sin cobros recibidos (acción "Gestionar Cobranza") se muestran al final del listado. Adicionalmente, los clientes cuyo cobro más antiguo supera las 72 horas de SLA reciben un indicador visual de alerta (Criterio A5).
-- ** Pendiente confirmar si la fecha estimada de pago registra historial de cambios con usuario y timestamp para trazabilidad de seguimiento. **
-- ** Para clientes Región Perú, el correcto funcionamiento de esta pantalla depende del Buzón de Cobros Perú (con sus brechas pendientes de modelo bancario peruano y formatos de comprobantes). Si el Buzón Perú no está poblado, los clientes Perú siempre aparecerán con cero cobros recibidos hasta que se resuelvan las brechas correspondientes. **
+- ~~Pendiente confirmar si la fecha estimada de pago registra historial de cambios con usuario y timestamp para trazabilidad de seguimiento.~~ (tachado: pregunta cerrada — ver DUDA-066). **Resolución (DUDA-066):** sí registra historial, pero limitado a DOS valores en BD (actual + anterior, con usuario y fecha), no bitácora completa; sin vista en pantalla dedicada.
+- ~~Para clientes Región Perú, el correcto funcionamiento de esta pantalla depende del Buzón de Cobros Perú (con sus brechas pendientes de modelo bancario peruano y formatos de comprobantes). Si el Buzón Perú no está poblado, los clientes Perú siempre aparecerán con cero cobros recibidos hasta que se resuelvan las brechas correspondientes.~~ (tachado: pregunta cerrada — ver DUDA-069). **Resolución (DUDA-069):** las brechas de modelo de cuentas/referencias de pago Perú ya están resueltas (DUDA-001, DUDA-018); ya llegan cobros de Perú al listado.
 
 ---
 
@@ -229,3 +229,7 @@ Entonces el sistema deberá descartar los cambios de fecha estimada no confirmad
 | 1   | 2026-06-10 | OBS-041    | Regla 6: trim automático agregado al buscador. Criterio B1: actualizado con trim automático.                                                               |
 | 2   | 2026-06-10 | OBS-046    | Criterio A1: Saldo Pendiente siempre en USD. Pendiente de moneda cerrado.                                                                                  |
 | 3   | 2026-06-10 | OBS-047    | Criterio B2: ordenamiento por defecto por antigüedad de cobros recibidos. Criterio A5 agregado: indicador visual SLA 72 horas. Pendiente de orden cerrado. |
+| 4   | 2026-08-21 | DUDA-066   | Riesgo 1 y Notas Adicionales: histórico de fecha estimada de pago cerrado — solo 2 valores en BD (actual + anterior), no bitácora completa, sin pantalla dedicada. |
+| 5   | 2026-08-21 | DUDA-068   | Criterio E5 y Notas Adicionales: cerrada la pregunta sobre propagación a Legacy al cancelar pedido — no aplica porque no hay transferencia previa a Legacy. |
+| 6   | 2026-08-21 | DUDA-069   | Riesgo 3 y Notas Adicionales: brechas de Buzón de Cobros Perú cerradas (ver DUDA-001, DUDA-018) — ya llegan cobros de Perú al listado. |
+| 7   | 2026-08-21 | DUDA-047   | Riesgo 2 y Notas Adicionales: homologada la denominación del rol operativo a "Gestor de Cobranza"; se eliminan las menciones a "Analista de Cuentas por Cobrar" como nombre del rol. |

@@ -145,7 +145,10 @@ private static string ObtenerLeyendaRegulatoria(Region region)
     switch (region.ClaveISO?.Trim().ToUpperInvariant())
     {
         case "MEX":
-            // ⚠️ PENDIENTE P1: Texto definitivo a confirmar con el cliente
+            // ~~PENDIENTE P1: Texto definitivo a confirmar con el cliente~~
+            // RESUELTO (DUDA-019, 2026-08-21): el texto es decisión interna
+            // Ryndem/PROQUIFA (UX/Marketing), NO se consulta con el cliente.
+            // Se conserva el texto base como definitivo.
             return "Producto sujeto a regulación sanitaria. Para procesar el pedido " +
                    "se requiere: Licencia Sanitaria vigente y Aviso de Responsable Sanitario.";
 
@@ -329,9 +332,9 @@ public string? RegulatoryNote { get; set; }  // NUEVO — FU-007
 
 | ID | Pendiente | Bloqueante | Responsable |
 |----|-----------|------------|-------------|
-| P1 | Texto definitivo de la leyenda para clientes **México** | No — implementar con texto provisional hasta UAT | Cliente / UX |
+| P1 | ~~Texto definitivo de la leyenda para clientes **México**~~ — **Resuelto (DUDA-019, 2026-08-21):** decisión interna del equipo Ryndem/PROQUIFA (UX/Marketing); NO se consulta al cliente. Se implementa con el texto base definido en el requisito (Criterio C1). | No | Ryndem/PROQUIFA (interno) |
 | P2 | Texto y denominación regulatoria para clientes **Perú** (DIGEMID) | No — implementar placeholder hasta confirmación | Cliente |
-| P3 | Ubicación de la leyenda en el PDF (antes/después de tabla de productos, pie, sección dedicada) | **Sí** — bloquea la edición de los templates HTML (GAP-06) | UX / Diseño |
+| P3 | ~~Ubicación de la leyenda en el PDF (antes/después de tabla de productos, pie, sección dedicada)~~ — **Resuelto (DUDA-019, 2026-08-21):** la decisión de ubicación es interna del equipo Ryndem/PROQUIFA (UX/Marketing), no requiere confirmación del cliente. Ya no bloquea GAP-06; se procede con la posición que defina el equipo interno de diseño. | No | Ryndem/PROQUIFA (interno) |
 
 ---
 

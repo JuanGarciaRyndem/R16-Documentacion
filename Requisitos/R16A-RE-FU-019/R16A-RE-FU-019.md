@@ -38,7 +38,7 @@ El sistema debe contar con una pantalla de Detalle por cliente en el módulo Fac
 ### No aplica a
 
 - Pedidos que contengan productos clasificados como Sustancias Controladas tipo Mundial, Nacional u Origen. La Factura por Adelantado no es elegible para estos pedidos, independientemente del tipo (Crédito o Prepago).
-- Pedidos para clientes con Región Perú. La habilitación para Perú depende de la resolución de la brecha de timbrado SUNAT/OSE y de las consideraciones fiscales peruanas; se documenta en requisito independiente cuando esté disponible.
+- Pedidos para clientes con Región Perú. ~~La habilitación para Perú depende de la resolución de la brecha de timbrado SUNAT/OSE y de las consideraciones fiscales peruanas; se documenta en requisito independiente cuando esté disponible.~~ **[Descartado — DUDA-049]** Se cancela la facturación de Perú; no se documentará ni desarrollará habilitación de Región Perú para este módulo.
 - Generación del PDF de la Factura como artefacto (estructura visual, secciones, datos a renderizar): se documenta en requisito independiente, análogo al del PDF de Proforma.
 - Reenvío de la Factura tras envío exitoso al cliente: no se ofrece funcionalidad de reenvío; la Factura queda persistida y consultable desde Validar Cobro.
 - Edición de datos fiscales del cliente desde esta pantalla: esos datos se administran en el Catálogo de Clientes. Si hay error de validación SAT por datos del cliente (ejemplo: Código Postal), el usuario debe ir al Catálogo a corregir y volver a reintentar.
@@ -57,7 +57,7 @@ Regla 3 — Datos del pedido visibles en el listado
 Cada pedido del cliente en el listado muestra: Pedido Interno, Fecha del pedido, Condiciones de Pago (ejemplo: "PREPAGO 100%", "30 DIAS", "60 DIAS", "90 DIAS"), Empresa Emisora del pedido, Subtotal, IVA y Monto Total en la moneda del pedido.
 
 Regla 4 — Modal de Generación con Uso CFDI como único editable
-Al presionar "Generar Factura" en un pedido, el modal de Generación de Factura muestra en modo solo lectura: cliente (Razón Social o Alias), Monto Total del pedido, Pedido Interno, Condiciones de Pago, datos del contacto del cliente (nombre, correo electrónico, teléfono), Datos Fiscales del Cliente (RFC, Razón Social, Código Postal, Régimen Fiscal, Correo electrónico, Moneda, Tipo de Cambio, Tipo de Comprobante, Método de Pago, Forma de Pago), Datos Fiscales del Emisor (RFC, Razón Social, Régimen Fiscal) y los Comentarios de Facturación. El único campo editable del modal es el Uso CFDI (combo de selección con catálogo SAT). ** Pendiente confirmar si el cliente se identifica por Razón Social o Alias. **
+Al presionar "Generar Factura" en un pedido, el modal de Generación de Factura muestra en modo solo lectura: cliente (~~Razón Social o Alias~~ **Razón Social** — ver DUDA-048), Monto Total del pedido, Pedido Interno, Condiciones de Pago, datos del contacto del cliente (nombre, correo electrónico, teléfono), Datos Fiscales del Cliente (RFC, Razón Social, Código Postal, Régimen Fiscal, Correo electrónico, Moneda, Tipo de Cambio, Tipo de Comprobante, Método de Pago, Forma de Pago), Datos Fiscales del Emisor (RFC, Razón Social, Régimen Fiscal) y los Comentarios de Facturación. El único campo editable del modal es el Uso CFDI (combo de selección con catálogo SAT). **[Resuelto — DUDA-048]** Para homologar con todo el tema de Facturación, el cliente se identifica por RAZÓN SOCIAL (no Alias).
 
 Regla 5 — Forma de Pago, Método de Pago y Tipo de Comprobante forzados por normativa SAT
 Por ser la Factura por Adelantado una factura PPD, el modal de Generación presenta como valores forzados (solo lectura): Método de Pago = "PPD - Pago en parcialidades o diferido", Forma de Pago = "99 - Por definir", Tipo de Comprobante = "I - Ingreso". Estos valores son obligatorios por normativa SAT para facturas PPD y no son modificables por el usuario. La Forma de Pago real se captura posteriormente en el Complemento de Pago del módulo Validar Cobro.
@@ -102,8 +102,8 @@ Si el PAC TurboPac (RFC QSO100827UB0, Quadrum Tecnologías) está caído o respo
 ~~Riesgo 2 — Solapamiento de denominación de rol~~ **[Resuelto — Duda 047]**
 La denominación canónica quedó confirmada: el **rol** es **Gestor de Cobranza** y el **puesto de trabajo** es **Analista de Cuentas por Pagar**. Toda la documentación del módulo usa "Gestor de Cobranza" como denominación del rol operativo.
 
-Riesgo 3 — Brecha de timbrado para Perú
-La habilitación para Región Perú depende de la integración con OSE/SUNAT autorizado, brecha mayor no resuelta del proyecto documentada en R16A-RE-FU-005 (Brecha 5). Mientras no se resuelva, los clientes Perú no pueden usar este módulo.
+~~Riesgo 3 — Brecha de timbrado para Perú~~ **[Descartado — DUDA-049]**
+~~La habilitación para Región Perú depende de la integración con OSE/SUNAT autorizado, brecha mayor no resuelta del proyecto documentada en R16A-RE-FU-005 (Brecha 5). Mientras no se resuelva, los clientes Perú no pueden usar este módulo.~~ Riesgo cerrado: se canceló la facturación de Perú, por lo que la brecha de timbrado SUNAT/OSE deja de ser aplicable a este requisito.
 
 ---
 
@@ -244,7 +244,7 @@ Dado el modal de envío, cuando el sistema renderiza el campo CC, entonces deber
 Criterio F4 — Asunto pre-rellenado con folios
 Dado que el modal de Envío está abierto,
 Cuando el sistema muestra el campo Asunto,
-Entonces deberá pre-rellenar el asunto en un formato que incluya el folio de la Factura y el folio del Pedido Interno (formato canónico definido para correos de Factura de México). ** Para Perú, la lógica del asunto podría ser análoga, pero la numeración del folio fiscal es distinta (serie SUNAT F### + correlativo) y el formato final queda pendiente de confirmar con PROQUIFA y su asesor peruano. **
+Entonces deberá pre-rellenar el asunto en un formato que incluya el folio de la Factura y el folio del Pedido Interno (formato canónico definido para correos de Factura de México). ~~Para Perú, la lógica del asunto podría ser análoga, pero la numeración del folio fiscal es distinta (serie SUNAT F### + correlativo) y el formato final queda pendiente de confirmar con PROQUIFA y su asesor peruano.~~ **[Descartado — DUDA-049]** No aplica: se canceló la facturación de Perú, no se desarrolla formato de folio fiscal peruano.
 
 Criterio F5 — Adjuntos automáticos PDF y XML
 Dado que el modal de Envío está abierto,
@@ -326,12 +326,13 @@ Entonces deberá seguirse el siguiente orden:
 - Los errores más comunes reportados por PROQUIFA en el proceso de facturación electrónica actual y que deben manejarse en el modal de Alerta SAT son: (a) cambio de Código Postal del cliente respecto al registrado en el SAT (requiere corrección en el Catálogo de Clientes); (b) errores en decimales al calcular totales de la factura.
 - El modal de Alerta SAT NO ofrece edición directa de los datos del cliente. El usuario debe corregir en el Catálogo de Clientes y reintentar la generación desde el principio. Esto preserva fuente única de verdad para los datos del cliente.
 - El modal de Envío incluye copia automática a ESAC por regla canónica del proyecto.
-- El asunto del correo de envío se pre-rellena con un formato canónico que incluye folio de la Factura y folio del Pedido Interno (México). ** Para Perú, el formato del asunto y la numeración del folio fiscal (serie SUNAT F### + correlativo, distinta del folio mexicano) quedan pendientes de confirmar con PROQUIFA y su asesor peruano cuando se habilite la región. **
+- El asunto del correo de envío se pre-rellena con un formato canónico que incluye folio de la Factura y folio del Pedido Interno (México). ~~Para Perú, el formato del asunto y la numeración del folio fiscal (serie SUNAT F### + correlativo, distinta del folio mexicano) quedan pendientes de confirmar con PROQUIFA y su asesor peruano cuando se habilite la región.~~ **[Descartado — DUDA-049]** Se canceló la facturación de Perú; no aplica desarrollar formato de folio fiscal peruano.
 - La sección Cliente del módulo (cabecera del Detalle) muestra etiquetas de clasificación del cliente que son datos preexistentes del Catálogo de Clientes y solo lectura desde este módulo.
 - Cobertura geográfica de esta fila: clientes con Región México exclusivamente. La habilitación para Perú depende de la integración con OSE/SUNAT autorizado (brecha mayor del proyecto) y se documenta en requisito independiente cuando esté disponible.
 - **Decisión OBS-039:** ninguna Factura por Adelantado consigna lote ni pedimento. El pedimento ya se manejaba como N/A (comportamiento preexistente); el lote sigue la misma decisión — el surtido (asignación de lote en almacén) ocurre después del cobro y la facturación, por lo que el lote no está disponible al timbrar. Decisión cerrada y confirmada por el cliente.
 - **Resuelto:** Timbrado no reintenta ante indisponibilidad del PAC TurboPac — es un servicio síncrono de un solo intento por petición (ver R16A-RE-FU-018). Ante fallo, Timbrado retorna el error de inmediato a Finanzas; el reintento es responsabilidad de Finanzas, implementado en este mismo flujo de generación de la Factura por Adelantado: el pendiente permanece sin timbrar, se incrementa un contador de reintentos, y se notifica a soporte por correo si se supera el límite (ver `Diagramas/Diagrama Secuencia Encolamiento Finanzas y Timbrado Factura.md`).
 - **[Resuelto — Duda 047]** Denominación canónica confirmada: el rol operativo es **Gestor de Cobranza**; el puesto de trabajo es **Analista de Cuentas por Pagar**.
+- **[Resuelto — DUDA-050]** El timbrado de la Factura por Adelantado es UNO A UNO, documento por documento (flujo ya descrito en las Reglas 7-9 y en el Criterio H1: el usuario genera y timbra pedido por pedido desde el listado). En sesión con el cliente se explicó este flujo y por qué no se propone timbrado masivo/por lote ("timbrar todo de un clic"); el cliente ACEPTÓ la propuesta. NO se implementa ninguna acción de timbrado masivo o por lote en este módulo.
 
 ---
 
@@ -340,3 +341,6 @@ Entonces deberá seguirse el siguiente orden:
 | # | Fecha | Referencia | Descripción del cambio |
 |---|-------|------------|------------------------|
 | 1 | 2026-06-10 | OBS-039 | Regla 15: lote y pedimento excluidos de la descripción de conceptos de la Factura por Adelantado. Descripción actualizada a "catálogo + descripción + marca". Pendiente de lote cerrado — decisión: ninguna Factura por Adelantado consigna lote ni pedimento. |
+| 2 | 2026-08-21 | DUDA-048 | Regla 4: cerrado el pendiente "Razón Social o Alias" — el cliente se identifica por RAZÓN SOCIAL, homologado con el resto de Facturación. |
+| 3 | 2026-08-21 | DUDA-049 | Se descarta el desarrollo de Factura por Adelantado para Región Perú (se cancela la facturación de Perú). Se tachan y cierran las menciones a formato de asunto/folio fiscal peruano pendientes (Criterio F4, Notas Adicionales) y el Riesgo 3 (brecha SUNAT/OSE). |
+| 4 | 2026-08-21 | DUDA-050 | Se documenta explícitamente que el timbrado de la Factura por Adelantado es uno a uno (no masivo/por lote); el cliente aceptó esta propuesta tras sesión de explicación del flujo. |

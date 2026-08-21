@@ -129,7 +129,9 @@ MailbotWorker.sln
 
 ## Configuración Gmail API Watch
 
-### Registro del Watch por Región
+> **✅ Confirmado (DUDA-119, 2026-08-21):** el Mailbot debe soportar **más de un correo por región** — México requiere `ventas@proquifa.com.mx` (cotizaciones/pedidos) **y** `crédito@proquifa.net` (Buzón de Cobros, nuevo en R16). Esto es alcance de R16 independientemente del rediseño de Buzones (OBS-006). El registro del watch, los topics de Pub/Sub y los endpoints webhook descritos abajo (uno por región) deben registrarse **por cuenta de correo (`CorreoElectronico`)**, no por región — una región con 2 correos requiere 2 watches y puede requerir 2 topics/endpoints o un único endpoint que discrimine por `emailAddress` del payload.
+
+### Registro del Watch por Región (por correo monitoreado)
 
 ```http
 POST https://gmail.googleapis.com/gmail/v1/users/{userId}/watch
@@ -497,7 +499,7 @@ flowchart LR
 | 5 | Cliente no identificado | Correos sin cliente asignado — ¿quién los atiende? | Confirmar con cliente |
 | 6 | Clasificación `'Pago'` en uso | Verificar registros activos antes de renombrar | `SELECT COUNT(*) WHERE Clave='pago'` |
 | 7 | Prompt base del Agente | Texto de clasificación y extracción por tipo | Redactar con equipo de negocio |
-| 8 | Credenciales Gmail multi-cuenta | Una cuenta por región (MEX/PER) con OAuth2 | Confirmar cuentas con IT |
+| 8 | Credenciales Gmail multi-cuenta | ~~Una cuenta por región (MEX/PER)~~ **Cerrado — DUDA-119 (2026-08-21):** MEX requiere 2 cuentas (`ventas@proquifa.com.mx` + `crédito@proquifa.net`) con OAuth2, cada una con su propio watch | Confirmar cuentas con IT y ajustar diseño de watch/topics a nivel correo, no región |
 
 ---
 

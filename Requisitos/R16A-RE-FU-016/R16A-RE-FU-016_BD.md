@@ -277,14 +277,16 @@ Logos se resuelven por Prefijo en DocumentBuilder (repositorio o base64), no en 
 | # | Gap | Tipo | Accion |
 |---|-----|------|--------|
 | 1 | START WITH del SEQUENCE | Tecnico | Consultar MAX(consecutivo) en produccion |
-| 2 | Vigencia del documento | Negocio | Confirmar regla de calculo |
-| 3 | Alias vs RazonSocial en seccion Cliente | Negocio | Confirmar dato fuente |
-| 4 | Contacto de entrega: cual contacto | Negocio | Confirmar tipo |
+| 2 | ~~Vigencia del documento~~ | Negocio | **Resuelto (DUDA-033, 2026-08-21):** 30 dias naturales desde la generacion |
+| 3 | ~~Alias vs RazonSocial en seccion Cliente~~ | Negocio | **Resuelto (DUDA-034, 2026-08-21):** Razon Social |
+| 4 | ~~Contacto de entrega: cual contacto~~ | Negocio | **Resuelto (DUDA-037, 2026-08-21):** Titulo+Contacto, referencia tabla Pedidos en Legacy |
 | 5 | Certificaciones pie (ISO/NEEC) | Negocio | Confirmar vigencia |
-| 6 | Cuentas siempre MN+DLS | Negocio | Confirmar si puede variar |
-| 7 | PUE siempre en Prepago | Fiscal | Confirmar con equipo contable |
-| 8 | Prefijo PRF en BD o solo render | Tecnico | Recomendacion: solo render |
+| 6 | ~~Cuentas siempre MN+DLS~~ | Negocio | **Resuelto (DUDA-036, 2026-08-21):** dos cuentas activas mas recientes por Fecha de ultima actualizacion; si solo hay una, se muestra esa. Aplica tambien a Peru |
+| 7 | ~~PUE siempre en Prepago~~ | Fiscal | **Resuelto (DUDA-035, 2026-08-21):** leyenda PUE fija, Prepago siempre asume PUE |
+| 8 | ~~Prefijo PRF en BD o solo render~~ | Tecnico | **Resuelto (DUDA-032, 2026-08-21):** solo render, sin prefijo en BD (confirma recomendacion) |
 | 9 | **OBS-TC** — `tpPedido.TipoCambioFacturacion` siempre = 1 (incorrecto) | Diseño/Bug | Ver nota abajo |
+| 10 | ~~Momento de consumo del folio~~ | Tecnico | **Resuelto (DUDA-031, 2026-08-21):** al confirmar envio exitoso, sin huecos (ya reflejado en tabla "Foliador Global PRF") |
+| 11 | ~~Tipo de almacenamiento del PDF~~ | Tecnico | **Resuelto (DUDA-039, 2026-08-21):** archivo/binario en Minio via tabla Archivo, sin regeneracion (ya reflejado en este documento) |
 
 ---
 

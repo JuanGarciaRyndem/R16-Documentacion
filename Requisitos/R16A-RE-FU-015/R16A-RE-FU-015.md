@@ -130,7 +130,9 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 - **Cuando** el ESAC decide no continuar (cancela la previsualización),
 - **Entonces** el sistema deberá permitir volver al pedido sin enviar la proforma.
 
-> ** Pendiente definir la política del folio de proforma ya asignado: si se conserva para el reintento o se descarta. **
+~~> ** Pendiente definir la política del folio de proforma ya asignado: si se conserva para el reintento o se descarta. **~~ *(obsoleto — resuelto, ver nota siguiente)*
+
+> **Resuelto (DUDA-030, 2026-08-21):** El folio de proforma **se consume hasta el envío correcto**: se conserva y se reintenta con el **mismo folio** hasta que el envío se complete exitosamente; no se descarta ni se asigna uno nuevo en cada intento fallido, para evitar huecos innecesarios en la numeración. Nota de alcance: según la sección "No aplica a" de este requisito y `R16A-RE-FU-015_BD.md` (§"Cambios de Comportamiento R16"), la variante Prepago + Factura por Adelantado documentada aquí **ya no genera proforma**; esta política de folio aplica directamente a los flujos que sí generan proforma (R16A-RE-FU-013/014). Se deja resuelta en esta Sección C como referencia histórica del diseño previo.
 
 **Criterio C3 — Pantalla de datos de envío con CC editable y ESAC incluido**
 - **Dado** que el usuario llegó al paso de envío del correo,

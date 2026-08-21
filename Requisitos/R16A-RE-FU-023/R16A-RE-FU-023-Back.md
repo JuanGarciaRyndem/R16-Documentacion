@@ -27,7 +27,7 @@ La lógica de INSERT en `fccFolioPagoCliente` **ya existe** en `CorreoRecibidoCl
 | Archivo                                                        | Relevancia                                                                                                                                                                                                                |
 | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `L11.MailBot/Procesos/Pagos/CorreoRecibidoClienteToPagoBO.cs`  | **Ya hace INSERT en `fccFolioPagoCliente`** al clasificar correo como cobro. Lógica: itera referencias, crea registro con Consecutivo, FechaRecepcion, SubtotalMailBot, IvaMailBot, TotalMailBot, Folio. **No duplicar.** |
-| `CorreoRecibidoClienteToPagoBO.ActualizarBuzonPagoLegacy`      | Llama `spActualizarBuzonPagoLegacyLegacy`. Confirmar si aplica al cancelar pedido desde Validar Cobro.                                                                                                                    |
+| `CorreoRecibidoClienteToPagoBO.ActualizarBuzonPagoLegacy`      | Llama `spActualizarBuzonPagoLegacyLegacy`. ~~Confirmar si aplica al cancelar pedido desde Validar Cobro.~~ Resuelto DUDA-068 (21/08): no aplica — no hay transferencia previa a Legacy que revertir/sincronizar. |
 | `L05.TramitarPedido/Dashboard/FacturasPendientesClienteObj.cs` | Patrón de cálculo multi-divisa con `ConversorDivisas`. Base técnica para el motor de saldo del Paso 2 (RE-FU-026).                                                                                                        |
 | `Logic.MailXslt/Cobranza/CorreoFCCPagoCliente.cs`              | Plantilla de correo para `fccPagoClienteCorreoEnviado`. Confirmar si aplica a la confirmación del cobro (RE-FU-024).                                                                                                      |
 
@@ -248,11 +248,11 @@ Operación (por cada ítem):
 
 > **OBS-044 (10/07):** El histórico de modificaciones de FechaEstimadaPago está **dentro del alcance R16** — confirmado por el cliente (Riesgo 1 eliminado al registrarse el histórico en BD). El comando NO sobreescribe silenciosamente: cada cambio queda registrado con valor anterior, valor nuevo, usuario y timestamp.
 >
-> ⚠️ **Sub-duda VIVA (solo presentación / desempeño):**
-> - ¿El histórico requiere **visualización en pantalla** o basta con el **registro en BD** (bitácora general del sistema)?
-> - ¿Se conserva **bitácora completa** (append-only en `fccFechaEstimadaPagoHistorial`) o **solo el último cambio** (2 campos en `tpProformaPedido`: FechaEstimadaAnterior + IdUsuarioCambio/FechaCambio) por desempeño?
+> ✅ **Sub-duda CERRADA por DUDA-066 (21/08/2026):**
+> - ~~¿El histórico requiere **visualización en pantalla** o basta con el **registro en BD** (bitácora general del sistema)?~~ Resuelto: NO requiere vista en pantalla dedicada — se considera parte de la bitácora de movimientos general del sistema.
+> - ~~¿Se conserva **bitácora completa** (append-only en `fccFechaEstimadaPagoHistorial`) o **solo el último cambio** (2 campos en `tpProformaPedido`: FechaEstimadaAnterior + IdUsuarioCambio/FechaCambio) por desempeño?~~ Resuelto: **solo el último cambio** — se conservan DOS valores en BD (actual + anterior, con autor y fecha), NO bitácora completa.
 >
-> **Propuesta del equipo:** solo el último cambio por desempeño (misma naturaleza que el historial del Código Validador FU-006 / OBS-014, donde solo se conservan "actual" + "inmediatamente anterior"). El diseño actual (`fccFechaEstimadaPagoHistorial` append-only, ver A3 en _BD.md) queda condicionado a la resolución de esta sub-duda.
+> **Decisión final (DUDA-066):** solo el último cambio (misma naturaleza que el historial del Código Validador FU-006 / OBS-014, donde solo se conservan "actual" + "inmediatamente anterior"). ~~El diseño actual (`fccFechaEstimadaPagoHistorial` append-only, ver A3 en _BD.md)~~ queda **DESCARTADO** — ver sección 6 de `_BD.md` (Opción A descartada / Opción B confirmada). Solo registra cambios hechos desde el sistema.
 
 **Endpoints expuestos:**
 
@@ -324,7 +324,9 @@ desde Finanzas via Scaffold EF Core. La cabecera del modal incluye `MontoTotalPe
 Actualiza `tpProformaPedido.FechaPromesaPagoMonitoreoCobros` directamente desde Finanzas
 via Scaffold EF Core mediante `UpdatePromiseDateCommand`.
 
-> **OBS-044:** El `UpdatePromiseDateCommand` guarda el **historial completo** de cambios en `fccFechaEstimadaPagoHistorial` (tabla nueva, ver A3 en _BD.md). Cada cambio genera un INSERT con el valor anterior y el nuevo — no se sobreescribe el registro. El endpoint debe exponer `IdUsuarioCambio` y opcionalmente `Motivo`.
+> ~~**OBS-044:** El `UpdatePromiseDateCommand` guarda el **historial completo** de cambios en `fccFechaEstimadaPagoHistorial` (tabla nueva, ver A3 en _BD.md). Cada cambio genera un INSERT con el valor anterior y el nuevo — no se sobreescribe el registro. El endpoint debe exponer `IdUsuarioCambio` y opcionalmente `Motivo`.~~ (tachado: descartado por DUDA-066, 21/08).
+>
+> **OBS-044 (actualizado por DUDA-066):** El `UpdatePromiseDateCommand` conserva únicamente DOS valores en `tpProformaPedido` — el actual (vigente) y el inmediatamente anterior, con `IdUsuarioCambioFechaEstimada` y `FechaCambioFechaEstimada`. Al modificar, el "actual" pasa a "anterior" y el anterior previo se sobrescribe (NO bitácora completa). No requiere vista en pantalla dedicada.
 
 **Endpoint:** `PUT /api/v1/validate-collection/quote/promiseDate` (definido en B4)
 
@@ -358,9 +360,13 @@ UPDATE tpPedido SET FechaCancelacionPorFaltaPago = GETDATE(),
 > 4. Actualizar `tpPedido.EstadoCancelacionCFDI` con el resultado del SAT (`'Cancelado'`, `'Rechazado'`, etc.).
 >
 > El flujo de cancelación CFDI puede ser asíncrono (CFDI 4.0 requiere aceptación del receptor). Considerar estados intermedios.
+>
+> **Trazabilidad (DUDA-121, 21/08):** los reintentos de cancelación fiscal ante rechazo del receptor quedan FUERA del sistema (gestión manual, aceptado); PQF2 no implementa pantalla de reintentos para este flujo.
 
-> ⚠️ Pendiente confirmar si la cancelación dispara `spActualizarBuzonPagoLegacyLegacy`
-> u otras transferencias a Legacy.
+> ~~⚠️ Pendiente confirmar si la cancelación dispara `spActualizarBuzonPagoLegacyLegacy`
+> u otras transferencias a Legacy.~~ (tachado: pregunta cerrada — ver DUDA-068).
+>
+> ✅ **Resuelta DUDA-068 (21/08):** hasta el momento NO se ha transferido ningún dato de pedidos/cobros hacia Legacy — toda la información permanece íntegramente en ProquifaDotNet/Finanzas. La cancelación NO propaga hacia Legacy porque no hay transferencia previa que revertir; no aplica invocar `spActualizarBuzonPagoLegacyLegacy` desde este flujo.
 
 ---
 
@@ -370,9 +376,11 @@ UPDATE tpPedido SET FechaCancelacionPorFaltaPago = GETDATE(),
 > Decisión OBS-046: el listado siempre se muestra dolarizado en USD. **Criterio de tipo de cambio:** cada documento se convierte a USD con el **TC de su propio documento origen** (proforma/factura), NO con el TC del día de consulta ni un TC unificado del listado. Los montos ya dolarizados se suman. Reutilizar `ConversorDivisas` existente en ProquifaDotNet (`FacturasPendientesClienteObj`).
 >
 > ⚠️ **Pendiente operativo NO bloqueante:** documentar los tipos de cambio del proceso (proforma, cobro, factura) y su trazabilidad/origen por documento.
+>
+> **Trazabilidad (DUDA-067, 21/08):** confirma el mismo criterio — TC de cada documento origen, no del día ni unificado.
 
-> ⚠️ **BRECHA — spActualizarBuzonPagoLegacyLegacy al cancelar pedido**
-> Confirmar si la cancelación desde Validar Cobro dispara el SP de sincronización Legacy.
+> ✅ **BRECHA — spActualizarBuzonPagoLegacyLegacy al cancelar pedido — Resuelta DUDA-068 (21/08)**
+> ~~Confirmar si la cancelación desde Validar Cobro dispara el SP de sincronización Legacy.~~ No aplica: no se ha transferido ningún dato de pedidos/cobros hacia Legacy hasta el momento, por lo que no hay nada que sincronizar/revertir vía `spActualizarBuzonPagoLegacyLegacy` u otro medio.
 
 > ⚠️ **BRECHA — CorreoFCCPagoCliente.xslt**
 > `Logic.MailXslt/Cobranza/CorreoFCCPagoCliente.cs` ya existe. Confirmar si aplica a la

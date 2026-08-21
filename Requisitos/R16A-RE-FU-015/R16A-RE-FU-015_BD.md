@@ -463,6 +463,7 @@ WHERE f.EsFacturaPorAdelantado = 1;
 | Boton Editar Datos | Visible | Oculto para Prepago siempre |
 | Generacion de proforma/PDF/correo en Tramitar Pedido (con FAA) | N/A | Ya no aplica — el pendiente FAA se genera directo |
 | Estructura del pendiente FAA | `tpProformaAdelanto` | `fccFactura` + `fccFacturaPartida` + `fccFacturaReferenciaBancaria` |
+| Política de folio de proforma en reintento (DUDA-030, 2026-08-21) | Pendiente definir | No aplica a este requisito (ya no genera proforma). Resolución documentada para trazabilidad: donde sí aplica (RE-FU-013/014), el folio se consume hasta el envío correcto — se reintenta con el mismo folio hasta éxito, sin descartarlo ni reasignar uno nuevo |
 
 ---
 

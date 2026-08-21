@@ -36,7 +36,7 @@ El impacto en DDL de BD es **CERO** (todo el esquema fue creado en RE-FU-024). E
 
 | Aspecto              | México — RE-FU-024                                | Perú — RE-FU-025                                              |
 | -------------------- | ------------------------------------------------- | ------------------------------------------------------------- |
-| Forma/Medio de pago  | `catMedioDePago.ClaveFormaDePago` SAT c_FormaPago | Catálogo interno PROQUIFA sin `ClaveFormaDePago` (**BRECHA**) |
+| Forma/Medio de pago  | `catMedioDePago.ClaveFormaDePago` SAT c_FormaPago, campo **obligatorio** | Catálogo interno PROQUIFA sin `ClaveFormaDePago`; campo **regionalizado y NO obligatorio** (DUDA-076, cerrada); valores entregados por el cliente el 18/08 como **imagen**, pendientes de transcripción (**BRECHA**) |
 | Cuenta destino       | `EmpresaDatosBancarios` GOL/MUN/PRO/PQF           | `EmpresaDatosBancarios` GOLPERU (**BRECHA — 0 registros**)    |
 | Moneda base TC       | MXN (DOF/Banxico)                                 | PEN (fuente pendiente — **BRECHA**)                           |
 | ID fiscal cliente    | RFC (13 chars)                                    | RUC (11 dígitos)                                              |
@@ -49,11 +49,13 @@ El impacto en DDL de BD es **CERO** (todo el esquema fue creado en RE-FU-024). E
 > **Sin cambios DDL.** Todo el esquema fue creado en RE-FU-024.
 > Los cambios son de datos (DML) que dependen de información pendiente de PROQUIFA Perú.
 
-### A1 — INSERT catMedioDePago Perú (BRECHA)
+### A1 — INSERT catMedioDePago Perú (BRECHA) — Resolución DUDA-076 (cerrada)
 
 SUNAT no exige declarar el medio de pago en el comprobante; el catálogo es interno de PROQUIFA para control de Tesorería.
 
-```sql
+**Resolución DUDA-076:** el campo "Forma de Pago" se **regionaliza**: es obligatorio **solo para México**; para **Perú deja de ser obligatorio**. El 18/08 el cliente entregó la lista definitiva de medios de pago válidos para Perú, pero **como imagen**, no como texto — por lo tanto el catálogo exacto de valores para Perú **no está disponible en texto** en esta duda; solo se sabe que el campo se regionaliza, deja de ser obligatorio en Perú, y existe una lista definitiva pendiente de transcribir.
+
+~~```sql
 -- Created by GitHub Copilot in SSMS - review carefully before executing
 -- Catálogo interno medio de pago Perú (ClaveFormaDePago = NULL — no es catálogo SAT)
 -- Opciones pendientes de confirmar con PROQUIFA Tesorería
@@ -65,9 +67,12 @@ VALUES
     (N'Cheque',                 0, 0, NULL, 'PER-CHQ', 0),
     (N'Efectivo',               0, 0, NULL, 'PER-EFE', 0);
 -- Ajustar opciones al catálogo real que defina PROQUIFA Tesorería
-```
+```~~
+*(Script placeholder anterior a DUDA-076 — NO ejecutar: son valores ilustrativos, no los confirmados por el cliente. No inventar ni asumir los valores reales.)*
 
 > ⚠️ `catMedioDePago.ClaveFormaDePago` es NULLABLE — soporta registros sin clave SAT. No requiere ALTER TABLE.
+> ⚠️ `ObligatorioEnCliente` debe reflejar la regionalización: el campo ya no es obligatorio para clientes de Región Perú (sí sigue siendo obligatorio para México).
+> **Pendiente/Gap abierto (2026-08-21, DUDA-076):** transcribir la imagen entregada por el cliente el 18/08 con la lista definitiva de medios de pago Perú, y generar el INSERT real de `catMedioDePago` a partir de esos valores.
 
 ### A2 — INSERT Cuentas Bancarias GOLPERU (BRECHA)
 
@@ -113,7 +118,7 @@ Los endpoints del Paso 1 ya implementados en RE-FU-024 se adaptan para Perú med
 
 | Campo del formulario | México | Perú |
 |---|---|---|
-| Medio de pago | `catMedioDePago` con `ClaveFormaDePago IS NOT NULL` (SAT) | `catMedioDePago` con `ClaveFormaDePago IS NULL` (interno) |
+| Medio de pago | `catMedioDePago` con `ClaveFormaDePago IS NOT NULL` (SAT), **obligatorio** | `catMedioDePago` con `ClaveFormaDePago IS NULL` (interno), **NO obligatorio** (DUDA-076); valores pendientes de transcribir desde imagen del cliente (18/08) |
 | Cuenta destino | `EmpresaDatosBancarios` donde empresa es GOL/MUN/PRO/PQF | `EmpresaDatosBancarios` donde empresa es GOLPERU |
 | TC del día | `TipoCambioService` (vs MXN) | `TipoCambioPeruService` (vs PEN) |
 | ID fiscal en cabecera | RFC | RUC |
@@ -128,8 +133,8 @@ El cobro capturado en el Paso 1 se vinculará en el Paso 2 a un documento (factu
 
 ## Brechas
 
-> ⛔ **BRECHA BLOQUEANTE — Catálogo interno de medio de pago Perú**
-> Los valores del catálogo interno de medio de pago para Perú están pendientes de definición con PROQUIFA Tesorería. Sin este catálogo, el combo del formulario Paso 1 Perú queda vacío.
+> ⛔ **BRECHA BLOQUEANTE — Catálogo interno de medio de pago Perú (DUDA-076, cerrada)**
+> Resuelto en negocio: el campo se regionaliza y en Perú deja de ser obligatorio. Pendiente exclusivamente operativo: el cliente entregó (18/08) la lista definitiva de valores, pero como imagen; falta transcribirla a texto para poder cargar `catMedioDePago` en BD. Sin esos valores, el combo del formulario Paso 1 Perú queda vacío (aunque, al no ser obligatorio, ya no bloquea el avance del wizard).
 
 > ⛔ **BRECHA BLOQUEANTE — Cuentas bancarias GOLPERU (0 registros)**
 > Las cuentas bancarias de Golocaer S.A.C. Perú no están en BD. Sin estos datos, el combo "Cuenta destino" del formulario Paso 1 Perú queda vacío. Depende de R16A-RE-FU-006.
@@ -142,3 +147,7 @@ El cobro capturado en el Paso 1 se vinculará en el Paso 2 a un documento (factu
 
 > ⚠️ **BRECHA — Foliador global vs por región**
 > Pendiente confirmar si `SeqFolioCobro` es compartido MEX+PER o independiente por región.
+
+---
+
+**Trazabilidad (2026-08-21):** documento actualizado conforme a la resolución de **DUDA-076** (Status: Resuelta) — el campo "Forma de Pago"/"Medio de pago" se regionaliza (obligatorio solo en México; ya no obligatorio en Perú); el catálogo definitivo de valores para Perú fue entregado por el cliente el 18/08 pero como imagen, por lo que su transcripción a texto queda como gap abierto.

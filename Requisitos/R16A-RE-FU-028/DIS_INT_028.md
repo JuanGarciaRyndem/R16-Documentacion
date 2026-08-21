@@ -206,7 +206,7 @@ Adjuntos:  PDF+XML por CFDI de la línea + PDF Confirmación de Pedido (no edita
 Notas:     textarea libre opcional
 ```
 
-> **Corrección v2 (OQ-3):** el destinatario proviene de `tpPedido.IdContactoCliente` (contacto de facturación/pedido). Existe también `tpPedido.IdContactoEntrega`. Ambos son **nullable** → cuando `IdContactoCliente` es NULL, el campo Para queda vacío y el envío se bloquea hasta captura manual (regla de fallback propuesta, confirmar con negocio).
+> **Corrección v2 (OQ-3):** el destinatario proviene de `tpPedido.IdContactoCliente` (contacto de facturación/pedido). Existe también `tpPedido.IdContactoEntrega`. Ambos son **nullable** → cuando `IdContactoCliente` es NULL, el campo Para queda vacío. ~~el envío se bloquea hasta captura manual (regla de fallback propuesta, confirmar con negocio)~~ **RESUELTO — DUDA-089 (2026-08-21):** se usa el mismo mecanismo de envíos que el sistema actual ya tiene ante contacto ausente o múltiple; no se construye regla de fallback nueva, no requiere desarrollo adicional.
 >
 > ==**Gap detectado v4.0 (RE-030 §3.3 de sus Observaciones):** el Criterio J2 de RE-030 exige que las líneas `COMPLEMENTO_PAGO` incluyan en CC al "analista de Cuentas por Cobrar" — este diseño hoy solo trae contacto+ESAC. Acción: el endpoint `send` debe detectar `tipo = COMPLEMENTO_PAGO` y agregar ese destinatario en CC. Sin dueño ni fecha confirmados con RE-030 todavía — ver RAD Duda #27.==
 
@@ -457,7 +457,7 @@ Antes de llamar al PAC, Finanzas debe validar (precomprobación) para evitar XML
 - **Complemento Pagos 2.0:** `NumParcialidad`, `ImpSaldoAnt`, `ImpSaldoInsoluto` requieren control de parcialidades. `fccPagoFacturaAdelanto.NumeroParcialidad` existe → base para la lógica, pero el cálculo de saldos anteriores es de RE-FU-030.
 - **UsoCFDI del Complemento (`CP01`):** ==`CP01` está ausente de `catUsoCFDI` — pero el DIS de RE-FU-030 ya trae el DML de corrección (`INSERT INTO catUsoCFDI (ClaveUso, Uso, ...) VALUES ('CP01', 'CP01 Pagos', ...)`). Solo falta coordinar que se ejecute antes de habilitar el Complemento.==
 
-> **⚠️ B1 (bloqueante fiscal):** ==la Factura Anticipo con relación **07** exige un CFDI de Anticipo previo al que aplicar. El flujo actual timbra directo sin ese UUID previo → el PAC/SAT puede rechazarlo. Opciones: (A) 2 CFDIs (Anticipo → Factura definitiva rel. 07), (B) Factura PUE normal si el controlado ya se entregó, (C) validar tolerancia de TurboPac (riesgo de auditoría). **Confirmar con asesor fiscal PROQUIFA** — bloquea el Escenario C.==
+> **✅ B1 — RESUELTO (DUDA-088, 2026-08-21):** ~~la Factura Anticipo con relación **07** exige un CFDI de Anticipo previo al que aplicar. El flujo actual timbra directo sin ese UUID previo → el PAC/SAT puede rechazarlo. Opciones: (A) 2 CFDIs (Anticipo → Factura definitiva rel. 07), (B) Factura PUE normal si el controlado ya se entregó, (C) validar tolerancia de TurboPac (riesgo de auditoría). **Confirmar con asesor fiscal PROQUIFA** — bloquea el Escenario C.~~ Confirmado: es la Opción (A). La Factura Anticipo se timbra SIN relación 07 (sin `CfdiRelacionados`), conforme `Guia_Tecnica_Facturas_Ingreso_MX.md` §6. La relación 07 se usa únicamente en la Factura Final (fuera de alcance de este requisito, se genera en Legacy cuando el controlado completa su proceso regulatorio) para referenciar hacia la Factura Anticipo. Escenario C desbloqueado.
 >
 > ==**Nota de numeración (6-jul):** el DIS de RE-FU-030 cita "RE-028 B6" refiriéndose a la plantilla de correo del Complemento — pero en este documento B6 = política de reintento de la cascada (§4.6/§13). La plantilla de correo es OQ-2. Sincronizar la numeración con Alberto Pantoja (autor de RE-030) antes de que ambos equipos sigan citándose con IDs distintos para el mismo tema.==
 
@@ -557,7 +557,7 @@ Región Perú · cancelación fiscal SAT · re-timbrado · operaciones masivas �
 
 | # | Pregunta | Propietario | Severidad | Notas |
 |---|---|---|---|---|
-| B1/OQ-1 | ==Tipo de relación SAT para Factura Anticipo de controlados (¿07 con anticipo previo, PUE, o tolerancia PAC?)== | Asesor fiscal / Irma | 🔴 Bloqueante | Ver §5.5 |
+| ~~B1/OQ-1~~ | ~~Tipo de relación SAT para Factura Anticipo de controlados (¿07 con anticipo previo, PUE, o tolerancia PAC?)~~ | DUDA-088 | 🟢 **Resuelto** | La Factura Anticipo NO usa relación 07 (esa es de la Factura Final, fuera de alcance) — ver §5.5 |
 | B3 | ==Payload y consumidor de la cola Legacy para E3/E6 (factura+PDF)== | Arquitectura | 🔴 Bloqueante | Canal y SP existen (`ActualizacionPedidoPrepago`/`spActualizarPedidoPrepago`) pero el SP **solo aplica prepago**, no mueve factura/PDF. NO-FU-003 confirmado sin diseño en ningún DIS entregado (6-jul) |
 | B4/G6 | ==FEE: granularidad (cabecera `tpPedido` nueva vs `tpPartidaPedido` existente) y regla de cálculo== | Operaciones MX | 🔴 Bloqueante | `tpPedido.FechaEstimadaEntrega` **no existe**; ya existe cálculo por partida + homologación (`FechaEstimadaEntregaBO`) — decidir si 028 lo reusa tal cual |
 | B6 | Política de reintento del Complemento en cascada | Backend | 🟡 resuelto en diseño, confirmar | ==Estado `GENERADO_COMPLEMENTO_PENDIENTE` propuesto (§4.6); RE-FU-030 reconoce el mismo riesgo (su pendiente P5) sin nombre de estado — proponerlo formalmente a Alberto Pantoja para cerrar ambos con una sola decisión.== Ojo: RE-030 usa "B6" para otro tema (plantilla de correo, ver §5.5) — sincronizar numeración |
@@ -567,9 +567,9 @@ Región Perú · cancelación fiscal SAT · re-timbrado · operaciones masivas �
 | — | `fccNotaCredito.IdTPProformaPedido` pasa a NULLable (RE-FU-032 RT-05, `ALTER` ya agendado) | RE-FU-032 | 🟢 informativo | Actualizar supuesto de datos cuando se ejecute |
 | — | `CFDIGeneradaRelacionado` para el Complemento — el DIS de RE-030 no lo menciona, solo XML `DocumentoRelacionadoCp` | RE-FU-030 (Alberto Pantoja) | 🟡 | Confirmar si el INSERT ocurre en un paso no documentado (§4.4) |
 | OQ-2 | Plantilla asunto/cuerpo correo Complemento (PMO #31) | PMO | 🟡 | Propuesta: `<Folio Pedido Interno> - <Folio Factura>` |
-| OQ-3 | Contacto del pedido ausente / múltiple | Irma | 🟡 | Fuente real `tpPedido.IdContactoCliente` (nullable) → fallback captura manual |
+| ~~OQ-3~~ | ~~Contacto del pedido ausente / múltiple~~ | DUDA-089 | 🟢 **Resuelto** | Mismo mecanismo de envíos existente; sin desarrollo adicional (2026-08-21) |
 | OQ-4 | Vía de excepción para salir con líneas timbradas sin enviar | PMO / Operaciones | 🟡 | Sin salida limpia hoy |
-| OQ-5 | Política de indisponibilidad PAC TurboPac (transversal RE-FU-019) | Backend | 🟡 | — |
+| ~~OQ-5~~ | ~~Política de indisponibilidad PAC TurboPac (transversal RE-FU-019)~~ | DUDA-050 | 🟢 **Resuelto** | Cliente aceptó timbrado uno a uno, no masivo/por lote (2026-08-21); no se contempla "timbrar todo" como mitigación |
 | OQ-6 | Nombre canónico del rol (claim JWT) | PMO / Rosa | 🟡 | — |
 | G-CFDI4 | Fuente de `CodigoPostalReceptor` / `RegimenFiscalReceptor` (nullable en `DatosFacturacionCliente`) | RE-FU-004 | 🟡 | ==Problema transversal — el DIS de RE-032 asume `DatosFacturacionCliente.CodigoPostal`, columna que tampoco existe. Resolver una sola vez con RE-004, no por separado.== |
 | G-tipoCFDI | Reutilizar `CFDIGenerada.TipoDocumento` vs `catTipoCFDI` nuevo | Backend | 🟢 resuelto | §4.4 — usar `catTipoDocumentoFiscal`, no `catTipoCFDI` |

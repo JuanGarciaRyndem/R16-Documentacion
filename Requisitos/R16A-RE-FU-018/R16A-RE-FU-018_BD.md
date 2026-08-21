@@ -321,7 +321,7 @@ siendo **`catTipoCFDI`** (ya diseñado en Finanzas) — no se crea un catalogo a
 | # | Gap | Tipo | Accion |
 |---|-----|------|--------|
 | 1 | ~~Campo/logica 'factura generada pero no enviada'~~ | Tecnico | **Resuelto**: `fccFactura.Enviada` (migrado de `tpProformaAdelanto.Enviada`, ver RE-FU-015/019) |
-| 2 | Tipo de cambio para dolarizacion | Negocio | Confirmar TC historico vs dia actual |
+| 2 | ~~Tipo de cambio para dolarizacion~~ | Negocio | **Resuelto (DUDA-046)**: cada pedido se dolariza individualmente con el TC de su propio pedido/documento origen; luego se suman los montos ya dolarizados. No se usa TC unico del dia de consulta. |
 | 3 | Rol operativo: Gestor Cobranza vs Analista CxC | Negocio | Confirmar denominacion |
 | 4 | Timbrado Peru (OSE/SUNAT) | Tecnico | Brecha mayor - RE-FU-005 B5 |
 | 5 | Cliente sin Cobrador asignado | Operativo | Pendiente invisible |

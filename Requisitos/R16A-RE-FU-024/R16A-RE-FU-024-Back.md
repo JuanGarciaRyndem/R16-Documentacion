@@ -153,7 +153,7 @@ CREATE TABLE [dbo].[fccInconsistenciaCobro](
 
 ### A4 — CREATE SEQUENCE SeqFolioCobro
 
-```sql
+~~```sql
 -- Created by GitHub Copilot in SSMS - review carefully before executing
 -- Ajustar START WITH al MAX consecutivo existente + 1
 CREATE SEQUENCE dbo.SeqFolioCobro
@@ -163,6 +163,25 @@ CREATE SEQUENCE dbo.SeqFolioCobro
     NO CYCLE;
 -- Uso: 'COB-' + FORMAT(FechaPago,'MMddyy') + '-' + RIGHT('000000' + CAST(NEXT VALUE FOR dbo.SeqFolioCobro AS VARCHAR), 6)
 -- Pendiente confirmar: global (MEX+PER compartido) o por región
+```~~
+**Obsoleto por DUDA-072 (Resuelta, 2026-08-21):** el consecutivo NO es global — es independiente por región, con prefijo distinto por región. Reemplazar por dos secuencias:
+
+```sql
+-- DUDA-072: consecutivo independiente por región, prefijo COM (México) / COP (Perú)
+CREATE SEQUENCE dbo.SeqFolioCobroMEX
+    AS INT
+    START WITH 1
+    INCREMENT BY 1
+    NO CYCLE;
+
+CREATE SEQUENCE dbo.SeqFolioCobroPER
+    AS INT
+    START WITH 1
+    INCREMENT BY 1
+    NO CYCLE;
+-- Uso (México): 'COM-' + FORMAT(FechaPago,'MMddyy') + '-' + CAST(NEXT VALUE FOR dbo.SeqFolioCobroMEX AS VARCHAR)
+-- Uso (Perú):   'COP-' + FORMAT(FechaPago,'MMddyy') + '-' + CAST(NEXT VALUE FOR dbo.SeqFolioCobroPER AS VARCHAR)
+-- Prefijos: CO=Cobro, M=México, P=Perú — intuitivos en pantalla.
 ```
 
 ---
@@ -177,8 +196,8 @@ CREATE SEQUENCE dbo.SeqFolioCobro
 
 | Estado item | Muestra | Ordenamiento | `canEdit` (flag DTO) |
 |-------------|---------|-------------|--------------------------|
-| Capturado editable (`Confirmado=1 AND BloqueadoPorTimbrado=0`) | Folio COB-mmddaa-NNNN, fecha, monto + moneda | Por `FechaPago ASC` | `true` (UI muestra botón Editar) |
-| Capturado inmutable (`Confirmado=1 AND BloqueadoPorTimbrado=1`) | Folio COB-mmddaa-NNNN, fecha, monto + moneda; o etiqueta "Saldo a favor" si aplica | Por `FechaPago ASC` | `false` (UI NO muestra botón Editar) |
+| Capturado editable (`Confirmado=1 AND BloqueadoPorTimbrado=0`) | Folio ~~COB~~ **COM**-mmddaa-NNNN (DUDA-072), fecha, monto + moneda | Por `FechaPago ASC` | `true` (UI muestra botón Editar) |
+| Capturado inmutable (`Confirmado=1 AND BloqueadoPorTimbrado=1`) | Folio ~~COB~~ **COM**-mmddaa-NNNN (DUDA-072), fecha, monto + moneda; o etiqueta "Saldo a favor" si aplica | Por `FechaPago ASC` | `false` (UI NO muestra botón Editar) |
 | Sin capturar | Etiqueta temporal "COB-N" | Por `FechaRecepcion ASC` del correo | N/A |
 
 > El DTO `PaymentValidationStep1ItemDto` debe exponer el flag `canEdit` para que el Front condicione la visibilidad del botón Editar. Cálculo en el Handler: `canEdit = Confirmado && !BloqueadoPorTimbrado`.
@@ -215,14 +234,14 @@ CREATE SEQUENCE dbo.SeqFolioCobro
 
 ---
 
-### B5 — Finalización de la captura del cobro (folio COB)
+### B5 — Finalización de la captura del cobro (folio COM/COP — DUDA-072)
 
-**Descripción:** Endpoint `POST` en Finanzas que finaliza la captura del cobro. Valida selección de comprobante, genera folio COB con `SeqFolioCobro`, marca el cobro como capturado con `Confirmado=1`. **NO aplica inmutabilidad** — el cobro queda editable vía botón Editar (endpoint B9) hasta el timbrado del documento asociado.
+**Descripción:** Endpoint `POST` en Finanzas que finaliza la captura del cobro. Valida selección de comprobante, genera folio con prefijo por región (`COM` México / `COP` Perú) usando la secuencia independiente de esa región, marca el cobro como capturado con `Confirmado=1`. **NO aplica inmutabilidad** — el cobro queda editable vía botón Editar (endpoint B9) hasta el timbrado del documento asociado.
 
 **Flujo antes de llamar a ProquifaDotNet:**
 1. Validar comprobante seleccionado (adjunto marcado como oficial)
 2. Validar campos obligatorios completos (incluido `IdCatMoneda`)
-3. Calcular folio: `'COB-' + FORMAT(FechaPago,'MMddyy') + '-' + LPAD(NEXT VALUE FOR SeqFolioCobro, 6, '0')`
+3. ~~Calcular folio: `'COB-' + FORMAT(FechaPago,'MMddyy') + '-' + LPAD(NEXT VALUE FOR SeqFolioCobro, 6, '0')`~~ **Obsoleto (DUDA-072 — Resuelta):** calcular folio según región del cliente: México → `'COM-' + FORMAT(FechaPago,'MMddyy') + '-' + CAST(NEXT VALUE FOR SeqFolioCobroMEX AS VARCHAR)`; Perú → `'COP-' + FORMAT(FechaPago,'MMddyy') + '-' + CAST(NEXT VALUE FOR SeqFolioCobroPER AS VARCHAR)`. El consecutivo es independiente por región.
 4. **Sin alerta de confirmación al Front** (el cobro permanece editable hasta el timbrado).
 
 **Operación (vía API ProquifaDotNet):**
@@ -260,7 +279,7 @@ WHERE IdFCCPagoCliente    = @Id
 
 **Origen técnico del catálogo diario de TC:** revisar catálogo/tabla existente de tipos de cambio en ProquifaDotNet que ya almacena Oficial + Venta por moneda por día. Reutilizar; NO scrappear/consultar DOF en línea desde Finanzas.
 
-**OBS-050 — Doble TC persistido en el cobro (fiscal + operativo):**
+**OBS-050 — Doble TC persistido en el cobro (fiscal + operativo; ver también DUDA-074, misma resolución):**
 El servicio `ExchangeRateService` pre-carga **dos tipos de cambio** cuando la moneda del cobro y la moneda de facturación del cliente difieren, y ambos se persisten en `fccPagoCliente`:
 
 | Campo | Moneda base | Uso | Criterio |
@@ -426,11 +445,14 @@ WHERE ap.IdDocumento           = @IdDocumentoTimbrado
 > ⚠️ **BRECHA — Catálogo de Tipos de Inconsistencia del Paso 1 pendiente (Riesgo 1)**
 > Datos iniciales son propuesta. Catálogo completo pendiente de PROQUIFA Tesorería.
 
-> ✅ **BRECHA — Fuente oficial del TC del día para México — Resuelta OBS-049 (10/08)**
+> ✅ **BRECHA — Fuente oficial del TC del día para México — Resuelta OBS-049 (10/08; ver también DUDA-073, misma resolución)**
 > Confirmado: **TC Oficial DOF (FIX Banxico)** de la fecha del comprobante, **sin margen 2.5%**. Campo editable, no bloquea el avance. Ver B6.
 
-> ⚠️ **BRECHA — Foliador global vs por región**
-> Pendiente confirmar si el consecutivo es compartido MEX+PER o independiente por región.
+> ✅ **BRECHA — Foliador global vs por región — Resuelta DUDA-072 (21/08)**
+> Confirmado: el consecutivo es **independiente por región**. México usa prefijo `COM` con secuencia propia (`SeqFolioCobroMEX`); Perú usa prefijo `COP` con secuencia propia (`SeqFolioCobroPER`). Ver A4 y B5 (actualizados).
+
+> ✅ **BRECHA — Alcance de la asistencia automatizada (IA) — Resuelta DUDA-070 (21/08)**
+> Confirmado: la funcionalidad de auto-completado del formulario vía IA/motor de extracción SÍ está **incluida y comprometida como alcance de R16**. Pendiente para construcción: diseño técnico del endpoint/servicio de extracción (motor, integración, contrato de datos sugeridos, manejo de baja confianza) — no documentado aún en este archivo, requiere análisis técnico adicional antes del desarrollo.
 
 > ⚠️ **BRECHA — Flags MXN/USD vs IdCatMoneda**
 > Pendiente confirmar si los flags `MXN`/`USD` existentes se deprecan o conviven con `IdCatMoneda`.

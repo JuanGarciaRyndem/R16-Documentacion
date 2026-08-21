@@ -3,7 +3,7 @@
 **Aplicativos:** ProquifaDotNet (.NET Framework 4.8) + ProquifaDotNet.Finanzas (.NET Core 10) + DocumentBuilder
 **Modulo:** L05.TramitarPedido + Proforma (Finanzas) + DocumentBuilder
 **Impacto:** Generacion de PDF de Proforma Peru con adaptacion regional (IGV, RUC, CCI, PEN) + template unico GOLPERU + reutilizacion infraestructura RE-FU-016
-**Version:** 3.0 (rev. 2026-07-21 — DIS-SOL v1.2 + Decisión "Quitar Perú" + B2/B8/B9 resueltos + catMoneda.Leyenda DDL)
+**Version:** 3.1 (rev. 2026-08-21 — trazabilidad DUDA-009/018/041/042/044/054 + B10 resuelto)
 
 ---
 
@@ -71,7 +71,7 @@ El BO ProformaModelBuilder (creado en RE-FU-016) debe incorporar logica condicio
 | pago.monedaLocal | clave | MXN (M.N.) | PEN (S/.) |
 | pago.granTotalEnLetra | sufijo | PESOS XX/100 M.N. | SOLES XX/100 |
 | pago.leyendaExhibicion | texto | PAGO EN UNA SOLA EXHIBICION | **[Resuelto — DUDA-043]** Texto fijo "Contado"/"Crédito" en plantilla `GOLPERU_PER_PRO` — **no es campo DTO**; el escenario Perú Prepago siempre es "Contado" |
-| datosBancarios.cuentas | estructura | 2 cuentas (MN + DLS) CLABE | **[Resuelto — DUDA-118/036]** 2 cuentas activas más recientes (PEN/USD) con CCI, mismo criterio que MEX |
+| datosBancarios.cuentas | estructura | 2 cuentas (MN + DLS) CLABE | **[Resuelto — DUDA-044 / DUDA-118/036]** Mismo mecanismo que México: 2 cuentas activas más recientes (PEN/USD) con CCI, mismo criterio que MEX |
 | datosBancarios.labelInterbancario | etiqueta | CLABE | CCI |
 | datosBancarios.refCliente | logica | CodigoValidador (Banamex/otros) | **[Resuelto — Duda FU-006/FU-017]** Razón Social del cliente (mismo camino que no-Banamex, RE-FU-006 Regla 6-PER) |
 | facturacion.labelIdFiscal | etiqueta | RFC | RUC |
@@ -174,7 +174,7 @@ Misma estructura que Mexico, con valores adaptados:
 
 ## Brechas Criticas (Bloqueantes)
 
-> Numeracion alineada con `R16A-RE-FU-017.md` B1-B10. **[Actualizado — Decisión "Quitar Perú" 2026-07-17]** ~~La precondicion OBS-032 implica que todas las brechas B1-B5 son bloqueantes para activar el gating en GAP-08.~~ OBS-032 anulada; GAP-08/08b anulados. Las brechas B3–B7 y B10 siguen abiertas (datos/validación legal). B2, B8 y B9 cerradas.
+> Numeracion alineada con `R16A-RE-FU-017.md` B1-B10. **[Actualizado — Decisión "Quitar Perú" 2026-07-17]** ~~La precondicion OBS-032 implica que todas las brechas B1-B5 son bloqueantes para activar el gating en GAP-08.~~ OBS-032 anulada; GAP-08/08b anulados. Las brechas B3–B7 siguen abiertas (datos/validación legal). B2, B8, B9 y B10 cerradas.
 
 | # | Brecha | Impacto en Back | Estado |
 |---|--------|----------------|--------|
@@ -187,7 +187,7 @@ Misma estructura que Mexico, con valores adaptados:
 | B7 | Logos farmaceuticos Peru no definidos | Footer incompleto | Baja - puede resolverse con assets existentes |
 | ~~B8~~ | ~~Titulo: Proforma vs Factura Proforma~~ **[Resuelto — DUDA-041]** | Template `GOLPERU_PER_PRO` usa título **"Proforma"** | Cerrado |
 | ~~B9~~ | ~~Nomenclatura SOLES vs NUEVOS SOLES~~ **[Resuelto — DUDA-042]** | `MontoALetrasConverter` usa **"SOLES"** (oficial desde 2015) | Cerrado |
-| B10 | TC SUNAT vs TC interno | Calculo en `ProformaModelBuilder` | Media - finanzas |
+| ~~B10~~ | ~~TC SUNAT vs TC interno~~ **[Resuelto — DUDA-054]** | Cálculo en `ProformaModelBuilder` usa el tipo de cambio de Perú ya existente en el sistema (el mismo aplicado a Pedidos no-USD); no se requiere una fuente nueva o distinta | Cerrado |
 
 ---
 

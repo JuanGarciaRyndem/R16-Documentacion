@@ -266,7 +266,7 @@ ORDER BY EmpresaPrefijo, NumeroDeCuenta;
 | --- | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
 | P1  | Confirmar si el modelo EF (`ProquifaDotNetEntities`) se actualiza por scaffolding o manualmente tras el ALTER TABLE | TechLead                           |
 | P2  | Confirmar entrega de cuentas reales (banco, número, CLABE, moneda) por PROQUIFA para carga inicial en BD            | PROQUIFA / Soporte a la Producción |
-| P3  | Catálogo Perú (GOLPERU) fuera de alcance R16 — definir en release posterior                                         | Product Owner                      |
+| P3  | ~~Catálogo Perú (GOLPERU) fuera de alcance R16 — definir en release posterior~~ **Resuelto (DUDA-001, 25/7/2026)** — modelo SUNAT definido; GOLPERU en alcance R16, ver `R16A-RE-FU-001_BD.md` v1.5 | Product Owner                      |
 | P4  | Decisión sobre restricción formal (autorización) de endpoints PUT/DELETE de `EmpresaDatosBancariosController`       | Arquitectura / TechLead            |
 
 ---

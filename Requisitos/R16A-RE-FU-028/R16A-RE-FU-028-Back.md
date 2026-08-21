@@ -12,10 +12,10 @@ Este requisito implementa la **tercera y última pantalla del wizard de Validar 
 
 La lógica condicional del tipo de CFDI por línea es el núcleo del requisito:
 - Proforma sin controlados → **Factura** (CFDI Ingreso PUE o PPD)
-- Proforma con controlados → **Factura Anticipo** (CFDI Ingreso rel. 07 SAT)
+- Proforma con controlados → **Factura Anticipo** (CFDI Ingreso). ~~rel. 07 SAT~~ **INCORRECTO — DUDA-088:** la Factura Anticipo NO usa relación 07. La relación 07 es de la Factura Final (fuera de alcance, se genera en Legacy). Ver `Guia_Tecnica_Facturas_Ingreso_MX.md` sección 6.
 - Factura por Adelantado existente + cobro → **Complemento de Pago** (CFDI Pagos 2.0)
 
-Al confirmar el envío de cada línea, el sistema dispara automáticamente tres acciones: establece la Fecha Estimada de Entrega (FEE), transfiere el pedido y documentos a Legacy, y genera la Confirmación de Pedido adjunta al correo. La operación es individual por línea — sin acciones masivas.
+Al confirmar el envío de cada línea, el sistema dispara automáticamente tres acciones: establece la Fecha Estimada de Entrega (FEE), transfiere el pedido y documentos a Legacy, y genera la Confirmación de Pedido adjunta al correo. La operación es individual por línea — sin acciones masivas (confirmado con cliente, DUDA-050).
 
 ### Distribución de responsabilidades
 
@@ -223,10 +223,10 @@ Si al reingresar al Paso 3 ya existen filas en `fccDocumentoFiscalCobro` para el
 > ⚠️ **Brecha B6 (resuelta — ownership):** Si el Complemento falla tras la Factura PPD timbrada exitosamente, la Factura PPD permanece vigente. **Timbrado no reintenta** (es un servicio síncrono de un solo intento, ver R16A-RE-FU-018); el reintento del Complemento se implementa en Finanzas, en este mismo flujo de generación (R16A-RE-FU-030): la línea permanece `PENDIENTE`, se incrementa un contador de reintentos y se notifica a soporte si se supera el límite — ver Brechas.
 
 **Escenario C — FACTURA_ANTICIPO (1 CFDI):**
-1. Igual que Escenario A con `IdCatTipoCFDI` → `FACTURA_ANTICIPO` y tipo de relación 07 SAT en el XML.
+1. Igual que Escenario A con `IdCatTipoCFDI` → `FACTURA_ANTICIPO`. ~~y tipo de relación 07 SAT en el XML~~ **INCORRECTO — DUDA-088:** la Factura Anticipo NO lleva `CfdiRelacionados`/relación 07. Se genera conforme `Guia_Tecnica_Facturas_Ingreso_MX.md` (sección 6): `ClaveProdServ=84111506`, `ClaveUnidad=ACT`, sin nodo de relación.
 2. Las NCs aplicadas se incluyen en el nodo `CFDIRelacionados` con tipo de relación SAT correspondiente.
 
-> ⚠️ **Brecha B1:** El uso del tipo de relación 07 SAT para la Factura Anticipo de controlados está pendiente de confirmar con asesor fiscal PROQUIFA.
+> ⚠️ ~~**Brecha B1:** El uso del tipo de relación 07 SAT para la Factura Anticipo de controlados está pendiente de confirmar con asesor fiscal PROQUIFA.~~ **RESUELTO — DUDA-088 (2026-08-21):** confirmado que es incorrecto usar la relación 07 en la Factura Anticipo; la relación 07 se usa en la Factura Final (fuera de alcance). Brecha B1 cerrada.
 
 **Escenario D — COMPLEMENTO_PAGO desde FAA existente (1 CFDI):**
 1. Finanzas → Timbrado: solicita timbrado de Complemento de Pago referenciando el UUID de la FAA existente (`fccFactura.IdCFDIGenerada`, RE-FU-015 — antes `tpProformaAdelanto.IdCFDIGenerada`).
@@ -482,8 +482,9 @@ Esta sección documenta todas las transferencias de datos y documentos que Proqu
 
 ## Brechas
 
-> ⚠️ **BRECHA BLOQUEANTE — Tipo de relación SAT para Factura Anticipo de controlados (B1)**
-> Pendiente confirmar con asesor fiscal PROQUIFA si el tipo de relación correcto es `07` (Aplicación de Anticipo) u otro. Sin este dato el XML de la Factura Anticipo no puede estructurarse correctamente para el timbrado ante el PAC TurboPac.
+> ⚠️ ~~**BRECHA BLOQUEANTE — Tipo de relación SAT para Factura Anticipo de controlados (B1)**
+> Pendiente confirmar con asesor fiscal PROQUIFA si el tipo de relación correcto es `07` (Aplicación de Anticipo) u otro. Sin este dato el XML de la Factura Anticipo no puede estructurarse correctamente para el timbrado ante el PAC TurboPac.~~
+> **RESUELTO — DUDA-088 (2026-08-21), Brecha B1 cerrada:** la Factura Anticipo NO usa relación 07 ni ningún `CfdiRelacionados`. La relación 07 corresponde a la Factura Final (documento fuera de alcance, se construye en Legacy). Ver `Guia_Tecnica_Facturas_Ingreso_MX.md` sección 6 para la estructura correcta de la Factura Anticipo.
 
 > ⚠️ **BRECHA MEDIA — Plantilla de correo Complemento de Pago (B2)**
 > El asunto y cuerpo del correo de envío para líneas de Complemento de Pago están pendientes de confirmar con PMO (PMO #31). Propuesta inicial de asunto: `<Folio Pedido Interno> - <Folio Factura>`. Sin esto el modal de envío no puede finalizarse para este tipo de línea.
@@ -500,8 +501,9 @@ Esta sección documenta todas las transferencias de datos y documentos que Proqu
 > ✅ **RESUELTA — Mecanismo de reintento ante fallo del Complemento en cascada PPD (B6)**
 > Si la Factura PPD se timbra exitosamente pero el Complemento falla inmediatamente después, la línea queda en estado inconsistente (Factura vigente sin Complemento). El reintento es responsabilidad de Finanzas, no de Timbrado (Timbrado es síncrono, un solo intento por petición, ver R16A-RE-FU-018), y se implementa en este mismo flujo de generación (Validar Cobro Paso 3 / R16A-RE-FU-030): la línea permanece `PENDIENTE`, se incrementa un contador de reintentos y se notifica a soporte por correo si se supera el límite (mismo patrón documentado en `Diagramas/Diagrama Secuencia Encolamiento Finanzas y Timbrado Factura.md`).
 
-> ⚠️ **BRECHA MEDIA — Comportamiento si el contacto del pedido no está disponible al armar el modal de Envío (B7)**
-> Si el pedido no tiene contacto asignado o hay múltiples contactos, el comportamiento del modal (¿bloquea el envío?, ¿permite captura manual?) está pendiente de confirmar con negocio.
+> ⚠️ ~~**BRECHA MEDIA — Comportamiento si el contacto del pedido no está disponible al armar el modal de Envío (B7)**
+> Si el pedido no tiene contacto asignado o hay múltiples contactos, el comportamiento del modal (¿bloquea el envío?, ¿permite captura manual?) está pendiente de confirmar con negocio.~~
+> **RESUELTO — DUDA-089 (2026-08-21), Brecha B7 cerrada:** se usa el mismo mecanismo de envíos que el sistema actual ya tiene; no requiere desarrollo adicional (se descarta como funcionalidad nueva).
 
 > ⚠️ **BRECHA — Denominación canónica del rol operativo (transversal)**
 > Pendiente resolver formalmente entre "Gestor de Cobranza" y "Analista de Cuentas por Cobrar". Brecha transversal con RE-FU-023 a RE-FU-027.

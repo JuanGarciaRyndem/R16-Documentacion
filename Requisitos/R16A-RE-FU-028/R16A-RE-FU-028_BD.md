@@ -56,7 +56,9 @@ CREATE TABLE [dbo].[catTipoDocumentoFiscal](
         CONSTRAINT [DF_catTipoDocumentoFiscal_Id]    DEFAULT (NEWID()),
     [Clave]                     varchar(30)      NOT NULL,
         -- 'FACTURA'          -> CFDI Ingreso PUE o PPD (proforma sin controlados)
-        -- 'FACTURA_ANTICIPO' -> CFDI Ingreso rel. 07 SAT (proforma con controlados)
+        -- 'FACTURA_ANTICIPO' -> CFDI Ingreso (proforma con controlados)
+        --    -- CORREGIDO (DUDA-088): NO lleva "rel. 07 SAT" -- eso corresponde a la Factura Final
+        --    -- (fuera de alcance). Ver Guia_Tecnica_Facturas_Ingreso_MX.md seccion 6.
         -- 'COMPLEMENTO_PAGO' -> CFDI Pagos 2.0 (FAA existente con cobro asociado)
     [Descripcion]               nvarchar(150)    NOT NULL,
     [Activo]                    bit              NOT NULL
@@ -74,7 +76,7 @@ GO
 -- Datos iniciales
 INSERT INTO dbo.catTipoDocumentoFiscal (Clave, Descripcion) VALUES
     ('FACTURA',          'Factura — CFDI Ingreso (proforma sin productos controlados)'),
-    ('FACTURA_ANTICIPO', 'Factura Anticipo — CFDI Ingreso rel. 07 SAT (proforma con productos controlados)'),
+    ('FACTURA_ANTICIPO', 'Factura Anticipo — CFDI Ingreso (proforma con productos controlados)'), -- DUDA-088: sin rel. 07 (esa es de la Factura Final, fuera de alcance)
     ('COMPLEMENTO_PAGO', 'Complemento de Pago — CFDI Pagos 2.0 (Factura por Adelanto existente)');
 ```
 
@@ -385,7 +387,8 @@ CREATE TABLE [dbo].[catTipoCFDI](
     [Clave]             varchar(20)      NOT NULL,
         -- 'FACTURA_PPD'       -> Factura generada con método PPD
         -- 'FACTURA_PUE'       -> Factura generada con método PUE
-        -- 'FACTURA_ANTICIPO'  -> Factura Anticipo tipo relación 07 SAT (controlados)
+        -- 'FACTURA_ANTICIPO'  -> Factura Anticipo (controlados)
+        --    -- CORREGIDO (DUDA-088): sin tipo de relacion 07 -- ver nota en catTipoDocumentoFiscal arriba
         -- 'COMPLEMENTO_PAGO'  -> CFDI Pagos 2.0
     [Descripcion]       nvarchar(150)    NOT NULL,
     [Activo]            bit              NOT NULL
@@ -404,7 +407,7 @@ GO
 INSERT INTO dbo.catTipoCFDI (Clave, Descripcion) VALUES
     ('FACTURA_PPD',      'Factura — CFDI Ingreso con método de pago PPD (Pago en parcialidades o diferido)'),
     ('FACTURA_PUE',      'Factura — CFDI Ingreso con método de pago PUE (Pago en una sola exhibición)'),
-    ('FACTURA_ANTICIPO', 'Factura Anticipo — CFDI Ingreso con tipo de relación 07 SAT (productos controlados)'),
+    ('FACTURA_ANTICIPO', 'Factura Anticipo — CFDI Ingreso (productos controlados)'), -- DUDA-088: sin tipo de relacion 07 (es de la Factura Final, fuera de alcance)
     ('COMPLEMENTO_PAGO', 'Complemento de Pago — CFDI Pagos 2.0');
 ```
 
@@ -456,7 +459,10 @@ ALTER TABLE dbo.CFDIGenerada
 ALTER TABLE dbo.CFDIGenerada
     ADD IdCFDIRelacionado uniqueidentifier NULL;
         -- Para IdCatTipoCFDI -> 'COMPLEMENTO_PAGO': referencia al IdCFDIGenerada de la Factura PPD relacionada
-        -- Para IdCatTipoCFDI -> 'FACTURA_ANTICIPO': NULL (la relación tipo 07 se arma en XML al timbrar)
+        -- Para IdCatTipoCFDI -> 'FACTURA_ANTICIPO': NULL. -- INCORRECTO (DUDA-088): el comentario previo decia
+        -- "la relacion tipo 07 se arma en XML al timbrar" -- eso es falso, la Factura Anticipo
+        -- NO lleva relacion 07 (esa relacion es de la Factura Final, fuera de alcance, ver
+        -- Guia_Tecnica_Facturas_Ingreso_MX.md seccion 6). Sigue NULL, pero por no tener CfdiRelacionados.
         -- NULL para FACTURA_PPD y FACTURA_PUE
 
 -- FK blanda (self-referencia); no se declara como FOREIGN KEY de BD para evitar
@@ -756,7 +762,7 @@ LEFT JOIN dbo.CFDIGenerada cg_c
 
 | # | Brecha | Bloqueante | Acción |
 |---|--------|-----------|--------|
-| B1 | Tipo de relación SAT para Factura Anticipo (controlados): ¿07 Aplicación de Anticipo o diferente? | Sí | Confirmar con asesor fiscal PROQUIFA |
+| ~~B1~~ | ~~Tipo de relación SAT para Factura Anticipo (controlados): ¿07 Aplicación de Anticipo o diferente?~~ | ~~Sí~~ | **RESUELTO — DUDA-088 (2026-08-21):** la Factura Anticipo NO usa relación 07; esa relación es de la Factura Final (fuera de alcance). Brecha cerrada. |
 | B2 | Plantilla correo Complemento de Pago: asunto y cuerpo pendientes (PMO #31) | Media | Confirmar con PMO/Tesorería |
 | B3 | Mecanismo de transferencia a Legacy desde Paso 3: canal (tabla ETL, cola RabbitMQ, API Legacy) no definido | Sí | Definir con arquitectura antes de implementar |
 | B4 | FEE: reglas de cálculo y nivel de granularidad. `tpPartidaPedido.FechaEstimadaEntrega` ya existe (FEE por partida al tramitar). Pendiente confirmar: (a) si RE-028 actualiza partidas o solo la cabecera `tpPedido`; (b) si la cabecera requiere valor derivado cuando las partidas tienen FEEs distintas; (c) regla de cálculo (días hábiles, fecha fija, parámetro por empresa) | Sí | Confirmar con operaciones PROQUIFA México antes de implementar el ALTER |
@@ -770,8 +776,8 @@ LEFT JOIN dbo.CFDIGenerada cg_c
 
 | # | Gap | Tipo | Acción |
 |---|-----|------|--------|
-| G1 | Relación SAT tipo 07 para Factura Anticipo de controlados | Fiscal | Asesor fiscal |
-| G2 | Política ante caída del PAC TurboPac en Paso 3 (transversal con RE-FU-019) | Técnico | Definir reintento/encolamiento |
+| ~~G1~~ | ~~Relación SAT tipo 07 para Factura Anticipo de controlados~~ | Fiscal | **RESUELTO — DUDA-088:** NO usa relación 07 (esa es de la Factura Final, fuera de alcance). |
+| G2 | Política ante caída del PAC TurboPac en Paso 3 (transversal con RE-FU-019) | Técnico | Definir reintento/encolamiento. **DUDA-050 (resuelto):** el timbrado se mantiene uno a uno, no masivo/por lote — el cliente aceptó esta restricción, no aplica timbrado masivo como mitigación. |
 | G3 | Formato y foliador de Confirmación de Pedido para Prepago | Negocio | PMO/Operaciones |
 | G4 | UPDATE inicial TipoCFDI en registros CFDIGenerada previos (FAA generadas en RE-FU-019) | Técnico | Script de migración al ejecutar RE-FU-028 |
 | G5 | Transferencia Legacy: estructura del payload (qué tablas Legacy recibe) | Técnico | Arquitectura Legacy |

@@ -61,7 +61,7 @@ Al activar Factura por Adelantado para un pedido Crédito, el sistema no permite
 **Regla 5 — Generación del pendiente Factura por Adelantado al tramitar**
 Al activar Factura por Adelantado y ejecutar la acción de tramitar, el sistema genera un pendiente en el módulo Factura por Adelantado con la información necesaria para que el rol correspondiente gestione posteriormente la emisión y timbrado de la factura PPD. La tramitación del pedido no espera a la emisión de la factura.
 
-> ** Pendiente confirmar con el cliente qué rol gestiona la emisión y timbrado de la factura PPD (Finanzas o Coordinador de Planeación y Control). **
+> ~~Pendiente confirmar con el cliente qué rol gestiona la emisión y timbrado de la factura PPD (Finanzas o Coordinador de Planeación y Control).~~ **[Cerrado por DUDA-028, 2026-08-21]** El rol responsable de la emisión y timbrado de la factura PPD no se define en este requisito: queda determinado por los permisos/roles de acceso al módulo Factura por Adelantado, definidos en el requisito correspondiente a dicho módulo (ver DUDA-047).
 
 **Regla 6 — Factura por Adelantado no bloquea la Confirmación de Pedido**
 La gestión del pendiente Factura por Adelantado es un proceso independiente. La Confirmación de Pedido se genera de inmediato y el pedido continúa su flujo crédito regular en paralelo a la futura emisión de la factura PPD.
@@ -120,7 +120,7 @@ Como los datos de facturación se fijan al activar Factura por Adelantado sin op
 - **Cuando** se completa la tramitación del pedido,
 - **Entonces** el sistema deberá generar automáticamente un pendiente en el módulo Factura por Adelantado, asociado al pedido tramitado, para que el rol responsable ejecute posteriormente la emisión y timbrado de la factura PPD.
 
-> ** Pendiente confirmar con el cliente qué rol gestiona la emisión y timbrado de la factura PPD (Finanzas o Coordinador de Planeación y Control). **
+> ~~Pendiente confirmar con el cliente qué rol gestiona la emisión y timbrado de la factura PPD (Finanzas o Coordinador de Planeación y Control).~~ **[Cerrado por DUDA-028, 2026-08-21]** El rol responsable se define mediante los permisos/roles de acceso al módulo Factura por Adelantado (ver DUDA-047, requisito del módulo Factura por Adelantado), no como parte de este criterio.
 
 ### Sección C — Confirmación, FEE, cancelación y transferencia
 
@@ -175,3 +175,4 @@ Como los datos de facturación se fijan al activar Factura por Adelantado sin op
 | #   | Fecha      | Observación           | Descripción del cambio                                                                                                                                                                                                                                                            |
 | --- | ---------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | 2026-06-10 | Sincronización matriz | Regla 4: campo Cobrador actualizado para incluir campos fiscales regionales (RFC/RUC, Uso CFDI / Tipo de Operación SUNAT según región). Regla 9 agregada: composición regionalizada del panel de Información de Facturación. Criterio A4 agregado: validación regional del panel. |
+| 2   | 2026-08-21 | Cierre de duda (DUDA-028) | Regla 5 y Criterio B2: se cierra la pregunta abierta sobre qué rol gestiona la emisión y timbrado de la factura PPD. Queda establecido que la definición del rol responsable corresponde a los permisos/roles de acceso del módulo Factura por Adelantado (ver DUDA-047), y no a este requisito. |
