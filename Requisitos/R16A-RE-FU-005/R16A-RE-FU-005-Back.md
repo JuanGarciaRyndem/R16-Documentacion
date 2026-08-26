@@ -20,7 +20,7 @@ Con la cancelación del timbrado para Perú, se eliminan de este requisito:
 
 Se mantiene y agrega:
 
-- Validación de registros SAT en catálogos — **⏸ En espera** (pendiente Excel de Proquifa)
+- Validación de registros SAT en catálogos — ~~**⏸ En espera** (pendiente Excel de Proquifa)~~ **✅ RESUELTO (2026-08-24)** — catálogo `catMedioDePago` México definitivo recibido del cliente, ver sección 3 (GAP-03)
 - `IdCatMedioDePago` (Forma de Pago) se agrega a `DatosFacturacionCliente` para centralizar los tres campos de Cobros en un solo objeto
 - Validación obligatoria de los tres campos de Cobros al guardar `DatosFacturacionCliente`
 
@@ -54,7 +54,7 @@ Se mantiene y agrega:
 |-------|-------------|-------------------------|--------|
 | **R1** — Campos de Cobros en `DatosFacturacionCliente` | Los tres campos (Forma de Pago, Uso de CFDI, Método de Pago) se almacenan en `DatosFacturacionCliente` | FKs desde `DatosFacturacionCliente` a `catMedioDePago`, `catUsoCFDI` y `catMetodoDePagoCFDI` | Parcial — `IdCatMedioDePago` no existe aún en `DatosFacturacionCliente` |
 | **R2** — Validación campos obligatorios | Al guardar, los tres campos deben estar capturados; si alguno está vacío → error | Validación en BO antes de `GuardarOActualizar` | PENDIENTE |
-| **R3** — Registros SAT validados | Los registros de los tres catálogos deben tener claves SAT correctas (cruzar con catálogo SAT + Excel Proquifa) | UPDATE masivo tras confirmar claves | ⏸ En espera |
+| **R3** — Registros SAT validados | Los registros de los tres catálogos deben tener claves SAT correctas (cruzar con catálogo SAT + Excel Proquifa) | UPDATE masivo tras confirmar claves | ✅ RESUELTO (2026-08-24) — `catMedioDePago` México reemplazado con 8 registros y claves SAT confirmadas |
 | **R4** — Sin restricción de rol | Cualquier usuario con acceso puede consultar catálogos | Sin control de rol en backend | OK — sin cambio |
 
 ---
@@ -120,30 +120,32 @@ private void ValidarCamposCobros(DatosFacturacionCliente dfc)
 
 ---
 
-### GAP-03 — Registros SAT sin validar en catálogos ⏸ En espera
+### GAP-03 — Registros SAT sin validar en catálogos ~~⏸ En espera~~ ✅ RESUELTO PARA `catMedioDePago` (2026-08-24)
 
 **Archivos:** BD — `catMedioDePago`, `catMetodoDePagoCFDI`, `catUsoCFDI`
 
 **Impacto:** Regla R3 — Los registros existentes en los tres catálogos deben tener claves SAT correctas para que el timbrado CFDI no sea rechazado por el PAC.
 
-**Estado:** ⏸ En espera del Excel de equivalencias que enviará Proquifa. No ejecutar actualizaciones hasta recibirlo y confirmarlo.
+**Estado:** **✅ `catMedioDePago` resuelto (2026-08-24)** — el cliente entregó el catálogo definitivo de México (8 registros, ver `R16A-RE-FU-005_BD.md` sección 1) y confirmó que ya está cargado en el sistema. `catMetodoDePagoCFDI` y `catUsoCFDI` siguen sin catálogo definitivo confirmado — no se recibió Excel de equivalencias para esos dos.
 
 **Proceso de validación a realizar:**
 
 | Catálogo BD | Campo a validar | Catálogo SAT de referencia | Acción al detectar diferencia |
 |---|---|---|---|
-| `catMedioDePago` | `ClaveFormaDePago` | c_FormaPago (ver tabla abajo) | Asignar clave correcta o inactivar registro |
+| `catMedioDePago` | `ClaveFormaDePago` | c_FormaPago (ver tabla abajo) | ✅ Resuelto — ver catálogo final en `R16A-RE-FU-005_BD.md` |
 | `catMetodoDePagoCFDI` | `ClaveMetodoDePagoCFDI` | c_MetodoPago: solo PUE / PPD | Revisar con cliente si hay claves distintas |
 | `catUsoCFDI` | `ClaveUso` | c_UsoCFDI (ver tabla abajo) | Corregir clave o inactivar si no existe en SAT |
 
-**Registros conocidos con clave SAT incompleta:**
+**Registros conocidos con clave SAT incompleta (histórico — resuelto para `catMedioDePago`):**
 
-| Tabla | Registro | Campo vacío | Estado |
+~~| Tabla | Registro | Campo vacío | Estado |
 |-------|----------|-------------|--------|
 | `catMedioDePago` | Aba | `ClaveFormaDePago` | ⏸ Pendiente Excel Proquifa |
 | `catMedioDePago` | NA | `ClaveFormaDePago` | ⏸ Pendiente Excel Proquifa |
 | `catMedioDePago` | —NINGUNO— | `ClaveFormaDePago` | ⏸ Pendiente Excel Proquifa |
-| `catMedioDePago` | Swift | `ClaveFormaDePago` | ⏸ Pendiente Excel Proquifa |
+| `catMedioDePago` | Swift | `ClaveFormaDePago` | ⏸ Pendiente Excel Proquifa |~~
+
+**✅ Resuelto (2026-08-24):** los 4 registros anteriores (Aba, NA, —NINGUNO—, Swift) no existen en el catálogo final entregado por el cliente — fueron **retirados/reemplazados**, no completados con una clave SAT. Esto implica una curaduría pendiente de confirmar (ver Regla 9 de `R16A-RE-FU-005.md`): cualquier cliente que tuviera asignada alguna de esas 4 opciones queda con una referencia inválida y debe reasignarse. El catálogo final completo (8 registros con GUIDs, claves SAT y `IdRegion`) está documentado en `R16A-RE-FU-005_BD.md`, sección 1.
 
 **Catálogos SAT de referencia (Anexo 20 CFDI 4.0):**
 
@@ -210,12 +212,10 @@ private void ValidarCamposCobros(DatosFacturacionCliente dfc)
 | CN01 | Nómina |
 
 ```sql
--- Ejecutar SOLO tras recibir y confirmar el Excel de Proquifa
--- Cruzar cada registro contra los catálogos SAT de referencia y asignar la clave correcta
--- UPDATE dbo.catMedioDePago SET ClaveFormaDePago = 'XX' WHERE Clave = 'Aba';
--- UPDATE dbo.catMedioDePago SET ClaveFormaDePago = 'XX' WHERE Clave = 'NA';
--- UPDATE dbo.catMedioDePago SET ClaveFormaDePago = 'XX' WHERE Clave = 'NINGUNO';
--- UPDATE dbo.catMedioDePago SET ClaveFormaDePago = 'XX' WHERE Clave = 'Swift';
+-- ✅ RESUELTO (2026-08-24) para catMedioDePago — el UPDATE dirigido a Aba/NA/NINGUNO/Swift ya no aplica:
+-- esos registros no forman parte del catálogo final. Ver el INSERT documentado del catálogo completo
+-- en R16A-RE-FU-005_BD.md, sección "Script de Cambio Estructural R16".
+-- catMetodoDePagoCFDI y catUsoCFDI siguen pendientes de Excel de Proquifa.
 ```
 
 ---
@@ -256,7 +256,7 @@ WHERE dfc.IdCatMedioDePago      IS NULL
 |---|---------|----------------|
 | 1 | BD — `DatosFacturacionCliente` | `ALTER TABLE`: agregar `IdCatMedioDePago` FK (GAP-01) |
 | 2 | BO/Controller — `DatosFacturacionCliente` | Agregar validación de tres campos obligatorios (GAP-02) |
-| 3 | BD — `catMedioDePago` | `UPDATE ClaveFormaDePago` — ⏸ En espera Excel Proquifa (GAP-03) |
+| 3 | BD — `catMedioDePago` | ✅ RESUELTO (2026-08-24) — catálogo definitivo México cargado por el cliente (GAP-03) |
 
 ---
 
@@ -276,9 +276,9 @@ WHERE dfc.IdCatMedioDePago      IS NULL
 
 | # | Pendiente | Responsable |
 |---|-----------|-------------|
-| P1 | Excel de equivalencias SAT por catálogo — necesario para completar GAP-03 | Proquifa / Funcional |
+| P1 | ~~Excel de equivalencias SAT por catálogo — necesario para completar GAP-03~~ | ✅ RESUELTO (2026-08-24) para `catMedioDePago`; sigue pendiente para `catMetodoDePagoCFDI`/`catUsoCFDI` |
 | P2 | Confirmar si el `IdCatMedioDePago` que ya existe en `ConfiguracionPagos` se mantiene o se retira tras agregar el FK en `DatosFacturacionCliente` | TechLead |
-| P3 | Confirmar clave SAT c_FormaPago para Aba, NA, NINGUNO y Swift | Funcional / Cliente |
+| P3 | ~~Confirmar clave SAT c_FormaPago para Aba, NA, NINGUNO y Swift~~ | ✅ SIN OBJETO (2026-08-24) — esos registros no están en el catálogo final; queda pendiente confirmar curaduría de clientes afectados (Regla 9) |
 
 ---
 
@@ -289,4 +289,4 @@ WHERE dfc.IdCatMedioDePago      IS NULL
 - [ ] Al guardar `DatosFacturacionCliente` con **Uso de CFDI** vacío → mensaje de error específico.
 - [ ] Al guardar `DatosFacturacionCliente` con **Método de Pago** vacío → mensaje de error específico.
 - [ ] Los tres catálogos retornan solo registros `Activo = 1`.
-- [ ] `catMedioDePago` tiene `ClaveFormaDePago` completa en todos los registros activos — ⏸ condicionado a GAP-03.
+- [x] `catMedioDePago` tiene `ClaveFormaDePago` completa en todos los registros activos — ✅ RESUELTO (2026-08-24), catálogo de 8 registros con claves SAT confirmadas.

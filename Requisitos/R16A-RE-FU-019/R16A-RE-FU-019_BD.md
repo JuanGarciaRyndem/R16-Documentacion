@@ -115,6 +115,8 @@ timbrado en R16A-RE-FU-018 (Parte 3) via `ALTER TABLE` posteriores.
 >
 > **⚠️ Pendiente revisar adicionalmente — ¿es la misma que `catMedioDePago`?**
 > `catMedioDePago` es una tabla existente en ProquifaDotNet que almacena las formas de pago del sistema (con campo `ClaveFormaDePago` que debería mapear al catálogo c_FormaPago SAT). `catFormaPagoSAT` sería un catálogo nuevo con las mismas 22 claves SAT. Antes de crear esta tabla confirmar si `catMedioDePago` ya cubre este rol o si ambas deben coexistir (una para la operación comercial, otra como catálogo SAT de referencia para el CFDI). Si son equivalentes, la FK de `CFDIGenerada.IdCatFormaPagoSAT` podría apuntar directamente a `catMedioDePago` y esta tabla no sería necesaria.
+>
+> **Dato nuevo (2026-08-24), no resuelve el pendiente por completo:** el cliente entregó el catálogo definitivo de `catMedioDePago` para México (ver `R16A-RE-FU-005_BD.md`) y **solo tiene 8 registros** (claves SAT 01/02/03/04/28/30/31/99) — es un subconjunto operativo, no las 22 claves completas de c_FormaPago. Esto sugiere que `catMedioDePago` está pensado como catálogo comercial (opciones que el usuario puede seleccionar), no como catálogo de referencia SAT completo, por lo que `catFormaPagoSAT` con las 22 claves podría seguir siendo necesario si `CFDIGenerada` requiere soportar claves fuera de esas 8. Se mantiene como pendiente de decisión, ahora con este dato adicional.
 
 Catálogo c_FormaPago del SAT. Seed con las 22 claves vigentes. Requerido como prerequisito de `CFDIGenerada` (FK `IdCatFormaPagoSAT`). La clave `99` (Por definir) se usa en FAA; las demás claves son utilizadas en facturas PUE y Complementos de Pago (RE-FU-030).
 

@@ -13,12 +13,16 @@
 
 | # | Clave | Título simple | Tipo | Aplicativo | Bloqueante |
 |---|-------|--------------|------|-----------|----------|
-| 1 | UPDATE-TABL-CH | Insertar catálogo interno de medio de pago Perú en catMedioDePago | BD | ProquifaDotNet | ⛔ BRECHA |
+| 1 | UPDATE-TABL-CH | Insertar catálogo interno de medio de pago Perú en catMedioDePago | BD | ProquifaDotNet | ✅ RESUELTA (2026-08-24) |
 | 2 | UPDATE-TABL-CH | Insertar cuentas bancarias de Golocaer S.A.C. Perú (GOLPERU) | BD | ProquifaDotNet | ⛔ BRECHA |
 | 3 | ALG-COMPLX-LOGIC | Servicio — Tipo de Cambio del día automático para el cobro (Perú) | Back | ProquifaDotNet.Finanzas | ⛔ BRECHA |
 | 4 | IMP-EXIST-SERVICE | Adaptar endpoints del Paso 1 (RE-FU-024) para variante Región Perú | Back | ProquifaDotNet.Finanzas | ⛔ BRECHA |
 
-> ⛔ Todas las tareas bloqueadas por: catálogo de medio de pago Perú (Tesorería PROQUIFA), cuentas bancarias GOLPERU (RE-FU-006) y fuente del TC peruana. Las Tareas 3 y 4 solo pueden completarse cuando las Tareas 1 y 2 estén resueltas.
+> **✅ Actualización 2026-08-24:** la Tarea 1 (catálogo `catMedioDePago` Perú) quedó **resuelta** — el cliente confirmó que el catálogo definitivo ya está cargado en BD. Ver el detalle actualizado más abajo en esta misma Tarea, y en `R16A-RE-FU-025_BD.md` / `R16A-RE-FU-025-Back.md`.
+>
+> ⚠️ **Nota adicional (DIS-SOL RE-025, 22/07/2026 — ver `R16A-RE-FU-025-Back.md`):** el DIS-SOL descartó el `TipoCambioPeruService` mencionado en las Tareas 3 y 4 de más abajo (decisión DP3) — el TC de Perú se resuelve con el mismo `ExchangeRateService` de RE-024, que ya determina la moneda base según la región del usuario. Las Tareas 3 y 4 de este documento describen un enfoque anterior al DIS-SOL y deben releerse junto con `R16A-RE-FU-025-Back.md` antes de ejecutarse.
+>
+> ⛔ Las Tareas 2, 3 y 4 siguen bloqueadas por: cuentas bancarias GOLPERU (RE-FU-006) y fuente del TC peruana. La Tarea 4 depende además de que la Tarea 3 esté resuelta.
 
 ---
 
@@ -26,38 +30,47 @@
 
 **[ RE-FU-025 ] [UPDATE-TABL-CH] Insertar catálogo interno de medio de pago Perú en catMedioDePago**
 
+**✅ RESUELTA (2026-08-24)** — ~~⛔ BRECHA~~
+
 **Aplicativos:** ProquifaDotNet
 
 **Módulos:** Base de Datos — Validar Cobro Paso 1 Perú
 
-**Consideraciones previas:**
-- `catMedioDePago` ya existe en BD con el campo `ClaveFormaDePago` varchar(2) **NULLABLE**. No requiere ALTER TABLE.
+**Consideraciones previas (histórico — supuestos previos a la resolución):**
+~~- `catMedioDePago` ya existe en BD con el campo `ClaveFormaDePago` varchar(2) **NULLABLE**. No requiere ALTER TABLE.
 - Los registros Perú se insertan con `ClaveFormaDePago = NULL` (no es catálogo SAT; es control interno de Tesorería).
 - El catálogo completo está **pendiente de definición con PROQUIFA Tesorería**. Los valores propuestos (Transferencia, Depósito, Cheque, Efectivo) son sugerencia.
 - SUNAT no exige declarar el medio de pago en el comprobante; el campo sirve solo para control interno.
-- Sin estos datos el combo "Medio de pago" del formulario Paso 1 Perú en Finanzas queda vacío.
+- Sin estos datos el combo "Medio de pago" del formulario Paso 1 Perú en Finanzas queda vacío.~~
 
-**Objetivo general:**
-Insertar los registros del catálogo interno de medio de pago de Perú en `catMedioDePago` con `ClaveFormaDePago = NULL`, para poblar el combo del formulario del Paso 1 Perú en Finanzas.
+**✅ Actualización 2026-08-24 — catálogo definitivo recibido y cargado:**
+- El cliente confirmó (2026-08-24) que el catálogo ya está **actualizado/cargado en `catMedioDePago`** para la región Perú, con 4 registros: Depósito en cuenta (`001`), Transferencia de fondos (`003`), Tarjeta de débito (`005`), Otros medios de pago (`999`).
+- ⚠️ **Corrección respecto al supuesto original:** `ClaveFormaDePago` **NO quedó NULL** para los registros Perú — tiene valores (`001`/`003`/`005`/`999`), pero son **códigos internos de 3 dígitos**, no equivalentes al catálogo SAT c_FormaPago de 2 dígitos usado en México. El discriminador correcto entre México y Perú es `IdRegion`, no "`ClaveFormaDePago` NULL vs NOT NULL" (ver Tarea 4, que debe actualizarse en consecuencia).
+- ⚠️ **Corrección respecto al supuesto original:** no se usó prefijo `PER-` en las claves; las claves reales (`001`, `003`, `005`, `999`) siguen el mismo formato numérico usado en México, distinguiéndose únicamente por `IdRegion`.
+- Los 4 registros tienen `ObligatorioEnCliente = 0`, lo que confirma en BD la resolución de DUDA-076 (medio de pago NO obligatorio en Perú).
+- El listado de valores ya no incluye "Cheque" ni "Efectivo" (que eran sugerencia inicial) sino "Tarjeta de débito" y "Otros medios de pago".
+
+**Objetivo general (cumplido):**
+Insertar los registros del catálogo interno de medio de pago de Perú en `catMedioDePago`, para poblar el combo del formulario del Paso 1 Perú en Finanzas. El cliente reporta que la carga ya se realizó en el sistema.
 
 **Objetivos específicos:**
-- Ejecutar el DML de INSERT con los valores confirmados por PROQUIFA Tesorería.
-- Usar claves con prefijo `PER-` para distinguir claramente los registros Perú de los México (SAT).
-- Verificar que no se insertan duplicados (comprobar claves existentes antes del INSERT).
+- ~~Ejecutar el DML de INSERT con los valores confirmados por PROQUIFA Tesorería.~~ ✅ Completado por el cliente — ver script documentado en `R16A-RE-FU-025_BD.md`.
+- ~~Usar claves con prefijo `PER-` para distinguir claramente los registros Perú de los México (SAT).~~ ❌ No aplica — la distinción real es por `IdRegion`, no por prefijo de clave.
+- Verificar que no existan duplicados (comprobar claves/GUIDs existentes) — **pendiente de confirmación técnica**, ya que la carga fue reportada por el cliente, no ejecutada por el equipo.
 - Validar que los registros se muestran correctamente en el combo del formulario filtrado por región.
 
 **Resultado esperado:**
-`catMedioDePago` con los registros Perú insertados y disponibles para ser retornados por el endpoint de catálogo del formulario Paso 1 Perú en Finanzas.
+`catMedioDePago` con los 4 registros Perú insertados y disponibles para ser retornados por el endpoint de catálogo del formulario Paso 1 Perú en Finanzas.
 
 **Entregables:**
-- Script DML: `INSERT catMedioDePago` (valores finales confirmados por Tesorería)
-- Script de validación (`SELECT` de registros Perú)
+- ~~Script DML: `INSERT catMedioDePago` (valores finales confirmados por Tesorería)~~ — script documentado post-hoc en `R16A-RE-FU-025_BD.md` (para trazabilidad; la carga ya fue reportada como hecha por el cliente).
+- Script de validación (`SELECT` de registros Perú) — **pendiente de ejecutar** para confirmar contra el esquema real.
 
 **Criterios de aceptación:**
-- Los registros Perú existen en `catMedioDePago` con `ClaveFormaDePago = NULL`.
-- Las claves tienen prefijo `PER-` para distinguirlas de las claves SAT mexicanas.
-- No hay duplicados en la tabla.
-- El endpoint de catálogo de Finanzas retorna correctamente estos registros filtrados por región Perú.
+- Los registros Perú existen en `catMedioDePago` — ✅ (4 registros: Depósito en cuenta, Transferencia de fondos, Tarjeta de débito, Otros medios de pago).
+- ~~Las claves tienen prefijo `PER-` para distinguirlas de las claves SAT mexicanas.~~ ❌ Ya no aplica — se distinguen por `IdRegion`.
+- No hay duplicados en la tabla — **pendiente de verificar**.
+- El endpoint de catálogo de Finanzas retorna correctamente estos registros filtrados por región Perú — pendiente de implementar/validar en la Tarea 4.
 
 **Más información de la tarea:**
 Ver sección *"Parte A / A1 — INSERT catMedioDePago Perú"* en `R16A-RE-FU-025-Back.md` y sección *"Catálogo Medio de Pago Peru"* en `R16A-RE-FU-025_BD.md`.
@@ -186,7 +199,7 @@ Ver sección *"Parte B / B1 — TipoCambioPeruService"* en `R16A-RE-FU-025-Back.
 Extender los endpoints del Paso 1 implementados en RE-FU-024 para soportar la variante Perú: retornar el catálogo interno de medio de pago Perú, las cuentas GOLPERU como cuenta destino y usar `TipoCambioPeruService` para el TC del día, todo condicionado a la región del cliente.
 
 **Objetivos específicos:**
-- Extender el endpoint de catálogo de medio de pago para filtrar por región: si región=MEX → `ClaveFormaDePago IS NOT NULL`; si región=PER → `ClaveFormaDePago IS NULL`.
+- Extender el endpoint de catálogo de medio de pago para filtrar por región usando **`IdRegion`** (⚠️ actualizado 2026-08-24: el filtro NO debe basarse en `ClaveFormaDePago IS NULL/IS NOT NULL` — desde la carga del catálogo Perú, `ClaveFormaDePago` tiene valores en ambas regiones (`001`/`003`/`005`/`999` en Perú, códigos SAT de 2 dígitos en México); el discriminador correcto es `IdRegion`).
 - Extender el endpoint de cuentas destino para filtrar por empresa y región: si región=MEX → GOL/MUN/PRO/PQF; si región=PER → GOLPERU.
 - Condicionar el servicio de TC del día: si región=MEX → `TipoCambioService`; si región=PER → `TipoCambioPeruService`.
 - Validar que la cabecera del cliente retorna la etiqueta "RUC" para clientes Perú.
@@ -200,7 +213,7 @@ Los endpoints del Paso 1 detectan la región del cliente y sirven los catálogos
 - Pruebas unitarias de la bifurcación por región (MEX vs PER)
 
 **Criterios de aceptación:**
-- Para clientes Perú, el combo "Medio de pago" retorna solo registros con `ClaveFormaDePago IS NULL`.
+- Para clientes Perú, el combo "Medio de pago" retorna solo registros con `IdRegion` = Perú (⚠️ actualizado 2026-08-24 — ya no se filtra por `ClaveFormaDePago IS NULL`, ver nota arriba).
 - Para clientes Perú, el combo "Cuenta destino" retorna solo cuentas GOLPERU.
 - Para clientes Perú, el TC del día usa `TipoCambioPeruService` (base PEN).
 - La cabecera del cliente Perú muestra etiqueta "RUC".

@@ -172,11 +172,11 @@ CREATE TABLE PerfilFiscal (
 
 **Filas iniciales del catálogo, ya conocidas para la operación de PROQUIFA:**
 
-| `PerfilFiscalId` | Nombre | `TasaOCuota` | `SatTipoFactorCode` | `SatObjetoImpCode` | Fundamento |
-|---|---|---|---|---|---|
-| 1 | IVA General 16% | 0.160000 | Tasa | 02 | Art. 1 LIVA |
-| 2 | IVA Tasa 0% | 0.000000 | Tasa | 02 | Art. 2-A LIVA |
-| 3 | Exento | NULL | Exento | 02 | Art. 9 LIVA |
+| `PerfilFiscalId` | Nombre          | `TasaOCuota` | `SatTipoFactorCode` | `SatObjetoImpCode` | Fundamento    |
+| ---------------- | --------------- | ------------ | ------------------- | ------------------ | ------------- |
+| 1                | IVA General 16% | 0.160000     | Tasa                | 02                 | Art. 1 LIVA   |
+| 2                | IVA Tasa 0%     | 0.000000     | Tasa                | 02                 | Art. 2-A LIVA |
+| 3                | Exento          | NULL         | Exento              | 02                 | Art. 9 LIVA   |
 
 Una cuarta fila (IEPS) queda pendiente de agregar únicamente si el cliente confirma que algún producto lo requiere — no se crea sin esa confirmación.
 

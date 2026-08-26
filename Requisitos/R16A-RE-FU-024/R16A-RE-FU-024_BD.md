@@ -1,7 +1,36 @@
 # Impacto en BD — R16A-RE-FU-024
 **Requisito:** Validar Cobro: Paso 1 México — Captura del Cobro
 **Base de Datos:** ProquifaDotNet
-**Versión:** 1.2 (actualizado 2026-06-23: editabilidad del cobro hasta el timbrado — se agrega `BloqueadoPorTimbrado` y se redefine la semántica del campo `Confirmado`)
+**Versión:** 1.3 (actualizado 2026-08-24: incorpora el Diseño de la Solución — DIS-SOL v1.0 — que **sustituye el enfoque de ALTER sobre `fccPagoCliente` por la fusión en una tabla nueva `fccCobroCliente`**)
+
+---
+
+## 🔄 ACTUALIZACIÓN 2026-08-24 — Diseño de la Solución (DIS-SOL v1.0, Osmar Calderón)
+
+> **Todo el enfoque descrito en las secciones originales de este archivo (ALTERs sobre `fccPagoCliente`, `BloqueadoPorTimbrado`/`FechaBloqueoTimbrado`, `SEQUENCE SeqFolioCobroMEX/PER`) queda SUSTITUIDO por el diseño técnico formal.** Se conservan las secciones originales abajo como trazabilidad histórica (marcadas donde aplica), pero **el diseño vigente para construcción es el DIS-SOL** — ver archivo completo `[R16A-RE-FU-024][DIS-SOL] Diseño de la solución.md` en esta misma carpeta.
+
+**Qué cambia respecto al enfoque original de este archivo:**
+
+| Original (este archivo, hasta v1.2) | DIS-SOL v1.0 (vigente) |
+|---|---|
+| `ALTER TABLE fccPagoCliente` (extender tabla existente) | **`CREATE TABLE fccCobroCliente`** — tabla **nueva**, fusión de `fccPagoCliente` + `fccFolioPagoCliente`; ambas + `vFCCFolioPagoCliente` se **DROP** (decisión D1) |
+| `Confirmado` (bit) + `BloqueadoPorTimbrado` (bit) + `FechaBloqueoTimbrado` como banderas de estado | Se **retiran las tres banderas**; el ciclo de vida vive únicamente en `IdCatCobroEstatus` → catálogo **`catCobroEstatus`** (7 claves: BORRADOR, CAPTURADO, ASOCIADO, SALDO_A_FAVOR, CON_INCONSISTENCIA, COMPLETADO, CANCELADO). **No existe estatus `TIMBRADO`** — decisión D2b, confirmada por el cliente: el cobro no se timbra, lo que se timbra es el documento fiscal. `canEdit` se deriva de `IdCatCobroEstatus IN (BORRADOR, CAPTURADO, ASOCIADO)`. Solo queda `Activo` como soft-delete puro |
+| `TipoDeCambio` / `TipoDeCambioMonedaFacturacion` | Rename a **`TipoDeCambioFiscal`** / **`TipoDeCambioFacturacion`** (mismo propósito dual OBS-050, ya reflejado aquí; solo cambia el nombre de columna) |
+| `SEQUENCE dbo.SeqFolioCobroMEX` / `SeqFolioCobroPER` | Patrón de foliador de **RE-013**: tabla `fccCobroClienteConsecutivo` (una fila por región) + `sp_IncrementarFolioCobro` (UPDLOCK+ROWLOCK) — el consecutivo participa del rollback (sin huecos ni duplicados) |
+| — | Campos nuevos sin equivalente en el enfoque original: **`IdRegion`** (heredado del cliente, parámetro del foliador — D8b), **`IdCorreoRecibidoClienteReferencia`** (nullable, índice único filtrado — llave idempotente contra reintentos del Mailbot legacy, D12), **`SaldoAFavor`** (pinta el saldo sin JOIN), **`IdCFDIComplementoPago`** (FK al REP timbrado) |
+| `IdEmpresa` NOT NULL | **Nullable** (confirmado 10/08/2026, decisión D13) |
+
+**⚠️ Conflicto abierto — formato del folio:** el DIS-SOL v1.0 (decisión D8, documento fechado 20/07/2026) especifica el folio como `COB-MMDDYY-NNNN` (prefijo único "COB"), **sin** incorporar el prefijo diferenciado por región de DUDA-072 (`COM` México / `COP` Perú), resuelta el 21/08/2026 — **posterior** a esa versión del diseño. El seed del foliador de Perú en el DIS-SOL (`PER/COB/0`) también sigue siendo provisional. Este archivo, en sus secciones originales abajo, ya adoptó `COM`/`COP` (DUDA-072) para el enfoque de SEQUENCE — **ese mismo ajuste está pendiente de trasladarse al DIS-SOL** (tabla `fccCobroClienteConsecutivo` y el cálculo del folio) antes de construcción.
+
+**Orden de ejecución de scripts (DIS-SOL):** 1) `catCobroEstatus` + seed — lo ejecuta **RE-002** (prerrequisito); 2) `CREATE TABLE fccCobroCliente`; 3) `catTipoInconsistenciaCobro` + datos iniciales; 4) `fccInconsistenciaCobro`; 5) `fccCobroClienteConsecutivo` (seed 2 filas: MEX/COB/0, PER/COB/0 — ⚠️ prefijo a corregir a COM/COP por el conflicto arriba) + `sp_IncrementarFolioCobro`; 6) `DROP VIEW vFCCFolioPagoCliente`; `DROP TABLE fccFolioPagoCliente`; `DROP TABLE fccPagoCliente`; 7) Regenerar Scaffold EF; 8) Reescribir el Mailbot (RE-008) para insertar en `fccCobroCliente` con estatus `BORRADOR` e `IdRegion`.
+
+**DDL completo de `fccCobroCliente` (28 columnas), `catCobroEstatus`, `catTipoInconsistenciaCobro`, `fccInconsistenciaCobro` y el foliador:** ver el archivo `[R16A-RE-FU-024][DIS-SOL] Diseño de la solución.md`, sección "Diseño de Modelo de Datos" — no se duplica aquí para evitar desincronización entre dos copias del mismo DDL.
+
+---
+
+## Secciones originales (histórico — enfoque ALTER sobre `fccPagoCliente`, versiones 1.0–1.2)
+
+> Las secciones siguientes documentan el análisis de impacto BD previo al DIS-SOL. Se conservan como trazabilidad; **no representan el DDL vigente** — ver la actualización arriba.
 
 ---
 

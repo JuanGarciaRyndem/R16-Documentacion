@@ -1,8 +1,55 @@
 # Impacto en Back — R16A-RE-FU-025
 **Requisito:** Validar Cobro: Paso 1 Perú — Captura del Cobro
-**Aplicativos:** ProquifaDotNet (.NET Framework 4.8) + ProquifaDotNet.Finanzas (.NET Core 10)
+**Aplicativos:** ProquifaDotNet (.NET Framework 4.8) + Proquifa.Pqf2.Finanzas (.NET Core 10)
 **Módulo:** Validar Cobro — Wizard Paso 1 (Perú)
-**Impacto:** Scripts BD ProquifaDotNet (DML: INSERT catMedioDePago Perú + INSERT cuentas bancarias GOLPERU — ambos BRECHA) + Endpoints Finanzas: reutilización completa de RE-FU-024 con variantes de catálogos Perú (medio de pago interno, cuentas GOLPERU, TC vs PEN) + llamadas entre APIs (Finanzas → ProquifaDotNet)
+**Impacto:** Documento **delta** — RE-025 no crea código ni endpoints nuevos. Reutiliza íntegramente el CQRS de RE-024 sobre `fccCobroCliente`; solo aporta DML de catálogos regionales (medio de pago Perú, cuentas GOLPERU — ambos BRECHA) y una verificación de guardia por región en el `SavePaymentCommand` existente.
+**Versión:** 1.1 (actualizado 2026-08-24: incorpora el Diseño de la Solución — DIS-SOL v1.0, Osmar Calderón, 22/07/2026)
+
+---
+
+## 🔄 ACTUALIZACIÓN 2026-08-24 — Diseño de la Solución (DIS-SOL v1.0, Osmar Calderón, 22/07/2026)
+
+> **Hallazgo principal del DIS-SOL: el servicio `TipoCambioPeruService` que la sección B1 original de este archivo daba por hecho que se construiría NO se crea.** Queda descartado (decisión DP3) — el `ExchangeRateService` único de RE-024 ya resuelve Perú resolviendo la moneda base (PEN) por la región del usuario. **Impacto en código: CERO** — ni en Proquifa.Pqf2.Finanzas ni en ProquifaDotNet. Único punto a *verificar* (no reescribir): que el `SavePaymentCommand` de RE-024 persista `TipoDeCambioFiscal = NULL` para todos los cobros de clientes Perú (regla RT-P02) — si RE-024 no lo hace explícito por región, se agrega esa guardia allí antes del despliegue conjunto, no en RE-025.
+
+**Qué resuelve el DIS-SOL respecto a las Brechas de la sección original (abajo):**
+
+| Brecha original (sección "Brechas") | Resolución DIS-SOL |
+|---|---|
+| ⛔ "Fuente del TC para Perú" (bloqueante) | **Resuelta (DP2):** BCRP, ya persistida en `TipoDeCambioBanamex` por el importador vigente. Sin brecha técnica pendiente |
+| B1 — Servicio `TipoCambioPeruService` (Parte B, sección B1 original) | **Descartado (DP3):** no se construye; ver hallazgo principal arriba |
+| Doble TC — "análogo a OBS-049/050 aplicado a Perú" (sección B1 original, tabla de lógica) | **Confirmado con ajuste (DP4):** un solo TC persiste en Perú — `TipoDeCambioFacturacion` (rename de `TipoDeCambioMonedaFacturacion` en el DIS-SOL de RE-024); `TipoDeCambioFiscal` (rename de `TipoDeCambio`) **siempre NULL**, sin excepción — RT-P02 |
+| ⚠️ "Foliador global vs. por región" | **Sigue documentada como abierta en el DIS-SOL de RE-025** (fechado 22/07/2026) — pero **DUDA-072 (21/08/2026) ya la resolvió** para RE-024: consecutivo independiente por región (`COM` México / `COP` Perú). Ninguno de los dos DIS-SOL (024 ni 025) incorpora aún el ajuste. Mismo conflicto documentado en `R16A-RE-FU-024-Back.md` — pendiente antes de construcción |
+
+**Brechas que siguen abiertas sin cambio:** cuentas bancarias GOLPERU (0 registros — B1/B2 de la sección "Brechas" original) y catálogo de medio de pago Perú pendiente de transcripción de la imagen del cliente (DUDA-076) — el DIS-SOL agrega que la columna `IdRegion` de `catMedioDePago` la aporta **RE-005**, no RE-025 ni RE-024.
+
+**Endpoints:** el DIS-SOL confirma explícitamente que **no se crea ningún endpoint nuevo** para Perú — todos los de `/api/v1/validate-collection/*` (definidos en RE-024) son region-agnósticos por diseño; la región se resuelve del token del usuario. Esto reemplaza cualquier lectura previa de este archivo que sugiriera un servicio o endpoint paralelo para Perú.
+
+**Payloads con matiz Perú (sin cambio de contrato/DTO):** `exchange-rate` retorna `fiscal: null` siempre para Perú; el `currencyCode` de los items del listado es `"PEN"` cuando aplica.
+
+---
+
+## ✅ ACTUALIZACIÓN 2026-08-24 (2) — Catálogo definitivo de medio de pago Perú RECIBIDO — Brecha DUDA-076 RESUELTA
+
+> **La brecha "Catálogo interno de medio de pago Perú" (sección "Brechas" abajo) queda cerrada.** El cliente entregó el catálogo con 4 registros reales. Reemplaza cualquier valor placeholder (`PER-TRF`/`PER-DEP`/`PER-CHQ`/`PER-EFE`) citado en las secciones A1/B2 originales de este archivo.
+
+| Medio de pago | `Clave` | `ClaveFormaDePago` | `ObligatorioEnCliente` |
+|---|---|---|---|
+| Depósito en cuenta | `depositoencuentaperu` | `001` | 0 |
+| Transferencia de fondos | `transferenciadefondosperu` | `003` | 0 |
+| Tarjeta de débito | `tarjetadedebitoperu` | `005` | 0 |
+| Otros medios de pago | `otrosmediosdepagoperu` | `999` | 0 |
+
+**Impacto en el combo del formulario (B2 original — adaptación de catálogos):** el combo "Medio de pago" para Perú ya tiene datos para poblarse — deja de estar vacío. Sigue **NO obligatorio** para Perú (las 4 filas confirman `ObligatorioEnCliente = 0`, consistente con DUDA-076).
+
+**Corrección a la fila "Medio de pago" de la tabla B2 original:** decía `ClaveFormaDePago IS NULL (interno)` para Perú — el dato real muestra que **`ClaveFormaDePago` sí tiene valor** (`001`/`003`/`005`/`999`, códigos internos de 3 dígitos, no equivalentes al catálogo SAT c_FormaPago de México que usa 2 dígitos). El filtro por región para distinguir el combo México/Perú debe hacerse por `IdRegion`, no por nulidad de `ClaveFormaDePago` — el detalle completo del DDL/DML está en `R16A-RE-FU-025_BD.md`, actualización 2026-08-24 (2).
+
+**Brechas bloqueantes restantes:** solo cuentas bancarias GOLPERU (0 registros) y el catálogo de inconsistencias (transversal con RE-024) — ver sección "Brechas" abajo, ya marcada.
+
+---
+
+## Secciones originales (histórico — endpoints/servicios previos al DIS-SOL, versión 1.0)
+
+> Las secciones siguientes documentan el análisis de impacto Back previo al DIS-SOL, incluida la propuesta de un servicio `TipoCambioPeruService` que el DIS-SOL descartó (ver actualización arriba). Se conservan como trazabilidad; **no representan el diseño vigente**.
 
 ---
 
@@ -133,8 +180,8 @@ El cobro capturado en el Paso 1 se vinculará en el Paso 2 a un documento (factu
 
 ## Brechas
 
-> ⛔ **BRECHA BLOQUEANTE — Catálogo interno de medio de pago Perú (DUDA-076, cerrada)**
-> Resuelto en negocio: el campo se regionaliza y en Perú deja de ser obligatorio. Pendiente exclusivamente operativo: el cliente entregó (18/08) la lista definitiva de valores, pero como imagen; falta transcribirla a texto para poder cargar `catMedioDePago` en BD. Sin esos valores, el combo del formulario Paso 1 Perú queda vacío (aunque, al no ser obligatorio, ya no bloquea el avance del wizard).
+> ✅ **RESUELTA (2026-08-24) — Catálogo interno de medio de pago Perú (DUDA-076)**
+> ~~Resuelto en negocio: el campo se regionaliza y en Perú deja de ser obligatorio. Pendiente exclusivamente operativo: el cliente entregó (18/08) la lista definitiva de valores, pero como imagen; falta transcribirla a texto para poder cargar `catMedioDePago` en BD.~~ El cliente entregó los 4 registros ya transcritos y cargados en `catMedioDePago` — ver actualización 2026-08-24 (2) arriba. El combo del formulario Paso 1 Perú ya tiene datos para poblarse.
 
 > ⛔ **BRECHA BLOQUEANTE — Cuentas bancarias GOLPERU (0 registros)**
 > Las cuentas bancarias de Golocaer S.A.C. Perú no están en BD. Sin estos datos, el combo "Cuenta destino" del formulario Paso 1 Perú queda vacío. Depende de R16A-RE-FU-006.

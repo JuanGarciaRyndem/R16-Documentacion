@@ -1,11 +1,54 @@
 # Impacto en Back — R16A-RE-FU-024
 **Requisito:** Validar Cobro: Paso 1 México — Captura del Cobro
-**Aplicativos:** ProquifaDotNet (.NET Framework 4.8) + ProquifaDotNet.Finanzas (.NET Core 10)
+**Aplicativos:** ProquifaDotNet (.NET Framework 4.8) + Proquifa.Pqf2.Finanzas (.NET Core 10)
 **Módulo:** Validar Cobro — Wizard Paso 1 (México)
-**Impacto:** Scripts BD ProquifaDotNet (ALTER fccPagoCliente x5 RE-FU-023 + **ALTER fccPagoCliente x2 NUEVOS RE-FU-024 (BloqueadoPorTimbrado, FechaBloqueoTimbrado)** + CREATE catTipoInconsistenciaCobro + CREATE fccInconsistenciaCobro + CREATE SEQUENCE SeqFolioCobro) + Endpoints Finanzas: listado cobros, detalle correo, captura/autoguardado/finalización cobro, **edición del cobro mientras no esté timbrado**, foliador COB, TC del día, modal inconsistencia + llamadas entre APIs (Finanzas → ProquifaDotNet, incluye catálogos existentes de moneda/medio de pago/cuenta destino)
+**Impacto:** CQRS en Proquifa.Pqf2.Finanzas sobre la tabla fusionada `fccCobroCliente` + catálogo `catCobroEstatus` + `catTipoInconsistenciaCobro`/`fccInconsistenciaCobro` + foliador `fccCobroClienteConsecutivo`/`sp_IncrementarFolioCobro` + endpoints `/api/v1/validate-collection/*` (listado, guardado unificado auto-guardado/edición, finalización con folio, TC dual, inconsistencia, estado del wizard) + consumo directo de servicios/catálogos existentes de ProquifaDotNet (correo/adjuntos, moneda, medio de pago, cuentas)
+**Versión:** 1.1 (actualizado 2026-08-24: incorpora el Diseño de la Solución — DIS-SOL v1.0 — que reemplaza los endpoints B1–B10 originales por el diseño CQRS formal sobre `fccCobroCliente`)
 
 > **🔄 Cambio funcional 2026-06-23 — Editabilidad del cobro hasta el timbrado:**
 > La regla "cobro inmutable al confirmar" se actualizó a "cobro inmutable al timbrar el documento asociado en el Paso 3". Impacto en Back: (1) nuevo campo BD `BloqueadoPorTimbrado` + `FechaBloqueoTimbrado` en `fccPagoCliente`; (2) el endpoint de finalización de la captura (B5) ya no aplica inmutabilidad, solo genera folio COB y marca `Confirmado=1`; (3) **nuevo endpoint B9 — Editar cobro** que permite UPDATE del formulario completo mientras `BloqueadoPorTimbrado=0` (aun si el cobro ya está asociado en Paso 2); (4) el listado de cobros (B1) debe retornar el flag `canEdit` para que la UI condicione el botón Editar; (5) las guardias de los endpoints de auto-guardado y edición evalúan `BloqueadoPorTimbrado` en lugar de `Confirmado`; (6) el flip de `BloqueadoPorTimbrado=1` lo dispara el Paso 3 al timbrar el documento asociado (UPDATE sobre todas las `fccPagoCliente` aplicadas a ese documento).
+> **Superado por el DIS-SOL (ver actualización 2026-08-24 abajo):** este mecanismo de bandera se sustituye por el estatus `IdCatCobroEstatus`; `BloqueadoPorTimbrado`/`FechaBloqueoTimbrado` ya no existen como columnas — se conserva esta nota como trazabilidad de la evolución de la regla.
+
+---
+
+## 🔄 ACTUALIZACIÓN 2026-08-24 — Diseño de la Solución (DIS-SOL v1.0, Osmar Calderón)
+
+> **Los endpoints B1–B10 y el detalle de Parte A/B/C de este archivo (secciones originales, abajo) quedan SUSTITUIDOS por el diseño CQRS formal.** Se conservan como trazabilidad histórica del análisis previo al DIS-SOL. El diseño vigente para construcción es el archivo `[R16A-RE-FU-024][DIS-SOL] Diseño de la solución.md` (esta misma carpeta) — aquí se resume el delta más relevante para quien ya conocía el enfoque original.
+
+**Componentes (reemplaza la tabla "Distribución de responsabilidades" original):**
+
+| Componente | Responsabilidad | Ubicación |
+|---|---|---|
+| **Proquifa.Pqf2.Finanzas** | Orquestación CQRS del Paso 1: listado, auto-guardado + edición (un solo endpoint), finalización con folio, los dos TC, inconsistencia, estado del wizard | Solución .NET Core 10 nueva (no es el mismo proyecto Finanzas legacy referido en versiones previas de este archivo) |
+| ProquifaDotNet | BD + catálogos existentes (correo/adjuntos, catMoneda, catMedioDePago, cuentas, TipoDeCambioBanamex) — consumo **directo**, sin wrapper | .NET Framework 4.8 |
+| BD (SQL Server) | `fccCobroCliente`, `catCobroEstatus`, `catTipoInconsistenciaCobro`, `fccInconsistenciaCobro`, foliador | ProquifaDotNet |
+
+**Endpoints nuevos (reemplazan B1, B4, B5, B6, B7, B8, B9 — el detalle completo de request/response está en el DIS-SOL, sección "4. Endpoints nuevos/modificados"):**
+
+| Endpoint | Sustituye a | Diferencia clave |
+|---|---|---|
+| `GET /api/v1/validate-collection/payment?clientId={id}` | B1 (listado) | Mismo propósito; el DTO ahora expone `status` (estatus, no `Confirmado`/`BloqueadoPorTimbrado`) y trae el detalle completo del capturado (paymentMethod, cuentas, TC, notas) para pintar el panel sin llamada adicional |
+| `PUT /api/v1/validate-collection/payment/{id}` | B4 (auto-guardado) **+** B9 (editar) | **Un solo endpoint unificado** — B4 y B9 se fusionan; difieren solo en el disparador (navegación/salida vs. botón Editar). Guardia: `estatus IN (BORRADOR, CAPTURADO, ASOCIADO)`, `409` si ya inmutable. La fila **preexiste** (la crea el Mailbot en BORRADOR) → es *update-by-id*, no upsert |
+| `POST /api/v1/validate-collection/payment/{id}/finalize` | B5 (finalización) | Ya no hace `UPDATE ... WHERE Confirmado=0`; transiciona `BORRADOR → CAPTURADO` vía estatus |
+| `GET /api/v1/validate-collection/exchange-rate` | B6 (TC del día) | Mismo cálculo dual (fiscal + facturación, OBS-049/050); el nombre del servicio interno (`ExchangeRateService`) **colisiona** con el del importador de TC — pendiente distinguir por namespace o renombrar |
+| `GET .../inconsistency-type?step=1` + `POST .../inconsistency` | B7 (inconsistencia) | Mismo propósito; `IdCatCobroEstatus = CON_INCONSISTENCIA` reemplaza el marcado anterior. **`Activo` ya no se apaga** al marcar inconsistencia (antes sí lo hacía en algunas versiones del análisis) |
+| `GET .../client/{clientId}/wizard-status` | B8 (estado wizard) | Mismo propósito (OBS-048) |
+| — (eliminado) | B10 (bloqueo por timbrado) | **Ya no aplica** — no existe `BloqueadoPorTimbrado` que "flipear"; el timbrado transiciona el cobro a `COMPLETADO`/`SALDO_A_FAVOR` (estatus terminal) desde el propio Paso 3 |
+
+**Convención de rutas:** los endpoints nuevos siguen `{ip}/api/v1/*`, kebab-case e inglés (antes el KB usaba camelCase en `wizardStatus`/`inconsistencyType`/`exchangeRate` — se normalizan a `wizard-status`/`inconsistency-type`/`exchange-rate`).
+
+**⚠️ Pendientes que trae el propio DIS-SOL relevantes a Back:**
+- Colisión de nombre `ExchangeRateService` con el servicio importador de TC (namespace o rename).
+- El detalle del correo + adjuntos ahora se resuelve con **una sola llamada** a `GET /Logistica/ObtenerRequerimiento` (existente, mismo que usa "Cotizar lo cotizable") — sustituye la combinación de 4 endpoints de `/Catalogos/*` que documentaba B2 originalmente.
+- `catMoneda` se filtra por región vía `CatMonedaRegion` (JOIN existente, sin DDL nuevo) — esto **resuelve** la brecha "Filtro de región en `/Catalogos/catMoneda`" que quedaba abierta en la sección de Brechas original (abajo).
+
+**⚠️ Conflicto sin resolver (ver también `_BD.md`):** el folio en el DIS-SOL es `COB-MMDDYY-NNNN` (D8), sin el prefijo `COM`/`COP` por región de DUDA-072 (resuelta después de la v1.0 del diseño). B5 (sección original abajo) ya había adoptado `COM`/`COP` — ese ajuste sigue pendiente de trasladarse al DIS-SOL.
+
+---
+
+## Secciones originales (histórico — endpoints B1–B10 sobre `fccPagoCliente`, versión 1.0)
+
+> Las secciones siguientes documentan el análisis de impacto Back previo al DIS-SOL. Se conservan como trazabilidad; **no representan los endpoints vigentes** — ver la actualización arriba y el archivo DIS-SOL completo.
 
 ---
 

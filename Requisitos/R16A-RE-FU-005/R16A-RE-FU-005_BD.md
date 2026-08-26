@@ -41,7 +41,7 @@ Cliente
 
 | Entidad | Tipo | Cambio R16 | Observación |
 |---|---|---|---|
-| `catMedioDePago` | Catálogo | Claves SAT pendientes — ⏸ En espera Excel | `ClaveFormaDePago` incompleta en 4 registros |
+| `catMedioDePago` | Catálogo | ✅ Catálogo definitivo recibido (2026-08-24) | Reemplaza el catálogo previo — ver sección 1 |
 | `catMetodoDePagoCFDI` | Catálogo | Sin cambios estructurales | PUE/PPD — solo México |
 | `catUsoCFDI` | Catálogo | Sin cambios estructurales | G01/G03/S01 etc. — solo México |
 | `DatosFacturacionCliente` | Tabla | Agregar `IdCatMedioDePago` (FK) | Centraliza los tres campos de Cobros |
@@ -52,7 +52,44 @@ Cliente
 ## 1. catMedioDePago — Forma de Pago
 
 **Propósito:** Medio o forma de pago. Clave SAT del catálogo c_FormaPago, requerida para el CFDI.
-**Cambio R16:** Sin cambios estructurales. Pendiente completar `ClaveFormaDePago` en 4 registros — ⏸ En espera Excel Proquifa.
+**Cambio R16:** Sin cambios estructurales. Además de las columnas documentadas originalmente, el catálogo final incluye `RequiereNumeroDeCuenta`, `ObligatorioEnProveedor`, `ObligatorioEnCliente` e `IdRegion` (uniqueidentifier, FK a `Region` — ver `R16A-RE-FU-005-Tareas.md` Tarea 1/GAP-01).
+
+**✅ ACTUALIZACIÓN 2026-08-24 — Catálogo definitivo México recibido del cliente:**
+
+El cliente entregó el listado final y confirmó que ya está cargado/actualizado en el sistema. Reemplaza por completo el catálogo previo (10 registros ad-hoc: Aba, Cheque, Depósito bancario, Efectivo, NA, —NINGUNO—, Otros, Swift, Tarjeta, Transferencia) por un catálogo de 8 registros alineados 1:1 con el catálogo SAT c_FormaPago:
+
+| `IdCatMedioDePago` | `MedioDePago` | `Activo` | `RequiereNumeroDeCuenta` | `ObligatorioEnProveedor` | `ClaveFormaDePago` | `Clave` | `ObligatorioEnCliente` | `IdRegion` |
+|---|---|---|---|---|---|---|---|---|
+| C171F83F-4991-4D0B-8D6C-D1A97AB0BA99 | Efectivo | 1 | 0 | 0 | 01 | efectivo | 1 | 60390FDA-7773-4BA1-8120-CB874F3A3A53 |
+| 48D850F1-AFEE-415A-9554-330D8A292DD2 | Cheque nominativo | 1 | 0 | 0 | 02 | cheque | 1 | 60390FDA-7773-4BA1-8120-CB874F3A3A53 |
+| 19A562AE-41E8-43C1-AA7C-A20000FE0A66 | Transferencia electrónica de fondos | 1 | 1 | 1 | 03 | transferencia | 1 | 60390FDA-7773-4BA1-8120-CB874F3A3A53 |
+| 9AD47844-ADFB-4177-AC64-33E2864C87CC | Tarjeta de crédito | 1 | 1 | 1 | 04 | tarjetadecredito | 1 | 60390FDA-7773-4BA1-8120-CB874F3A3A53 |
+| C4C59BBE-C057-4D02-A01C-2E78D3C40CD3 | Tarjeta de débito | 1 | 0 | 0 | 28 | tarjetadedebito | 1 | 60390FDA-7773-4BA1-8120-CB874F3A3A53 |
+| A1F5D3B2-4C6E-4A8F-9D1C-7E2B4F6A8C0D | Aplicación de anticipos | 1 | 0 | 0 | 30 | aplicaciondeanticiposmex | 1 | 60390FDA-7773-4BA1-8120-CB874F3A3A53 |
+| D587112C-1894-4318-9B66-EEDDF9CDDBED | Intermediario de pagos | 1 | 0 | 1 | 31 | depositobancario | 1 | 60390FDA-7773-4BA1-8120-CB874F3A3A53 |
+| A955C869-4CD4-4A80-A9D3-77E69E3E1ADA | Por definir | 1 | 0 | 0 | 99 | otros | 1 | 60390FDA-7773-4BA1-8120-CB874F3A3A53 |
+
+`IdRegion = 60390FDA-7773-4BA1-8120-CB874F3A3A53` es el GUID de la región México (mismo patrón que Perú en `R16A-RE-FU-025_BD.md`, con `IdRegion = 8278ECD0-C337-4484-B008-5B5E65B0DFAF`).
+
+**Hallazgos a verificar con el cliente/Tesorería:**
+- **Los registros ambiguos previos (Aba, NA, —NINGUNO—, Swift) NO aparecen en el catálogo final** — no fueron completados con una clave SAT, sino **retirados/reemplazados**. Esto activa la **Regla 9** del requisito (curaduría de clientes con opciones dadas de baja): cualquier cliente que tuviera asignado alguno de esos 4 valores queda con una referencia inválida tras el reemplazo y debe reasignarse a una opción vigente. **Pendiente confirmar con el cliente si ya se ejecutó esa curaduría junto con la carga del catálogo, o si queda como acción de seguimiento.**
+- `Clave` (interna) `depositobancario` está asociada a `MedioDePago` = "Intermediario de pagos" (clave SAT 31) — nombre distinto al de la clave interna; no parece error de transcripción del cliente, pero vale la pena que el equipo confirme que es intencional antes de mostrarlo en el combo.
+- ⚠️ La tabla de referencia SAT c_FormaPago documentada más abajo en este mismo archivo (sección "Catálogos SAT de Referencia") numera 28=A satisfacción del acreedor, 29=Tarjeta de débito, 30=Tarjeta de servicios, 31=Aplicación de anticipos — pero el catálogo real recibido usa 28=Tarjeta de débito, 30=Aplicación de anticipos, 31=Intermediario de pagos (sin usar 29). Uno de los dos listados tiene un desfase de numeración; dado que estos son los valores que el cliente reporta como ya cargados, se toman como la fuente vigente, pero vale la pena que el área fiscal confirme la tabla de referencia SAT contra el Anexo 20 CFDI 4.0 actual.
+
+**Registros previos (histórico — reemplazados):**
+
+| Descripción | `ClaveFormaDePago` SAT | Observación |
+|---|---|---|
+| Aba | *(vacío)* | ⛔ No está en el catálogo final — retirado |
+| Cheque | 02 | Reemplazado por "Cheque nominativo" |
+| Depósito bancario | 31 | Reemplazado por "Intermediario de pagos" (misma clave SAT 31) |
+| Efectivo | 01 | Se mantiene igual |
+| NA | *(vacío)* | ⛔ No está en el catálogo final — retirado |
+| —NINGUNO— | *(vacío)* | ⛔ No está en el catálogo final — retirado |
+| Otros | 99 | Reemplazado por "Por definir" (misma clave SAT 99) |
+| Swift | *(vacío)* | ⛔ No está en el catálogo final — retirado |
+| Tarjeta | 04 | Reemplazado por "Tarjeta de crédito"; se agrega "Tarjeta de débito" (28) como registro nuevo |
+| Transferencia | 03 | Reemplazado por "Transferencia electrónica de fondos" |
 
 | Columna                  | Tipo             | Longitud | Nulo | Descripción                          |
 | ------------------------ | ---------------- | -------- | ---- | ------------------------------------ |
@@ -61,23 +98,10 @@ Cliente
 | `ClaveFormaDePago`       | varchar          | 2        | SÍ   | Clave SAT c_FormaPago — nullable     |
 | `Clave`                  | varchar          | 150      | NO   | Clave interna del sistema            |
 | `RequiereNumeroDeCuenta` | bit              | 1        | NO   | Requiere captura de número de cuenta |
+| `ObligatorioEnProveedor` | bit              | 1        | NO   | Obligatorio en catálogo proveedor    |
 | `ObligatorioEnCliente`   | bit              | 1        | SÍ   | Obligatorio en catálogo cliente      |
+| `IdRegion`               | uniqueidentifier | 16       | SÍ   | FK → `Region`                        |
 | `Activo`                 | bit              | 1        | NO   | Default: 1                           |
-
-**Registros activos:**
-
-| Descripción | `ClaveFormaDePago` SAT | Observación |
-|---|---|---|
-| Aba | *(vacío)* | ⏸ Pendiente Excel Proquifa |
-| Cheque | 02 | ✅ OK |
-| Depósito bancario | 31 | ✅ OK |
-| Efectivo | 01 | ✅ OK |
-| NA | *(vacío)* | ⏸ Pendiente Excel Proquifa |
-| —NINGUNO— | *(vacío)* | ⏸ Pendiente Excel Proquifa |
-| Otros | 99 | ✅ OK |
-| Swift | *(vacío)* | ⏸ Pendiente Excel Proquifa |
-| Tarjeta | 04 | ✅ OK |
-| Transferencia | 03 | ✅ OK |
 
 ---
 
@@ -190,7 +214,7 @@ Cliente
 | 31        | Aplicación de anticipos             |
 | 99        | Por definir                         |
 
-**Validación a ejecutar:** cruzar cada `ClaveFormaDePago` activa en `catMedioDePago` contra esta tabla. Si no existe → corregir o inactivar. Claves vacías (Aba, NA, NINGUNO, Swift) → asignar la clave correspondiente según el Excel de Proquifa.
+**Validación a ejecutar:** ~~cruzar cada `ClaveFormaDePago` activa en `catMedioDePago` contra esta tabla. Si no existe → corregir o inactivar. Claves vacías (Aba, NA, NINGUNO, Swift) → asignar la clave correspondiente según el Excel de Proquifa.~~ **✅ RESUELTO (2026-08-24):** el cliente entregó el catálogo definitivo (ver sección 1 arriba) con las 8 claves SAT ya asignadas (01/02/03/04/28/30/31/99); los registros sin clave (Aba, NA, NINGUNO, Swift) fueron retirados en el reemplazo, no completados. Pendiente: confirmar la numeración 28/29/30/31 contra el Anexo 20 CFDI 4.0 vigente (ver nota de discrepancia en la sección 1).
 
 ### c_MetodoPago — referencia para `catMetodoDePagoCFDI.ClaveMetodoDePagoCFDI`
 
@@ -248,14 +272,23 @@ ALTER TABLE dbo.DatosFacturacionCliente
 GO
 ```
 
-### Completar claves SAT en `catMedioDePago` ⏸ En espera Excel Proquifa
+### ~~Completar claves SAT en `catMedioDePago`~~ ✅ RESUELTO — catálogo reemplazado (2026-08-24)
 
 ```sql
--- EJECUTAR SOLO TRAS RECIBIR Y CONFIRMAR EL EXCEL DE PROQUIFA
--- UPDATE dbo.catMedioDePago SET ClaveFormaDePago = 'XX' WHERE Clave = 'Aba';
--- UPDATE dbo.catMedioDePago SET ClaveFormaDePago = 'XX' WHERE Clave = 'NA';
--- UPDATE dbo.catMedioDePago SET ClaveFormaDePago = 'XX' WHERE Clave = 'NINGUNO';
--- UPDATE dbo.catMedioDePago SET ClaveFormaDePago = 'XX' WHERE Clave = 'Swift';
+-- NOTA: el cliente reporta que este catálogo ya fue cargado en el sistema.
+-- Script documentado por trazabilidad — verificar contra el esquema real antes de re-ejecutar.
+-- Reemplaza el catálogo previo completo (los registros Aba, NA, NINGUNO y Swift no forman parte del catálogo final).
+INSERT INTO dbo.catMedioDePago
+    (IdCatMedioDePago, MedioDePago, Activo, RequiereNumeroDeCuenta, ObligatorioEnProveedor, ClaveFormaDePago, Clave, ObligatorioEnCliente, IdRegion)
+VALUES
+    ('C171F83F-4991-4D0B-8D6C-D1A97AB0BA99', N'Efectivo',                             1, 0, 0, '01', 'efectivo',                  1, '60390FDA-7773-4BA1-8120-CB874F3A3A53'),
+    ('48D850F1-AFEE-415A-9554-330D8A292DD2', N'Cheque nominativo',                    1, 0, 0, '02', 'cheque',                    1, '60390FDA-7773-4BA1-8120-CB874F3A3A53'),
+    ('19A562AE-41E8-43C1-AA7C-A20000FE0A66', N'Transferencia electrónica de fondos',  1, 1, 1, '03', 'transferencia',             1, '60390FDA-7773-4BA1-8120-CB874F3A3A53'),
+    ('9AD47844-ADFB-4177-AC64-33E2864C87CC', N'Tarjeta de crédito',                   1, 1, 1, '04', 'tarjetadecredito',          1, '60390FDA-7773-4BA1-8120-CB874F3A3A53'),
+    ('C4C59BBE-C057-4D02-A01C-2E78D3C40CD3', N'Tarjeta de débito',                    1, 0, 0, '28', 'tarjetadedebito',           1, '60390FDA-7773-4BA1-8120-CB874F3A3A53'),
+    ('A1F5D3B2-4C6E-4A8F-9D1C-7E2B4F6A8C0D', N'Aplicación de anticipos',              1, 0, 0, '30', 'aplicaciondeanticiposmex',  1, '60390FDA-7773-4BA1-8120-CB874F3A3A53'),
+    ('D587112C-1894-4318-9B66-EEDDF9CDDBED', N'Intermediario de pagos',               1, 0, 1, '31', 'depositobancario',          1, '60390FDA-7773-4BA1-8120-CB874F3A3A53'),
+    ('A955C869-4CD4-4A80-A9D3-77E69E3E1ADA', N'Por definir',                          1, 0, 0, '99', 'otros',                     1, '60390FDA-7773-4BA1-8120-CB874F3A3A53');
 ```
 
 ---
@@ -274,7 +307,7 @@ GO
 | # | Gap | Descripción | Estado |
 |---|---|---|---|
 | 1 | `IdCatMedioDePago` ausente en `DatosFacturacionCliente` | Forma de Pago no está en el objeto de Cobros | Pendiente — ejecutar script |
-| 2 | Claves SAT incompletas en `catMedioDePago` | Aba, NA, NINGUNO, Swift sin `ClaveFormaDePago` | ⏸ En espera Excel Proquifa |
+| 2 | ~~Claves SAT incompletas en `catMedioDePago`~~ | ~~Aba, NA, NINGUNO, Swift sin `ClaveFormaDePago`~~ | ✅ RESUELTO (2026-08-24) — catálogo reemplazado, ver sección 1 |
 
 ---
 
@@ -282,9 +315,9 @@ GO
 
 | # | Pendiente | Responsable |
 |---|---|---|
-| P1 | Excel de equivalencias SAT de Proquifa — necesario para completar claves SAT en `catMedioDePago` | Proquifa / Funcional |
+| P1 | ~~Excel de equivalencias SAT de Proquifa — necesario para completar claves SAT en `catMedioDePago`~~ | ✅ RESUELTO (2026-08-24) — cliente entregó catálogo final |
 | P2 | Confirmar si el `IdCatMedioDePago` existente en `ConfiguracionPagos` se retira o se mantiene tras agregar el FK en `DatosFacturacionCliente` | TechLead |
-| P3 | Confirmar clave SAT c_FormaPago específica para Aba, NA, NINGUNO y Swift | Funcional / Cliente |
+| P3 | ~~Confirmar clave SAT c_FormaPago específica para Aba, NA, NINGUNO y Swift~~ | ✅ SIN OBJETO (2026-08-24) — esos registros no forman parte del catálogo final; ver curaduría pendiente (Regla 9) |
 
 ---
 
@@ -294,5 +327,5 @@ GO
 |---|---|---|
 | R1 | Tres campos de Cobros en `DatosFacturacionCliente` | FK a `catMedioDePago`, `catUsoCFDI`, `catMetodoDePagoCFDI` |
 | R2 | Campos obligatorios al guardar cliente | Validación en BO — los tres deben estar capturados |
-| R3 | Registros SAT validados | Claves SAT correctas en catálogos — ⏸ En espera Excel |
+| R3 | Registros SAT validados | ✅ RESUELTO (2026-08-24) — catálogo `catMedioDePago` México reemplazado con 8 claves SAT confirmadas (01/02/03/04/28/30/31/99) |
 | R4 | Sin restricción de rol | Sin control de rol en BD |

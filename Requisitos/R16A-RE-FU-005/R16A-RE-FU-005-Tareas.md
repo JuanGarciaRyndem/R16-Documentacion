@@ -22,6 +22,12 @@ Con el cierre de las siguientes dudas, y en el contexto general de **cancelació
 Estas tareas quedan **canceladas**; se conservan tachadas para trazabilidad, no se eliminan.
 
 ---
+
+## Actualización 2026-08-24 — Catálogo definitivo `catMedioDePago` México recibido
+
+El cliente entregó y confirmó cargado en el sistema el catálogo final de Forma de Pago para México (8 registros con claves SAT c_FormaPago). Esto resuelve la **Tarea 6 (GAP-06)** y deja pendiente únicamente confirmar si existían clientes asignados a los 4 registros retirados (Aba, NA, —NINGUNO—, Swift) que ahora requieran curaduría. Ver detalle en la Tarea 6 más abajo y en `R16A-RE-FU-005_BD.md` / `R16A-RE-FU-005-Back.md`.
+
+---
 ## Tarea 1
 
 ### R16A-RE-FU-005  GAP-01  [ UPDATE-TABL-CH ] Agregar `IdRegion` a `catMetodoDePagoCFDI`, `catUsoCFDI` y `catMedioDePago`
@@ -401,57 +407,61 @@ FROM dbo.DatosFacturacionCliente dfc
 
 ### R16A-RE-FU-005  GAP-06  [ QUERY-CH ] Completar `ClaveFormaDePago` en `catMedioDePago` para registros sin clave SAT
 
+**✅ RESUELTA (2026-08-24)** — ~~⏸ bloqueada por Pendiente P4~~
+
 **Aplicativos:**
 ProquifaNet 2 — Base de datos ProquifaDotNet
 
 **Módulos:**
 Catálogos de Cobros — Forma de Pago México
 
-**Consideraciones previas:**
-Esta tarea está **bloqueada por el Pendiente P4**: confirmar con el cliente qué clave SAT c_FormaPago corresponde a los registros Aba, NA, —NINGUNO— y Swift.
-No ejecutar los UPDATE sin confirmación. Si el cliente determina que esos registros no afectan el timbrado CFDI (porque siempre se selecciona otro medio de pago para timbrado), la tarea puede reducirse a solo documentar la decisión.
+**Consideraciones previas (histórico):**
+~~Esta tarea está bloqueada por el Pendiente P4: confirmar con el cliente qué clave SAT c_FormaPago corresponde a los registros Aba, NA, —NINGUNO— y Swift. No ejecutar los UPDATE sin confirmación. Si el cliente determina que esos registros no afectan el timbrado CFDI (porque siempre se selecciona otro medio de pago para timbrado), la tarea puede reducirse a solo documentar la decisión.~~
 
-**Descripción del problema:**
-Cuatro registros activos en `catMedioDePago` no tienen valor en `ClaveFormaDePago` (clave SAT c_FormaPago):
+**✅ Actualización 2026-08-24:** el cliente entregó el catálogo `catMedioDePago` definitivo de México (8 registros) y confirmó que ya está cargado en el sistema. **No completó los 4 registros pendientes (Aba, NA, —NINGUNO—, Swift) con una clave SAT — los reemplazó por completo**: el catálogo final no incluye esos 4 valores. Ver detalle completo (GUIDs, claves, `IdRegion`) en `R16A-RE-FU-005_BD.md`, sección 1.
 
-| Descripción | Clave SAT actual | Activo |
-|-------------|-----------------|--------|
-| Aba | *(vacío)* | Sí |
-| NA | *(vacío)* | Sí |
-| —NINGUNO— | *(vacío)* | Sí |
-| Swift | *(vacío)* | Sí |
+**Descripción del problema (histórico — ya no aplica tal cual):**
+~~Cuatro registros activos en `catMedioDePago` no tienen valor en `ClaveFormaDePago` (clave SAT c_FormaPago):~~
 
-Si alguno de estos registros está asociado a una factura que se timbra ante el SAT, el XML CFDI puede ser rechazado por clave de FormaPago vacía o inválida.
+| Descripción | Clave SAT actual | Activo | Estado 2026-08-24 |
+|-------------|-----------------|--------|---|
+| Aba | *(vacío)* | Sí | ⛔ Retirado del catálogo final |
+| NA | *(vacío)* | Sí | ⛔ Retirado del catálogo final |
+| —NINGUNO— | *(vacío)* | Sí | ⛔ Retirado del catálogo final |
+| Swift | *(vacío)* | Sí | ⛔ Retirado del catálogo final |
 
-**Diagnóstico previo recomendado:**
+Si alguno de estos registros está asociado a una factura que se timbra ante el SAT, el XML CFDI puede ser rechazado por clave de FormaPago vacía o inválida. **Con el reemplazo del catálogo, este riesgo se traslada a**: ¿qué pasa con los clientes que ya tenían asignado alguno de estos 4 valores? Ver Objetivo específico nuevo abajo.
+
+**Diagnóstico previo recomendado (ejecutar antes de dar por cerrada la tarea):**
 
 ```sql
+-- Ejecutar ANTES de asumir que el reemplazo del catálogo no deja referencias huérfanas.
 SELECT mp.MedioDePago, mp.ClaveFormaDePago, COUNT(cp.IdConfiguracionPagos) AS ClientesAsociados
 FROM       dbo.catMedioDePago      mp
 LEFT  JOIN dbo.ConfiguracionPagos  cp ON mp.IdCatMedioDePago = cp.IdCatMedioDePago
-WHERE mp.ClaveFormaDePago IS NULL OR mp.ClaveFormaDePago = ''
+WHERE mp.MedioDePago IN ('Aba', 'NA', '—NINGUNO—', 'Swift')
 GROUP BY mp.MedioDePago, mp.ClaveFormaDePago
 ORDER BY ClientesAsociados DESC;
 ```
 
-**Cambios requeridos (ejecutar tras confirmar P4):**
+**Cambios ejecutados (reportados por el cliente, documentados por trazabilidad):**
 
 ```sql
-UPDATE dbo.catMedioDePago SET ClaveFormaDePago = 'XX' WHERE Clave = 'Aba';
-UPDATE dbo.catMedioDePago SET ClaveFormaDePago = 'XX' WHERE Clave = 'NA';
-UPDATE dbo.catMedioDePago SET ClaveFormaDePago = 'XX' WHERE Clave = 'NINGUNO';
-UPDATE dbo.catMedioDePago SET ClaveFormaDePago = 'XX' WHERE Clave = 'Swift';
+-- Catálogo definitivo México — ver script completo en R16A-RE-FU-005_BD.md, "Script de Cambio Estructural R16".
+-- NOTA: el cliente reporta que ya está cargado; no re-ejecutar sin verificar antes contra el esquema real.
 ```
 
-> Reemplazar `'XX'` con la clave SAT confirmada por el cliente en cada caso.
+**Objetivo específico nuevo (2026-08-24) — pendiente:**
+- Ejecutar el diagnóstico previo (arriba) para confirmar si existían clientes con `ConfiguracionPagos.IdCatMedioDePago` apuntando a Aba/NA/NINGUNO/Swift antes del reemplazo.
+- Si existían, ejecutar la curaduría de la Regla 9 (`R16A-RE-FU-005.md`) para reasignarlos a una opción vigente del catálogo final, coordinando con el cliente qué opción corresponde a cada caso.
 
 **Criterios de aceptación:**
-- [ ] Pendiente P4 confirmado con el cliente antes de ejecutar
-- [ ] Diagnóstico previo ejecutado e interpretado: se sabe cuántos clientes activos usan cada registro sin clave SAT
-- [ ] Los cuatro registros tienen `ClaveFormaDePago` asignada con el valor SAT confirmado (o se documenta la decisión de no asignar si aplica 99-Por definir)
-- [ ] SELECT de verificación confirma que no quedan registros activos con `ClaveFormaDePago` vacía
-- [ ] Scripts incluidos en el formulario de control de scripts del release
-- [ ] PR aprobado por líder técnico y DBA
+- [x] Pendiente P4 confirmado con el cliente — ✅ SIN OBJETO: el cliente reemplazó el catálogo en vez de completar los 4 registros.
+- [ ] Diagnóstico previo ejecutado e interpretado: se sabe cuántos clientes activos usaban cada registro retirado (Aba/NA/NINGUNO/Swift) **antes** del reemplazo — pendiente de ejecutar.
+- [x] Los registros del catálogo final tienen `ClaveFormaDePago` asignada — ✅ (01/02/03/04/28/30/31/99).
+- [ ] SELECT de verificación confirma que no quedan clientes con `IdCatMedioDePago` huérfano (apuntando a un registro que ya no existe) — pendiente de ejecutar.
+- [ ] Scripts incluidos en el formulario de control de scripts del release.
+- [ ] PR aprobado por líder técnico y DBA.
 
 **Más información de la tarea:**
 - GAP-06 y Pendiente P4 del archivo `R16A-RE-FU-005-Back.md`
