@@ -23,7 +23,7 @@
 Crear en la base de datos `ProquifaDotNet` las tres tablas nuevas requeridas para el pendiente de Factura por Adelantado, e incorporarlas al Scaffold EF Core de `Finanzas.Infrastructure`.
 
 ### Objetivos específicos
-- `CREATE TABLE catFacturaEstado` + seed (7 estados: POR_GENERAR, ERROR_TIMBRADO, GENERADA, ENVIADA, PAGADA_PARCIAL, PAGADA, CANCELADA — ver `R16A-RE-FU-015_BD.md` v2.1)
+- `CREATE TABLE catFacturaEstado` + seed (7 estados: porgenerar, errortimbrado, generada, enviada, pagadaparcial, pagada, cancelada — ver `R16A-RE-FU-015_BD.md` v2.1)
 - `CREATE TABLE fccFactura` (cabecera) con PK `IdFccFactura`, FK `IdTPPedido` → `tpPedido`, FK `IdCatFacturaEstado` → `catFacturaEstado`, bandera `EsFacturaPorAdelantado`, datos de moneda/montos, snapshot de datos del receptor y campos fiscales del timbrado SAT (nullable)
 - `CREATE TABLE fccFacturaPartida` (detalle 1:N) con PK `IdFccFacturaPartida`, FK `IdFccFactura` → `fccFactura`
 - `CREATE TABLE fccFacturaReferenciaBancaria` (detalle 1:N) con PK `IdFccFacturaReferenciaBancaria`, FK `IdFccFactura` → `fccFactura`
@@ -44,7 +44,7 @@ Las tres tablas existen en `ProquifaDotNet` con la estructura definida en el DIS
 - Las tres tablas existen con las columnas, tipos y FK documentados en `R16A-RE-FU-015_BD.md`
 - Los índices sobre FK y `FolioPedidoInterno` existen
 - `fccFactura` permite `EsFacturaPorAdelantado = 1` con todos los campos fiscales del timbrado en `NULL`
-- `catFacturaEstado` queda poblado con los 7 estados y `fccFactura.IdCatFacturaEstado` se asigna a POR_GENERAR al crear el registro
+- `catFacturaEstado` queda poblado con los 7 estados y `fccFactura.IdCatFacturaEstado` se asigna a porgenerar al crear el registro
 - Las tablas son visibles y operables desde el Scaffold EF Core de `Finanzas.Infrastructure`
 
 ### Más información de la tarea
@@ -241,7 +241,7 @@ Dejar en base de datos la estructura completa para sostener el estatus del pedid
 ### Objetivos específicos
 - `ALTER TABLE dbo.catEstadoPedido` — agregar `Orden`, `EsTerminal`, `Aplicativo`, `AliasOperativo` (y `FechaRegistro`, faltante en la definición original) + `UNIQUE (Clave)`
 - Seed de los 17 estados en `catEstadoPedido` (clave, descripción, orden, terminal, aplicativo, alias — ver catálogo propuesto sección 8)
-- `CREATE TABLE dbo.catMotivoCancelacion` + seed de 5 motivos (`INTRAMITABLE`, `OC_NO_AJUSTADA`, `FALTA_PAGO`, `OPERATIVO`, `SOLICITUD_CLIENTE`)
+- `CREATE TABLE dbo.catMotivoCancelacion` + seed de 5 motivos (`intramitable`, `ocnoajustada`, `faltapago`, `operativo`, `solicitudcliente`)
 - `CREATE TABLE dbo.PedidoEstadoActual` — PK `IdPedidoEstadoActual`; FK nullable a `pcPromesaDeCompra`, `ppPedido`, `tpPedido`; FK requerida a `catEstadoPedido`; FK opcional a `catMotivoCancelacion`; los 3 campos de control estándar
 - Índices no clusterizados sobre las cuatro FK principales (`IdPcPromesaDeCompra`, `IdPPPedido`, `IdTPPedido`, `IdCatEstadoPedido`)
 - Script de datos: backfill de `PedidoEstadoActual` con los pedidos existentes en `pcPromesaDeCompra`/`ppPedido`/`tpPedido`, mapeando su estado actual (flags `Tramitado`, `Intramitable`, `Cancelada`, `Liberado`, `Finalizado`, `FacturaPorAdelantado`, `catSeguimientoPartidaPedido.Clave`) a la clave correspondiente de `catEstadoPedido` (ver regla de mapeo y notas de negocio pendientes en `R16A-RE-FU-015_BD.md`)
@@ -254,7 +254,7 @@ Dejar en base de datos la estructura completa para sostener el estatus del pedid
 - Script DDL `CREATE TABLE catMotivoCancelacion` + seed (5 motivos)
 - Script DDL `CREATE TABLE PedidoEstadoActual` (con FK e índices)
 - Script de datos — backfill de `PedidoEstadoActual`
-- Reporte de los pedidos que quedaron con mapeo ambiguo (sub-estados de `INTRAMITABLE`, distinción `PREPAGO_CON_FAA`/`PREPAGO_EN_COBRO` histórica, motivo de cancelación no reconstruible) para revisión de negocio
+- Reporte de los pedidos que quedaron con mapeo ambiguo (sub-estados de `intramitable`, distinción `prepagoconfaa`/`prepagoencobro` histórica, motivo de cancelación no reconstruible) para revisión de negocio
 
 ### Criterios de aceptación
 - `catEstadoPedido` tiene las columnas nuevas, la restricción `UNIQUE (Clave)` y los 17 estados sembrados
@@ -286,7 +286,7 @@ Dejar en base de datos la estructura completa para sostener el estatus del pedid
 
 ### Consideraciones previas
 - Predecesora: T7 (`catEstadoPedido` extendido, `catMotivoCancelacion` y `PedidoEstadoActual` deben existir).
-- El endpoint es de uso compartido entre módulos/aplicativos del flujo de venta (no exclusivo de este requisito), pero el único punto de uso que se ajusta **dentro del alcance de este requisito** es el cierre del pendiente Tramitar Pedido con FAA (paso 3i del flujo, RT-05): al insertar el pendiente FAA, `ProquifaDotNet.Finanzas` reporta el cambio de estatus a `PREPAGO_CON_FAA`.
+- El endpoint es de uso compartido entre módulos/aplicativos del flujo de venta (no exclusivo de este requisito), pero el único punto de uso que se ajusta **dentro del alcance de este requisito** es el cierre del pendiente Tramitar Pedido con FAA (paso 3i del flujo, RT-05): al insertar el pendiente FAA, `ProquifaDotNet.Finanzas` reporta el cambio de estatus a `prepagoconfaa`.
 - **Fuera de alcance de esta tarea:** la cancelación. El endpoint no recibe ni asigna `IdCatMotivoCancelacion` — esa lógica se cubre en un requisito aparte.
 - Ajustar otros puntos del flujo de venta (Buzón → Pretramitar → Tramitar, fuera de este requisito) para que también reporten sus cambios de estatus queda para los requisitos que implementan esas etapas (RE-013/014 y anteriores) — no se tocan aquí.
 
@@ -298,10 +298,10 @@ Implementar el endpoint que actualiza el estatus vigente del pedido en `PedidoEs
 - Resolver, en orden descendente del flujo (`IdTPPedido` → `IdPPPedido` → `IdPcPromesaDeCompra`), cuál de los tres campos viene informado, y localizar con él el registro de `PedidoEstadoActual`
 - Actualizar `IdCatEstadoPedido` y `FechaUltimaActualizacion` del registro localizado
 - No aceptar ni asignar `IdCatMotivoCancelacion` en este endpoint (ver Consideraciones previas)
-- Ajustar el paso 3i del flujo de este requisito (`R16A-RE-FU-015-Back.md`) para que, al insertar el pendiente FAA (`fccFactura`), `ProquifaDotNet.Finanzas` invoque este endpoint con `IdTPPedido` + `IdCatEstadoPedido = PREPAGO_CON_FAA`, cerrando así el pendiente operativo de Tramitar Pedido (Criterio D3)
+- Ajustar el paso 3i del flujo de este requisito (`R16A-RE-FU-015-Back.md`) para que, al insertar el pendiente FAA (`fccFactura`), `ProquifaDotNet.Finanzas` invoque este endpoint con `IdTPPedido` + `IdCatEstadoPedido = prepagoconfaa`, cerrando así el pendiente operativo de Tramitar Pedido (Criterio D3)
 
 ### Resultado esperado
-Al tramitar un pedido Prepago con FAA, `PedidoEstadoActual.IdCatEstadoPedido` queda en `PREPAGO_CON_FAA` y el pendiente operativo de Tramitar Pedido se cierra en la bandeja del ESAC, usando el mecanismo genérico de actualización de estatus en vez de un campo directo en `tpPedido`.
+Al tramitar un pedido Prepago con FAA, `PedidoEstadoActual.IdCatEstadoPedido` queda en `prepagoconfaa` y el pendiente operativo de Tramitar Pedido se cierra en la bandeja del ESAC, usando el mecanismo genérico de actualización de estatus en vez de un campo directo en `tpPedido`.
 
 ### Entregables
 - Nuevo endpoint `PUT /v1/api/orders/status` en `ProquifaDotNet`
@@ -312,7 +312,7 @@ Al tramitar un pedido Prepago con FAA, `PedidoEstadoActual.IdCatEstadoPedido` qu
 - El endpoint actualiza `IdCatEstadoPedido` del registro correcto de `PedidoEstadoActual` cuando se le informa `IdTPPedido`, `IdPPPedido` o `IdPcPromesaDeCompra` por separado
 - Si viene más de un identificador informado, se usa el de mayor jerarquía (`IdTPPedido` primero) y no genera error
 - El endpoint rechaza o ignora `IdCatMotivoCancelacion` si se envía (no es un parámetro del contrato)
-- Al tramitar Prepago con FAA (T2), `PedidoEstadoActual.IdCatEstadoPedido` queda en `PREPAGO_CON_FAA` y el pedido deja de aparecer en la bandeja de Tramitar Pedido (Criterio D3)
+- Al tramitar Prepago con FAA (T2), `PedidoEstadoActual.IdCatEstadoPedido` queda en `prepagoconfaa` y el pedido deja de aparecer en la bandeja de Tramitar Pedido (Criterio D3)
 - `FechaUltimaActualizacion` se actualiza en cada cambio de estatus
 
 ### Más información de la tarea

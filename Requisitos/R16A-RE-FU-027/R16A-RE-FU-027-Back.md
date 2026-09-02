@@ -31,7 +31,7 @@ El impacto en BD es **mínimo**: solo 2 `ALTER TABLE` en `fccNotaCredito` para s
 | `fccPagoFacturaPedido`        | ProquifaDotNet existente | Asociación cobro ↔ proforma Perú                                 |
 | `fccPagoFacturaAdelanto`      | ProquifaDotNet existente | Asociación cobro ↔ Factura por Adelantado Perú                   |
 | `fccSaldoFavorCliente`        | RE-FU-026                | Misma tabla, registros con `IdRegion = 'PER'` (o PEN=1)          |
-| `catTipoInconsistenciaCobro`  | RE-FU-024 + RE-FU-026    | Mismo catálogo; tipos Paso 2 ya incluyen PAGO_INCOMPLETO_VENCIDO |
+| `catTipoInconsistenciaCobro`  | RE-FU-024 + RE-FU-026    | Mismo catálogo; tipos Paso 2 ya incluyen pagoincompletovencido |
 | `fccInconsistenciaCobro`      | RE-FU-024                | Registro de inconsistencias del Paso 2 contra el cobro           |
 | `fccPagoCliente.TipoDeCambio` | RE-FU-025                | TC vs PEN (uso local/fiscal Perú)                                |
 | `fccPagoCliente.TipoDeCambioMonedaFacturacion` | RE-FU-025 (OBS-050) | **TC vs moneda de facturación** — usado para cobertura del cobro contra facturas/proformas (OBS-052) |
@@ -151,13 +151,13 @@ Todo en una sola transacción; rollback completo si cualquier operación falla.
 
 ### B5 — Modal de inconsistencia del cobro (Paso 2) — Perú
 
-**Descripción:** Endpoint en Finanzas que registra la inconsistencia del Paso 2. Idéntico a México (RE-FU-026/B5); los tipos del catálogo y la lógica de `PAGO_INCOMPLETO_VENCIDO` son los mismos.
+**Descripción:** Endpoint en Finanzas que registra la inconsistencia del Paso 2. Idéntico a México (RE-FU-026/B5); los tipos del catálogo y la lógica de `pagoincompletovencido` son los mismos.
 
 **Tipos del Paso 2 (catálogo `catTipoInconsistenciaCobro` con `AplicaPaso='2'`):**
-- `PAGO_INCOMPLETO_VENCIDO` → habilita opción de marcar pedido como "Pendiente de cancelación" (`AplicaMarkPendienteCancelacion=1`)
-- `PAGO_INSUFICIENTE` → registra inconsistencia, deja asociación pendiente de próximo cobro
+- `pagoincompletovencido` → habilita opción de marcar pedido como "Pendiente de cancelación" (`AplicaMarkPendienteCancelacion=1`)
+- `pagoinsuficiente` → registra inconsistencia, deja asociación pendiente de próximo cobro
 
-**Flujo para `PAGO_INCOMPLETO_VENCIDO` en Perú:**
+**Flujo para `pagoincompletovencido` en Perú:**
 1. Usuario selecciona el tipo y confirma.
 2. Finanzas detecta `AplicaMarkPendienteCancelacion=1` en el catálogo.
 3. Se habilita la opción de marcar el pedido como "Pendiente de cancelación por falta de pago".

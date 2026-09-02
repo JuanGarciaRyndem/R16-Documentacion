@@ -52,6 +52,23 @@
 
 ---
 
+## 🔑 Formato de Claves de Catálogo (columna `Clave`)
+
+La columna `Clave` de toda tabla de catálogo (prefijo `cat`) es un valor de **dato**, no un identificador de objeto de BD — pero tiene su propia regla de formato:
+
+| Regla | Detalle |
+|---|---|
+| **Case** | Minúsculas |
+| **Espacios** | No permitidos |
+| **Guion medio (`-`)** | No permitido |
+| **Guion bajo (`_`)** | No permitido |
+
+**Ejemplo:** `OC_RECIBIDA` → `ocrecibida`
+
+Aplica solo a la columna `Clave` (el valor de negocio que identifica el registro del catálogo). No aplica a otras columnas del mismo catálogo que sí llevan mayúsculas o guiones por diseño (p. ej. `AliasOperativo`, `Aplicativo`).
+
+---
+
 ## ❌ Patrones No Permitidos
 
 | Patrón | Ejemplo no permitido | Motivo |

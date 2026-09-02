@@ -161,12 +161,12 @@ CREATE TABLE [dbo].[catTipoInconsistenciaCobro](
 
 INSERT INTO [dbo].[catTipoInconsistenciaCobro] ([Clave], [Descripcion], [AplicaPaso])
 VALUES
-    ('DATOS_INCOMPLETOS',      'Datos del cobro incompletos o ilegibles',   '1'),
-    ('COMPROBANTE_INVALIDO',   'Comprobante de pago inválido o ilegible',   '1'),
-    ('FORMATO_INCORRECTO',     'Formato del comprobante incorrecto',         '1'),
-    ('MONTO_ILEGIBLE',         'Monto del comprobante ilegible',             '1'),
-    ('PAGO_INCOMPLETO_VENCIDO','Pago incompleto con vigencia vencida',       '2'),
-    ('PAGO_INSUFICIENTE',      'Cobro insuficiente respecto al documento',   '2');
+    ('datosincompletos',      'Datos del cobro incompletos o ilegibles',   '1'),
+    ('comprobanteinvalido',   'Comprobante de pago inválido o ilegible',   '1'),
+    ('formatoincorrecto',     'Formato del comprobante incorrecto',         '1'),
+    ('montoilegible',         'Monto del comprobante ilegible',             '1'),
+    ('pagoincompletovencido','Pago incompleto con vigencia vencida',       '2'),
+    ('pagoinsuficiente',      'Cobro insuficiente respecto al documento',   '2');
 ```
 
 ### A3 — CREATE TABLE fccInconsistenciaCobro

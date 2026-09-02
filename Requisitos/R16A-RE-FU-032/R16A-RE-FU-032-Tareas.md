@@ -12,7 +12,7 @@
 | 1   | UPDATE-TABL-M     | Extender fccNotaCredito: ADD 13 columnas R16 (empresa, cliente, modalidad, estado, fiscal)    | BD   | ProquifaDotNet          |
 | 2   | UPDATE-TABL-M     | Extender fccNotaCreditoPartida: ADD 6 columnas R16 (concepto origen, importes fiscales)       | BD   | ProquifaDotNet          |
 | 3   | UPDATE-TABL-CH    | DML catUsoCFDI: INSERT clave G02 si no existe                                                 | BD   | ProquifaDotNet          |
-| 4   | UPDATE-TABL-CH    | DML catTipoCFDI: INSERT clave NOTA_CREDITO                                                    | BD   | ProquifaDotNet          |
+| 4   | UPDATE-TABL-CH    | DML catTipoCFDI: INSERT clave notacredito                                                    | BD   | ProquifaDotNet          |
 | 5   | UPDATE-TABL-CH    | DML EmpresaFolio: INSERT 4 filas Serie "P2" para GOL, MUN, PRO, PQF                           | BD   | ProquifaDotNet (Finanzas) |
 | 6   | UPDATE-TABL-CH    | DML DocumentTemplate: INSERT 4 templates PDF NC México                                        | BD   | DocumentBuilder         |
 | 7   | ALG-COMPLX-LOGIC  | Implementar endpoint timbrado NC México (CFDI tipo E) en Timbrado — folio Serie P2 + TurboPac | Back | ProquifaDotNet.Timbrado |
@@ -288,7 +288,7 @@ Ver sección *"DML catUsoCFDI"* en `R16A-RE-FU-032_BD.md` y sección *"Parte A /
 
 ## TAREA 4
 
-**[ RE-FU-032 ] [UPDATE-TABL-CH] DML catTipoCFDI: INSERT clave NOTA_CREDITO**
+**[ RE-FU-032 ] [UPDATE-TABL-CH] DML catTipoCFDI: INSERT clave notacredito**
 
 **Aplicativos:** ProquifaDotNet
 
@@ -301,16 +301,16 @@ Ver sección *"DML catUsoCFDI"* en `R16A-RE-FU-032_BD.md` y sección *"Parte A /
 - ⚠️ Pendiente P7: confirmar columnas de `catTipoCFDI` con RE-028 para ajustar el INSERT si difiere.
 
 **Objetivo general:**
-Insertar la clave `NOTA_CREDITO` en `catTipoCFDI` para que Finanzas y Timbrado puedan discriminar las NCs en `CFDIGenerada`.
+Insertar la clave `notacredito` en `catTipoCFDI` para que Finanzas y Timbrado puedan discriminar las NCs en `CFDIGenerada`.
 
 **Objetivos específicos:**
 - Verificar que `catTipoCFDI` existe (RE-028 T1 completada).
-- Verificar que `NOTA_CREDITO` no existe.
+- Verificar que `notacredito` no existe.
 - Insertar la clave con `TipoDocumentoSAT='E'`.
 - Validar el resultado.
 
 **Resultado esperado:**
-`catTipoCFDI` contiene la clave `NOTA_CREDITO` activa con `TipoDocumentoSAT='E'`.
+`catTipoCFDI` contiene la clave `notacredito` activa con `TipoDocumentoSAT='E'`.
 
 **Entregables:**
 - Script DML: SELECT verificación + INSERT + SELECT validación
@@ -322,22 +322,22 @@ Insertar la clave `NOTA_CREDITO` en `catTipoCFDI` para que Finanzas y Timbrado p
 -- Ejecutar en ProquifaDotNet
 
 -- Verificar que no existe
-SELECT * FROM dbo.catTipoCFDI WHERE Clave = 'NOTA_CREDITO';
+SELECT * FROM dbo.catTipoCFDI WHERE Clave = 'notacredito';
 
 -- Insertar
 INSERT INTO dbo.catTipoCFDI (IdCatTipoCFDI, Clave, Descripcion, TipoDocumentoSAT, Activo)
-SELECT NEWID(), 'NOTA_CREDITO', 'Nota de Crédito', 'E', 1
-WHERE NOT EXISTS (SELECT 1 FROM dbo.catTipoCFDI WHERE Clave = 'NOTA_CREDITO');
+SELECT NEWID(), 'notacredito', 'Nota de Crédito', 'E', 1
+WHERE NOT EXISTS (SELECT 1 FROM dbo.catTipoCFDI WHERE Clave = 'notacredito');
 GO
 
 -- Validación
 SELECT IdCatTipoCFDI, Clave, Descripcion, TipoDocumentoSAT, Activo
-FROM dbo.catTipoCFDI WHERE Clave = 'NOTA_CREDITO';
+FROM dbo.catTipoCFDI WHERE Clave = 'notacredito';
 -- Debe retornar 1 fila con TipoDocumentoSAT='E' y Activo=1
 ```
 
 **Criterios de aceptación:**
-- `catTipoCFDI` contiene 1 fila con `Clave='NOTA_CREDITO'`, `TipoDocumentoSAT='E'`, `Activo=1`.
+- `catTipoCFDI` contiene 1 fila con `Clave='notacredito'`, `TipoDocumentoSAT='E'`, `Activo=1`.
 
 **Más información de la tarea:**
 Ver sección *"DML catTipoCFDI"* en `R16A-RE-FU-032_BD.md` y sección *"Parte A / A4"* en `R16A-RE-FU-032-Back.md`.

@@ -55,11 +55,11 @@ CREATE TABLE [dbo].[catTipoDocumentoFiscal](
     [IdCatTipoDocumentoFiscal]  uniqueidentifier NOT NULL
         CONSTRAINT [DF_catTipoDocumentoFiscal_Id]    DEFAULT (NEWID()),
     [Clave]                     varchar(30)      NOT NULL,
-        -- 'FACTURA'          -> CFDI Ingreso PUE o PPD (proforma sin controlados)
-        -- 'FACTURA_ANTICIPO' -> CFDI Ingreso (proforma con controlados)
+        -- 'factura'          -> CFDI Ingreso PUE o PPD (proforma sin controlados)
+        -- 'facturaanticipo' -> CFDI Ingreso (proforma con controlados)
         --    -- CORREGIDO (DUDA-088): NO lleva "rel. 07 SAT" -- eso corresponde a la Factura Final
         --    -- (fuera de alcance). Ver Guia_Tecnica_Facturas_Ingreso_MX.md seccion 6.
-        -- 'COMPLEMENTO_PAGO' -> CFDI Pagos 2.0 (FAA existente con cobro asociado)
+        -- 'complementopago' -> CFDI Pagos 2.0 (FAA existente con cobro asociado)
     [Descripcion]               nvarchar(150)    NOT NULL,
     [Activo]                    bit              NOT NULL
         CONSTRAINT [DF_catTipoDocumentoFiscal_Activo] DEFAULT (1),
@@ -75,9 +75,9 @@ CREATE TABLE [dbo].[catTipoDocumentoFiscal](
 GO
 -- Datos iniciales
 INSERT INTO dbo.catTipoDocumentoFiscal (Clave, Descripcion) VALUES
-    ('FACTURA',          'Factura — CFDI Ingreso (proforma sin productos controlados)'),
-    ('FACTURA_ANTICIPO', 'Factura Anticipo — CFDI Ingreso (proforma con productos controlados)'), -- DUDA-088: sin rel. 07 (esa es de la Factura Final, fuera de alcance)
-    ('COMPLEMENTO_PAGO', 'Complemento de Pago — CFDI Pagos 2.0 (Factura por Adelanto existente)');
+    ('factura',          'Factura — CFDI Ingreso (proforma sin productos controlados)'),
+    ('facturaanticipo', 'Factura Anticipo — CFDI Ingreso (proforma con productos controlados)'), -- DUDA-088: sin rel. 07 (esa es de la Factura Final, fuera de alcance)
+    ('complementopago', 'Complemento de Pago — CFDI Pagos 2.0 (Factura por Adelanto existente)');
 ```
 
 ### Diccionario de datos — catTipoDocumentoFiscal
@@ -91,7 +91,7 @@ INSERT INTO dbo.catTipoDocumentoFiscal (Clave, Descripcion) VALUES
 | Nombre | Tipo | Descripción |
 |--------|------|-------------|
 | IdCatTipoDocumentoFiscal | uniqueidentifier PK | Identificador único del catálogo |
-| Clave | varchar(30) NOT NULL UNIQUE | Clave técnica del tipo: `FACTURA`, `FACTURA_ANTICIPO`, `COMPLEMENTO_PAGO` |
+| Clave | varchar(30) NOT NULL UNIQUE | Clave técnica del tipo: `factura`, `facturaanticipo`, `complementopago` |
 | Descripcion | nvarchar(150) NOT NULL | Descripción legible para el usuario |
 | Activo | bit NOT NULL | 1 = vigente |
 | FechaRegistro | datetime NOT NULL | Fecha de inserción |
@@ -115,9 +115,9 @@ CREATE TABLE [dbo].[catDocumentoFiscalCobroEstado](
     [IdCatDocumentoFiscalCobroEstado]  uniqueidentifier NOT NULL
         CONSTRAINT [DF_catDocumentoFiscalCobroEstado_Id]    DEFAULT (NEWID()),
     [Clave]                            varchar(20)      NOT NULL,
-        -- 'PENDIENTE' -> Estado inicial; aún no se ha timbrado ni enviado
-        -- 'GENERADO'  -> CFDIs timbrados exitosamente; pendiente de envío al cliente
-        -- 'ENVIADO'   -> Enviado al cliente; línea cerrada operativamente
+        -- 'pendiente' -> Estado inicial; aún no se ha timbrado ni enviado
+        -- 'generado'  -> CFDIs timbrados exitosamente; pendiente de envío al cliente
+        -- 'enviado'   -> Enviado al cliente; línea cerrada operativamente
     [Descripcion]                      nvarchar(150)    NOT NULL,
     [Activo]                           bit              NOT NULL
         CONSTRAINT [DF_catDocumentoFiscalCobroEstado_Activo] DEFAULT (1),
@@ -133,9 +133,9 @@ CREATE TABLE [dbo].[catDocumentoFiscalCobroEstado](
 GO
 -- Datos iniciales
 INSERT INTO dbo.catDocumentoFiscalCobroEstado (Clave, Descripcion) VALUES
-    ('PENDIENTE', 'Pendiente — línea creada, aún no timbrada ni enviada'),
-    ('GENERADO',  'Generado — CFDIs timbrados exitosamente, pendiente de envío al cliente'),
-    ('ENVIADO',   'Enviado — documentos enviados al cliente, línea cerrada operativamente');
+    ('pendiente', 'Pendiente — línea creada, aún no timbrada ni enviada'),
+    ('generado',  'Generado — CFDIs timbrados exitosamente, pendiente de envío al cliente'),
+    ('enviado',   'Enviado — documentos enviados al cliente, línea cerrada operativamente');
 ```
 
 ### Diccionario de datos — catDocumentoFiscalCobroEstado
@@ -149,7 +149,7 @@ INSERT INTO dbo.catDocumentoFiscalCobroEstado (Clave, Descripcion) VALUES
 | Nombre | Tipo | Descripción |
 |--------|------|-------------|
 | IdCatDocumentoFiscalCobroEstado | uniqueidentifier PK | Identificador único del catálogo |
-| Clave | varchar(20) NOT NULL UNIQUE | Clave técnica del estado: `PENDIENTE`, `GENERADO`, `ENVIADO` |
+| Clave | varchar(20) NOT NULL UNIQUE | Clave técnica del estado: `pendiente`, `generado`, `enviado` |
 | Descripcion | nvarchar(150) NOT NULL | Descripción legible del estado |
 | Activo | bit NOT NULL | 1 = vigente |
 | FechaRegistro | datetime NOT NULL | Fecha de inserción |
@@ -185,11 +185,11 @@ CREATE TABLE [dbo].[fccDocumentoFiscalCobro](
         -- NOT NULL cuando el origen es FAA existente con cobro asociado (RE-FU-026)
     -- Tipo de documento fiscal a generar (determinado al crear la línea)
     [IdCatTipoDocumentoFiscal]               uniqueidentifier NOT NULL,
-        -- FK a catTipoDocumentoFiscal: FACTURA | FACTURA_ANTICIPO | COMPLEMENTO_PAGO
+        -- FK a catTipoDocumentoFiscal: factura | facturaanticipo | complementopago
     [IdCatDocumentoFiscalCobroEstado]        uniqueidentifier NOT NULL,
-        -- FK a catDocumentoFiscalCobroEstado: PENDIENTE | GENERADO | ENVIADO
+        -- FK a catDocumentoFiscalCobroEstado: pendiente | generado | enviado
     [IdCatUsoCFDI]                           uniqueidentifier NULL,   -- FK catUsoCFDI (catálogo SAT c_UsoCFDI)
-    [IdCatMetodoDePagoCFDI]                  uniqueidentifier NULL,   -- FK catMetodoDePagoCFDI; NULL para COMPLEMENTO_PAGO
+    [IdCatMetodoDePagoCFDI]                  uniqueidentifier NULL,   -- FK catMetodoDePagoCFDI; NULL para complementopago
     [IdCFDIGeneradaFactura]                  uniqueidentifier NULL,   -- FK CFDIGenerada: Factura/Anticipo/Complemento FAA timbrado
     [IdCFDIGeneradaComplemento]              uniqueidentifier NULL,   -- FK CFDIGenerada: Complemento cascada PPD (solo MetodoPago=PPD)
     [FechaGeneracion]                        datetime     NULL,
@@ -255,12 +255,12 @@ CREATE INDEX [IX_fccDocumentoFiscalCobro_PagoFacturaAdelanto]
 | IdFCCDocumentoFiscalCobro       | uniqueidentifier PK          | Identificador único de la línea                                                                                                                                                        |
 | IdFCCPagoFacturaPedido          | uniqueidentifier FK NULL     | FK a `fccPagoFacturaPedido`; NOT NULL cuando el origen es proforma (normal o con controlados). Provee acceso a `IdFCCPagoCliente` e `IdTPProformaPedido` sin duplicarlos.              |
 | IdFCCPagoFacturaAdelanto        | uniqueidentifier FK NULL     | FK a `fccPagoFacturaAdelanto`; NOT NULL cuando el origen es FAA. Provee acceso a `IdFCCPagoCliente`, `IdFccFactura` (RE-FU-015, antes `IdTPProformaAdelanto`) e `IdCFDIGenerada` (UUID de la FAA para CFDIRelacionados). |
-| IdCatTipoDocumentoFiscal        | uniqueidentifier FK NOT NULL | FK a `catTipoDocumentoFiscal`. Tipo de CFDI a generar: `FACTURA`, `FACTURA_ANTICIPO` o `COMPLEMENTO_PAGO`. Determinado al crear la línea.                                              |
-| IdCatDocumentoFiscalCobroEstado | uniqueidentifier FK NOT NULL | FK a `catDocumentoFiscalCobroEstado`. Estado actual de la línea: `PENDIENTE`, `GENERADO` o `ENVIADO`.                                                                                  |
+| IdCatTipoDocumentoFiscal        | uniqueidentifier FK NOT NULL | FK a `catTipoDocumentoFiscal`. Tipo de CFDI a generar: `factura`, `facturaanticipo` o `complementopago`. Determinado al crear la línea.                                              |
+| IdCatDocumentoFiscalCobroEstado | uniqueidentifier FK NOT NULL | FK a `catDocumentoFiscalCobroEstado`. Estado actual de la línea: `pendiente`, `generado` o `enviado`.                                                                                  |
 | IdCatUsoCFDI                    | uniqueidentifier FK NULL     | FK a `catUsoCFDI`. Uso CFDI seleccionado por el usuario antes del timbrado. Default: Uso CFDI configurado en el cliente o en el pedido original.                                       |
-| IdCatMetodoDePagoCFDI           | uniqueidentifier FK NULL     | FK a `catMetodoDePagoCFDI`. Método de pago (PPD / PUE). NULL para líneas `COMPLEMENTO_PAGO` (el método PPD es fijo y se infiere del catálogo tipo, no se persiste aquí).               |
+| IdCatMetodoDePagoCFDI           | uniqueidentifier FK NULL     | FK a `catMetodoDePagoCFDI`. Método de pago (PPD / PUE). NULL para líneas `complementopago` (el método PPD es fijo y se infiere del catálogo tipo, no se persiste aquí).               |
 | IdCFDIGeneradaFactura           | uniqueidentifier FK NULL     | FK a `CFDIGenerada`: Factura, Factura Anticipo, o Complemento directo desde FAA. Se popula al timbrar exitosamente.                                                                    |
-| IdCFDIGeneradaComplemento       | uniqueidentifier FK NULL     | FK a `CFDIGenerada`: Complemento de Pago generado en cascada cuando `MetodoPago = 'PPD'`. NULL para `COMPLEMENTO_PAGO` (ese CFDI va en `IdCFDIGeneradaFactura`) y para PUE.            |
+| IdCFDIGeneradaComplemento       | uniqueidentifier FK NULL     | FK a `CFDIGenerada`: Complemento de Pago generado en cascada cuando `MetodoPago = 'PPD'`. NULL para `complementopago` (ese CFDI va en `IdCFDIGeneradaFactura`) y para PUE.            |
 | FechaGeneracion                 | datetime NULL            | Fecha/hora del timbrado exitoso de los CFDIs de la línea.                                                                                                                              |
 | FechaEnvio                      | datetime NULL            | Fecha/hora del envío exitoso al cliente.                                                                                                                                               |
 | Activo                          | bit NOT NULL                 | 1 = activo. Permanece 1 incluso en estados Generado y Enviado para trazabilidad histórica.                                                                                             |
@@ -292,8 +292,8 @@ CREATE INDEX [IX_fccDocumentoFiscalCobro_PagoFacturaAdelanto]
 - `CHECK CONSTRAINT CK_fccDocumentoFiscalCobro_OrigenExclusivo`: garantiza que una línea apunte a exactamente un origen (proforma O FAA, no ambos ni ninguno).
 - `IdCFDIGeneradaComplemento` solo se popula en el escenario PPD cascada (proforma con `IdCatMetodoDePagoCFDI` = PPD). Para el Complemento directo de FAA, el CFDI va en `IdCFDIGeneradaFactura`.
 - Los datos del cobro (`IdFCCPagoCliente`, `Monto`, `TipoDeCambio`, etc.) se obtienen navegando desde la FK del Paso 2 (`fccPagoFacturaPedido.IdFCCPagoCliente` o `fccPagoFacturaAdelanto.IdFCCPagoCliente`). No se duplican en esta tabla.
-- `IdCatTipoDocumentoFiscal` se determina al crear la línea: si el origen es `fccPagoFacturaPedido` → leer `tpProformaPedido.HayControlados` para resolver la clave `FACTURA` vs `FACTURA_ANTICIPO` en `catTipoDocumentoFiscal`; si el origen es `fccPagoFacturaAdelanto` → siempre clave `COMPLEMENTO_PAGO`.
-- `IdCatDocumentoFiscalCobroEstado` se inicializa con la clave `PENDIENTE` al crear la línea. Se actualiza a `GENERADO` tras timbrado exitoso y a `ENVIADO` tras envío exitoso.
+- `IdCatTipoDocumentoFiscal` se determina al crear la línea: si el origen es `fccPagoFacturaPedido` → leer `tpProformaPedido.HayControlados` para resolver la clave `factura` vs `facturaanticipo` en `catTipoDocumentoFiscal`; si el origen es `fccPagoFacturaAdelanto` → siempre clave `complementopago`.
+- `IdCatDocumentoFiscalCobroEstado` se inicializa con la clave `pendiente` al crear la línea. Se actualiza a `generado` tras timbrado exitoso y a `enviado` tras envío exitoso.
 
 ---
 
@@ -371,7 +371,7 @@ CREATE INDEX [IX_fccConfirmacionPedido_Pedido]
 **Consideraciones especiales:**
 - Se genera exclusivamente en envíos México (Perú no genera Confirmación de Pedido en R16).
 - El PDF se genera vía DocumentBuilder y se almacena en Minio antes de armar el correo.
-- `RutaArchivoPDF` puede quedar NULL si el proceso falla antes del envío; en ese caso la línea permanece en estado `GENERADO` y se reintenta al volver a enviar.
+- `RutaArchivoPDF` puede quedar NULL si el proceso falla antes del envío; en ese caso la línea permanece en estado `generado` y se reintenta al volver a enviar.
 - El formato de `FolioConfirmacion` es pendiente de confirmar con el equipo de negocio (PMO).
 
 ---
@@ -385,11 +385,11 @@ CREATE TABLE [dbo].[catTipoCFDI](
     [IdCatTipoCFDI]     uniqueidentifier NOT NULL
         CONSTRAINT [DF_catTipoCFDI_Id]       DEFAULT (NEWID()),
     [Clave]             varchar(20)      NOT NULL,
-        -- 'FACTURA_PPD'       -> Factura generada con método PPD
-        -- 'FACTURA_PUE'       -> Factura generada con método PUE
-        -- 'FACTURA_ANTICIPO'  -> Factura Anticipo (controlados)
+        -- 'facturappd'       -> Factura generada con método PPD
+        -- 'facturapue'       -> Factura generada con método PUE
+        -- 'facturaanticipo'  -> Factura Anticipo (controlados)
         --    -- CORREGIDO (DUDA-088): sin tipo de relacion 07 -- ver nota en catTipoDocumentoFiscal arriba
-        -- 'COMPLEMENTO_PAGO'  -> CFDI Pagos 2.0
+        -- 'complementopago'  -> CFDI Pagos 2.0
     [Descripcion]       nvarchar(150)    NOT NULL,
     [Activo]            bit              NOT NULL
         CONSTRAINT [DF_catTipoCFDI_Activo]   DEFAULT (1),
@@ -405,10 +405,10 @@ CREATE TABLE [dbo].[catTipoCFDI](
 GO
 -- Datos iniciales
 INSERT INTO dbo.catTipoCFDI (Clave, Descripcion) VALUES
-    ('FACTURA_PPD',      'Factura — CFDI Ingreso con método de pago PPD (Pago en parcialidades o diferido)'),
-    ('FACTURA_PUE',      'Factura — CFDI Ingreso con método de pago PUE (Pago en una sola exhibición)'),
-    ('FACTURA_ANTICIPO', 'Factura Anticipo — CFDI Ingreso (productos controlados)'), -- DUDA-088: sin tipo de relacion 07 (es de la Factura Final, fuera de alcance)
-    ('COMPLEMENTO_PAGO', 'Complemento de Pago — CFDI Pagos 2.0');
+    ('facturappd',      'Factura — CFDI Ingreso con método de pago PPD (Pago en parcialidades o diferido)'),
+    ('facturapue',      'Factura — CFDI Ingreso con método de pago PUE (Pago en una sola exhibición)'),
+    ('facturaanticipo', 'Factura Anticipo — CFDI Ingreso (productos controlados)'), -- DUDA-088: sin tipo de relacion 07 (es de la Factura Final, fuera de alcance)
+    ('complementopago', 'Complemento de Pago — CFDI Pagos 2.0');
 ```
 
 ### Diccionario de datos — catTipoCFDI
@@ -422,7 +422,7 @@ INSERT INTO dbo.catTipoCFDI (Clave, Descripcion) VALUES
 | Nombre | Tipo | Descripción |
 |--------|------|-------------|
 | IdCatTipoCFDI | uniqueidentifier PK | Identificador único del catálogo |
-| Clave | varchar(20) NOT NULL UNIQUE | Clave técnica: `FACTURA_PPD`, `FACTURA_PUE`, `FACTURA_ANTICIPO`, `COMPLEMENTO_PAGO` |
+| Clave | varchar(20) NOT NULL UNIQUE | Clave técnica: `facturappd`, `facturapue`, `facturaanticipo`, `complementopago` |
 | Descripcion | nvarchar(150) NOT NULL | Descripción legible del tipo de CFDI |
 | Activo | bit NOT NULL | 1 = vigente |
 | FechaRegistro | datetime NOT NULL | Fecha de inserción |
@@ -448,7 +448,7 @@ un Complemento de Pago con la Factura PPD a la que complementa.
 -- Ejecutar en ProquifaDotNet
 ALTER TABLE dbo.CFDIGenerada
     ADD IdCatTipoCFDI uniqueidentifier NULL;
-        -- FK a catTipoCFDI: FACTURA_PPD | FACTURA_PUE | FACTURA_ANTICIPO | COMPLEMENTO_PAGO
+        -- FK a catTipoCFDI: facturappd | facturapue | facturaanticipo | complementopago
         -- NULL en registros previos (FAA generadas antes de RE-FU-028); normalizar con UPDATE posterior
 
 ALTER TABLE dbo.CFDIGenerada
@@ -458,12 +458,12 @@ ALTER TABLE dbo.CFDIGenerada
 
 ALTER TABLE dbo.CFDIGenerada
     ADD IdCFDIRelacionado uniqueidentifier NULL;
-        -- Para IdCatTipoCFDI -> 'COMPLEMENTO_PAGO': referencia al IdCFDIGenerada de la Factura PPD relacionada
-        -- Para IdCatTipoCFDI -> 'FACTURA_ANTICIPO': NULL. -- INCORRECTO (DUDA-088): el comentario previo decia
+        -- Para IdCatTipoCFDI -> 'complementopago': referencia al IdCFDIGenerada de la Factura PPD relacionada
+        -- Para IdCatTipoCFDI -> 'facturaanticipo': NULL. -- INCORRECTO (DUDA-088): el comentario previo decia
         -- "la relacion tipo 07 se arma en XML al timbrar" -- eso es falso, la Factura Anticipo
         -- NO lleva relacion 07 (esa relacion es de la Factura Final, fuera de alcance, ver
         -- Guia_Tecnica_Facturas_Ingreso_MX.md seccion 6). Sigue NULL, pero por no tener CfdiRelacionados.
-        -- NULL para FACTURA_PPD y FACTURA_PUE
+        -- NULL para facturappd y facturapue
 
 -- FK blanda (self-referencia); no se declara como FOREIGN KEY de BD para evitar
 -- restricciones de inserción cuando el Complemento se inserta en la misma transacción
@@ -472,7 +472,7 @@ ALTER TABLE dbo.CFDIGenerada
 -- Script de normalización de registros existentes (FAA generadas en RE-FU-019)
 -- Ejecutar después del ALTER; ajustar según lógica real de identificación de FAAs previas
 UPDATE dbo.CFDIGenerada
-    SET IdCatTipoCFDI = (SELECT IdCatTipoCFDI FROM dbo.catTipoCFDI WHERE Clave = 'FACTURA_PPD')
+    SET IdCatTipoCFDI = (SELECT IdCatTipoCFDI FROM dbo.catTipoCFDI WHERE Clave = 'facturappd')
 WHERE IdCatTipoCFDI IS NULL;
 -- NOTA: validar si las FAA previas son PPD o PUE antes de ejecutar; ajustar el UPDATE según corresponda.
 ```
@@ -586,8 +586,8 @@ SELECT
     cg_c.Folio                  AS Folio_Complemento,
     -- Estado legible
     CASE p3l.EstadoLinea
-        WHEN 'ENVIADO'   THEN 'Enviado'
-        WHEN 'GENERADO'  THEN 'Generado — pendiente envío'
+        WHEN 'enviado'   THEN 'Enviado'
+        WHEN 'generado'  THEN 'Generado — pendiente envío'
         ELSE                  'Pendiente'
     END                         AS EstadoDescripcion,
     p3l.FechaGeneracion,
@@ -639,8 +639,8 @@ LEFT JOIN dbo.CFDIGenerada cg_c
 | Columna | Origen | Descripción |
 |---------|--------|-------------|
 | IdFCCDocumentoFiscalCobro | fccDocumentoFiscalCobro | PK de la línea del Paso 3 |
-| TipoDocumentoFiscal | fccDocumentoFiscalCobro | `FACTURA`, `FACTURA_ANTICIPO`, `COMPLEMENTO_PAGO` |
-| **EstadoLinea** | fccDocumentoFiscalCobro | `PENDIENTE`, `GENERADO`, `ENVIADO` |
+| TipoDocumentoFiscal | fccDocumentoFiscalCobro | `factura`, `facturaanticipo`, `complementopago` |
+| **EstadoLinea** | fccDocumentoFiscalCobro | `pendiente`, `generado`, `enviado` |
 | **EstadoDescripcion** | Calculado | Descripción legible del estado para la UI |
 | IdCatUsoCFDI / UsoCFDIClave | fccDocumentoFiscalCobro + catUsoCFDI | Uso CFDI seleccionado por el usuario, con clave y descripción del catálogo |
 | IdCatMetodoDePagoCFDI / MetodoPagoClave | fccDocumentoFiscalCobro + catMetodoDePagoCFDI | Método de pago (PPD/PUE) con descripción del catálogo |
@@ -681,12 +681,12 @@ LEFT JOIN dbo.CFDIGenerada cg_c
 
 | Tabla | Momento | Operación |
 |-------|---------|-----------|
-| fccDocumentoFiscalCobro | Al iniciar Paso 3 | INSERT una línea por documento con `EstadoLinea = 'PENDIENTE'` |
+| fccDocumentoFiscalCobro | Al iniciar Paso 3 | INSERT una línea por documento con `EstadoLinea = 'pendiente'` |
 | fccDocumentoFiscalCobro | Auto-guardado Uso CFDI / Método de Pago | UPDATE IdCatUsoCFDI, IdCatMetodoDePagoCFDI |
-| fccDocumentoFiscalCobro | Timbrado exitoso | UPDATE EstadoLinea = `'GENERADO'`, IdCFDIGeneradaFactura, [IdCFDIGeneradaComplemento], FechaGeneracion |
-| fccDocumentoFiscalCobro | Envío exitoso | UPDATE EstadoLinea = `'ENVIADO'`, FechaEnvio |
+| fccDocumentoFiscalCobro | Timbrado exitoso | UPDATE EstadoLinea = `'generado'`, IdCFDIGeneradaFactura, [IdCFDIGeneradaComplemento], FechaGeneracion |
+| fccDocumentoFiscalCobro | Envío exitoso | UPDATE EstadoLinea = `'enviado'`, FechaEnvio |
 | CFDIGenerada | Timbrado exitoso (factura) | INSERT (UUID, Folio, Serie, FechaEmision, Total, IdCatTipoCFDI) vía ProquifaDotNet.Timbrado |
-| CFDIGenerada | Timbrado exitoso (complemento cascada) | INSERT segundo CFDI (IdCatTipoCFDI → clave `COMPLEMENTO_PAGO`, IdCFDIRelacionado = IdCFDIGenerada de la Factura PPD) |
+| CFDIGenerada | Timbrado exitoso (complemento cascada) | INSERT segundo CFDI (IdCatTipoCFDI → clave `complementopago`, IdCFDIRelacionado = IdCFDIGenerada de la Factura PPD) |
 | EmpresaFolio | Timbrado exitoso | UPDATE UltimoFolio + 1 (consumo atómico con UPDLOCK) |
 | tpProformaPedido | Timbrado exitoso | UPDATE IdCFDIGenerada = @IdCFDIFactura (marca la proforma como facturada) |
 | fccConfirmacionPedido | Envío exitoso | INSERT (FolioConfirmacion, RutaArchivoPDF generada en Minio) |
@@ -701,7 +701,7 @@ LEFT JOIN dbo.CFDIGenerada cg_c
 ```
 1. INICIAR PASO 3 (al avanzar desde Paso 2 con asociación cerrada)
    Lee:  fccPagoFacturaPedido, fccPagoFacturaAdelanto (registros de asociación del Paso 2)
-         tpProformaPedido.HayControlados (determina FACTURA vs FACTURA_ANTICIPO)
+         tpProformaPedido.HayControlados (determina factura vs facturaanticipo)
          DatosFacturacionCliente, Empresa (datos fiscales emisor/receptor)
    Escribe: fccDocumentoFiscalCobro INSERT una línea por documento
             IdFCCPagoFacturaPedido OR IdFCCPagoFacturaAdelanto (FK al Paso 2)
@@ -723,18 +723,18 @@ LEFT JOIN dbo.CFDIGenerada cg_c
      UPDATE CFDIGenerada SET UUID, Folio (número de serie consumido de EmpresaFolio)
      UPDATE EmpresaFolio SET UltimoFolio + 1 (UPDLOCK atómico)
      INSERT StampingLog (trazabilidad)
-     [Si PPD cascada]: INSERT segundo CFDIGenerada (TipoCFDI='COMPLEMENTO_PAGO',
+     [Si PPD cascada]: INSERT segundo CFDIGenerada (TipoCFDI='complementopago',
                        IdCFDIRelacionado = IdCFDIGenerada de la Factura PPD)
    ProquifaDotNet:
      UPDATE tpProformaPedido SET IdCFDIGenerada = @IdCFDIFactura (cuando origen = proforma)
-     UPDATE fccDocumentoFiscalCobro SET EstadoLinea='GENERADO', FechaGeneracion,
+     UPDATE fccDocumentoFiscalCobro SET EstadoLinea='generado', FechaGeneracion,
                               IdCFDIGeneradaFactura, [IdCFDIGeneradaComplemento]
 
 5. ENVIAR
    ProquifaDotNet:
      INSERT fccConfirmacionPedido (FolioConfirmacion, RutaArchivoPDF en Minio)
      INSERT CorreoEnviado + ArchivoCorreoEnviado (PDFs + XMLs + Confirmación)
-     UPDATE fccDocumentoFiscalCobro SET EstadoLinea='ENVIADO', FechaEnvio
+     UPDATE fccDocumentoFiscalCobro SET EstadoLinea='enviado', FechaEnvio
      UPDATE tpPedido SET FechaEstimadaEntrega (FEE — solo México)
      Transferencia Legacy (pedido, factura, NCs, cobro) — mecanismo pendiente de definir (B3)
 ```
@@ -794,7 +794,7 @@ LEFT JOIN dbo.CFDIGenerada cg_c
 | R16A-RE-FU-026 | fccPagoFacturaAdelanto, fccNotaCredito (NCs con UUID para CFDIRelacionados) |
 | R16A-RE-FU-021 | Diseño PDF Factura México — DocumentBuilder |
 | R16A-RE-FU-013/014 | Genera `tpProformaPedido` con flag `HayControlados` (origen de la lógica condicional) |
-| R16A-RE-FU-015 | Origen y dueño de `fccFactura`/`vfccFactura` — genera pendiente FAA usada en línea tipo COMPLEMENTO_PAGO (antes referenciaba `tpProformaAdelanto`) |
+| R16A-RE-FU-015 | Origen y dueño de `fccFactura`/`vfccFactura` — genera pendiente FAA usada en línea tipo complementopago (antes referenciaba `tpProformaAdelanto`) |
 
 ---
 

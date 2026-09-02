@@ -29,7 +29,7 @@ La NC aplica exclusivamente a **clientes prepago** y a **facturas vigentes con a
 | BD — ALTER tabla           | ProquifaDotNet            | `fccNotaCredito`: ADD 13 columnas R16                                                                     |
 | BD — ALTER tabla           | ProquifaDotNet            | `fccNotaCreditoPartida`: ADD 6 columnas R16                                                               |
 | BD — DML catálogo          | ProquifaDotNet            | `catUsoCFDI`: INSERT G02 si no existe                                                                     |
-| BD — DML catálogo          | ProquifaDotNet            | `catTipoCFDI`: INSERT NOTA_CREDITO (prereq RE-028)                                                        |
+| BD — DML catálogo          | ProquifaDotNet            | `catTipoCFDI`: INSERT notacredito (prereq RE-028)                                                        |
 | BD — DML foliador          | ProquifaDotNet (Finanzas) | `EmpresaFolio`: INSERT 4 filas Serie ~~"P2"~~ **"B2"** (confirmado, DUDA-101) (GOL, MUN, PRO, PQF)                                            |
 | BD — DML templates         | DocumentBuilder           | `DocumentTemplate`: INSERT 4 templates PDF NC México                                                      |
 | BD — DML bucket            | ProquifaDotNet            | `RegionConfiguracionMinioBucket`: INSERT bucket NC MEX si no existe                                       |
@@ -64,7 +64,7 @@ La NC aplica exclusivamente a **clientes prepago** y a **facturas vigentes con a
 | `CFDI`                                         | Pre-R16   | Poblado por Timbrado con UUID SAT, sello y certificado                                 |
 | `EmpresaFolio` (estructura)                    | RE-019    | Foliador UPDLOCK atómico; RE-032 agrega filas Serie ~~"P2"~~ **"B2"** (confirmado, DUDA-101) |
 | PAC TurboPac                                   | RE-019    | Mismo cliente/servicio para timbrar la NC vía ProquifaDotNet.Timbrado                  |
-| `catTipoCFDI` (tabla)                          | RE-028 T1 | RE-032 inserta clave NOTA_CREDITO                                                      |
+| `catTipoCFDI` (tabla)                          | RE-028 T1 | RE-032 inserta clave notacredito                                                      |
 | `Archivo`                                      | Pre-R16   | PDF + XML de la NC almacenados en MinIO                                                |
 | `CorreoEnviado` + `ArchivoCorreoEnviado`       | Pre-R16   | Trazabilidad del correo automático al timbrar y reenvíos                               |
 | `ApiCallerStamping` (HttpClient + Polly)       | RE-019    | Cliente HTTP con retry hacia Timbrado — se usa `StampCreditNoteAsync` (`POST /api/v1/stamp/credit-note`), método creado en RE-018                        |
@@ -131,7 +131,7 @@ Verificar existencia antes de insertar.
 
 > Ver script en `R16A-RE-FU-032_BD.md` — DML catUsoCFDI.
 
-### A4 — DML catTipoCFDI — NOTA_CREDITO
+### A4 — DML catTipoCFDI — notacredito
 
 Discriminador de tipo CFDI para las NCs. Prereq: RE-028 crea la tabla `catTipoCFDI`.
 
@@ -454,7 +454,7 @@ Fecha, Cobrador, Folio NC (acción → PDF), XML (descarga), Emisor, Monto+Moned
 3. Obtiene folio con UPDLOCK atómico: `SELECT UltimoFolio+1 FROM EmpresaFolio WITH (UPDLOCK) WHERE Serie='B2' AND IdEmpresa=@IdEmpresa` (serie confirmada `B2`, DUDA-101 — corrige el `'P2'` de versiones previas).
 4. Envía XML al PAC TurboPac.
 5. Recibe XML timbrado con `TimbreFiscalDigital` (UUID SAT, sello SAT, certificado).
-6. INSERT `CFDIGenerada` (TipoDocumento='E', MetodoDePago='PUE', UsoCFDI='G02', IdCatTipoCFDI=NOTA_CREDITO).
+6. INSERT `CFDIGenerada` (TipoDocumento='E', MetodoDePago='PUE', UsoCFDI='G02', IdCatTipoCFDI=notacredito).
 7. INSERT `CFDI` con UUID SAT.
 8. Guarda XML timbrado en BD (o MinIO — mismo patrón que Factura).
 9. UPDATE `EmpresaFolio.UltimoFolio`.

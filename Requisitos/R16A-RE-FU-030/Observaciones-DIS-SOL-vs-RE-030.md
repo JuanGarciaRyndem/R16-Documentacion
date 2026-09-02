@@ -38,7 +38,7 @@ Sin embargo, presenta **3 desviaciones críticas** respecto al requisito literal
 **Decisiones arquitectónicas positivas que exceden el requisito:**
 - Foliado sin huecos: el folio Serie "P" se consume **después** del timbrado exitoso, en la misma transacción que el `INSERT CFDIGenerada`. Ningún intento fallido quema un folio.
 - Idempotencia por `IdPeticionCP` en Timbrado: evita doble-timbrado ante redelivery de RabbitMQ o crash de Finanzas.
-- Checkpoint de fase (`TIMBRADO → FOLIO_ASIGNADO → PDF_GENERADO → ARCHIVOS_SUBIDOS`) para hacer reanudable `ExecuteAttemptAsync` sin repetir pasos ya completados.
+- Checkpoint de fase (`timbrado → folioasignado → pdfgenerado → archivossubidos`) para hacer reanudable `ExecuteAttemptAsync` sin repetir pasos ya completados.
 
 ---
 
@@ -112,11 +112,11 @@ CREATE UNIQUE INDEX UQ_fccFolioDocumentoFiscalCobro_EmpresaSerie
 
 **Referencia del requisito:** Criterio J2 — *"Para = contacto del cliente vinculado a la factura, CC = ESAC asignado + analista de Cuentas por Cobrar"*.
 
-**Lo que el DIS-SOL propone:** *"Corrección detectada para RE-028: la lista de destinatarios documentada en RE-028 B6 (`Para` = contacto del pedido, `CC` = ESAC) **no incluye** al 'analista de Cuentas por Cobrar' que sí exige el Criterio J2 de este requisito para las líneas de tipo Complemento de Pago. Coordinar con el mantenedor de RE-028 para agregar ese destinatario en CC cuando la línea enviada sea `COMPLEMENTO_PAGO`."*
+**Lo que el DIS-SOL propone:** *"Corrección detectada para RE-028: la lista de destinatarios documentada en RE-028 B6 (`Para` = contacto del pedido, `CC` = ESAC) **no incluye** al 'analista de Cuentas por Cobrar' que sí exige el Criterio J2 de este requisito para las líneas de tipo Complemento de Pago. Coordinar con el mantenedor de RE-028 para agregar ese destinatario en CC cuando la línea enviada sea `complementopago`."*
 
 **Problema:** el DIS-SOL identifica correctamente la brecha, pero **la deja abierta como coordinación pendiente**. Sin cambio efectivo en RE-028 o en este mismo requisito, el CP se enviará sin el destinatario que el Criterio J2 exige, y el requisito quedará sin cumplirse aunque su diseño esté "aprobado".
 
-**Acción requerida:** convertir la nota en un pendiente formal con dueño y fecha (P18), o incorporar en este mismo requisito un cambio a la lógica de armado de destinatarios que **detecte líneas `COMPLEMENTO_PAGO`** y agregue el analista de Cuentas por Cobrar al CC en el modal de RE-028. La segunda opción es preferible porque mantiene la responsabilidad dentro del requisito que lo exige.
+**Acción requerida:** convertir la nota en un pendiente formal con dueño y fecha (P18), o incorporar en este mismo requisito un cambio a la lógica de armado de destinatarios que **detecte líneas `complementopago`** y agregue el analista de Cuentas por Cobrar al CC en el modal de RE-028. La segunda opción es preferible porque mantiene la responsabilidad dentro del requisito que lo exige.
 
 ### 3.4 — Mismatch de nombre del PAC entre requisito y diseño de RE-018
 
@@ -348,10 +348,10 @@ Esta sección evalúa el DIS-SOL contra las reglas del proyecto que aplican a to
 
 | # | Evento | Fase | Registro sugerido |
 |---|---|---|---|
-| 1 | Timbrado exitoso del CP ante el PAC | `TIMBRADO` | `PaymentComplementStamped` (UUID, IdPeticionCP) |
-| 2 | Folio asignado + `CFDIGenerada` insertado | `FOLIO_ASIGNADO` | `PaymentComplementFolioAssigned` (Folio, Serie) |
-| 3 | PDF generado por DocumentBuilder | `PDF_GENERADO` | `PaymentComplementPdfGenerated` |
-| 4 | PDF+XML subidos a MinIO | `ARCHIVOS_SUBIDOS` | `PaymentComplementFilesUploaded` (rutas MinIO) |
+| 1 | Timbrado exitoso del CP ante el PAC | `timbrado` | `PaymentComplementStamped` (UUID, IdPeticionCP) |
+| 2 | Folio asignado + `CFDIGenerada` insertado | `folioasignado` | `PaymentComplementFolioAssigned` (Folio, Serie) |
+| 3 | PDF generado por DocumentBuilder | `pdfgenerado` | `PaymentComplementPdfGenerated` |
+| 4 | PDF+XML subidos a MinIO | `archivossubidos` | `PaymentComplementFilesUploaded` (rutas MinIO) |
 | 5 | Línea finalizada (`EstadoLinea='GENERADO'`) | Actual del DIS-SOL | `PaymentComplementGenerated` |
 | 6 | Fallo definitivo tras agotar reintentos | Actual del DIS-SOL | `PaymentComplementDefinitiveFailure` |
 | 7 | Cada intento de reintento fallido (opcional, para auditoría) | `catch` del `ExecuteAttemptAsync` | `PaymentComplementAttemptFailed` (NumeroReintento) |

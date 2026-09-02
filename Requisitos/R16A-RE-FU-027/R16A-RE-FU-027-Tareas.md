@@ -327,8 +327,8 @@ Ver sección *"Parte B / B4"* en `R16A-RE-FU-027-Back.md`. Ver reglas 9-13 en `R
 
 **Consideraciones previas:**
 - El modal de inconsistencia del Paso 2 fue implementado en RE-FU-026 (Tarea 8) para México.
-- Para Perú: misma lógica, mismo catálogo `catTipoInconsistenciaCobro` con `AplicaPaso='2'`, mismos tipos `PAGO_INCOMPLETO_VENCIDO` y `PAGO_INSUFICIENTE`.
-- Para el tipo `PAGO_INCOMPLETO_VENCIDO` en Perú: el marcado del pedido como "Pendiente de cancelación" es igual que en México — NO ejecuta cancelación fiscal. En Perú la cancelación fiscal sería vía Nota de Crédito SUNAT (RE-FU-033/035).
+- Para Perú: misma lógica, mismo catálogo `catTipoInconsistenciaCobro` con `AplicaPaso='2'`, mismos tipos `pagoincompletovencido` y `pagoinsuficiente`.
+- Para el tipo `pagoincompletovencido` en Perú: el marcado del pedido como "Pendiente de cancelación" es igual que en México — NO ejecuta cancelación fiscal. En Perú la cancelación fiscal sería vía Nota de Crédito SUNAT (RE-FU-033/035).
 - ⚠️ Mecanismo de transferencia del estado "Pendiente de cancelación" para gestión externa en Perú pendiente de definir.
 - La extensión es mínima: verificar que el filtro por región o cartera del usuario opere correctamente para cobros Perú.
 
@@ -338,7 +338,7 @@ Verificar y extender en Finanzas el modal de inconsistencias del Paso 2 para que
 **Objetivos específicos:**
 - Verificar que `RegisterPaymentInconsistencyCommand` detecta correctamente cobros de Región Perú.
 - Confirmar que el catálogo `catTipoInconsistenciaCobro` con `AplicaPaso='2'` aplica igual para Perú.
-- Para `PAGO_INCOMPLETO_VENCIDO` Perú: misma lógica de marcado de pedido; registrar en Serilog que la cancelación fiscal efectiva se gestiona externamente vía NC SUNAT.
+- Para `pagoincompletovencido` Perú: misma lógica de marcado de pedido; registrar en Serilog que la cancelación fiscal efectiva se gestiona externamente vía NC SUNAT.
 - Actualizar registro en `fccInconsistenciaCobro` con contexto de región Perú.
 
 **Resultado esperado:**
@@ -346,13 +346,13 @@ El modal de inconsistencias del Paso 2 opera correctamente para cobros de client
 
 **Entregables:**
 - Verificación y extensión mínima de `RegisterPaymentInconsistencyCommand` para Región Perú
-- Pruebas unitarias para Región Perú (incluyendo PAGO_INCOMPLETO_VENCIDO y PAGO_INSUFICIENTE)
+- Pruebas unitarias para Región Perú (incluyendo pagoincompletovencido y pagoinsuficiente)
 - Prueba de no regresión para México
 
 **Criterios de aceptación:**
 - El combo del modal Paso 2 Perú muestra correctamente los tipos con `AplicaPaso='2'`.
-- Para `PAGO_INCOMPLETO_VENCIDO` Perú: habilita la opción de marcar el pedido (igual que México).
-- Para `PAGO_INSUFICIENTE` Perú: solo registra inconsistencia, sin marcado de pedido.
+- Para `pagoincompletovencido` Perú: habilita la opción de marcar el pedido (igual que México).
+- Para `pagoinsuficiente` Perú: solo registra inconsistencia, sin marcado de pedido.
 - El flujo México no se ve afectado.
 - ⚠️ El mecanismo de transferencia del estado para cancelación efectiva Perú queda documentado como pendiente.
 

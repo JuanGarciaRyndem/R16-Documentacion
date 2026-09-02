@@ -132,16 +132,16 @@ tolerancia 100 MXN, para uso en futuras sesiones de Validar Cobro.
     -- Actualizar tipo Pago Incompleto Vencido para habilitar el marcado
     UPDATE dbo.catTipoInconsistenciaCobro
     SET AplicaMarkPendienteCancelacion = 1
-    WHERE Clave = 'PAGO_INCOMPLETO_VENCIDO';
+    WHERE Clave = 'pagoincompletovencido';
 
 | Tipo (Clave)            | AplicaPaso | AplicaMarkPendienteCancelacion |
 | ----------------------- | ---------- | ------------------------------ |
-| DATOS_INCOMPLETOS       | '1'        | 0                              |
-| COMPROBANTE_INVALIDO    | '1'        | 0                              |
-| FORMATO_INCORRECTO      | '1'        | 0                              |
-| MONTO_ILEGIBLE          | '1'        | 0                              |
-| PAGO_INCOMPLETO_VENCIDO | '2'        | **1**                          |
-| PAGO_INSUFICIENTE       | '2'        | 0                              |
+| datosincompletos       | '1'        | 0                              |
+| comprobanteinvalido    | '1'        | 0                              |
+| formatoincorrecto      | '1'        | 0                              |
+| montoilegible          | '1'        | 0                              |
+| pagoincompletovencido | '2'        | **1**                          |
+| pagoinsuficiente       | '2'        | 0                              |
 
 ---
 
@@ -212,7 +212,7 @@ tolerancia 100 MXN, para uso en futuras sesiones de Validar Cobro.
 | 1 | CREATE TABLE fccSaldoFavorCliente | Ninguno |
 | 2 | ALTER TABLE fccNotaCredito ADD IdFCCPagoCliente | Ninguno |
 | 3 | ALTER TABLE catTipoInconsistenciaCobro ADD AplicaMarkPendienteCancelacion | RE-FU-024 |
-| 4 | UPDATE catTipoInconsistenciaCobro SET AplicaMarkPendienteCancelacion=1 WHERE PAGO_INCOMPLETO_VENCIDO | Paso 3 |
+| 4 | UPDATE catTipoInconsistenciaCobro SET AplicaMarkPendienteCancelacion=1 WHERE pagoincompletovencido | Paso 3 |
 
 ---
 

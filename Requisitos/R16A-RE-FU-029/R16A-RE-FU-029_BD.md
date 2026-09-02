@@ -23,7 +23,7 @@ Las estructuras de timbrado Peru (`CFDIGenerada`, `EmpresaFolio` con fila GOLPER
 `catCondicionesDePago`) fueron creadas en RE-FU-018/019/020 y también se **reutilizan**.
 
 RE-029 agrega únicamente: el catálogo de Tipo de Operación SUNAT (catálogo 51), la clave
-`FACTURA_CPE` en `catTipoCFDI`, y extiende `fccDocumentoFiscalCobro` con los dos campos
+`facturacpe` en `catTipoCFDI`, y extiende `fccDocumentoFiscalCobro` con los dos campos
 fiscales de Perú (TipoOperacion y CondicionPago). La vista consolidada se actualiza para
 incluir las columnas Perú.
 
@@ -46,17 +46,17 @@ incluir las columnas Perú.
 | #   | Cambio                                                                                     | Base de Datos          | Tipo      | Prioridad |
 | --- | ------------------------------------------------------------------------------------------ | ---------------------- | --------- | --------- |
 | 1   | CREATE TABLE catTipoOperacionSUNAT (catálogo 51 SUNAT)                                     | ProquifaDotNet         | DDL + DML | Alta      |
-| 2   | ALTER TABLE catTipoCFDI — ADD IdRegion + UPDATE entradas MEX + INSERT `FACTURA_CPE` (PER)  | ProquifaDotNet         | DDL + DML | Alta      |
+| 2   | ALTER TABLE catTipoCFDI — ADD IdRegion + UPDATE entradas MEX + INSERT `facturacpe` (PER)  | ProquifaDotNet         | DDL + DML | Alta      |
 | 3   | ALTER TABLE fccDocumentoFiscalCobro — ADD columnas Perú (TipoOperacion, CondicionPago)     | ProquifaDotNet         | DDL       | Alta      |
 | 4   | ALTER VIEW vfccDocumentoFiscalCobro — extender con JOINs Perú                              | ProquifaDotNet         | DDL       | Media     |
 | 5   | DML DocumentTemplate — registrar template `{PrefijoPeru}_PER_CDP`                          | ProquifaDotNet         | DML       | Media     |
-| —   | Reutiliza: CFDIGenerada (RE-018/019; Peru CPE se almacena con Clave=`FACTURA_CPE`)         | ProquifaDotNet         | Existente | —         |
+| —   | Reutiliza: CFDIGenerada (RE-018/019; Peru CPE se almacena con Clave=`facturacpe`)         | ProquifaDotNet         | Existente | —         |
 | —   | Reutiliza: EmpresaFolio GOLPERU (fila insertada en RE-020; Serie F001)                     | ProquifaDotNet (Finanzas) | Existente | —         |
 | —   | Reutiliza: catCondicionesDePago (RE-018/019; Contado/Crédito ya existen)                   | ProquifaDotNet         | Existente | —         |
 | —   | Reutiliza: fccDocumentoFiscalCobro (estructura base RE-028)                                | ProquifaDotNet         | Existente | —         |
 | —   | Reutiliza: fccConfirmacionPedido (RE-028; aplica también a Perú)                           | ProquifaDotNet         | Existente | —         |
-| —   | Reutiliza: catTipoDocumentoFiscal (clave `FACTURA` ya insertada en RE-028)                 | ProquifaDotNet         | Existente | —         |
-| —   | Reutiliza: catDocumentoFiscalCobroEstado (ciclo PENDIENTE/GENERADO/ENVIADO RE-028)         | ProquifaDotNet         | Existente | —         |
+| —   | Reutiliza: catTipoDocumentoFiscal (clave `factura` ya insertada en RE-028)                 | ProquifaDotNet         | Existente | —         |
+| —   | Reutiliza: catDocumentoFiscalCobroEstado (ciclo pendiente/generado/enviado RE-028)         | ProquifaDotNet         | Existente | —         |
 | —   | Reutiliza: tpPedido.FechaEstimadaEntrega (agregada en RE-028)                              | ProquifaDotNet         | Existente | —         |
 | —   | Reutiliza: tpProformaPedido.IdCFDIGenerada (RE-026; campo existente, Perú lo puebla igual) | ProquifaDotNet         | Existente | —         |
 | —   | Reutiliza: fccPagoFacturaPedido / fccPagoFacturaAdelanto (RE-026)                          | ProquifaDotNet         | Existente | —         |
@@ -127,7 +127,7 @@ INSERT INTO dbo.catTipoOperacionSUNAT (Clave, Descripcion) VALUES
 
 ---
 
-## ALTER TABLE catTipoCFDI — Agregar IdRegion + FACTURA_CPE
+## ALTER TABLE catTipoCFDI — Agregar IdRegion + facturacpe
 
 `catTipoCFDI` fue creado en RE-FU-028 exclusivamente para México. RE-029 es el primer
 requisito que usa el catálogo en una segunda región (Perú), por lo que se agrega la columna
@@ -150,12 +150,12 @@ GO
 -- 2. Poblar las entradas México de RE-FU-028
 UPDATE dbo.catTipoCFDI
 SET IdRegion = (SELECT IdRegion FROM dbo.catRegion WHERE Clave = 'MEX')
-WHERE Clave IN ('FACTURA_PPD', 'FACTURA_PUE', 'FACTURA_ANTICIPO', 'COMPLEMENTO_PAGO');
+WHERE Clave IN ('facturappd', 'facturapue', 'facturaanticipo', 'complementopago');
 GO
 
 -- 3. Insertar entrada Perú
 INSERT INTO dbo.catTipoCFDI (Clave, Descripcion, IdRegion)
-SELECT 'FACTURA_CPE',
+SELECT 'facturacpe',
        'Factura electrónica SUNAT — CPE tipo 01 UBL 2.1 (Perú)',
        IdRegion
 FROM dbo.catRegion
@@ -185,7 +185,7 @@ GO
 | Serie                | Serie alfanumérica SAT                  | Serie SUNAT (ej. `F001`)               |
 | FechaEmision         | Fecha timbrado SAT                      | Fecha emisión SUNAT                    |
 | Total                | Total CFDI (MXN)                        | Total CPE (PEN o USD)                  |
-| IdCatTipoCFDI        | FACTURA_PPD / FACTURA_PUE / etc.        | `FACTURA_CPE`                          |
+| IdCatTipoCFDI        | facturappd / facturapue / etc.        | `facturacpe`                          |
 | IdCFDIRelacionado    | UUID CFDI relacionado (Complemento PPD) | `NULL`                                 |
 
 ---
@@ -198,7 +198,7 @@ nullable. RE-029 agrega dos columnas nullable para las líneas Perú, que son lo
 peruanos de esos campos.
 
 El CPE timbrado se referencia mediante la columna existente `IdCFDIGeneradaFactura` (igual
-que México usa para la Factura), con `IdCatTipoCFDI = 'FACTURA_CPE'` en `CFDIGenerada`
+que México usa para la Factura), con `IdCatTipoCFDI = 'facturacpe'` en `CFDIGenerada`
 como discriminador. No se agrega una columna separada para el CPE.
 
 ```sql
@@ -232,7 +232,7 @@ ALTER TABLE dbo.fccDocumentoFiscalCobro
 
 **Consideraciones especiales:**
 - Ambas columnas son nullable para no romper los INSERT existentes de México.
-- El CPE timbrado de una línea Perú se almacena en `CFDIGenerada` y se referencia mediante `IdCFDIGeneradaFactura` (columna preexistente), con `catTipoCFDI.Clave = 'FACTURA_CPE'` como discriminador. No se necesita columna adicional.
+- El CPE timbrado de una línea Perú se almacena en `CFDIGenerada` y se referencia mediante `IdCFDIGeneradaFactura` (columna preexistente), con `catTipoCFDI.Clave = 'facturacpe'` como discriminador. No se necesita columna adicional.
 - La validación de que líneas México lleven `IdCatUsoCFDI`/`IdCatMetodoDePagoCFDI` y líneas Perú lleven `IdCatTipoOperacionSUNAT`/`IdCatCondicionesDePago` se implementa a nivel de aplicación (Finanzas), no mediante CHECK CONSTRAINT en BD.
 
 ---
@@ -284,7 +284,7 @@ SELECT
     cdp.Clave                    AS CondicionPagoClave,
     cdp.Descripcion              AS CondicionPagoDescripcion,
     -- CPE Perú: mismo JOIN que cg_f; Serie SUNAT y Folio = Correlativo
-    -- IdCFDIGeneradaFactura reutilizado; catTipoCFDI.Clave = 'FACTURA_CPE' discrimina
+    -- IdCFDIGeneradaFactura reutilizado; catTipoCFDI.Clave = 'facturacpe' discrimina
     cg_f.Serie                   AS CPE_Serie,       -- 'F001' para Perú; NULL para México hasta timbrar
     cg_f.Folio                   AS CPE_Correlativo, -- '00000001' para Perú
     -- ── CAMPOS COMPARTIDOS ─────────────────────────────────────────────────────
@@ -379,7 +379,7 @@ LEFT JOIN dbo.catCondicionesDePago cdp
 | TipoDocumentoFiscal / EstadoLinea | JOIN a catálogos (corrección RE-028) | Ahora resueltos vía `INNER JOIN`; antes se accedían como columnas directas |
 | IdCatTipoOperacionSUNAT / TipoOperacionSUNATClave | catTipoOperacionSUNAT | Tipo de operación catálogo 51 SUNAT; NULL para México |
 | IdCatCondicionesDePago / CondicionPagoClave | catCondicionesDePago | CONTADO / CRÉDITO; NULL para México |
-| CPE_Serie / CPE_Correlativo | alias de `cg_f.Serie` / `cg_f.Folio` | Reutiliza el JOIN `cg_f` (IdCFDIGeneradaFactura); `catTipoCFDI.Clave='FACTURA_CPE'` discrimina |
+| CPE_Serie / CPE_Correlativo | alias de `cg_f.Serie` / `cg_f.Folio` | Reutiliza el JOIN `cg_f` (IdCFDIGeneradaFactura); `catTipoCFDI.Clave='facturacpe'` discrimina |
 
 ---
 
@@ -422,12 +422,12 @@ toma de la tabla `Empresa` donde ya existe la fila para RE-020.
 | fccFactura (RE-FU-015, reemplaza tpProformaAdelanto) | MontoTotal, IdEmpresa | Sin generación de CPE en RE-029 |
 | DatosFacturacionCliente | RazonSocial, RFC (RUC en Perú), RegimenFiscal | RFC = RUC 11 dígitos |
 | Empresa (GOLPERU) | Prefijo, RazonSocial, RUC emisor | Solo GOLPERU; datos pendientes de B3 RE-020 |
-| CFDIGenerada | UUID (NULL), Folio (Correlativo), Serie (F001), FechaEmision | Misma tabla; `IdCatTipoCFDI = 'FACTURA_CPE'` |
-| catTipoDocumentoFiscal | Clave `FACTURA` | Solo un tipo en Perú |
+| CFDIGenerada | UUID (NULL), Folio (Correlativo), Serie (F001), FechaEmision | Misma tabla; `IdCatTipoCFDI = 'facturacpe'` |
+| catTipoDocumentoFiscal | Clave `factura` | Solo un tipo en Perú |
 | catDocumentoFiscalCobroEstado | Clave, Descripcion | Sin diferencia |
 | catTipoOperacionSUNAT | IdCatTipoOperacionSUNAT, Clave, Descripcion | **Nueva — RE-029** |
 | catCondicionesDePago | IdCatCondicionesDePago, Clave (CONTADO/CRÉDITO) | Existente desde RE-018/019 |
-| catTipoCFDI | Clave `FACTURA_CPE` | Nueva clave insertada en RE-029 |
+| catTipoCFDI | Clave `facturacpe` | Nueva clave insertada en RE-029 |
 | fccNotaCredito | Id, Monto | NCs Perú; mecánica de referencia catálogo 09 SUNAT pendiente (RE-033/035) |
 | tpPedido | FolioPedidoInterno, IdContacto | Sin diferencia |
 | EmpresaFolio GOLPERU (ProquifaDotNet — Finanzas) | Serie (`F001`), UltimoFolio | Misma tabla con fila GOLPERU de RE-020 |
@@ -438,11 +438,11 @@ toma de la tabla `Empresa` donde ya existe la fila para RE-020.
 
 | Tabla | Momento | Operación |
 |-------|---------|-----------|
-| fccDocumentoFiscalCobro | Al iniciar Paso 3 | INSERT línea: `TipoDocumentoFiscal = 'FACTURA'`, `EstadoLinea = 'PENDIENTE'` |
+| fccDocumentoFiscalCobro | Al iniciar Paso 3 | INSERT línea: `TipoDocumentoFiscal = 'factura'`, `EstadoLinea = 'pendiente'` |
 | fccDocumentoFiscalCobro | Auto-guardado TipoOperacion / CondicionPago | UPDATE `IdCatTipoOperacionSUNAT`, `IdCatCondicionesDePago` |
-| fccDocumentoFiscalCobro | Timbrado exitoso | UPDATE `EstadoLinea = 'GENERADO'`, `IdCFDIGeneradaFactura = @IdCPE`, `FechaGeneracion` |
-| fccDocumentoFiscalCobro | Envío exitoso | UPDATE `EstadoLinea = 'ENVIADO'`, `FechaEnvio` |
-| CFDIGenerada | Timbrado exitoso | INSERT (`Serie='F001'`, `Folio=Correlativo`, `UUID=NULL`, `IdCatTipoCFDI='FACTURA_CPE'`) vía servicio Timbrado Perú |
+| fccDocumentoFiscalCobro | Timbrado exitoso | UPDATE `EstadoLinea = 'generado'`, `IdCFDIGeneradaFactura = @IdCPE`, `FechaGeneracion` |
+| fccDocumentoFiscalCobro | Envío exitoso | UPDATE `EstadoLinea = 'enviado'`, `FechaEnvio` |
+| CFDIGenerada | Timbrado exitoso | INSERT (`Serie='F001'`, `Folio=Correlativo`, `UUID=NULL`, `IdCatTipoCFDI='facturacpe'`) vía servicio Timbrado Perú |
 | EmpresaFolio GOLPERU | Timbrado exitoso | UPDATE `UltimoFolio + 1` (UPDLOCK atómico — misma mecánica México) |
 | tpProformaPedido | Timbrado exitoso | UPDATE `IdCFDIGenerada = @IdCPE` (marca proforma como facturada; mismo campo que México) |
 | fccConfirmacionPedido | Envío exitoso | INSERT (FolioConfirmacion, RutaArchivoPDF) — igual que México |
@@ -459,8 +459,8 @@ toma de la tabla `Empresa` donde ya existe la fila para RE-020.
    Lee:  fccPagoFacturaPedido, fccPagoFacturaAdelanto (asociación Paso 2)
          DatosFacturacionCliente (RUC receptor), Empresa GOLPERU (emisora)
    Escribe: fccDocumentoFiscalCobro INSERT una línea por documento
-            IdCatTipoDocumentoFiscal → 'FACTURA' (único tipo en Perú)
-            IdCatDocumentoFiscalCobroEstado → 'PENDIENTE'
+            IdCatTipoDocumentoFiscal → 'factura' (único tipo en Perú)
+            IdCatDocumentoFiscalCobroEstado → 'pendiente'
 
 2. EDITAR LÍNEA (Tipo Operación SUNAT / Condición de Pago)
    Lee:  catTipoOperacionSUNAT, catCondicionesDePago
@@ -472,18 +472,18 @@ toma de la tabla `Empresa` donde ya existe la fila para RE-020.
 
 4. TIMBRAR (⚠️ bloqueado por brechas RE-020: B1 datos SUNAT producto, B2 OSE/PSE)
    ProquifaDotNet.Timbrado (módulo Perú):
-     INSERT CFDIGenerada (Serie='F001', Folio=Correlativo, UUID=NULL, IdCatTipoCFDI='FACTURA_CPE')
+     INSERT CFDIGenerada (Serie='F001', Folio=Correlativo, UUID=NULL, IdCatTipoCFDI='facturacpe')
      UPDATE EmpresaFolio GOLPERU SET UltimoFolio + 1 (UPDLOCK)
    ProquifaDotNet:
      UPDATE tpProformaPedido SET IdCFDIGenerada = @IdCPE
-     UPDATE fccDocumentoFiscalCobro SET EstadoLinea='GENERADO', IdCFDIGeneradaFactura, FechaGeneracion
+     UPDATE fccDocumentoFiscalCobro SET EstadoLinea='generado', IdCFDIGeneradaFactura, FechaGeneracion
 
 5. ENVIAR
    ProquifaDotNet.Finanzas:
      Genera PDF Confirmación de Pedido vía DocumentBuilder (GOLPERU_PER_CDP) → sube a MinIO
      INSERT fccConfirmacionPedido (FolioConfirmacion, RutaArchivoPDF)
      INSERT CorreoEnviado + ArchivoCorreoEnviado (PDF CPE + XML CPE + PDF Confirmación)
-     UPDATE fccDocumentoFiscalCobro SET EstadoLinea='ENVIADO', FechaEnvio
+     UPDATE fccDocumentoFiscalCobro SET EstadoLinea='enviado', FechaEnvio
      UPDATE tpPedido SET FechaEstimadaEntrega (FEE)
      [SIN transferencia a Legacy — exclusiva de México]
 ```
@@ -494,10 +494,10 @@ toma de la tabla `Empresa` donde ya existe la fila para RE-020.
 
 | Aspecto | México (RE-028) | Perú (RE-029) |
 |---------|-----------------|----------------|
-| Tipos de documento | FACTURA, FACTURA_ANTICIPO, COMPLEMENTO_PAGO | Solo FACTURA |
+| Tipos de documento | factura, facturaanticipo, complementopago | Solo factura |
 | Campo catálogo 1 | `IdCatUsoCFDI` → `catUsoCFDI` (SAT) | `IdCatTipoOperacionSUNAT` → `catTipoOperacionSUNAT` (catálogo 51 SUNAT) |
 | Campo catálogo 2 | `IdCatMetodoDePagoCFDI` → `catMetodoDePagoCFDI` (PPD/PUE) | `IdCatCondicionesDePago` → `catCondicionesDePago` (CONTADO/CRÉDITO) |
-| Tabla comprobante | `CFDIGenerada` con `UUID`, `IdCatTipoCFDI = FACTURA_PPD/PUE/ANTICIPO` | `CFDIGenerada` con `UUID=NULL`, `IdCatTipoCFDI = FACTURA_CPE` |
+| Tabla comprobante | `CFDIGenerada` con `UUID`, `IdCatTipoCFDI = facturappd/PUE/ANTICIPO` | `CFDIGenerada` con `UUID=NULL`, `IdCatTipoCFDI = facturacpe` |
 | Serie / folio | Serie SAT (alfanumérica), Folio numérico | Serie SUNAT (`F001`), Folio = Correlativo 8 dígitos |
 | Control de series | `EmpresaFolio` GOL/MUN/PRO/PQF | `EmpresaFolio` GOLPERU (fila ya insertada en RE-020) |
 | Cascada documentos | Factura PPD → Complemento (2 CFDIs) | Solo 1 CPE por línea |

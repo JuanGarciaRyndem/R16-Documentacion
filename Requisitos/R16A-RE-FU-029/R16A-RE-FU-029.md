@@ -28,7 +28,7 @@ El sistema debe contar con la tercera pantalla del wizard de Validar Cobro (Paso
 - Pantalla del Paso 3 del wizard de Validar Cobro: Facturación y Envío, para clientes con Región Perú.
 - Estructura UI idéntica a la de México (R16A-RE-FU-028); las diferencias son catálogos SUNAT y las simplificaciones del modelo peruano.
 - Cabecera del cliente (consistente con Paso 1 y Paso 2: logo, Alias, etiquetas preexistentes, RUC, razón social legal, moneda de facturación).
-- Barra de pasos del wizard: 1-CAPTURAR COBRO (✓), 2-ASOCIAR FACTURA/PROFORMA (✓), 3-FACTURACIÓN Y ENVÍO (activo).
+- Barra de pasos del wizard: 1-CAPTURAR COBRO (✓), 2-ASOCIAR factura/PROFORMA (✓), 3-FACTURACIÓN Y ENVÍO (activo).
 - Listado de líneas a procesar, una por cada documento de la asociación cerrada en el Paso 2.
 - Tipo de documento fiscal único: Factura electrónica (CPE tipo 01, UBL 2.1). En Perú NO hay lógica condicional de tres caminos como en México: todas las líneas que requieren emisión generan una Factura electrónica normal.
 - Por línea: Tipo de Operación (catálogo 51 SUNAT) y Condición de Pago (Contado/Crédito), en lugar del Uso CFDI y Método de Pago del SAT.
@@ -157,7 +157,7 @@ Entonces deberá mostrar: logo del cliente (si existe), razón social, etiquetas
 **Criterio A2 — Barra de pasos del wizard**
 Dado que el usuario está en el Paso 3,
 Cuando el sistema renderiza la barra de pasos,
-Entonces deberá mostrar "1 - CAPTURAR COBRO" (✓), "2 - ASOCIAR FACTURA/PROFORMA" (✓) y "3 - FACTURACIÓN Y ENVÍO" (activo).
+Entonces deberá mostrar "1 - CAPTURAR COBRO" (✓), "2 - ASOCIAR factura/PROFORMA" (✓) y "3 - FACTURACIÓN Y ENVÍO" (activo).
 
 ═══════════════════════════════════════════════════════════════
 SECCIÓN B — LISTADO DE LÍNEAS A PROCESAR
@@ -174,7 +174,7 @@ Cuando muestra sus datos,
 Entonces deberá mostrar: tipo de documento origen, folio del documento origen, fecha, Pedido Interno, emisor (Golocaer S.A.C.), monto total de la factura, tipo de cambio (cuando aplique), NCs aplicadas (si las hubo), estado actual de la línea (Pendiente / Factura Generada / Enviado), y los campos fiscales seleccionables de la línea (Tipo de Operación y Condición de Pago — ver Sección D, pendientes de validar para Perú).
 
 ═══════════════════════════════════════════════════════════════
-SECCIÓN C — TIPO DE DOCUMENTO FISCAL (ÚNICO: FACTURA)
+SECCIÓN C — TIPO DE DOCUMENTO FISCAL (ÚNICO: factura)
 ═══════════════════════════════════════════════════════════════
 
 **Criterio C1 — Toda línea con emisión genera Factura electrónica**

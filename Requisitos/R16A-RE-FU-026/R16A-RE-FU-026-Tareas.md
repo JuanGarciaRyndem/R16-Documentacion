@@ -127,15 +127,15 @@ Ver sección *"Parte A / A2"* en `R16A-RE-FU-026-Back.md` y sección *"Vinculo N
 **Consideraciones previas:**
 - `catTipoInconsistenciaCobro` fue creada en RE-FU-024 (Tarea 2).
 - Se agrega el campo `AplicaMarkPendienteCancelacion` bit DEFAULT(0) para indicar si el tipo activa la opción de marcar el pedido como "Pendiente de cancelación por falta de pago".
-- Solo el tipo `PAGO_INCOMPLETO_VENCIDO` tiene este flag en 1.
+- Solo el tipo `pagoincompletovencido` tiene este flag en 1.
 - La Tarea 8 de Finanzas lee este campo para decidir si mostrar la opción de marcado al usuario.
 
 **Objetivo general:**
-Extender `catTipoInconsistenciaCobro` con el campo `AplicaMarkPendienteCancelacion` y activarlo para el tipo `PAGO_INCOMPLETO_VENCIDO`, habilitando la lógica de marcado del pedido en Finanzas.
+Extender `catTipoInconsistenciaCobro` con el campo `AplicaMarkPendienteCancelacion` y activarlo para el tipo `pagoincompletovencido`, habilitando la lógica de marcado del pedido en Finanzas.
 
 **Objetivos específicos:**
 - `ALTER TABLE dbo.catTipoInconsistenciaCobro ADD AplicaMarkPendienteCancelacion bit NOT NULL CONSTRAINT [DF_catTipoInconsistenciaCobro_Mark] DEFAULT (0)`
-- `UPDATE dbo.catTipoInconsistenciaCobro SET AplicaMarkPendienteCancelacion = 1 WHERE Clave = 'PAGO_INCOMPLETO_VENCIDO'`
+- `UPDATE dbo.catTipoInconsistenciaCobro SET AplicaMarkPendienteCancelacion = 1 WHERE Clave = 'pagoincompletovencido'`
 - Verificar que el ALTER no rompa objetos dependientes del catálogo.
 - Validar que todos los demás registros tienen `AplicaMarkPendienteCancelacion = 0`.
 
@@ -144,12 +144,12 @@ Extender `catTipoInconsistenciaCobro` con el campo `AplicaMarkPendienteCancelaci
 
 **Entregables:**
 - Script DDL: `ALTER TABLE catTipoInconsistenciaCobro ADD AplicaMarkPendienteCancelacion`
-- Script DML: `UPDATE catTipoInconsistenciaCobro SET AplicaMarkPendienteCancelacion=1 WHERE Clave='PAGO_INCOMPLETO_VENCIDO'`
+- Script DML: `UPDATE catTipoInconsistenciaCobro SET AplicaMarkPendienteCancelacion=1 WHERE Clave='pagoincompletovencido'`
 - Script de validación
 
 **Criterios de aceptación:**
 - `AplicaMarkPendienteCancelacion bit NOT NULL DEFAULT(0)` existe en `catTipoInconsistenciaCobro`.
-- Solo el registro `PAGO_INCOMPLETO_VENCIDO` tiene `AplicaMarkPendienteCancelacion = 1`.
+- Solo el registro `pagoincompletovencido` tiene `AplicaMarkPendienteCancelacion = 1`.
 - Todos los demás registros tienen `AplicaMarkPendienteCancelacion = 0`.
 
 **Más información de la tarea:**
@@ -383,11 +383,11 @@ Ver sección *"Parte B / B4"* en `R16A-RE-FU-026-Back.md`. Ver reglas 8-11 en `R
 - El modal de inconsistencia del Paso 1 fue implementado en RE-FU-024 (Tarea 10). Este requisito lo extiende para el Paso 2.
 - Los tipos del Paso 2 tienen `AplicaPaso='2'` en el catálogo.
 - Tarea 3 debe estar ejecutada (`AplicaMarkPendienteCancelacion` disponible en el catálogo).
-- Para el tipo `PAGO_INCOMPLETO_VENCIDO` (`AplicaMarkPendienteCancelacion=1`), Finanzas habilita la opción de marcar el pedido asociado.
+- Para el tipo `pagoincompletovencido` (`AplicaMarkPendienteCancelacion=1`), Finanzas habilita la opción de marcar el pedido asociado.
 - ⚠️ Pendiente definir el campo exacto en `tpPedido` para el estado "Pendiente de cancelación" y el mecanismo de transferencia al área de Finanzas.
 
 **Objetivo general:**
-Extender en Finanzas el modal de inconsistencias para el Paso 2: filtrar tipos por `AplicaPaso='2'`, registrar la inconsistencia contra el cobro, y para el tipo `PAGO_INCOMPLETO_VENCIDO` habilitar y procesar el marcado del pedido como "Pendiente de cancelación por falta de pago".
+Extender en Finanzas el modal de inconsistencias para el Paso 2: filtrar tipos por `AplicaPaso='2'`, registrar la inconsistencia contra el cobro, y para el tipo `pagoincompletovencido` habilitar y procesar el marcado del pedido como "Pendiente de cancelación por falta de pago".
 
 **Objetivos específicos:**
 - Extender el endpoint de catálogo de tipos de inconsistencia: `GET /api/v1/validate-collection/inconsistencyType?step=2`.
@@ -396,19 +396,19 @@ Extender en Finanzas el modal de inconsistencias para el Paso 2: filtrar tipos p
 - Registrar en Serilog las inconsistencias del Paso 2 con contexto de usuario, módulo y operación.
 
 **Resultado esperado:**
-El modal de inconsistencias del Paso 2 en Finanzas retorna los tipos correctos (`AplicaPaso='2'`) y procesa el marcado del pedido cuando el tipo es `PAGO_INCOMPLETO_VENCIDO`.
+El modal de inconsistencias del Paso 2 en Finanzas retorna los tipos correctos (`AplicaPaso='2'`) y procesa el marcado del pedido cuando el tipo es `pagoincompletovencido`.
 
 **Entregables:**
 - Extensión del endpoint `GET /api/v1/validate-collection/inconsistencyType?step=2`
 - Extensión del Command `RegisterPaymentInconsistencyCommand` para manejar el flujo del Paso 2
-- Pruebas unitarias (incluyendo: solo tipos AplicaPaso=2, flujo PAGO_INCOMPLETO_VENCIDO con y sin marcado del pedido)
+- Pruebas unitarias (incluyendo: solo tipos AplicaPaso=2, flujo pagoincompletovencido con y sin marcado del pedido)
 
 **Criterios de aceptación:**
 - El combo del modal Paso 2 solo muestra tipos con `AplicaPaso='2'`.
 - Los tipos del Paso 1 (`AplicaPaso='1'`) NO aparecen en el combo del Paso 2.
-- Para el tipo `PAGO_INCOMPLETO_VENCIDO`, se habilita la opción de marcar el pedido.
+- Para el tipo `pagoincompletovencido`, se habilita la opción de marcar el pedido.
 - El marcado del pedido se persiste correctamente en ProquifaDotNet.
-- Para el tipo `PAGO_INSUFICIENTE`, solo se registra la inconsistencia (sin marcado de pedido).
+- Para el tipo `pagoinsuficiente`, solo se registra la inconsistencia (sin marcado de pedido).
 
 **Más información de la tarea:**
 Ver sección *"Parte B / B5"* en `R16A-RE-FU-026-Back.md`. Ver reglas 12-14 en `R16A-RE-FU-026.md`.

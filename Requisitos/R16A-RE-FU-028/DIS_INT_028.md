@@ -144,9 +144,9 @@ Al avanzar desde el Paso 2, Finanzas crea una fila en `fccDocumentoFiscalCobro` 
 
 | Origen (Paso 2) | Condición | Tipo resultante |
 |---|---|---|
-| `fccPagoFacturaPedido` | `tpProformaPedido.Controlados = 0` (o NULL) | `FACTURA` |
-| `fccPagoFacturaPedido` | `tpProformaPedido.Controlados = 1` | `FACTURA_ANTICIPO` |
-| `fccPagoFacturaAdelanto` | — | `COMPLEMENTO_PAGO` |
+| `fccPagoFacturaPedido` | `tpProformaPedido.Controlados = 0` (o NULL) | `factura` |
+| `fccPagoFacturaPedido` | `tpProformaPedido.Controlados = 1` | `facturaanticipo` |
+| `fccPagoFacturaAdelanto` | — | `complementopago` |
 
 > **Nota de diseño:** la columna real es `tpProformaPedido.Controlados` (no `HayControlados`). Existe además `Empresa.FacturaControlados` (bit) a nivel empresa emisora — verificar si actúa como **gate** (la empresa debe permitir facturación de controlados) o solo como default. Esto debe confirmarse con RE-FU-013/014 (origen del flag por proforma).
 
@@ -155,16 +155,16 @@ Si al reingresar ya existen filas para el cobro, se recuperan desde `vfccDocumen
 ## 3.2 Máquina de estados por línea
 
 ```
-PENDIENTE ──[Timbrar]──► GENERADO ──[Enviar]──► ENVIADO   (terminal)
+pendiente ──[Timbrar]──► generado ──[Enviar]──► enviado   (terminal)
                 │
                 └─(cascada PPD: Factura OK, Complemento falla)──► GENERADO_COMPLEMENTO_PENDIENTE
                                                                        │
-                                                    [Reintentar Complemento] ──► GENERADO
+                                                    [Reintentar Complemento] ──► generado
 ```
 
-- `PENDIENTE → GENERADO` es **irreversible** (documento timbrado, inmutable — Regla 17).
+- `pendiente → generado` es **irreversible** (documento timbrado, inmutable — Regla 17).
 - **`GENERADO_COMPLEMENTO_PENDIENTE`** (estado nuevo propuesto): resuelve el limbo de la cascada PPD (§4.6). La UI muestra badge "Complemento pendiente" y habilita **solo** el reintento del Complemento, nunca el re-timbrado de la Factura.
-- El wizard cierra (Regla 20 / K2) cuando **todas** las líneas están `ENVIADO`.
+- El wizard cierra (Regla 20 / K2) cuando **todas** las líneas están `enviado`.
 
 ## 3.3 Criterios de aceptación (trazabilidad requisito → diseño)
 
@@ -187,20 +187,20 @@ PENDIENTE ──[Timbrar]──► GENERADO ──[Enviar]──► ENVIADO   (t
 
 | Regla | Condición | Comportamiento |
 |---|---|---|
-| Uso CFDI editable | tipo ∈ {FACTURA, FACTURA_ANTICIPO} ∧ estado = PENDIENTE | combo habilitado |
-| Uso CFDI solo lectura | tipo = COMPLEMENTO_PAGO | valor de la factura origen |
-| Método de Pago editable | tipo ∈ {FACTURA, FACTURA_ANTICIPO} ∧ estado = PENDIENTE | radio PPD/PUE |
-| Método de Pago fijo PPD | tipo = COMPLEMENTO_PAGO | "PPD" solo lectura |
-| Aviso cascada | PPD en línea FACTURA | "Se generarán 2 CFDIs: Factura PPD + Complemento" |
-| Bloqueo edición | estado ≠ PENDIENTE | controles deshabilitados |
-| Bloqueo navegación atrás | ≥1 línea con estado ≠ PENDIENTE | Paso 1/2 deshabilitados |
+| Uso CFDI editable | tipo ∈ {factura, facturaanticipo} ∧ estado = pendiente | combo habilitado |
+| Uso CFDI solo lectura | tipo = complementopago | valor de la factura origen |
+| Método de Pago editable | tipo ∈ {factura, facturaanticipo} ∧ estado = pendiente | radio PPD/PUE |
+| Método de Pago fijo PPD | tipo = complementopago | "PPD" solo lectura |
+| Aviso cascada | PPD en línea factura | "Se generarán 2 CFDIs: Factura PPD + Complemento" |
+| Bloqueo edición | estado ≠ pendiente | controles deshabilitados |
+| Bloqueo navegación atrás | ≥1 línea con estado ≠ pendiente | Paso 1/2 deshabilitados |
 
 ## 3.5 Modal Enviar (I2/I3)
 
 ```
 Para:      contacto del pedido (editable)   ← tpPedido.IdContactoCliente
 CC:        ESAC asignado (editable, sugerido)
-           ⚠️ si tipo = COMPLEMENTO_PAGO, agregar también al analista de Cuentas por Cobrar (ver nota v4.0 abajo)
+           ⚠️ si tipo = complementopago, agregar también al analista de Cuentas por Cobrar (ver nota v4.0 abajo)
 Asunto:    generado por sistema (no editable) — ver OQ-2
 Adjuntos:  PDF+XML por CFDI de la línea + PDF Confirmación de Pedido (no editables)
 Notas:     textarea libre opcional
@@ -208,7 +208,7 @@ Notas:     textarea libre opcional
 
 > **Corrección v2 (OQ-3):** el destinatario proviene de `tpPedido.IdContactoCliente` (contacto de facturación/pedido). Existe también `tpPedido.IdContactoEntrega`. Ambos son **nullable** → cuando `IdContactoCliente` es NULL, el campo Para queda vacío. ~~el envío se bloquea hasta captura manual (regla de fallback propuesta, confirmar con negocio)~~ **RESUELTO — DUDA-089 (2026-08-21):** se usa el mismo mecanismo de envíos que el sistema actual ya tiene ante contacto ausente o múltiple; no se construye regla de fallback nueva, no requiere desarrollo adicional.
 >
-> ==**Gap detectado v4.0 (RE-030 §3.3 de sus Observaciones):** el Criterio J2 de RE-030 exige que las líneas `COMPLEMENTO_PAGO` incluyan en CC al "analista de Cuentas por Cobrar" — este diseño hoy solo trae contacto+ESAC. Acción: el endpoint `send` debe detectar `tipo = COMPLEMENTO_PAGO` y agregar ese destinatario en CC. Sin dueño ni fecha confirmados con RE-030 todavía — ver RAD Duda #27.==
+> ==**Gap detectado v4.0 (RE-030 §3.3 de sus Observaciones):** el Criterio J2 de RE-030 exige que las líneas `complementopago` incluyan en CC al "analista de Cuentas por Cobrar" — este diseño hoy solo trae contacto+ESAC. Acción: el endpoint `send` debe detectar `tipo = complementopago` y agregar ese destinatario en CC. Sin dueño ni fecha confirmados con RE-030 todavía — ver RAD Duda #27.==
 
 ---
 
@@ -256,22 +256,22 @@ Una fila por documento fiscal de la asociación. Apunta a **exactamente uno** de
 `CFDIGenerada` **ya tiene** `TipoDocumento varchar`. El diseño de JD propone además `catTipoCFDI` + FK `IdCatTipoCFDI` + un `ALTER` self-ref `IdCFDIRelacionado`. Decisión (corregida v3.0):
 
 - ==**NO crear el `ALTER CFDIGenerada.IdCFDIRelacionado`.** Ya existe `CFDIGeneradaRelacionado` (`IdCFDIGenerada` FK padre + `UUID` + `ClaveTipoRelacion` + `Activo`), con BO `CFDIGeneradaRelacionadoBO`. La relación CFDI 4.0 `CfdiRelacionados` es 1:N (un CFDI puede relacionar varios UUIDs con distinto tipo) — el self-ref de v2.0 la modelaba mal (1:1). RE-FU-032 (Notas de Crédito) ya construye sobre `CFDIGeneradaRelacionado` para sus NCs; usar el mismo patrón para la cascada Complemento↔Factura PPD (`ClaveTipoRelacion` = tipo de relación SAT) en vez de inventar un campo nuevo.==
-- Para el discriminador de tipo de negocio (FACTURA / FACTURA_ANTICIPO / COMPLEMENTO_PAGO): **mantener `catTipoDocumentoFiscal` nuevo** en `fccDocumentoFiscalCobro` — `CFDIGenerada.TipoDocumento` (I/E/P) no distingue FACTURA de FACTURA_ANTICIPO (ambos son "I"). El `catTipoCFDI` que proponía JD sí solapa con `TipoDocumento` y es el candidato a **no** crear.
-- El script de normalización de registros previos (FAA de RE-FU-019) debe validar PPD vs PUE **antes** de poblar (`FACTURA_PPD` por defecto es incorrecto para PUE — §3.5 de JD).
+- Para el discriminador de tipo de negocio (factura / facturaanticipo / complementopago): **mantener `catTipoDocumentoFiscal` nuevo** en `fccDocumentoFiscalCobro` — `CFDIGenerada.TipoDocumento` (I/E/P) no distingue factura de facturaanticipo (ambos son "I"). El `catTipoCFDI` que proponía JD sí solapa con `TipoDocumento` y es el candidato a **no** crear.
+- El script de normalización de registros previos (FAA de RE-FU-019) debe validar PPD vs PUE **antes** de poblar (`facturappd` por defecto es incorrecto para PUE — §3.5 de JD).
 - ==Pendiente confirmar con el autor de RE-FU-030 (Alberto Pantoja): su DIS del Complemento no menciona `CFDIGeneradaRelacionado` en ningún punto, solo un nodo XML `DocumentoRelacionadoCp`. Verificar si el INSERT en la tabla ocurre en un paso no documentado, o si hay que agregarlo — de lo contrario la cascada queda inconsistente con el patrón que ya usa RE-032 para NCs.==
 
 ## 4.5 Concurrencia (doble timbrado)
 
 Sin candado, dos sesiones del mismo cobro pueden timbrar 2 CFDIs válidos ante SAT para la misma línea. Mitigación:
-- `RowVersion` en `fccDocumentoFiscalCobro` + transición de estado condicional (`UPDATE ... WHERE Estado = PENDIENTE AND RowVersion = @rv`).
+- `RowVersion` en `fccDocumentoFiscalCobro` + transición de estado condicional (`UPDATE ... WHERE Estado = pendiente AND RowVersion = @rv`).
 - El consumo de folio ya es atómico (`EmpresaFolio` con UPDLOCK), pero eso no impide dos líneas timbrando; el candado debe ser sobre `IdFCCDocumentoFiscalCobro`.
 
 ## 4.6 Cascada PPD y estado limbo (edge-case fiscal crítico)
 
 Una acción del usuario (Timbrar PPD) genera 2 CFDIs secuenciales en backend. Si la Factura PPD timbra pero el Complemento falla:
 - La Factura PPD **está vigente ante SAT** — no se ignora.
-- Sin estado dedicado, la línea quedaría en `PENDIENTE` y un reintento timbraría **una segunda Factura PPD** (error fiscal grave).
-- **Solución v2:** transición a `GENERADO_COMPLEMENTO_PENDIENTE`; se persiste `IdCFDIGeneradaFactura`, `IdCFDIGeneradaComplemento = NULL`. El reintento invoca **solo** el timbrado del Complemento con el UUID de la Factura ya vigente. Esto también desbloquea el cierre del wizard (una línea en limbo ya no impide B8 indefinidamente si el reintento la lleva a `GENERADO`→`ENVIADO`).
+- Sin estado dedicado, la línea quedaría en `pendiente` y un reintento timbraría **una segunda Factura PPD** (error fiscal grave).
+- **Solución v2:** transición a `GENERADO_COMPLEMENTO_PENDIENTE`; se persiste `IdCFDIGeneradaFactura`, `IdCFDIGeneradaComplemento = NULL`. El reintento invoca **solo** el timbrado del Complemento con el UUID de la Factura ya vigente. Esto también desbloquea el cierre del wizard (una línea en limbo ya no impide B8 indefinidamente si el reintento la lleva a `generado`→`enviado`).
 
 ## 4.7 Diagramas de secuencia (obligatorio — ver CLAUDE.md §Convenciones DIS/RAD)
 
@@ -297,7 +297,7 @@ sequenceDiagram
         alt PAC rechaza/no disponible
             PAC-->>TIM: error
             TIM-->>FIN: 502/503
-            FIN-->>SPA: PAC_ERROR / PAC_UNAVAILABLE (línea sigue PENDIENTE)
+            FIN-->>SPA: PAC_ERROR / PAC_UNAVAILABLE (línea sigue pendiente)
         else PAC OK
             PAC-->>TIM: UUID Factura PPD
             TIM->>BD: INSERT CFDIGenerada (Factura)
@@ -313,8 +313,8 @@ sequenceDiagram
                 PAC-->>TIM: UUID Complemento
                 TIM->>BD: INSERT CFDIGenerada (Complemento) + CFDIGeneradaRelacionado
                 TIM-->>FIN: Complemento timbrado
-                FIN->>BD: UPDATE estado = GENERADO
-                FIN-->>SPA: 200 { estado: GENERADO, cfdisTimbrados: [Factura, Complemento] }
+                FIN->>BD: UPDATE estado = generado
+                FIN-->>SPA: 200 { estado: generado, cfdisTimbrados: [Factura, Complemento] }
             end
         end
     end
@@ -341,8 +341,8 @@ sequenceDiagram
         FIN-->>SPA: 502 EMAIL_SEND_ERROR
     else envío OK
         BREVO-->>FIN: OK
-        FIN->>BD: UPDATE estado = ENVIADO
-        FIN-->>SPA: 200 { estado: ENVIADO }
+        FIN->>BD: UPDATE estado = enviado
+        FIN-->>SPA: 200 { estado: enviado }
         par post-envío (asíncrono, no bloquea la respuesta)
             FIN->>FEE: Establecer FEE (reusar cálculo por partida, §B4)
         and
@@ -374,14 +374,14 @@ POST /api/v1/validate-collection/fiscalDocumentLine/{idLinea}/pdfPreview
   200: { urlPdf }        400 lineaId inválido · 409 ya timbrada
 
 POST /api/v1/validate-collection/fiscalDocumentLine/{idLinea}/stamp
-  { usoCfdi?, metodoPago? }   // req si tipo ≠ COMPLEMENTO_PAGO. Unificado: timbra Factura (cascada PPD) y reintento de Complemento (limbo §4.6) — mismo endpoint.
+  { usoCfdi?, metodoPago? }   // req si tipo ≠ complementopago. Unificado: timbra Factura (cascada PPD) y reintento de Complemento (limbo §4.6) — mismo endpoint.
   200: { lineaId, estado, cfdisTimbrados: CfdiTimbrado[] }   // 1 o 2
   409 estado incorrecto · 502 PAC_ERROR (detalle PAC) · 503 PAC_UNAVAILABLE
   ==JD: este endpoint DEBE tener retry para el timbrado del Complemento — mecanismo aún sin detallar. Ver §0-ter (RE-030 recomienda que el retry sea transversal, no propio de 028).==
 
 POST /api/v1/validate-collection/fiscalDocumentLine/{idLinea}/send
   { para, cc?, notasExtras? }
-  200: { lineaId, estado: ENVIADO, wizardCerrado }
+  200: { lineaId, estado: enviado, wizardCerrado }
   400 email inválido · 409 no timbrada · 502 EMAIL_SEND_ERROR
   ==JD: NO invocar Brevo directo — este endpoint debe llamar a `ProquifaDotNet.EnvioCorreo` ("Aplicativo Nuevo de Envío de Correo"). Contrato/URL pendiente (crítico, bloquea también RE-019/029/030/032/033 — ver §0-ter).==
 ```
@@ -400,10 +400,10 @@ PUT  /api/validar-cobro/paso3/autosave        { lineaId, usoCfdi?, metodoPago? }
 ## 5.2 Timbrado (Finanzas → Timbrado)
 
 Escenarios (Reglas 7/10, F2):
-- **A — FACTURA PUE:** 1 CFDI (`TipoDocumento = 'I'`, `catTipoDocumentoFiscal` = FACTURA).
-- **B — FACTURA PPD:** cascada 2 CFDIs; el Complemento se relaciona a la Factura PPD vía **`CFDIGeneradaRelacionado`** (`UUID` de la Factura + `ClaveTipoRelacion`) — no un `ALTER` nuevo (§4.4). Fallo parcial → §4.6.
-- **C — FACTURA_ANTICIPO:** 1 CFDI, tipo relación **07** en XML (⚠️ B1, §5.5).
-- **D — COMPLEMENTO_PAGO desde FAA:** 1 CFDI, relacionado al UUID FAA (`tpProformaAdelanto.IdCFDIGenerada`) también vía `CFDIGeneradaRelacionado`.
+- **A — factura PUE:** 1 CFDI (`TipoDocumento = 'I'`, `catTipoDocumentoFiscal` = factura).
+- **B — factura PPD:** cascada 2 CFDIs; el Complemento se relaciona a la Factura PPD vía **`CFDIGeneradaRelacionado`** (`UUID` de la Factura + `ClaveTipoRelacion`) — no un `ALTER` nuevo (§4.4). Fallo parcial → §4.6.
+- **C — facturaanticipo:** 1 CFDI, tipo relación **07** en XML (⚠️ B1, §5.5).
+- **D — complementopago desde FAA:** 1 CFDI, relacionado al UUID FAA (`tpProformaAdelanto.IdCFDIGenerada`) también vía `CFDIGeneradaRelacionado`.
 
 Post-timbrado exitoso: `PersistirFacturaMexicoPdfService` (RE-FU-021 GAP-10) genera PDF definitivo → MinIO → INSERT `Archivo` → UPDATE `CFDI`. El PDF del Complemento (`*_MEX_COP`) depende de **RE-FU-030**.
 
@@ -418,7 +418,7 @@ Post-timbrado exitoso: `PersistirFacturaMexicoPdfService` (RE-FU-021 GAP-10) gen
 - **Bisagra** pedido↔Legacy: `tpPedido.FolioPedidoInterno` = `PPedidos.CPedido` (verificada; `FolioPedidoInterno` existe).
 - Linked servers bidireccionales `LegacyAux` (2401→2402) / `PQF2Aux` (2402→2401).
 
-**Recomendación de diseño para B3:** en lugar de inventar canal, **reutilizar `ActualizacionPedidoPrepago`** como cola de transferencia asíncrona para E1/E2/E3/E6. Esto encaja el Paso 3 en el patrón de **saga distribuida de 3 BDs** ya existente para prepago. ==El SP consumidor `spActualizarPedidoPrepago` **sí existe** (confirmado 4-jul, 6610 filas en la cola) pero **solo aplica el prepago al pedido** — no transfiere factura ni PDF. E3/E6 necesitan payload/SP nuevo o una extensión del canal; "reutilizar el canal" ≠ "reutilizar el SP para todo". Sigue pendiente con Arquitectura.== Confirmado además: (c) dead-letter / reintento (una línea `ENVIADO` en .NET no debe quedar sin reflejar en Legacy sin compensación) — sin diseñar aún.
+**Recomendación de diseño para B3:** en lugar de inventar canal, **reutilizar `ActualizacionPedidoPrepago`** como cola de transferencia asíncrona para E1/E2/E3/E6. Esto encaja el Paso 3 en el patrón de **saga distribuida de 3 BDs** ya existente para prepago. ==El SP consumidor `spActualizarPedidoPrepago` **sí existe** (confirmado 4-jul, 6610 filas en la cola) pero **solo aplica el prepago al pedido** — no transfiere factura ni PDF. E3/E6 necesitan payload/SP nuevo o una extensión del canal; "reutilizar el canal" ≠ "reutilizar el SP para todo". Sigue pendiente con Arquitectura.== Confirmado además: (c) dead-letter / reintento (una línea `enviado` en .NET no debe quedar sin reflejar en Legacy sin compensación) — sin diseñar aún.
 
 ==**NO-FU-003 (mecanismo LegacyBridge) sigue sin ningún diseño formal**, confirmado por búsqueda exhaustiva en todos los DIS-SOL entregados (6-jul) — no vive dentro de RE-FU-016 como se había considerado (ese documento es solo un proxy de subida/descarga de archivos). Cualquiera que retome este punto debe asumir que empieza de cero.==
 
@@ -438,8 +438,8 @@ Post-timbrado exitoso: `PersistirFacturaMexicoPdfService` (RE-FU-021 GAP-10) gen
 
 | HTTP | Código | Mensaje | UI |
 |---|---|---|---|
-| 502 | PAC_ERROR | "Error al timbrar: {detalle PAC}" | toast + línea PENDIENTE |
-| 503 | PAC_UNAVAILABLE | "Servicio de timbrado no disponible. Intente más tarde." | toast + PENDIENTE |
+| 502 | PAC_ERROR | "Error al timbrar: {detalle PAC}" | toast + línea pendiente |
+| 503 | PAC_UNAVAILABLE | "Servicio de timbrado no disponible. Intente más tarde." | toast + pendiente |
 | 400 | INVALID_CFDI_DATA | "Datos inválidos. Revise Uso CFDI / Método de Pago / datos fiscales." | toast inline |
 | 409 | LINE_ALREADY_STAMPED | (no debería ocurrir) | log + refresh estado |
 | 409 | COMPLEMENTO_PENDING | "Factura vigente; falta el Complemento." | acción reintento Complemento |
@@ -510,9 +510,9 @@ Antes de llamar al PAC, Finanzas debe validar (precomprobación) para evitar XML
 
 - Ciclo completo (previsualizar→timbrar→enviar) sin errores del sistema para todas las líneas.
 - Reanudación recupera el estado exacto de cada línea.
-- Timbrado fallido deja la línea en `PENDIENTE`; fallo de Complemento en cascada la deja en `GENERADO_COMPLEMENTO_PENDIENTE` con reintento acotado.
-- El wizard cierra cuando todas las líneas están `ENVIADO`.
-- Imposible editar/re-timbrar una línea `GENERADO`/`ENVIADO`.
+- Timbrado fallido deja la línea en `pendiente`; fallo de Complemento en cascada la deja en `GENERADO_COMPLEMENTO_PENDIENTE` con reintento acotado.
+- El wizard cierra cuando todas las líneas están `enviado`.
+- Imposible editar/re-timbrar una línea `generado`/`enviado`.
 - Ninguna condición de doble timbrado bajo concurrencia.
 
 ---

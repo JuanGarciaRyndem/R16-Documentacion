@@ -146,7 +146,7 @@ Crear el catálogo `catTipoInconsistenciaCobro` con estructura y datos iniciales
 
 **Objetivos específicos:**
 - DDL: PK NEWID, `Clave` varchar(50) UNIQUE, `Descripcion` varchar(200), `AplicaPaso` varchar(1), `Activo` bit DEFAULT(1).
-- INSERT datos iniciales: tipos del Paso 1 (DATOS_INCOMPLETOS, COMPROBANTE_INVALIDO, FORMATO_INCORRECTO, MONTO_ILEGIBLE) y Paso 2 (PAGO_INCOMPLETO_VENCIDO, PAGO_INSUFICIENTE).
+- INSERT datos iniciales: tipos del Paso 1 (datosincompletos, comprobanteinvalido, formatoincorrecto, montoilegible) y Paso 2 (pagoincompletovencido, pagoinsuficiente).
 
 **Resultado esperado:**
 Tabla `catTipoInconsistenciaCobro` con datos iniciales, lista para el modal de inconsistencias.
@@ -488,7 +488,7 @@ Ver sección *"Parte B / B6"* en `R16A-RE-FU-024-Back.md`. Ver regla 7 y criteri
 **Consideraciones previas:**
 - Tareas 2 y 3 deben existir (`catTipoInconsistenciaCobro` y `fccInconsistenciaCobro`).
 - Solo tipos con `AplicaPaso='1'` para el combo del modal del Paso 1.
-- Tipo `PAGO_INCOMPLETO_VENCIDO` (`AplicaPaso='2'`) NO debe aparecer en el Paso 1.
+- Tipo `pagoincompletovencido` (`AplicaPaso='2'`) NO debe aparecer en el Paso 1.
 
 **Objetivo general:**
 Implementar en Finanzas el endpoint de catálogo filtrado y el endpoint de registro de inconsistencia del Paso 1.
@@ -511,7 +511,7 @@ Modal de inconsistencias del Paso 1 con combo filtrado correctamente y registro 
 
 **Criterios de aceptación:**
 - Combo del modal solo muestra tipos `AplicaPaso='1'`.
-- `PAGO_INCOMPLETO_VENCIDO` NO aparece en el Paso 1.
+- `pagoincompletovencido` NO aparece en el Paso 1.
 - Inconsistencia insertada correctamente en `fccInconsistenciaCobro`.
 - Comentario es opcional (puede ser null).
 

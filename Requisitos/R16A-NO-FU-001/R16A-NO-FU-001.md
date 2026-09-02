@@ -369,7 +369,7 @@ WHERE [Estado] IN ('PENDIENTE', 'ERROR');
 | Columna | Tipo | Descripción |
 |---|---|---|
 | `IdCatalogoPlantillaBrevo` | `uniqueidentifier` PK | Identificador interno |
-| `Clave` | `nvarchar(100)` NOT NULL UNIQUE | Clave lógica (e.g. `BIENVENIDA_CLIENTE`) |
+| `Clave` | `nvarchar(100)` NOT NULL UNIQUE | Clave lógica (e.g. `bienvenidacliente`) |
 | `IdTemplateBrevo` | `int` NOT NULL | ID de plantilla en la plataforma Brevo |
 | `Nombre` | `nvarchar(200)` NOT NULL | Nombre descriptivo |
 | `Descripcion` | `nvarchar(500)` NOT NULL DEFAULT '' | Descripción del uso de la plantilla |
@@ -556,7 +556,7 @@ Envío usando una plantilla nativa de Brevo. El HTML es renderizado por Brevo en
   "idRegion": "guid",
   "receptores": [{ "nombre": "string", "correo": "string" }],
   "conCopia": [{ "nombre": "string", "correo": "string" }],
-  "clave": "BIENVENIDA_CLIENTE",
+  "clave": "bienvenidacliente",
   "idTemplateBrevo": null,
   "params": {
     "nombre": "Juan García",

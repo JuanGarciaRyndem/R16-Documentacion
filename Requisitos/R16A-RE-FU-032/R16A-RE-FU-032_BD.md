@@ -28,7 +28,7 @@ sección reserva el análisis de impacto ETL.
 > — `catUsoCFDI` G02: existencia pendiente de verificar con query SSMS.
 > — Bucket MinIO para NCs México: pendiente de verificar en `RegionConfiguracionMinioBucket`.
 > — ~~Serie "P2" en `EmpresaFolio`: formato del folio pendiente de validar con PMO (Regla 9).~~ **RESUELTO (2026-08-21, DUDA-101):** la serie confirmada para las NC de México es **`B2`**, no `P2`. Resuelto en conjunto con DUDA-113 (fuera de este batch); el formato/longitud exactos del foliador siguen sin detallarse en este documento — ver esa duda antes de ejecutar el DML. Todo el DML y los ejemplos de esta sección que muestran `'P2'` deben leerse como `'B2'` una vez validado el detalle.
-> — `catTipoCFDI`: tabla creada en RE-028 como prerequisito; RE-032 inserta clave `NOTA_CREDITO`.
+> — `catTipoCFDI`: tabla creada en RE-028 como prerequisito; RE-032 inserta clave `notacredito`.
 > — ~~FormaPago en modalidad manual: pendiente de confirmar (PMO — Regla 7 del requisito).~~ **RESUELTO (2026-08-21, DUDA-098):** no se hereda un valor fijo de la factura origen — se calcula comparando `NC.Monto` contra el `SaldoPendiente` de la factura (`Factura.Total − Factura.TotalCobrado`, antes de aplicar la NC). `NC ≤ SaldoPendiente` → `FormaPago = 15` (Condonación) siempre; `NC > SaldoPendiente` → forma real de devolución o `FormaPago = 23` (Novación, no Compensación) si queda como saldo a favor. `FormaPago = 99` nunca es válido en una NC (exige `MetodoPago=PPD`, y la NC siempre es `PUE`). Ver `Guia_Tecnica_Notas_de_Credito_MX.md` para el detalle completo.
 > — ~~ClaveProdServ y ClaveUnidad en modalidad manual: recomendación SAT 84111506/ACT pendiente de confirmar con PROQUIFA.~~ **RESUELTO (2026-08-21, DUDA-100):** `84111506` / `ACT` es la convención documentada en el Apéndice 5 SAT para NC sin partidas reales — no es una decisión fiscal abierta, queda fija.
 > — Estructura PCconnect (Legacy): pendiente de recibir para documentar mapeo ETL completo.
@@ -43,7 +43,7 @@ sección reserva el análisis de impacto ETL.
 | 1   | ALTER TABLE fccNotaCredito — ADD columnas R16 (empresa, cliente, modalidad, estado, fiscal)    | ProquifaDotNet         | DDL       | Alta      |
 | 2   | ALTER TABLE fccNotaCreditoPartida — ADD columnas R16 (concepto origen, importes fiscales)      | ProquifaDotNet         | DDL       | Alta      |
 | 3   | DML catUsoCFDI — INSERT clave G02 si no existe                                                  | ProquifaDotNet         | DML       | Alta      |
-| 4   | DML catTipoCFDI — INSERT clave NOTA_CREDITO (prereq: RE-028 crea la tabla)                     | ProquifaDotNet         | DML       | Alta      |
+| 4   | DML catTipoCFDI — INSERT clave notacredito (prereq: RE-028 crea la tabla)                     | ProquifaDotNet         | DML       | Alta      |
 | 5   | DML EmpresaFolio — INSERT filas Serie "P2" para GOL, MUN, PRO, PQF                             | ProquifaDotNet (Finanzas) | DML       | Alta      |
 | 6   | DML DocumentTemplate — INSERT 4 templates PDF NC México                                         | DocumentBuilder        | DML       | Media     |
 | 7   | DML RegionConfiguracionMinioBucket — INSERT bucket NC México si no existe                       | ProquifaDotNet         | DML       | Media     |
@@ -236,23 +236,23 @@ SELECT ClaveUso, Uso, Activo FROM dbo.catUsoCFDI WHERE ClaveUso = 'G02';
 
 ---
 
-## DML — catTipoCFDI: INSERT clave NOTA_CREDITO
+## DML — catTipoCFDI: INSERT clave notacredito
 
 > **Prerequisito:** La tabla `catTipoCFDI` es creada por RE-028 (Tarea 1). RE-032 inserta
-> la clave `NOTA_CREDITO` una vez que dicha tabla exista.
+> la clave `notacredito` una vez que dicha tabla exista.
 
 ```sql
 -- Ejecutar en ProquifaDotNet (después de RE-028 T1)
 -- Verificar que no existe
-SELECT * FROM dbo.catTipoCFDI WHERE Clave = 'NOTA_CREDITO';
+SELECT * FROM dbo.catTipoCFDI WHERE Clave = 'notacredito';
 
 INSERT INTO dbo.catTipoCFDI (IdCatTipoCFDI, Clave, Descripcion, TipoDocumentoSAT, Activo)
-VALUES (NEWID(), 'NOTA_CREDITO', 'Nota de Crédito', 'E', 1);
+VALUES (NEWID(), 'notacredito', 'Nota de Crédito', 'E', 1);
 GO
 
 -- Validación
 SELECT IdCatTipoCFDI, Clave, Descripcion, TipoDocumentoSAT, Activo
-FROM dbo.catTipoCFDI WHERE Clave = 'NOTA_CREDITO';
+FROM dbo.catTipoCFDI WHERE Clave = 'notacredito';
 ```
 
 ---
@@ -510,7 +510,7 @@ Cobros).
 | `CFDIGeneradaRelacionado`          | Pre-R16   | INSERT UUID factura origen con ClaveTipoRelacion='01'                         |
 | `CFDICancelacion`                  | Pre-R16   | INSERT condicional si se cancela la factura origen (ClaveMotivo SAT)          |
 | `CFDI`                             | Pre-R16   | Poblado por Timbrado con UUID SAT, sello y certificado tras timbrar           |
-| `catTipoCFDI.NOTA_CREDITO`         | RE-028 T1 | Discriminador de tipo CFDI; RE-032 inserta la clave (prereq: tabla de RE-028) |
+| `catTipoCFDI.notacredito`         | RE-028 T1 | Discriminador de tipo CFDI; RE-032 inserta la clave (prereq: tabla de RE-028) |
 | `EmpresaFolio` (estructura)        | RE-019    | Foliador UPDLOCK atómico; RE-032 agrega filas Serie 'P2'                      |
 | `Archivo`                          | Pre-R16   | PDF + XML de la NC almacenados en MinIO                                       |
 | `CorreoEnviado`                    | Pre-R16   | Trazabilidad del correo automático con NC al timbrar y reenvíos               |
@@ -661,7 +661,7 @@ Referenciada por `fccNotaCredito.IdCatNotaCreditoEstado` (FK formal, N:1).
 | P4 | Recibir estructura de tablas PCconnect para completar mapeo ETL SSIS                                    | ETL PCconnect                 |
 | P5 | ~~Confirmar FormaPago en modalidad manual (Regla 7 — ⚠️ '99' fiscalmente incorrecto para NC PUE)~~ — **RESUELTO (2026-08-21, DUDA-098):** se resuelve por comparación NC vs SaldoPendiente — `15` Condonación / forma real / `23` Novación; `99` queda formalmente excluido | CFDIGenerada / fccNotaCredito |
 | P6 | ~~Confirmar ClaveProdServ y ClaveUnidad default para modalidad manual (candidato SAT: 84111506 / ACT)~~ — **RESUELTO (2026-08-21, DUDA-100):** convención confirmada, `84111506` / `ACT` (Apéndice 5 SAT) | CFDIGeneradaConcepto          |
-| P7 | Confirmar estructura de `catTipoCFDI` con RE-028 para validar columnas del INSERT de NOTA_CREDITO       | DML catTipoCFDI               |
+| P7 | Confirmar estructura de `catTipoCFDI` con RE-028 para validar columnas del INSERT de notacredito       | DML catTipoCFDI               |
 | P8 | Políticas de autorización por monto (PMO #54) — **RESUELTO (2026-08-21, DUDA-102):** no aplica código de autorización para NC en R16; sin impacto en BD | — |
 
 ---

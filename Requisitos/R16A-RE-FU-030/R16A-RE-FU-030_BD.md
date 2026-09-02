@@ -11,7 +11,7 @@ RE-030 habilita la generación del Complemento de Pago (CFDI tipo P, Pagos20 v2.
 México como complemento de la infraestructura del Paso 3 de Validar Cobro (RE-028).
 
 La estructura de control de estado del Paso 3 (`fccDocumentoFiscalCobro`,
-`catTipoCFDI.COMPLEMENTO_PAGO`, `fccDocumentoFiscalCobro.IdCFDIGeneradaComplemento`,
+`catTipoCFDI.complementopago`, `fccDocumentoFiscalCobro.IdCFDIGeneradaComplemento`,
 `CFDIGenerada.IdCFDIRelacionado`) fue creada en RE-028 y se **reutiliza**.
 
 RE-030 agrega únicamente lo necesario para materializar los datos fiscales específicos del
@@ -45,8 +45,8 @@ las entradas del foliador con Serie "P" en `EmpresaFolio` y los templates PDF en
 | 4   | DML EmpresaFolio — INSERT filas Serie "P" para GOL, MUN, PRO, PQF                                                 | ProquifaDotNet (Finanzas) | DML       | Alta      |
 | 5   | DML DocumentTemplate — INSERT 4 templates PDF Complemento de Pago México                                          | DocumentBuilder           | DML       | Media     |
 | 6   | ALTER VIEW vfccDocumentoFiscalCobro v3.0 — exponer columnas DR nuevas                                             | ProquifaDotNet            | DDL       | Media     |
-| —   | Reutiliza: CFDIGenerada con `IdCatTipoCFDI='COMPLEMENTO_PAGO'` (RE-028)                                           | ProquifaDotNet            | Existente | —         |
-| —   | Reutiliza: `catTipoCFDI.COMPLEMENTO_PAGO` (clave creada en RE-028 T1)                                             | ProquifaDotNet            | Existente | —         |
+| —   | Reutiliza: CFDIGenerada con `IdCatTipoCFDI='complementopago'` (RE-028)                                           | ProquifaDotNet            | Existente | —         |
+| —   | Reutiliza: `catTipoCFDI.complementopago` (clave creada en RE-028 T1)                                             | ProquifaDotNet            | Existente | —         |
 | —   | Reutiliza: `fccDocumentoFiscalCobro.IdCFDIGeneradaComplemento` (RE-028 T3)                                        | ProquifaDotNet            | Existente | —         |
 | —   | Reutiliza: `CFDIGenerada.IdCFDIRelacionado` — link CP → Factura PPD (RE-028 T5)                                   | ProquifaDotNet            | Existente | —         |
 | —   | Reutiliza: `EmpresaFolio` — estructura existente (RE-019); solo se insertan filas Serie P                         | ProquifaDotNet (Finanzas) | Existente | —         |
@@ -175,7 +175,7 @@ como **snapshot inmutable** al momento del timbrado.
 
 Dado que la política de R16 es 1 Complemento = 1 DoctoRelacionado, estos campos se
 agregan directamente a `fccDocumentoFiscalCobro` (relación 1:1). Son NULL para líneas
-México tipo `FACTURA` / `FACTURA_ANTICIPO` y para todas las líneas Perú (que ya tienen
+México tipo `factura` / `facturaanticipo` y para todas las líneas Perú (que ya tienen
 sus propias columnas de RE-029).
 
 > **Columnas del snapshot fiscal del CP:**
@@ -200,7 +200,7 @@ sus propias columnas de RE-029).
 ALTER TABLE dbo.fccDocumentoFiscalCobro
     ADD [FechaPagoCP] datetime NULL;
         -- FechaPago del nodo Pago en el XML del CP.
-        -- NULL para líneas no-CP (FACTURA, FACTURA_ANTICIPO, FACTURA_CPE).
+        -- NULL para líneas no-CP (factura, facturaanticipo, facturacpe).
         -- ⚠️ Pendiente: confirmar si hora es 12:00:00 fija o la hora real del cobro.
 GO
 
@@ -296,9 +296,9 @@ ORDER BY c.column_id;
 | catFormaPagoSAT | N:1 (nullable) | IdCatFormaPagoSAT |
 
 **Consideraciones especiales:**
-- Las 8 columnas son NULL para toda línea no-CP (`FACTURA`, `FACTURA_ANTICIPO`, líneas Perú). La validación de presencia obligatoria para líneas CP se realiza en la capa de aplicación (Finanzas), no con CHECK CONSTRAINT en BD.
+- Las 8 columnas son NULL para toda línea no-CP (`factura`, `facturaanticipo`, líneas Perú). La validación de presencia obligatoria para líneas CP se realiza en la capa de aplicación (Finanzas), no con CHECK CONSTRAINT en BD.
 - `ImpSaldoInsoluto` se calcula en la capa de aplicación antes del INSERT y se persiste como snapshot. No hay trigger ni computed column para evitar recomputación posterior que podría diferir si cambian datos relacionados.
-- `NumParcialidad` se calcula contando los `CFDIGenerada` existentes con `IdCatTipoCFDI = 'COMPLEMENTO_PAGO'` y `IdCFDIRelacionado = @IdFacturaPPD` + 1, en la misma transacción del timbrado con UPDLOCK para evitar concurrencia.
+- `NumParcialidad` se calcula contando los `CFDIGenerada` existentes con `IdCatTipoCFDI = 'complementopago'` y `IdCFDIRelacionado = @IdFacturaPPD` + 1, en la misma transacción del timbrado con UPDLOCK para evitar concurrencia.
 - `EquivalenciaDR = 1` cuando MonedaDR = MonedaP — el valor 1 debe persistirse explícitamente ya que el SAT lo requiere en el XML aunque las monedas sean iguales.
 
 ---
@@ -531,7 +531,7 @@ SELECT TOP 5
     FormaPagoClave, NumParcialidad,
     ImpSaldoAnt, ImpPagado, ImpSaldoInsoluto, EquivalenciaDR
 FROM dbo.vfccDocumentoFiscalCobro
-WHERE TipoDocumentoFiscal = 'COMPLEMENTO_PAGO';
+WHERE TipoDocumentoFiscal = 'complementopago';
 ```
 
 ---
@@ -540,9 +540,9 @@ WHERE TipoDocumentoFiscal = 'COMPLEMENTO_PAGO';
 
 | Estructura                                          | Origen            | Uso en RE-030                                                                                                                                            |
 | --------------------------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CFDIGenerada`                                      | RE-019            | INSERT por cada CP timbrado con `IdCatTipoCFDI='COMPLEMENTO_PAGO'`, `UUID` del SAT, `IdCFDIRelacionado` = `IdCFDIGenerada` de la Factura PPD relacionada |
-| `catTipoCFDI.COMPLEMENTO_PAGO`                      | RE-028 T1         | Discriminador del tipo de CFDI en `CFDIGenerada`                                                                                                         |
-| `catTipoCFDI.IdRegion` (MEX)                        | RE-029 T2         | `COMPLEMENTO_PAGO` tiene `IdRegion = MEX` — solo aplica a México                                                                                         |
+| `CFDIGenerada`                                      | RE-019            | INSERT por cada CP timbrado con `IdCatTipoCFDI='complementopago'`, `UUID` del SAT, `IdCFDIRelacionado` = `IdCFDIGenerada` de la Factura PPD relacionada |
+| `catTipoCFDI.complementopago`                      | RE-028 T1         | Discriminador del tipo de CFDI en `CFDIGenerada`                                                                                                         |
+| `catTipoCFDI.IdRegion` (MEX)                        | RE-029 T2         | `complementopago` tiene `IdRegion = MEX` — solo aplica a México                                                                                         |
 | `fccDocumentoFiscalCobro.IdCFDIGeneradaComplemento` | RE-028 T3         | Se puebla con el `IdCFDIGenerada` del CP timbrado en la cascada PPD                                                                                      |
 | `CFDIGenerada.IdCFDIRelacionado`                    | RE-028 T5         | FK blanda al `IdCFDIGenerada` de la Factura PPD que este CP complementa                                                                                  |
 | `EmpresaFolio` (estructura)                         | RE-019            | Foliador con UPDLOCK atómico; RE-030 agrega filas Serie P                                                                                                |

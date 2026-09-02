@@ -100,7 +100,7 @@ ALTER TABLE dbo.catTipoInconsistenciaCobro
 -- Activar el flag solo para el tipo Pago Incompleto Vencido
 UPDATE dbo.catTipoInconsistenciaCobro
 SET AplicaMarkPendienteCancelacion = 1
-WHERE Clave = 'PAGO_INCOMPLETO_VENCIDO';
+WHERE Clave = 'pagoincompletovencido';
 ```
 
 ---
@@ -182,13 +182,13 @@ Todo en una sola transacción; rollback completo si cualquier operación falla.
 
 ### B5 — Modal de inconsistencia del cobro (Paso 2)
 
-**Descripción:** Endpoint en Finanzas que registra la inconsistencia del Paso 2. Similar al del Paso 1 (RE-FU-024) pero filtra tipos con `AplicaPaso='2'` y soporta adicionalmente el marcado del pedido como "Pendiente de cancelación por falta de pago" cuando el tipo es `PAGO_INCOMPLETO_VENCIDO`.
+**Descripción:** Endpoint en Finanzas que registra la inconsistencia del Paso 2. Similar al del Paso 1 (RE-FU-024) pero filtra tipos con `AplicaPaso='2'` y soporta adicionalmente el marcado del pedido como "Pendiente de cancelación por falta de pago" cuando el tipo es `pagoincompletovencido`.
 
 **Tipos del Paso 2 (catálogo `catTipoInconsistenciaCobro` con `AplicaPaso='2'`):**
-- `PAGO_INCOMPLETO_VENCIDO` → habilita opción de marcar pedido como "Pendiente de cancelación" (`AplicaMarkPendienteCancelacion=1`)
-- `PAGO_INSUFICIENTE` → registra inconsistencia, deja asociación pendiente de próximo cobro
+- `pagoincompletovencido` → habilita opción de marcar pedido como "Pendiente de cancelación" (`AplicaMarkPendienteCancelacion=1`)
+- `pagoinsuficiente` → registra inconsistencia, deja asociación pendiente de próximo cobro
 
-**Flujo para `PAGO_INCOMPLETO_VENCIDO`:**
+**Flujo para `pagoincompletovencido`:**
 1. Usuario selecciona el tipo y confirma.
 2. Finanzas detecta `AplicaMarkPendienteCancelacion=1` en el catálogo.
 3. Se habilita la opción de marcar el pedido asociado como "Pendiente de cancelación por falta de pago".
@@ -213,7 +213,7 @@ Todo en una sola transacción; rollback completo si cualquier operación falla.
 > Si una NC excede el adeudo del documento, el saldo remanente queda fuera de scope R16. Pendiente confirmar con PROQUIFA el tratamiento operativo (auxiliar interno, descarte, otro).
 
 > ⚠️ **BRECHA — Cancelación sin cancelación fiscal ni devolución (Riesgo 3)**
-> El tipo `PAGO_INCOMPLETO_VENCIDO` marca el pedido pero R16 no ejecuta cancelación fiscal ni devolución. Pendiente definir el mecanismo de transferencia al área de Finanzas.
+> El tipo `pagoincompletovencido` marca el pedido pero R16 no ejecuta cancelación fiscal ni devolución. Pendiente definir el mecanismo de transferencia al área de Finanzas.
 
 > ⚠️ **BRECHA — Tolerancia 100 MXN en moneda distinta a MXN**
 > Pendiente confirmar si la tolerancia aplica solo a operaciones MXN o se convierte al equivalente del día para otras monedas.

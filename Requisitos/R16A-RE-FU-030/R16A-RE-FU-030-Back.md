@@ -11,7 +11,7 @@
 RE-030 implementa la generación del **Complemento de Pago (CFDI tipo P, Pagos20 v2.0)** para México, completando los pasos que RE-028 dejó explícitamente pendientes en su sección B4:
 
 - **Escenario B (cascada PPD)** — pasos 4–6: timbrado del CP inmediatamente después de la Factura PPD, generación y persistencia del PDF CP.
-- **Escenario D (COMPLEMENTO_PAGO desde FAA existente)** — pasos 2–3: generación y persistencia del PDF CP para el complemento de una Factura por Adelantado.
+- **Escenario D (complementopago desde FAA existente)** — pasos 2–3: generación y persistencia del PDF CP para el complemento de una Factura por Adelantado.
 
 No hay pantalla ni módulo independiente. El único disparador es la confirmación del timbrado de la Factura PPD (o la FAA) en el Paso 3 de Validar Cobro. El Complemento de Pago se genera automáticamente en cascada, sin interacción adicional del usuario entre la Factura y el CP.
 
@@ -41,8 +41,8 @@ La política operativa de R16 es **1 CP por factura**: si un cobro cubre N factu
 | Componente | Origen | Reutilización en RE-030 |
 |---|---|---|
 | `fccDocumentoFiscalCobro` (estructura base) | RE-028 | Se extiende con 8 columnas DR; ciclo PENDIENTE→GENERADO→ENVIADO sin cambios |
-| `CFDIGenerada` | RE-019/028 | Se inserta una fila por CP con `IdCatTipoCFDI='COMPLEMENTO_PAGO'`, `IdCFDIRelacionado` = UUID de la Factura PPD o FAA relacionada |
-| `catTipoCFDI.COMPLEMENTO_PAGO` | RE-028 T1 | Discriminador del tipo de CFDI; sin cambios |
+| `CFDIGenerada` | RE-019/028 | Se inserta una fila por CP con `IdCatTipoCFDI='complementopago'`, `IdCFDIRelacionado` = UUID de la Factura PPD o FAA relacionada |
+| `catTipoCFDI.complementopago` | RE-028 T1 | Discriminador del tipo de CFDI; sin cambios |
 | `fccDocumentoFiscalCobro.IdCFDIGeneradaComplemento` | RE-028 | Se puebla con el `IdCFDIGenerada` del CP timbrado |
 | `CFDIGenerada.IdCFDIRelacionado` | RE-028 | FK blanda al UUID de la Factura PPD/FAA que este CP complementa |
 | `EmpresaFolio` (estructura) | RE-019 | Foliador atómico con UPDLOCK; RE-030 agrega filas Serie "P" |
@@ -98,7 +98,7 @@ Se agregan 8 columnas nullable que almacenan el **snapshot fiscal inmutable** de
 | `ImpSaldoInsoluto` | decimal(18,6) | `ImpSaldoInsoluto` = ImpSaldoAnt − ImpPagado |
 | `EquivalenciaDR` | decimal(18,6) | `EquivalenciaDR` (1 si MonedaDR = MonedaP) |
 
-Son NULL para líneas no-CP (FACTURA, FACTURA_ANTICIPO, líneas Perú).
+Son NULL para líneas no-CP (factura, facturaanticipo, líneas Perú).
 
 > Ver script completo en `R16A-RE-FU-030_BD.md` — ALTER TABLE fccDocumentoFiscalCobro.
 
@@ -135,7 +135,7 @@ La vista se extiende incrementalmente sobre v2.0 (RE-029) para exponer las 8 col
 
 ### B1 — Previsualización PDF del Complemento de Pago
 
-**Descripción:** Al presionar "Previsualizar" en una línea con `IdCatTipoDocumentoFiscal = COMPLEMENTO_PAGO`, Finanzas genera el PDF representativo en memoria sin timbrar ni persistir. Completa el stub que RE-028 B3 (paso 3) dejó pendiente.
+**Descripción:** Al presionar "Previsualizar" en una línea con `IdCatTipoDocumentoFiscal = complementopago`, Finanzas genera el PDF representativo en memoria sin timbrar ni persistir. Completa el stub que RE-028 B3 (paso 3) dejó pendiente.
 
 **Flujo:**
 1. Finanzas lee `vfccDocumentoFiscalCobro` para la línea.
@@ -144,7 +144,7 @@ La vista se extiende incrementalmente sobre v2.0 (RE-029) para exponer las 8 col
    SELECT COUNT(*) + 1
    FROM CFDIGenerada
    WHERE IdCFDIRelacionado = @IdCFDIFacturaPPD
-     AND IdCatTipoCFDI = 'COMPLEMENTO_PAGO'
+     AND IdCatTipoCFDI = 'complementopago'
    ```
 3. Calcula `ImpSaldoAnt` estimado (ver sección B2 para la lógica completa).
 4. Invoca `PaymentComplementPdfMappingService.MapearPreviewAsync()` — consolida datos en `PaymentComplementPdfModel` sin `TimbreFiscalDigital`, resuelve `TemplateKey` dinámicamente (`GOL/MUN/PRO/PQF_MEX_CP`).
@@ -165,7 +165,7 @@ La vista se extiende incrementalmente sobre v2.0 (RE-029) para exponer las 8 col
 SELECT COUNT(*) + 1 AS NumParcialidad
 FROM dbo.CFDIGenerada WITH (UPDLOCK)
 WHERE IdCFDIRelacionado = @IdCFDIFacturaPPD
-  AND IdCatTipoCFDI = (SELECT IdCatTipoCFDI FROM catTipoCFDI WHERE Clave = 'COMPLEMENTO_PAGO')
+  AND IdCatTipoCFDI = (SELECT IdCatTipoCFDI FROM catTipoCFDI WHERE Clave = 'complementopago')
 ```
 
 El UPDLOCK evita que dos cobros concurrentes sobre la misma factura PPD asignen el mismo número de parcialidad.
@@ -211,7 +211,7 @@ Resolución desde `catFormaPagoSAT` según la forma de cobro registrada en el Pa
 
 **Descripción:** Implementa los pasos 4–6 del Escenario B de RE-028 B4. Inmediatamente después de que la Factura PPD es timbrada exitosamente, Finanzas solicita el timbrado del CP.
 
-Este flujo completa la cascada para la línea `FACTURA` con `MetodoPago = PPD`:
+Este flujo completa la cascada para la línea `factura` con `MetodoPago = PPD`:
 
 **Paso 4 — Solicitar timbrado del CP:**
 
@@ -274,7 +274,7 @@ WHERE IdFCCDocumentoFiscalCobro = @Id
 **Política de fallo del CP tras Factura PPD timbrada:**
 Si el timbrado del CP falla, la Factura PPD permanece vigente con UUID. La línea queda en estado `PENDIENTE` para reintento del CP en el siguiente acceso al Paso 3. ⚠️ **Pendiente:** Política formal de reintento pendiente (Requisito 030 No aplica — brecha transversal con Factura Anticipo y NC).
 
-### B4 — COMPLEMENTO_PAGO desde FAA existente (Escenario D de RE-028)
+### B4 — complementopago desde FAA existente (Escenario D de RE-028)
 
 **Descripción:** Implementa los pasos 2–3 del Escenario D de RE-028 B4. Para líneas donde el origen es una Factura por Adelantado ya existente, el CP ya se timbra en RE-028 (1 CFDI). RE-030 agrega la generación y persistencia del PDF.
 
@@ -291,7 +291,7 @@ Si el timbrado del CP falla, la Factura PPD permanece vigente con UUID. La líne
 
 El modal de envío del Paso 3 (RE-028 B6) ya contempla los adjuntos del CP. RE-030 provee los PDFs y XMLs del CP para que el modal pueda incluirlos:
 
-| Adjunto | Para líneas FACTURA PPD + cascada | Para líneas COMPLEMENTO_PAGO desde FAA |
+| Adjunto | Para líneas factura PPD + cascada | Para líneas complementopago desde FAA |
 |---|---|---|
 | PDF Factura PPD | ✓ (RE-028) | — |
 | XML Factura PPD | ✓ (RE-028) | — |
@@ -360,7 +360,7 @@ Timbrado recibe la solicitud del CP desde Finanzas (sección B3) en el endpoint 
 3. Llama al PAC TurboPac con el XML firmado con el CSD de la empresa emisora.
 4. Recibe respuesta del PAC con UUID, FechaTimbre, SelloSAT, NoCertificadoSAT, CadenaOriginal.
 5. `INSERT CFDIGenerada`:
-   - `IdCatTipoCFDI` → `COMPLEMENTO_PAGO`
+   - `IdCatTipoCFDI` → `complementopago`
    - `IdCFDIRelacionado` = `IdCFDIGenerada` de la Factura PPD/FAA relacionada
    - `UUID`, `Serie = 'P'`, `Folio`, `FechaEmision`
 6. `INSERT StampingLog` (trazabilidad de la petición al PAC).

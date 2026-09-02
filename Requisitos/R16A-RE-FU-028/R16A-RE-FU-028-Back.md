@@ -42,7 +42,7 @@ Al confirmar el envío de cada línea, el sistema dispara automáticamente tres 
 | `fccPagoFacturaPedido`                              | RE-FU-026     | FK desde `fccDocumentoFiscalCobro` (origen proforma)                                                                                                   |
 | `fccPagoFacturaAdelanto`                            | RE-FU-026     | FK desde `fccDocumentoFiscalCobro` (origen FAA)                                                                                                        |
 | `fccNotaCredito.IdCFDI`                             | RE-FU-026     | UUID de la NC para incluir en nodo `CFDIRelacionados` al timbrar                                                                                       |
-| `tpProformaPedido.HayControlados`                   | RE-FU-013/014 | Flag que determina `FACTURA` vs `FACTURA_ANTICIPO` en la lógica condicional                                                                            |
+| `tpProformaPedido.HayControlados`                   | RE-FU-013/014 | Flag que determina `factura` vs `facturaanticipo` en la lógica condicional                                                                            |
 | `fccFactura.IdCFDIGenerada` (RE-FU-015, antes `tpProformaAdelanto.IdCFDIGenerada`) | RE-FU-015     | UUID de la FAA para `CFDIRelacionados` del Complemento de Pago                                                                                         |
 | `catFacturaEstado` + `fccFactura.IdCatFacturaEstado` | RE-FU-015 v2.1 | Estado del ciclo de vida de la factura FAA — al llegar al Paso 3 la FAA ya está en PAGADA/PAGADA_PARCIAL (transición ejecutada en el Paso 2, RE-FU-026); el Paso 3 no la modifica. Aplica solo a facturas con registro en `fccFactura` (origen FAA); las facturas emitidas desde proforma no tienen registro en `fccFactura` y su ciclo se rastrea por `EstadoLinea` + `CFDIGenerada` |
 | `DatosFacturacionCliente`                           | Preexistente (RE-FU-004 cancelado) | RFC, Razón Social, Régimen Fiscal Receptor del CFDI 4.0                                                                                                |
@@ -63,9 +63,9 @@ Catálogo de tipos de documento fiscal generables en el Paso 3. Determina el tip
 
 | Clave              | Descripción                                                          |
 | ------------------ | -------------------------------------------------------------------- |
-| `FACTURA`          | CFDI Ingreso PUE o PPD (proforma sin productos controlados)          |
-| `FACTURA_ANTICIPO` | CFDI Ingreso rel. 07 SAT (proforma con productos controlados)        |
-| `COMPLEMENTO_PAGO` | CFDI Pagos 2.0 (Factura por Adelantado existente con cobro asociado) |
+| `factura`          | CFDI Ingreso PUE o PPD (proforma sin productos controlados)          |
+| `facturaanticipo` | CFDI Ingreso rel. 07 SAT (proforma con productos controlados)        |
+| `complementopago` | CFDI Pagos 2.0 (Factura por Adelantado existente con cobro asociado) |
 
 > Ver script completo en `R16A-RE-FU-028_BD.md` — Catálogo Nuevo: `catTipoDocumentoFiscal`.
 
@@ -75,9 +75,9 @@ Catálogo de estados del ciclo de vida de cada línea del Paso 3.
 
 | Clave       | Descripción                                                  |
 | ----------- | ------------------------------------------------------------ |
-| `PENDIENTE` | Estado inicial; línea creada, aún no timbrada ni enviada     |
-| `GENERADO`  | CFDIs timbrados exitosamente; pendiente de envío al cliente  |
-| `ENVIADO`   | Documentos enviados al cliente; línea cerrada operativamente |
+| `pendiente` | Estado inicial; línea creada, aún no timbrada ni enviada     |
+| `generado`  | CFDIs timbrados exitosamente; pendiente de envío al cliente  |
+| `enviado`   | Documentos enviados al cliente; línea cerrada operativamente |
 
 > Ver script completo en `R16A-RE-FU-028_BD.md` — Catálogo Nuevo: `catDocumentoFiscalCobroEstado`.
 
@@ -87,10 +87,10 @@ Catálogo de tipos de CFDI timbrados. Discrimina el comprobante fiscal almacenad
 
 | Clave              | Descripción                               |
 | ------------------ | ----------------------------------------- |
-| `FACTURA_PPD`      | Factura CFDI Ingreso con método PPD       |
-| `FACTURA_PUE`      | Factura CFDI Ingreso con método PUE       |
-| `FACTURA_ANTICIPO` | Factura Anticipo CFDI Ingreso rel. 07 SAT |
-| `COMPLEMENTO_PAGO` | CFDI Pagos 2.0                            |
+| `facturappd`      | Factura CFDI Ingreso con método PPD       |
+| `facturapue`      | Factura CFDI Ingreso con método PUE       |
+| `facturaanticipo` | Factura Anticipo CFDI Ingreso rel. 07 SAT |
+| `complementopago` | CFDI Pagos 2.0                            |
 
 > Ver script completo en `R16A-RE-FU-028_BD.md` — Catálogo Nuevo: `catTipoCFDI`.
 
@@ -101,10 +101,10 @@ Tabla central del Paso 3. Una fila por cada documento fiscal a generar, derivada
 **Ciclo de vida de una línea:**
 
 ```
-INSERT (EstadoLinea = PENDIENTE)
+INSERT (EstadoLinea = pendiente)
   → UPDATE (UsoCFDI, MetodoPago — auto-guardado)
-    → UPDATE (EstadoLinea = GENERADO, IdCFDIGeneradaFactura, [IdCFDIGeneradaComplemento])
-      → UPDATE (EstadoLinea = ENVIADO, FechaEnvio)
+    → UPDATE (EstadoLinea = generado, IdCFDIGeneradaFactura, [IdCFDIGeneradaComplemento])
+      → UPDATE (EstadoLinea = enviado, FechaEnvio)
 ```
 
 > Ver script completo en `R16A-RE-FU-028_BD.md` — Tabla Nueva: `fccDocumentoFiscalCobro`.
@@ -160,17 +160,17 @@ Vista operativa que consolida el estado del Paso 3 por cliente. Navega desde `fc
 
 | Origen (Paso 2) | Condición adicional | `IdCatTipoDocumentoFiscal` resultante |
 |-----------------|--------------------|------------------------------------|
-| `fccPagoFacturaPedido` | `tpProformaPedido.HayControlados = 0` | `FACTURA` |
-| `fccPagoFacturaPedido` | `tpProformaPedido.HayControlados = 1` | `FACTURA_ANTICIPO` |
-| `fccPagoFacturaAdelanto` | — | `COMPLEMENTO_PAGO` |
+| `fccPagoFacturaPedido` | `tpProformaPedido.HayControlados = 0` | `factura` |
+| `fccPagoFacturaPedido` | `tpProformaPedido.HayControlados = 1` | `facturaanticipo` |
+| `fccPagoFacturaAdelanto` | — | `complementopago` |
 
 **Datos leídos (Scaffold Finanzas):** `fccPagoFacturaPedido`, `fccPagoFacturaAdelanto`, `tpProformaPedido.HayControlados` (movida a Finanzas 07/07/2026), `DatosFacturacionCliente`, `Empresa`, `catTipoDocumentoFiscal`, `catDocumentoFiscalCobroEstado`
 
-**Escritura:** `INSERT fccDocumentoFiscalCobro` (una fila por documento, estado inicial `PENDIENTE`, `IdCatUsoCFDI` = default del cliente)
+**Escritura:** `INSERT fccDocumentoFiscalCobro` (una fila por documento, estado inicial `pendiente`, `IdCatUsoCFDI` = default del cliente)
 
 Si al reingresar al Paso 3 ya existen filas en `fccDocumentoFiscalCobro` para el cliente, Finanzas las recupera directamente desde `vfccDocumentoFiscalCobro` sin reinicializar.
 
-> **Cadena de origen para líneas `COMPLEMENTO_PAGO`:** provienen de FAAs enviadas como Prepago en RE-FU-019. El flujo `FacturaAdelantadoEnviarService` (RE-FU-019) genera un pendiente en Validar Cobro al enviar una FAA Prepago. Ese pendiente es el que el Gestor de Cobranza atiende en los Pasos 1 y 2 del wizard. Al llegar al Paso 3, la línea referencia `fccPagoFacturaAdelanto.IdCFDIGenerada` = UUID de la FAA original para armar el `CFDIRelacionados` del Complemento de Pago.
+> **Cadena de origen para líneas `complementopago`:** provienen de FAAs enviadas como Prepago en RE-FU-019. El flujo `FacturaAdelantadoEnviarService` (RE-FU-019) genera un pendiente en Validar Cobro al enviar una FAA Prepago. Ese pendiente es el que el Gestor de Cobranza atiende en los Pasos 1 y 2 del wizard. Al llegar al Paso 3, la línea referencia `fccPagoFacturaAdelanto.IdCFDIGenerada` = UUID de la FAA original para armar el `CFDIRelacionados` del Complemento de Pago.
 
 ### B2 — Auto-guardado de Uso CFDI y Método de Pago
 
@@ -178,7 +178,7 @@ Si al reingresar al Paso 3 ya existen filas en `fccDocumentoFiscalCobro` para el
 
 **Escritura:** `UPDATE fccDocumentoFiscalCobro SET IdCatUsoCFDI = @Id, IdCatMetodoDePagoCFDI = @Id WHERE IdFCCDocumentoFiscalCobro = @Id`
 
-**Regla de negocio:** Para líneas con `IdCatTipoDocumentoFiscal` → `COMPLEMENTO_PAGO`, el campo `IdCatMetodoDePagoCFDI` no se persiste (PPD es fijo e implícito por tipo).
+**Regla de negocio:** Para líneas con `IdCatTipoDocumentoFiscal` → `complementopago`, el campo `IdCatMetodoDePagoCFDI` no se persiste (PPD es fijo e implícito por tipo).
 
 ### B3 — Previsualización PDF por línea
 
@@ -186,8 +186,8 @@ Si al reingresar al Paso 3 ya existen filas en `fccDocumentoFiscalCobro` para el
 
 **Flujo:**
 1. Finanzas lee `vfccDocumentoFiscalCobro` + `fccNotaCredito` (NCs a incluir en `CFDIRelacionados`).
-2. Para líneas `FACTURA` y `FACTURA_ANTICIPO`: invoca `InvoicePdfMappingService.MapearPreviewAsync(idCFDIGenerada)` (RE-FU-021) — consolida datos fiscales en `InvoicePdfModel` sin `TimbreFiscalDigital`, resuelve `TemplateKey` dinámicamente (`GOL/MUN/PRO/PQF_MEX_FAC`) y genera PDF en memoria vía DocumentBuilder.
-3. Para líneas `COMPLEMENTO_PAGO`: la previsualización del PDF del Complemento se implementa en **R16A-RE-FU-030** (Diseño y generación: Complemento de Pago México).
+2. Para líneas `factura` y `facturaanticipo`: invoca `InvoicePdfMappingService.MapearPreviewAsync(idCFDIGenerada)` (RE-FU-021) — consolida datos fiscales en `InvoicePdfModel` sin `TimbreFiscalDigital`, resuelve `TemplateKey` dinámicamente (`GOL/MUN/PRO/PQF_MEX_FAC`) y genera PDF en memoria vía DocumentBuilder.
+3. Para líneas `complementopago`: la previsualización del PDF del Complemento se implementa en **R16A-RE-FU-030** (Diseño y generación: Complemento de Pago México).
 4. Retorna el PDF en memoria al frontend para mostrar en el modal de previsualización.
 5. Sin escrituras en BD.
 
@@ -195,45 +195,45 @@ Si al reingresar al Paso 3 ya existen filas en `fccDocumentoFiscalCobro` para el
 
 | Tipo | Plantilla DocumentBuilder | Estado |
 |------|--------------------------|--------|
-| `FACTURA` / `FACTURA_ANTICIPO` | `GOL/MUN/PRO/PQF_MEX_FAC` | Ya implementada en RE-FU-021 |
-| `COMPLEMENTO_PAGO` | `GOL/MUN/PRO/PQF_MEX_COP` | **Nueva — definir en RE-FU-030** |
+| `factura` / `facturaanticipo` | `GOL/MUN/PRO/PQF_MEX_FAC` | Ya implementada en RE-FU-021 |
+| `complementopago` | `GOL/MUN/PRO/PQF_MEX_COP` | **Nueva — definir en RE-FU-030** |
 
 ### B4 — Timbrado por línea (con cascada PPD)
 
 **Descripción:** Al confirmar el timbrado, Finanzas invoca ProquifaDotNet.Timbrado vía API. El comportamiento varía según el tipo y el Método de Pago:
 
-**Escenario A — FACTURA PUE (1 CFDI):**
+**Escenario A — factura PUE (1 CFDI):**
 1. Finanzas → Timbrado: solicita timbrado de Factura PUE con datos del documento y NCs en `CFDIRelacionados`.
-2. Timbrado invoca PAC TurboPac, inserta en `CFDIGenerada` (`IdCatTipoCFDI` → `FACTURA_PUE`), actualiza `EmpresaFolio`.
+2. Timbrado invoca PAC TurboPac, inserta en `CFDIGenerada` (`IdCatTipoCFDI` → `facturapue`), actualiza `EmpresaFolio`.
 3. Retorna UUID + Folio + XML timbrado a Finanzas.
 4. Finanzas: invoca `PersistInvoicePdfService.PersistirAsync(IdCFDI, xmlTimbrado)` (RE-FU-021 GAP-10) — genera PDF definitivo con `TimbreFiscalDigital`, lo sube a MinIO, INSERT `Archivo`, UPDATE `CFDI.IdArchivoPdf`.
-5. Finanzas: `UPDATE fccDocumentoFiscalCobro SET EstadoLinea = GENERADO, IdCFDIGeneradaFactura = @Id, FechaGeneracion`.
+5. Finanzas: `UPDATE fccDocumentoFiscalCobro SET EstadoLinea = generado, IdCFDIGeneradaFactura = @Id, FechaGeneracion`.
 6. Finanzas: `UPDATE tpProformaPedido SET IdCFDIGenerada = @IdCFDIFactura`.
 
-**Escenario B — FACTURA PPD + Complemento en cascada (2 CFDIs):**
+**Escenario B — factura PPD + Complemento en cascada (2 CFDIs):**
 1. Finanzas → Timbrado: solicita timbrado de Factura PPD.
-2. Timbrado: INSERT `CFDIGenerada` (`IdCatTipoCFDI` → `FACTURA_PPD`), llama PAC, actualiza `EmpresaFolio`. Retorna UUID + XML timbrado Factura.
+2. Timbrado: INSERT `CFDIGenerada` (`IdCatTipoCFDI` → `facturappd`), llama PAC, actualiza `EmpresaFolio`. Retorna UUID + XML timbrado Factura.
 3. Finanzas: invoca `PersistInvoicePdfService.PersistirAsync(IdCFDIFactura, xmlFactura)` (RE-FU-021 GAP-10).
 4. Finanzas → Timbrado: solicita inmediatamente timbrado del Complemento de Pago, referenciando el UUID de la Factura PPD.
-5. Timbrado: INSERT segundo `CFDIGenerada` (`IdCatTipoCFDI` → `COMPLEMENTO_PAGO`, `IdCFDIRelacionado` = `IdCFDIGenerada` de la Factura PPD). Retorna UUID + XML Complemento.
+5. Timbrado: INSERT segundo `CFDIGenerada` (`IdCatTipoCFDI` → `complementopago`, `IdCFDIRelacionado` = `IdCFDIGenerada` de la Factura PPD). Retorna UUID + XML Complemento.
 6. Finanzas: la persistencia del PDF del Complemento de Pago (plantilla `*_MEX_COP`, MinIO) se implementa en **R16A-RE-FU-030** — en este requisito se depende de ese servicio.
-7. Finanzas: `UPDATE fccDocumentoFiscalCobro SET EstadoLinea = GENERADO, IdCFDIGeneradaFactura = @IdFactura, IdCFDIGeneradaComplemento = @IdComplemento, FechaGeneracion`.
+7. Finanzas: `UPDATE fccDocumentoFiscalCobro SET EstadoLinea = generado, IdCFDIGeneradaFactura = @IdFactura, IdCFDIGeneradaComplemento = @IdComplemento, FechaGeneracion`.
 8. Finanzas: `UPDATE tpProformaPedido SET IdCFDIGenerada = @IdCFDIFactura`.
 
-> ⚠️ **Brecha B6 (resuelta — ownership):** Si el Complemento falla tras la Factura PPD timbrada exitosamente, la Factura PPD permanece vigente. **Timbrado no reintenta** (es un servicio síncrono de un solo intento, ver R16A-RE-FU-018); el reintento del Complemento se implementa en Finanzas, en este mismo flujo de generación (R16A-RE-FU-030): la línea permanece `PENDIENTE`, se incrementa un contador de reintentos y se notifica a soporte si se supera el límite — ver Brechas.
+> ⚠️ **Brecha B6 (resuelta — ownership):** Si el Complemento falla tras la Factura PPD timbrada exitosamente, la Factura PPD permanece vigente. **Timbrado no reintenta** (es un servicio síncrono de un solo intento, ver R16A-RE-FU-018); el reintento del Complemento se implementa en Finanzas, en este mismo flujo de generación (R16A-RE-FU-030): la línea permanece `pendiente`, se incrementa un contador de reintentos y se notifica a soporte si se supera el límite — ver Brechas.
 
-**Escenario C — FACTURA_ANTICIPO (1 CFDI):**
-1. Igual que Escenario A con `IdCatTipoCFDI` → `FACTURA_ANTICIPO`. ~~y tipo de relación 07 SAT en el XML~~ **INCORRECTO — DUDA-088:** la Factura Anticipo NO lleva `CfdiRelacionados`/relación 07. Se genera conforme `Guia_Tecnica_Facturas_Ingreso_MX.md` (sección 6): `ClaveProdServ=84111506`, `ClaveUnidad=ACT`, sin nodo de relación.
+**Escenario C — facturaanticipo (1 CFDI):**
+1. Igual que Escenario A con `IdCatTipoCFDI` → `facturaanticipo`. ~~y tipo de relación 07 SAT en el XML~~ **INCORRECTO — DUDA-088:** la Factura Anticipo NO lleva `CfdiRelacionados`/relación 07. Se genera conforme `Guia_Tecnica_Facturas_Ingreso_MX.md` (sección 6): `ClaveProdServ=84111506`, `ClaveUnidad=ACT`, sin nodo de relación.
 2. Las NCs aplicadas se incluyen en el nodo `CFDIRelacionados` con tipo de relación SAT correspondiente.
 
 > ⚠️ ~~**Brecha B1:** El uso del tipo de relación 07 SAT para la Factura Anticipo de controlados está pendiente de confirmar con asesor fiscal PROQUIFA.~~ **RESUELTO — DUDA-088 (2026-08-21):** confirmado que es incorrecto usar la relación 07 en la Factura Anticipo; la relación 07 se usa en la Factura Final (fuera de alcance). Brecha B1 cerrada.
 
-**Escenario D — COMPLEMENTO_PAGO desde FAA existente (1 CFDI):**
+**Escenario D — complementopago desde FAA existente (1 CFDI):**
 1. Finanzas → Timbrado: solicita timbrado de Complemento de Pago referenciando el UUID de la FAA existente (`fccFactura.IdCFDIGenerada`, RE-FU-015 — antes `tpProformaAdelanto.IdCFDIGenerada`).
-2. Timbrado: INSERT `CFDIGenerada` (`IdCatTipoCFDI` → `COMPLEMENTO_PAGO`, `IdCFDIRelacionado` = UUID FAA). Retorna UUID.
-3. Finanzas: `UPDATE fccDocumentoFiscalCobro SET EstadoLinea = GENERADO, IdCFDIGeneradaFactura = @IdComplemento, FechaGeneracion`.
+2. Timbrado: INSERT `CFDIGenerada` (`IdCatTipoCFDI` → `complementopago`, `IdCFDIRelacionado` = UUID FAA). Retorna UUID.
+3. Finanzas: `UPDATE fccDocumentoFiscalCobro SET EstadoLinea = generado, IdCFDIGeneradaFactura = @IdComplemento, FechaGeneracion`.
 
-**Manejo de errores PAC:** Mismo comportamiento que RE-FU-019. Si el PAC responde con error, la línea permanece en `PENDIENTE`; Finanzas muestra el detalle del error al usuario para corrección y reintento.
+**Manejo de errores PAC:** Mismo comportamiento que RE-FU-019. Si el PAC responde con error, la línea permanece en `pendiente`; Finanzas muestra el detalle del error al usuario para corrección y reintento.
 
 ### B5 — Inclusión de Notas de Crédito en CFDIRelacionados
 
@@ -248,7 +248,7 @@ Si al reingresar al Paso 3 ya existen filas en `fccDocumentoFiscalCobro` para el
 
 ### B6 — Modal de Envío y despacho vía ProquifaDotNet.EnvioCorreo
 
-**Descripción:** Al presionar "Enviar" en una línea en estado `GENERADO`, Finanzas abre el modal de envío y, al confirmar, despacha el correo a través del Aplicativo Nuevo **ProquifaDotNet.EnvioCorreo** (Reglas al diseñar, regla 7 — no se integra Brevo directamente desde Finanzas) con los adjuntos correspondientes.
+**Descripción:** Al presionar "Enviar" en una línea en estado `generado`, Finanzas abre el modal de envío y, al confirmar, despacha el correo a través del Aplicativo Nuevo **ProquifaDotNet.EnvioCorreo** (Reglas al diseñar, regla 7 — no se integra Brevo directamente desde Finanzas) con los adjuntos correspondientes.
 
 **Destinatarios:**
 - **Para:** Contacto del cliente del pedido (`tpPedido.IdContacto` → datos de contacto) — editable en el modal.
@@ -258,17 +258,17 @@ Si al reingresar al Paso 3 ya existen filas en `fccDocumentoFiscalCobro` para el
 
 | Tipo de línea | Adjuntos |
 |---------------|----------|
-| `FACTURA` PUE | PDF Factura + XML Factura + PDF Confirmación de Pedido |
-| `FACTURA` PPD + Complemento cascada | PDF Factura + XML Factura + PDF Complemento + XML Complemento + PDF Confirmación de Pedido |
-| `FACTURA_ANTICIPO` | PDF Factura Anticipo + XML Factura Anticipo + PDF Confirmación de Pedido |
-| `COMPLEMENTO_PAGO` desde FAA | PDF Complemento + XML Complemento + PDF Confirmación de Pedido |
+| `factura` PUE | PDF Factura + XML Factura + PDF Confirmación de Pedido |
+| `factura` PPD + Complemento cascada | PDF Factura + XML Factura + PDF Complemento + XML Complemento + PDF Confirmación de Pedido |
+| `facturaanticipo` | PDF Factura Anticipo + XML Factura Anticipo + PDF Confirmación de Pedido |
+| `complementopago` desde FAA | PDF Complemento + XML Complemento + PDF Confirmación de Pedido |
 
 **Asunto del correo:** Generado automáticamente por plantilla según tipo de línea. Propuesta: `<Folio Pedido Interno> - <Folio Factura>`.
 
 > ⚠️ **Brecha B2:** Plantilla de asunto y cuerpo del correo para Complementos de Pago pendiente de confirmar con PMO (PMO #31).
 
 **Escritura al confirmar envío exitoso:**
-- `UPDATE fccDocumentoFiscalCobro SET EstadoLinea = ENVIADO, FechaEnvio`
+- `UPDATE fccDocumentoFiscalCobro SET EstadoLinea = enviado, FechaEnvio`
 - `INSERT CorreoEnviado` + `INSERT ArchivoCorreoEnviado` (x N adjuntos)
 - Registrar la validación de cobro en ProquifaDotNet.BitacoraCambios (Aplicativo Nuevo — Reglas al diseñar, regla 8)
 
@@ -302,9 +302,9 @@ Finanzas transfiere al sistema Legacy el pedido y los documentos generados: fact
 
 ### B8 — Cierre del wizard
 
-Al detectar que todas las líneas del cliente están en estado `ENVIADO`, Finanzas cierra el wizard y retorna al listado principal de Validar Cobro. El cliente sale del listado de pendientes.
+Al detectar que todas las líneas del cliente están en estado `enviado`, Finanzas cierra el wizard y retorna al listado principal de Validar Cobro. El cliente sale del listado de pendientes.
 
-**Lectura:** `SELECT COUNT(*) FROM fccDocumentoFiscalCobro WHERE IdFCCPagoCliente = @Id AND EstadoLinea != 'ENVIADO'` (vía `vfccDocumentoFiscalCobro`)
+**Lectura:** `SELECT COUNT(*) FROM fccDocumentoFiscalCobro WHERE IdFCCPagoCliente = @Id AND EstadoLinea != 'enviado'` (vía `vfccDocumentoFiscalCobro`)
 
 ---
 
@@ -406,7 +406,7 @@ Esta sección documenta todas las transferencias de datos y documentos que Proqu
 
 **Datos destino (Legacy):** Factura en tablas de documentos fiscales Legacy (Factura, Pedidos, Partidas, Cobro).
 
-**Disparador:** Al enviar exitosamente la línea de tipo `FACTURA` o `FACTURA_ANTICIPO` en el Paso 3.
+**Disparador:** Al enviar exitosamente la línea de tipo `factura` o `facturaanticipo` en el Paso 3.
 
 ---
 
@@ -437,7 +437,7 @@ Esta sección documenta todas las transferencias de datos y documentos que Proqu
 
 **Datos destino (Legacy):** Archivo PDF en repositorio de documentos Legacy vinculado a la factura.
 
-**Disparador:** Al enviar exitosamente la línea de tipo `FACTURA` o `FACTURA_ANTICIPO` en el Paso 3 (mismo evento que E3).
+**Disparador:** Al enviar exitosamente la línea de tipo `factura` o `facturaanticipo` en el Paso 3 (mismo evento que E3).
 
 ---
 
@@ -460,7 +460,7 @@ Esta sección documenta todas las transferencias de datos y documentos que Proqu
 | **Mecanismo de transferencia** | Pendiente definir con arquitectura (tabla ETL, cola RabbitMQ o API Legacy directa) — Brecha B3 |
 | **Atomicidad** | Las transferencias E3+E6 (Factura + PDF) deben ejecutarse en conjunto. La atomicidad de E4+E7 (Complemento) y E5+E8 (NCs) la define RE-FU-030 y RE-FU-032/034 respectivamente |
 | **Orden de ejecución (alcance RE-028)** | E2 (Proforma) → E1 (Cobro) → E3+E6 (Factura). E4+E7 y E5+E8 son coordinados en sus requisitos propios |
-| **Re-intentos** | Si la transferencia falla, la línea queda en estado `ENVIADO` en ProquifaDotNet pero pendiente en Legacy — requiere mecanismo de cola o log de transferencia |
+| **Re-intentos** | Si la transferencia falla, la línea queda en estado `enviado` en ProquifaDotNet pero pendiente en Legacy — requiere mecanismo de cola o log de transferencia |
 | **Perú** | Ninguna de estas transferencias aplica a Perú — Golocaer S.A.C. no transfiere a Legacy |
 
 ---
@@ -499,7 +499,7 @@ Esta sección documenta todas las transferencias de datos y documentos que Proqu
 > El formato del folio de la Confirmación de Pedido para pedidos Prepago (extensión a R16 del concepto existente en ProquifaNet para Crédito) está pendiente de confirmar con PMO/Operaciones.
 
 > ✅ **RESUELTA — Mecanismo de reintento ante fallo del Complemento en cascada PPD (B6)**
-> Si la Factura PPD se timbra exitosamente pero el Complemento falla inmediatamente después, la línea queda en estado inconsistente (Factura vigente sin Complemento). El reintento es responsabilidad de Finanzas, no de Timbrado (Timbrado es síncrono, un solo intento por petición, ver R16A-RE-FU-018), y se implementa en este mismo flujo de generación (Validar Cobro Paso 3 / R16A-RE-FU-030): la línea permanece `PENDIENTE`, se incrementa un contador de reintentos y se notifica a soporte por correo si se supera el límite (mismo patrón documentado en `Diagramas/Diagrama Secuencia Encolamiento Finanzas y Timbrado Factura.md`).
+> Si la Factura PPD se timbra exitosamente pero el Complemento falla inmediatamente después, la línea queda en estado inconsistente (Factura vigente sin Complemento). El reintento es responsabilidad de Finanzas, no de Timbrado (Timbrado es síncrono, un solo intento por petición, ver R16A-RE-FU-018), y se implementa en este mismo flujo de generación (Validar Cobro Paso 3 / R16A-RE-FU-030): la línea permanece `pendiente`, se incrementa un contador de reintentos y se notifica a soporte por correo si se supera el límite (mismo patrón documentado en `Diagramas/Diagrama Secuencia Encolamiento Finanzas y Timbrado Factura.md`).
 
 > ⚠️ ~~**BRECHA MEDIA — Comportamiento si el contacto del pedido no está disponible al armar el modal de Envío (B7)**
 > Si el pedido no tiene contacto asignado o hay múltiples contactos, el comportamiento del modal (¿bloquea el envío?, ¿permite captura manual?) está pendiente de confirmar con negocio.~~

@@ -103,17 +103,17 @@ El endpoint de DocumentBuilder actúa como servicio puro de generación de PDF; 
         │
         ▼
 [RE-030] Timbrado — Endpoint CP (SIN folio; idempotente por IdPeticionCP) ──error──► [RE-028] Factura PPD vigente;
-        │ éxito (UUID + sellos, sin folio)                                          línea = TIMBRADO nunca alcanzado,
+        │ éxito (UUID + sellos, sin folio)                                          línea = timbrado nunca alcanzado,
         ▼                                                                            se re-encola (ver Worker)
 [RE-030] Finanzas — AssignFolioAndPersistCfdiAsync (transacción única, corta, sin llamadas externas):
         │   UPDLOCK+incremento EmpresaFolio Serie "P"  +  INSERT CFDIGenerada (Folio+Serie+UUID+sellos+NumParcialidad+saldos)
-        │   — sección "ProquifaDotNet.Finanzas — Orquestación y cálculo"; fase línea → FOLIO_ASIGNADO
+        │   — sección "ProquifaDotNet.Finanzas — Orquestación y cálculo"; fase línea → folioasignado
         ▼
 [RE-030] PersistPaymentComplementPdfService                    — sección "ProquifaDotNet.Finanzas — Persistencia del PDF y XML"
         │
-        ├─► [RE-030] PaymentComplementPdfMappingService.MapAsync() (ya con Folio real, disponible desde el paso anterior) — fase línea → PDF_GENERADO
+        ├─► [RE-030] PaymentComplementPdfMappingService.MapAsync() (ya con Folio real, disponible desde el paso anterior) — fase línea → pdfgenerado
         ├─► [RE-030] DocumentBuilder POST /api/v1/paymentComplement/report (endpoint de este documento — tu código; sección "Diseño funcional detallado")
-        └─► [RE-030] MinIO bucket "cobranza" + UPDATE CFDIGenerada.IdArchivoPdf — fase línea → ARCHIVOS_SUBIDOS
+        └─► [RE-030] MinIO bucket "cobranza" + UPDATE CFDIGenerada.IdArchivoPdf — fase línea → archivossubidos
         ▼
 [RE-028+RE-030] UPDATE fccDocumentoFiscalCobro (EstadoLinea=GENERADO, snapshot DR)
                  (tabla creada en RE-028; columnas de snapshot DR + checkpoint agregadas en RE-030)
@@ -165,26 +165,26 @@ sequenceDiagram
     T-->>F: 8. Success=true, UUID, sellos, XML
     deactivate T
 
-    F->>BDF: 9. Fase = TIMBRADO
+    F->>BDF: 9. Fase = timbrado
 
     F->>F: 10. AssignFolioAndPersistCfdiAsync — transacción única
     F->>BDF: 11. UPDLOCK+incremento EmpresaFolio Serie "P"
     F->>BDF: 12. INSERT CFDIGenerada (Folio+Serie+UUID+sellos+NumParcialidad+saldos)
-    F->>BDF: 13. Commit — Fase = FOLIO_ASIGNADO
+    F->>BDF: 13. Commit — Fase = folioasignado
 
     F->>F: 14. Mapea PaymentComplementModel (ya con Folio real)
     F->>DB: 15. POST /api/v1/paymentComplement/report
     activate DB
     DB-->>F: 16. bytes PDF
     deactivate DB
-    F->>BDF: 17. Fase = PDF_GENERADO
+    F->>BDF: 17. Fase = pdfgenerado
 
     F->>CAT: 18. Subir PDF a bucket cobranza
     F->>T: 19. Recupera XML timbrado (mismo IdPeticionCP, idempotente — no vuelve a timbrar)
     T-->>F: XML timbrado (desde TimbradoLog)
     F->>CAT: 20. Subir XML a bucket cobranza
     CAT-->>F: IdArchivo (PDF) + IdArchivo (XML)
-    F->>BDF: 21. UPDATE CFDIGenerada.IdArchivoPdf, Fase = ARCHIVOS_SUBIDOS
+    F->>BDF: 21. UPDATE CFDIGenerada.IdArchivoPdf, Fase = archivossubidos
 
     F->>BDF: 22. UPDATE fccDocumentoFiscalCobro EstadoLinea=GENERADO
     F->>BIT: 23. Registrar GenerarComplementoPago
@@ -240,11 +240,11 @@ sequenceDiagram
     deactivate PAC
     T-->>F: Success=true
     deactivate T
-    F->>BDF: Fase = TIMBRADO
+    F->>BDF: Fase = timbrado
 
     F->>BDF: AssignFolioAndPersistCfdiAsync — UPDLOCK+incremento EmpresaFolio + INSERT CFDIGenerada
     Note over BDF: ✅ Folio consumido AQUÍ por primera vez — solo en el intento que tuvo éxito
-    F->>BDF: Fase = FOLIO_ASIGNADO
+    F->>BDF: Fase = folioasignado
 
     F->>F: Genera PDF, sube archivos, finaliza línea (igual que Diagrama 1)
     F->>BDF: EstadoLinea=GENERADO
@@ -401,7 +401,7 @@ GO
 
 ### ALTER TABLE fccDocumentoFiscalCobro — Snapshot fiscal del CP
 
-Se agregan 8 columnas nullable que almacenan el snapshot inmutable del nodo `DoctoRelacionado` y del nodo `Pago` al momento del timbrado. Son NULL para líneas no-CP (FACTURA, FACTURA_ANTICIPO, líneas Perú).
+Se agregan 8 columnas nullable que almacenan el snapshot inmutable del nodo `DoctoRelacionado` y del nodo `Pago` al momento del timbrado. Son NULL para líneas no-CP (factura, facturaanticipo, líneas Perú).
 
 | Columna | Tipo | Campo XML |
 |---|---|---|
@@ -495,18 +495,18 @@ USE [ProquifaDotNet]
 GO
 
 BEGIN TRY
-    IF EXISTS (SELECT 1 FROM dbo.catDocumentoFiscalCobroEstado WHERE Clave = 'TIMBRADO')
+    IF EXISTS (SELECT 1 FROM dbo.catDocumentoFiscalCobroEstado WHERE Clave = 'timbrado')
     BEGIN
         RAISERROR('Las claves de checkpoint ya existen en catDocumentoFiscalCobroEstado', 0, 1) WITH NOWAIT;
     END
     ELSE
     BEGIN
         INSERT INTO dbo.catDocumentoFiscalCobroEstado (IdCatDocumentoFiscalCobroEstado, Clave, Descripcion, Activo, FechaRegistro) VALUES
-        (NEWID(), 'TIMBRADO',         'CP timbrado ante PAC (UUID obtenido); pendiente de folio y CFDIGenerada',                 1, SYSUTCDATETIME()),
-        (NEWID(), 'FOLIO_ASIGNADO',   'Folio consumido y CFDIGenerada insertado (Folio+UUID+sellos); pendiente de generar PDF', 1, SYSUTCDATETIME()),
-        (NEWID(), 'PDF_GENERADO',     'PDF generado; pendiente de subir PDF+XML a MinIO',                                      1, SYSUTCDATETIME()),
-        (NEWID(), 'ARCHIVOS_SUBIDOS', 'PDF y XML subidos a MinIO; pendiente de snapshot final',                                1, SYSUTCDATETIME());
-        -- Orden resultante: PENDIENTE -> TIMBRADO -> FOLIO_ASIGNADO -> PDF_GENERADO -> ARCHIVOS_SUBIDOS -> GENERADO -> ENVIADO
+        (NEWID(), 'timbrado',         'CP timbrado ante PAC (UUID obtenido); pendiente de folio y CFDIGenerada',                 1, SYSUTCDATETIME()),
+        (NEWID(), 'folioasignado',   'Folio consumido y CFDIGenerada insertado (Folio+UUID+sellos); pendiente de generar PDF', 1, SYSUTCDATETIME()),
+        (NEWID(), 'pdfgenerado',     'PDF generado; pendiente de subir PDF+XML a MinIO',                                      1, SYSUTCDATETIME()),
+        (NEWID(), 'archivossubidos', 'PDF y XML subidos a MinIO; pendiente de snapshot final',                                1, SYSUTCDATETIME());
+        -- Orden resultante: PENDIENTE -> timbrado -> folioasignado -> pdfgenerado -> archivossubidos -> GENERADO -> ENVIADO
         PRINT 'Claves de checkpoint insertadas correctamente en catDocumentoFiscalCobroEstado';
     END
 END TRY
@@ -517,11 +517,11 @@ END CATCH
 GO
 ```
 
-**Por qué `TIMBRADO` y `FOLIO_ASIGNADO` son fases separadas (no una sola):** el `INSERT CFDIGenerada` con folio ya consumido es una operación local (sin llamada externa) y debe quedar aislado como su propio checkpoint. Si el proceso truena después de `FOLIO_ASIGNADO` pero antes de `PDF_GENERADO`, un reintento debe **saltarse** el timbrado (idempotente, ya en `TIMBRADO`) y **saltarse** también el folio+INSERT (ya en `FOLIO_ASIGNADO`, folio ya consumido y CFDI ya registrado) — repetir esa transacción causaría un segundo folio y un `CFDIGenerada` duplicado para el mismo CP.
+**Por qué `timbrado` y `folioasignado` son fases separadas (no una sola):** el `INSERT CFDIGenerada` con folio ya consumido es una operación local (sin llamada externa) y debe quedar aislado como su propio checkpoint. Si el proceso truena después de `folioasignado` pero antes de `pdfgenerado`, un reintento debe **saltarse** el timbrado (idempotente, ya en `timbrado`) y **saltarse** también el folio+INSERT (ya en `folioasignado`, folio ya consumido y CFDI ya registrado) — repetir esa transacción causaría un segundo folio y un `CFDIGenerada` duplicado para el mismo CP.
 
 **Por qué el folio no tiene columna propia de "reservado":** a diferencia de un diseño con reserva-y-reuso, aquí el folio se consume **después** de que Timbrado confirma éxito (ver "ProquifaDotNet.Timbrado" y "ProquifaDotNet.Finanzas — Orquestación y cálculo" más abajo), en la misma transacción que el `INSERT CFDIGenerada` — no hay ventana intermedia entre "folio tomado" y "CFDI registrado" que rastrear, porque ambas operaciones ocurren juntas y de forma atómica. Esto es lo que garantiza folios sin huecos: ningún intento fallido —ni el original ni ningún reintento— llega a tocar `EmpresaFolio.UltimoFolio`.
 
-**Criterio de aceptación:** `IdPeticionCP` se persiste en el primer intento (original, `NumeroReintento=0`) y no cambia entre reintentos de la misma línea; `NumeroReintento` y `FechaUltimoReintento` se actualizan en cada intento fallido; una línea con `Fase >= TIMBRADO` nunca vuelve a invocar `StampPaymentComplementAsync` en un reintento posterior.
+**Criterio de aceptación:** `IdPeticionCP` se persiste en el primer intento (original, `NumeroReintento=0`) y no cambia entre reintentos de la misma línea; `NumeroReintento` y `FechaUltimoReintento` se actualizan en cada intento fallido; una línea con `Fase >= timbrado` nunca vuelve a invocar `StampPaymentComplementAsync` en un reintento posterior.
 
 ### DML EmpresaFolio — Serie "P" (GOL, MUN, PRO, PQF)
 
@@ -629,7 +629,7 @@ GO
 
 **Prerrequisitos:** `catFormaPagoSAT` y las columnas DR de `fccDocumentoFiscalCobro` ejecutadas. El script completo debe incluir la definición íntegra de v2.0 (ver `R16A-RE-FU-029_BD.md`), no solo el incremento. `CREATE OR ALTER VIEW` (no `ALTER VIEW` a secas, corregido para cumplir el estándar de BD) + `EXEC spRefrescarVistas` obligatorio después de toda vista nueva o modificada.
 
-**Criterio de aceptación:** vista compila; `SELECT TOP 5 * FROM vfccDocumentoFiscalCobro WHERE TipoDocumentoFiscal='COMPLEMENTO_PAGO'` retorna filas; columnas Perú (v2.0) siguen funcionales.
+**Criterio de aceptación:** vista compila; `SELECT TOP 5 * FROM vfccDocumentoFiscalCobro WHERE TipoDocumentoFiscal='complementopago'` retorna filas; columnas Perú (v2.0) siguen funcionales.
 
 ---
 
@@ -674,7 +674,7 @@ namespace Proquifa.Finanzas.Application.Services.PaymentComplement
                 @"SELECT COUNT(*)
                   FROM dbo.CFDIGenerada WITH (UPDLOCK, ROWLOCK)
                   WHERE IdCFDIRelacionado = @p0
-                    AND IdCatTipoCFDI = (SELECT IdCatTipoCFDI FROM dbo.catTipoCFDI WHERE Clave = 'COMPLEMENTO_PAGO')",
+                    AND IdCatTipoCFDI = (SELECT IdCatTipoCFDI FROM dbo.catTipoCFDI WHERE Clave = 'complementopago')",
                 idCFDIFacturaRelacionada
             ).Single();
 
@@ -864,7 +864,7 @@ Ruta propuesta: `Proquifa.Finanzas.Application/Services/PaymentComplement/Genera
 > **Diseño clave (P12):**
 > 1. **Folio + `INSERT CFDIGenerada` viven en Finanzas**, y ocurren **después** del timbrado exitoso, no antes. Timbrado no inserta `Cfdi` ni consume folio — solo firma y regresa UUID+sellos (ver "ProquifaDotNet.Timbrado").
 > 2. **Idempotencia por `IdPeticionCP`**: antes de llamar a Timbrado, se genera/recupera una correlación persistida una sola vez en la línea. Si Timbrado ya tiene un timbrado exitoso para esa correlación (redelivery de RabbitMQ, o crash de Finanzas después de timbrar pero antes de continuar), regresa el resultado existente en vez de timbrar de nuevo — evita CFDI duplicado ante el SAT.
-> 3. **Checkpoint de fase persistido** (`catDocumentoFiscalCobroEstado`: `TIMBRADO` → `FOLIO_ASIGNADO` → `PDF_GENERADO` → `ARCHIVOS_SUBIDOS` → `GENERADO`) en vez de depender solo del contador en el payload del mensaje — un reintento (manual o vía Worker) nunca repite un paso ya completado con éxito.
+> 3. **Checkpoint de fase persistido** (`catDocumentoFiscalCobroEstado`: `timbrado` → `folioasignado` → `pdfgenerado` → `archivossubidos` → `GENERADO`) en vez de depender solo del contador en el payload del mensaje — un reintento (manual o vía Worker) nunca repite un paso ya completado con éxito.
 > 4. `NumParcialidad` (vía `COUNT+UPDLOCK`, sección anterior) **no** tiene el mismo problema de huecos que el folio: al ser un conteo derivado (no un contador incremental persistido), un intento fallido no "quema" ningún número — el siguiente intento vuelve a contar y obtiene el mismo valor. Por eso sigue calculándose **antes** del timbrado (es parte del XML firmado, Criterio E4/D3), sin necesidad de moverlo como al folio.
 
 ```csharp
@@ -1054,7 +1054,7 @@ namespace Proquifa.Finanzas.Application.Services.PaymentComplement
                 throw new PaymentComplementStampException(response.ErrorCode, response.ErrorDescription);
 
             // Snapshot fiscal + resultado del PAC — necesarios para el paso de folio, aún no persistidos en BD
-            // (fase todavía no avanza aquí: solo avanza tras éxito de AssignFolioAndPersistCfdiAsync, ver esa fase FOLIO_ASIGNADO).
+            // (fase todavía no avanza aquí: solo avanza tras éxito de AssignFolioAndPersistCfdiAsync, ver esa fase folioasignado).
             linea.PendingStampResult = response; // UUID, sellos, XML — propiedad en memoria del contexto de ejecución, no columna BD
             linea.NumParcialidad = numParcialidad;
             linea.ImpSaldoAnt = impSaldoAnt;
@@ -1072,7 +1072,7 @@ namespace Proquifa.Finanzas.Application.Services.PaymentComplement
         /// EmpresaFolio Serie "P" + INSERT CFDIGenerada (Folio+Serie+UUID+sellos+snapshot DR) — sin
         /// llamadas externas dentro. Si el proceso truena entre este método y el siguiente paso (PDF),
         /// el folio y el CFDI YA quedaron confirmados — no hay hueco ni duplicado posible en un reintento,
-        /// porque `linea.Fase` ya vale FOLIO_ASIGNADO y este método no se vuelve a invocar.
+        /// porque `linea.Fase` ya vale folioasignado y este método no se vuelve a invocar.
         /// </summary>
         /// <summary>
         /// Fase terminal del folio (checklist del manual de bloqueo pesimista, punto "manejo de errores
@@ -1090,7 +1090,7 @@ namespace Proquifa.Finanzas.Application.Services.PaymentComplement
 
                     var cfdi = new CFDIGenerada
                     {
-                        IdCatTipoCFDI = ResolveTipoCfdi("COMPLEMENTO_PAGO", db),
+                        IdCatTipoCFDI = ResolveTipoCfdi("complementopago", db),
                         IdCFDIRelacionado = linea.PendingStampResult.IdCFDIFacturaRelacionada,
                         UUID = linea.PendingStampResult.UUID,
                         Serie = serie,
@@ -1132,9 +1132,9 @@ namespace Proquifa.Finanzas.Application.Services.PaymentComplement
 **Escenario B — cascada PPD** (implementa los pasos que RE-028 dejó pendientes; inmediatamente después de que la Factura PPD se timbra exitosamente):
 
 1. `GenerateInPpdCascadeAsync` ejecuta `ExecuteAttemptAsync` directo, síncrono, con `NumeroReintento=0` (ejecución original — nunca pasa por la cola).
-2. `CalculateAndStampAsync`: calcula `NumParcialidad`/`ImpSaldoAnt` (con UPDLOCK) y el resto de los valores del DR, genera/recupera `IdPeticionCP`, llama a Timbrado (idempotente) — ver sección siguiente, "ProquifaDotNet.Timbrado". Si tiene éxito, fase → `TIMBRADO`.
-3. `AssignFolioAndPersistCfdiAsync`: transacción única — consume folio Serie "P" + `INSERT CFDIGenerada` con Folio+UUID+sellos juntos. Fase → `FOLIO_ASIGNADO`.
-4. `_persistirPdfService.GeneratePdfAsync`/`UploadFilesAsync`: genera y sube PDF+XML (ver "ProquifaDotNet.Finanzas — Persistencia del PDF y XML"). Fases → `PDF_GENERADO` → `ARCHIVOS_SUBIDOS`.
+2. `CalculateAndStampAsync`: calcula `NumParcialidad`/`ImpSaldoAnt` (con UPDLOCK) y el resto de los valores del DR, genera/recupera `IdPeticionCP`, llama a Timbrado (idempotente) — ver sección siguiente, "ProquifaDotNet.Timbrado". Si tiene éxito, fase → `timbrado`.
+3. `AssignFolioAndPersistCfdiAsync`: transacción única — consume folio Serie "P" + `INSERT CFDIGenerada` con Folio+UUID+sellos juntos. Fase → `folioasignado`.
+4. `_persistirPdfService.GeneratePdfAsync`/`UploadFilesAsync`: genera y sube PDF+XML (ver "ProquifaDotNet.Finanzas — Persistencia del PDF y XML"). Fases → `pdfgenerado` → `archivossubidos`.
 5. `FinalizeLineAsync`: `EstadoLinea='GENERADO'`. Bitácora General pendiente (P17).
 6. Si cualquier paso falla, `ExecuteAttemptAsync` captura la excepción, persiste `NumeroReintento`/`FechaUltimoReintento`, y `GenerateInPpdCascadeAsync` publica `PaymentComplementRetryMessage{Escenario="B", NumeroReintento=1}` — de aquí en adelante `PaymentComplementRetryWorker` toma el control (ver "Reintento asíncrono vía RabbitMQ").
 
@@ -1147,7 +1147,7 @@ namespace Proquifa.Finanzas.Application.Services.PaymentComplement
 **Criterios de aceptación:**
 - `NumParcialidad` no se duplica bajo concurrencia (UPDLOCK) — y, al ser derivado por `COUNT`, un intento fallido nunca deja un hueco en la numeración de parcialidades.
 - Folio Serie "P" **cero huecos**: un intento fallido —original o cualquier reintento— nunca incrementa `EmpresaFolio.UltimoFolio`; solo el intento que llega a `AssignFolioAndPersistCfdiAsync` lo consume, y lo hace en la misma transacción que el `INSERT CFDIGenerada`.
-- Un reintento nunca vuelve a timbrar (`Fase >= TIMBRADO`) ni a consumir folio (`Fase >= FOLIO_ASIGNADO`) para la misma línea — verificar con un timbrado exitoso simulado seguido de un crash forzado antes de `FinalizeLineAsync`, y confirmar que el siguiente `ExecuteAttemptAsync` retoma desde `PDF_GENERADO`/`ARCHIVOS_SUBIDOS` sin duplicar `CFDIGenerada` ni folio.
+- Un reintento nunca vuelve a timbrar (`Fase >= timbrado`) ni a consumir folio (`Fase >= folioasignado`) para la misma línea — verificar con un timbrado exitoso simulado seguido de un crash forzado antes de `FinalizeLineAsync`, y confirmar que el siguiente `ExecuteAttemptAsync` retoma desde `pdfgenerado`/`archivossubidos` sin duplicar `CFDIGenerada` ni folio.
 - `ImpSaldoInsoluto` exacto a 6 decimales; `EquivalenciaDR=1` persistido explícitamente cuando monedas coinciden.
 - Si el CP falla definitivamente (agota reintentos, ver Worker), la Factura PPD/FAA permanece válida y la línea queda marcada para intervención manual, **sin folio consumido**.
 - Escenario D siempre con `NumParcialidad=1`.
@@ -1477,7 +1477,7 @@ namespace Proquifa.Finanzas.Application.Services.PaymentComplement
 
         /// <summary>
         /// Genera el PDF (DocumentBuilder). Separado de UploadFilesAsync (más abajo) para que el
-        /// checkpoint de fase (FOLIO_ASIGNADO -&gt; PDF_GENERADO -&gt; ARCHIVOS_SUBIDOS) sea granular:
+        /// checkpoint de fase (folioasignado -&gt; pdfgenerado -&gt; archivossubidos) sea granular:
         /// si el proceso truena después de generar el PDF pero antes de subir el XML, un reintento
         /// no vuelve a llamar a DocumentBuilder.
         /// </summary>
@@ -1547,7 +1547,7 @@ namespace Proquifa.Finanzas.Application.Services.PaymentComplement
 
 > **Regla 14 / Sección J del requisito — Envío del correo:** los Criterios J1-J3 (envío tras timbrado, destinatarios Para=contacto cliente + CC=ESAC+analista de Cuentas por Cobrar, asunto/cuerpo plantilla) **no son un envío automático separado**. Describen, desde la óptica del CP, el mismo correo manual que arma el modal de envío del Paso 3 (RE-028 B6) cuando el usuario presiona "Enviar" — no un disparo automático adicional post-timbrado. RE-030 no implementa lógica de envío propia; ese código vive en RE-028.
 >
-> ⚠️ **Corrección detectada para RE-028:** la lista de destinatarios documentada en RE-028 B6 (`Para` = contacto del pedido, `CC` = ESAC) **no incluye** al "analista de Cuentas por Cobrar" que sí exige el Criterio J2 de este requisito para las líneas de tipo Complemento de Pago. Coordinar con el mantenedor de RE-028 para agregar ese destinatario en CC cuando la línea enviada sea `COMPLEMENTO_PAGO`.
+> ⚠️ **Corrección detectada para RE-028:** la lista de destinatarios documentada en RE-028 B6 (`Para` = contacto del pedido, `CC` = ESAC) **no incluye** al "analista de Cuentas por Cobrar" que sí exige el Criterio J2 de este requisito para las líneas de tipo Complemento de Pago. Coordinar con el mantenedor de RE-028 para agregar ese destinatario en CC cuando la línea enviada sea `complementopago`.
 
 ---
 
@@ -2087,5 +2087,5 @@ Los 9 nuevos DTOs bajo `Application/DTOs/PaymentComplement/` son exclusivos para
 - **Folio nunca se quema en un intento fallido:** forzar que el PAC rechace el timbrado (mock) → verificar que `EmpresaFolio.UltimoFolio` (Serie "P") **no cambia**. Repetir 3 veces seguidas → sigue sin cambiar.
 - **Secuencia sin huecos con fallos intercalados:** Proceso 1 exitoso (Folio 1) → Proceso 2 falla y reintenta 2 veces antes de tener éxito (debe obtener Folio 2, no Folio 4) → Proceso 3 exitoso (debe obtener Folio 3). Verificar que los 3 folios resultantes son consecutivos sin huecos.
 - **Proceso que agota reintentos nunca deja hueco:** forzar que una línea agote los 5 reintentos (mock del PAC siempre falla) → verificar que nunca se llamó a `AssignFolioAndPersistCfdiAsync` (folio nunca consumido) y que un proceso posterior exitoso toma el folio inmediatamente siguiente al último exitoso, sin saltos.
-- **Reanudación por `Fase` sin duplicar:** simular timbrado exitoso, forzar una excepción justo después (antes de `AssignFolioAndPersistCfdiAsync`) → verificar `linea.Fase == TIMBRADO`. Reprocesar el mismo mensaje → verificar que `StampPaymentComplementAsync` NO se vuelve a invocar (mock cuenta llamadas = 1) y que el proceso continúa directo a `AssignFolioAndPersistCfdiAsync`.
+- **Reanudación por `Fase` sin duplicar:** simular timbrado exitoso, forzar una excepción justo después (antes de `AssignFolioAndPersistCfdiAsync`) → verificar `linea.Fase == timbrado`. Reprocesar el mismo mensaje → verificar que `StampPaymentComplementAsync` NO se vuelve a invocar (mock cuenta llamadas = 1) y que el proceso continúa directo a `AssignFolioAndPersistCfdiAsync`.
 - **Idempotencia por `IdPeticionCP` ante redelivery:** invocar `StampPaymentComplementAsync` dos veces con el mismo `IdPeticionCP` (simulando un mensaje de RabbitMQ redisparado) → verificar que el mock del PAC solo se invoca una vez y ambas respuestas regresan el mismo UUID.

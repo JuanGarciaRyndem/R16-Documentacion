@@ -84,13 +84,13 @@ CREATE TABLE [dbo].[catFacturaEstado](
 
 ```sql
 INSERT INTO [dbo].[catFacturaEstado] (Clave, Descripcion, Orden, EsTerminal) VALUES
-('POR_GENERAR',    N'Factura creada, pendiente de timbrado ante PAC/SUNAT',                                1, 0),
-('ERROR_TIMBRADO', N'El PAC/SUNAT rechazó el timbrado; requiere corrección y reintento (Finanzas)',        2, 0),
-('GENERADA',       N'Timbrada exitosamente (CFDI/CPE vigente); pendiente de envío al cliente',             3, 0),
-('ENVIADA',        N'Enviada al cliente con PDF + XML adjuntos',                                           4, 0),
-('PAGADA_PARCIAL', N'Con cobros aplicados parcialmente; saldo pendiente (PPD con complementos parciales)', 5, 0),
-('PAGADA',         N'Cobro asociado y aplicado en su totalidad (Validar Cobro)',                           6, 1),
-('CANCELADA',      N'Cancelada ante SAT/SUNAT (CFDICancelacion / NC según normativa)',                     7, 1);
+('porgenerar',    N'Factura creada, pendiente de timbrado ante PAC/SUNAT',                                1, 0),
+('errortimbrado', N'El PAC/SUNAT rechazó el timbrado; requiere corrección y reintento (Finanzas)',        2, 0),
+('generada',       N'Timbrada exitosamente (CFDI/CPE vigente); pendiente de envío al cliente',             3, 0),
+('enviada',        N'Enviada al cliente con PDF + XML adjuntos',                                           4, 0),
+('pagadaparcial', N'Con cobros aplicados parcialmente; saldo pendiente (PPD con complementos parciales)', 5, 0),
+('pagada',         N'Cobro asociado y aplicado en su totalidad (Validar Cobro)',                           6, 1),
+('cancelada',      N'Cancelada ante SAT/SUNAT (CFDICancelacion / NC según normativa)',                     7, 1);
 ```
 
 **Columnas:**
@@ -101,7 +101,7 @@ INSERT INTO [dbo].[catFacturaEstado] (Clave, Descripcion, Orden, EsTerminal) VAL
 | Clave              | varchar(30)      | Clave programática (UQ)                                             |
 | Descripcion        | nvarchar(150)    | Descripción legible                                                 |
 | Orden              | int              | Orden natural del ciclo de vida (UI/reportes)                       |
-| EsTerminal         | bit              | 1 = sin transiciones posteriores (PAGADA, CANCELADA)                |
+| EsTerminal         | bit              | 1 = sin transiciones posteriores (pagada, cancelada)                |
 | Activo             | bit              | Borrado lógico, DEFAULT 1                                           |
 | FechaRegistro      | datetime     | Alta del registro, DEFAULT GETDATE()                         |
 | FechaUltimaActualizacion      | datetime     | Última modificación, DEFAULT GETDATE()                       |
@@ -120,11 +120,11 @@ INSERT INTO [dbo].[catFacturaEstado] (Clave, Descripcion, Orden, EsTerminal) VAL
 | UQ_catFacturaEstado_Clave | Clave | Unique nonclustered |
 
 **Consideraciones especiales:**
-- Transiciones válidas: POR_GENERAR → GENERADA \| ERROR_TIMBRADO; ERROR_TIMBRADO → GENERADA (reintento de Finanzas — Timbrado no reintenta, RE-FU-018); GENERADA → ENVIADA \| CANCELADA; ENVIADA → PAGADA_PARCIAL \| PAGADA \| CANCELADA; PAGADA_PARCIAL → PAGADA \| CANCELADA.
-- PAGADA y CANCELADA son estados terminales (`EsTerminal = 1`).
-- La inmutabilidad fiscal aplica desde GENERADA: la corrección posterior al timbrado es solo vía el módulo Notas de Crédito (RE-FU-032/033).
+- Transiciones válidas: porgenerar → generada \| errortimbrado; errortimbrado → generada (reintento de Finanzas — Timbrado no reintenta, RE-FU-018); generada → enviada \| cancelada; enviada → pagadaparcial \| pagada \| cancelada; pagadaparcial → pagada \| cancelada.
+- pagada y cancelada son estados terminales (`EsTerminal = 1`).
+- La inmutabilidad fiscal aplica desde generada: la corrección posterior al timbrado es solo vía el módulo Notas de Crédito (RE-FU-032/033).
 - No confundir con `catDocumentoFiscalCobroEstado` (estado de línea del wizard Validar Cobro Paso 3, RE-FU-028), con `CFDIGenerada.Estado` (estado técnico del timbrado) ni con el `EstadoFAA` calculado de `vfccFactura` (estado del pendiente FAA).
-- La transición a PAGADA_PARCIAL/PAGADA la ejecuta Validar Cobro (RE-FU-026/027/028/029) al aplicar cobros; la transición a CANCELADA la ejecuta el flujo de cancelación (RE-FU-032, `POST /api/v1/stamp/cancel`).
+- La transición a pagadaparcial/pagada la ejecuta Validar Cobro (RE-FU-026/027/028/029) al aplicar cobros; la transición a cancelada la ejecuta el flujo de cancelación (RE-FU-032, `POST /api/v1/stamp/cancel`).
 
 ---
 
@@ -140,9 +140,9 @@ INSERT INTO [dbo].[catFacturaEstado] (Clave, Descripcion, Orden, EsTerminal) VAL
 | IdTPPedido                                              | uniqueidentifier   | FK → `tpPedido.IdTPPedido`, requerido                                    |
 | IdTPProformaPedido                                      | uniqueidentifier NULL | FK → `tpProformaPedido.IdTPProformaPedido` — poblado únicamente cuando la FAA se origina desde una Confirmación de Pedido ya emitida (flujo Crédito, RE-FU-012); `NULL` en el flujo Prepago (RE-FU-015), que no genera proforma (unifica el antiguo `tpProformaAdelantoProformaPedido`) |
 | EsFacturaPorAdelantado                                  | bit                | 1 = FAA, 0 = factura final (bandera diferenciadora, RT-10)               |
-| IdCatFacturaEstado                                      | uniqueidentifier   | FK → `catFacturaEstado.IdCatFacturaEstado`, requerido — estado del ciclo de vida de la factura; se asigna POR_GENERAR al crear el registro (la app resuelve el Id por `Clave`) |
+| IdCatFacturaEstado                                      | uniqueidentifier   | FK → `catFacturaEstado.IdCatFacturaEstado`, requerido — estado del ciclo de vida de la factura; se asigna porgenerar al crear el registro (la app resuelve el Id por `Clave`) |
 | Enviada                                                 | bit                | 0 = no enviada / 1 = enviada al cliente con PDF+XML — determina, junto con `IdCFDIGenerada`, el estado calculado `EstadoFAA` en `vfccFactura` (equivalente a `tpProformaAdelanto.Enviada`, migrado de RE-FU-019) |
-| FechaEnvio                                              | datetime NULL  | Fecha y hora (UTC) del envío de la factura al cliente — se asigna con GETDATE() en el mismo UPDATE que `Enviada = 1` / `IdCatFacturaEstado = ENVIADA`; `NULL` mientras no se envía |
+| FechaEnvio                                              | datetime NULL  | Fecha y hora (UTC) del envío de la factura al cliente — se asigna con GETDATE() en el mismo UPDATE que `Enviada = 1` / `IdCatFacturaEstado = enviada`; `NULL` mientras no se envía |
 | IdCliente                                               | uniqueidentifier   | FK, ← `tpPedido.IdCliente`                                               |
 | IdEmpresa                                               | uniqueidentifier   | FK, empresa emisora (Proquifa)                                           |
 | FolioPedidoInterno                                      | varchar            | ← `tpPedido.FolioPedidoInterno`                                          |
@@ -195,7 +195,7 @@ INSERT INTO [dbo].[catFacturaEstado] (Clave, Descripcion, Orden, EsTerminal) VAL
 - `IdCFDIGenerada` debe permanecer `NULL` mientras `EsFacturaPorAdelantado = 1` y no se haya timbrado (`EstadoFAA = 'PendienteGenerar'` en `vfccFactura`).
 - `IdTPProformaPedido` es `NULL` para pedidos Prepago (RE-FU-015, que no genera proforma) y está poblado para pedidos Crédito (RE-FU-012, cuya proforma/Confirmación de Pedido se genera en paralelo a `fccFactura` dentro de la misma transacción de tramitación).
 - ⚠️ H-01 abierto: sin columnas para Tipo de Operación / Condición de Pago SUNAT (Perú).
-- `IdCatFacturaEstado` sigue el ciclo de `catFacturaEstado` (ver catálogo arriba): POR_GENERAR al crear; GENERADA al timbrar (junto con `IdCFDIGenerada`); ENVIADA al enviar (junto con `Enviada = 1` y `FechaEnvio = GETDATE()`); PAGADA_PARCIAL/PAGADA desde Validar Cobro; CANCELADA desde el flujo de cancelación. Convive con `EstadoFAA` (calculado en `vfccFactura`, específico del pendiente FAA) sin sustituirlo.
+- `IdCatFacturaEstado` sigue el ciclo de `catFacturaEstado` (ver catálogo arriba): porgenerar al crear; generada al timbrar (junto con `IdCFDIGenerada`); enviada al enviar (junto con `Enviada = 1` y `FechaEnvio = GETDATE()`); pagadaparcial/pagada desde Validar Cobro; cancelada desde el flujo de cancelación. Convive con `EstadoFAA` (calculado en `vfccFactura`, específico del pendiente FAA) sin sustituirlo.
 - **Tabla única para el pendiente FAA, tanto en el origen Prepago (RE-015) como Crédito (RE-012)** — reemplaza `tpProformaAdelanto` en ambos flujos. Ver vista `vfccFactura` para el listado/estado calculado que antes ofrecía `vtpProformaAdelanto`.
 
 ---
@@ -385,7 +385,7 @@ ALTER TABLE dbo.catEstadoPedido
     ADD Orden int NULL,
         EsTerminal bit NOT NULL CONSTRAINT DF_catEstadoPedido_EsTerminal DEFAULT (0),
         Aplicativo varchar(30) NULL,        -- 'ProquifaDotNet' | 'Finanzas' | 'Distribuido'
-        AliasOperativo varchar(50) NULL,    -- ej. 'PEDIDO_ABIERTO' para PEDIDO_CONFIRMADO
+        AliasOperativo varchar(50) NULL,    -- ej. 'PEDIDO_ABIERTO' para pedidoconfirmado
         FechaRegistro datetime NULL;        -- falta en la definición original; se agrega para completar los 3 campos de control del estándar
 
 ALTER TABLE dbo.catEstadoPedido
@@ -397,22 +397,46 @@ ALTER TABLE dbo.catEstadoPedido
 | Nombre | Tipo de dato | Descripción |
 |---|---|---|
 | Orden | int NULL | Orden natural del ciclo de vida (UI/reportes) |
-| EsTerminal | bit | 1 = estado terminal (ENTREGADO, CANCELADO) |
+| EsTerminal | bit | 1 = estado terminal (entregado, cancelado) |
 | Aplicativo | varchar(30) NULL | Qué aplicativo escribe ese estado: `ProquifaDotNet` \| `Finanzas` \| `Distribuido` |
-| AliasOperativo | varchar(50) NULL | Alias de negocio (`PEDIDO_ABIERTO` para `PEDIDO_CONFIRMADO`, `PEDIDO_CERRADO` para `ENTREGADO`) |
+| AliasOperativo | varchar(50) NULL | Alias de negocio (`PEDIDO_ABIERTO` para `pedidoconfirmado`, `PEDIDO_CERRADO` para `entregado`) |
 | FechaRegistro | datetime NULL | Completa los 3 campos de control estándar del proyecto — la definición original solo tenía `FechaUltimaActualizacion` |
 
-**Seed:** 17 estados — ver catálogo propuesto, sección 8 (script `INSERT INTO dbo.catEstadoPedido`), con GUIDs hardcodeados por ambiente conforme al estándar de identificadores para catálogos (no `NEWID()` en el script de seed final).
+**Seed:** 17 estados (script tomado del catálogo propuesto, sección 8), con GUIDs hardcodeados por ambiente conforme al estándar de identificadores para catálogos (no `NEWID()` en el script de seed final; se muestra aquí sin GUID explícito porque `IdCatEstadoPedido` toma el default de la PK al insertar):
+
+```sql
+-- Seed catEstadoPedido (17 estados) — asume que la tabla está vacía
+INSERT INTO dbo.catEstadoPedido (Clave, EstadoPedido, Orden, EsTerminal, Aplicativo, AliasOperativo, FechaUltimaActualizacion, Activo) VALUES
+ ('ocrecibida',                       'OC recibida en Atender Promesa de Compra',                           1, 0, 'ProquifaDotNet', NULL,             GETDATE(), 1),
+ ('enpretramite',                     'En Pretramite',                                                       2, 0, 'ProquifaDotNet', NULL,             GETDATE(), 1),
+ ('intramitable',                      'Intramitable',                                                        3, 0, 'ProquifaDotNet', NULL,             GETDATE(), 1),
+ ('intramitablependienteaceptacion', 'Intramitable — correo de aceptación enviado, pendiente de respuesta', 4, 0, 'ProquifaDotNet', NULL,             GETDATE(), 1),
+ ('intramitablefeasolicitada',       'Intramitable — solicitud de FEA (Fecha Estimada de Ajuste) enviada',  5, 0, 'ProquifaDotNet', NULL,             GETDATE(), 1),
+ ('ocajustadarecibida',              'OC ajustada recibida — Validar ajustes OC',                           6, 0, 'ProquifaDotNet', NULL,             GETDATE(), 1),
+ ('entramite',                        'En Tramite',                                                          7, 0, 'ProquifaDotNet', NULL,             GETDATE(), 1),
+ ('prepagoconfaa',                   'Prepago con Factura por Adelantado',                                  8, 0, 'Finanzas',       NULL,             GETDATE(), 1),
+ ('prepagoencobro',                  'Prepago en Cobro',                                                    9, 0, 'Finanzas',       NULL,             GETDATE(), 1),
+ ('facturado',                         'Facturado',                                                          10, 0, 'Finanzas',       NULL,             GETDATE(), 1),
+ ('pedidoconfirmado',                 'Pedido Confirmado / Abierto',                                        11, 0, 'ProquifaDotNet', 'PEDIDO_ABIERTO', GETDATE(), 1),
+ ('encompra',                         'En Compra',                                                          12, 0, 'ProquifaDotNet', NULL,             GETDATE(), 1),
+ ('enalmacenmatriz',                 'En Almacen Matriz',                                                  13, 0, 'ProquifaDotNet', NULL,             GETDATE(), 1),
+ ('rechazadoeninspeccion',           'Rechazado en Inspeccion',                                            14, 0, 'ProquifaDotNet', NULL,             GETDATE(), 1),
+ ('enentrega',                        'En Entrega',                                                         15, 0, 'ProquifaDotNet', NULL,             GETDATE(), 1),
+ ('entregado',                         'Entregado / Cerrado',                                                16, 1, 'ProquifaDotNet', 'PEDIDO_CERRADO', GETDATE(), 1),
+ ('cancelado',                         'Cancelado (motivo en catMotivoCancelacion)',                         17, 1, 'Distribuido',    NULL,             GETDATE(), 1);
+```
+
+> **Nota:** el script no incluye `IdCatEstadoPedido` (usa el default `NEWID()` de la PK) ni `FechaRegistro` (columna agregada en este documento sobre el catálogo original); si se decide poblarla en el seed final, agregar `FechaRegistro = GETDATE()` a la lista de columnas y valores.
 
 **Consideraciones especiales:**
-- Este documento **consume** el catálogo tal como lo definió el cliente; no se repite aquí la matriz de transiciones ni las 17 filas — ver el archivo de catálogo para el detalle completo y su historial de cambios.
-- Las Observaciones #2 (cancelaciones desde estados posteriores a `PEDIDO_CONFIRMADO`), #3 (evento de entrada de `OC_AJUSTADA_RECIBIDA`) y #6 (paso "folio apartado" antes de `PEDIDO_CONFIRMADO`) del catálogo propuesto siguen abiertas — no bloquean T7/T8, pero deben confirmarse con negocio antes de cerrar el desarrollo de los flujos que ejercitan esos tramos (no es este requisito el que los ejercita, ver Gaps).
+- Este documento **consume** el catálogo tal como lo definió el cliente; el seed de las 17 filas se reproduce arriba, pero no se repite aquí la matriz de transiciones — ver el archivo de catálogo para esa matriz y el historial de cambios.
+- Las Observaciones #2 (cancelaciones desde estados posteriores a `pedidoconfirmado`), #3 (evento de entrada de `ocajustadarecibida`) y #6 (paso "folio apartado" antes de `pedidoconfirmado`) del catálogo propuesto siguen abiertas — no bloquean T7/T8, pero deben confirmarse con negocio antes de cerrar el desarrollo de los flujos que ejercitan esos tramos (no es este requisito el que los ejercita, ver Gaps).
 
 ---
 
 ### Tabla: `catMotivoCancelacion` (catálogo NUEVO)
 
-**Descripción:** Motivo de cancelación del pedido, desacoplado del estado terminal único `CANCELADO` de `catEstadoPedido` (opción B de la Observación #1 del catálogo propuesto — elegida por trazabilidad y para que negocio administre motivos sin release). Propiedad de `ProquifaDotNet`.
+**Descripción:** Motivo de cancelación del pedido, desacoplado del estado terminal único `cancelado` de `catEstadoPedido` (opción B de la Observación #1 del catálogo propuesto — elegida por trazabilidad y para que negocio administre motivos sin release). Propiedad de `ProquifaDotNet`.
 
 ```sql
 CREATE TABLE dbo.catMotivoCancelacion (
@@ -429,7 +453,7 @@ CREATE TABLE dbo.catMotivoCancelacion (
 );
 ```
 
-**Seed:** 5 motivos (`INTRAMITABLE`, `OC_NO_AJUSTADA`, `FALTA_PAGO`, `OPERATIVO`, `SOLICITUD_CLIENTE`) — ver catálogo propuesto, sección 8.
+**Seed:** 5 motivos (`intramitable`, `ocnoajustada`, `faltapago`, `operativo`, `solicitudcliente`) — ver catálogo propuesto, sección 8.
 
 **Relaciones:**
 
@@ -480,12 +504,12 @@ CREATE TABLE dbo.PedidoEstadoActual (
 | Nombre                   | Tipo de dato          | Descripción                                                                                                                                                                                         |
 | ------------------------ | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | IdPedidoEstadoActual     | uniqueidentifier      | PK, DEFAULT NEWID()                                                                                                                                                                                 |
-| IdPcPromesaDeCompra      | uniqueidentifier NULL | FK → `pcPromesaDeCompra.IdPcPromesaDeCompra` — se puebla cuando la OC del cliente se baja del Buzón y se registra en Atender Promesa de Compra (L03, estado `OC_RECIBIDA`)                          |
+| IdPcPromesaDeCompra      | uniqueidentifier NULL | FK → `pcPromesaDeCompra.IdPcPromesaDeCompra` — se puebla cuando la OC del cliente se baja del Buzón y se registra en Atender Promesa de Compra (L03, estado `ocrecibida`)                          |
 | IdPPPedido               | uniqueidentifier NULL | FK → `ppPedido.IdPPPedido` — se puebla cuando la promesa de compra pasa a pedido (Pretramitar, L04)                                                                                                 |
 | IdTPPedido               | uniqueidentifier NULL | FK → `tpPedido.IdTPPedido` — se puebla cuando se manda crear como pedido activo (Tramitar, L05)                                                                                                     |
 | IdCatEstadoPedido        | uniqueidentifier      | FK → `catEstadoPedido.IdCatEstadoPedido`, requerido — el estado vigente; cambia conforme el pedido avanza en el flujo                                                                               |
-| IdCatMotivoCancelacion   | uniqueidentifier NULL | FK → `catMotivoCancelacion.IdCatMotivoCancelacion` — solo tiene valor cuando `IdCatEstadoPedido` corresponde al estado terminal `CANCELADO`; su asignación queda fuera de alcance de este requisito |
-| FechaRegistro            | datetime              | Alta del registro (momento en que se crea, típicamente en `OC_RECIBIDA`)                                                                                                                            |
+| IdCatMotivoCancelacion   | uniqueidentifier NULL | FK → `catMotivoCancelacion.IdCatMotivoCancelacion` — solo tiene valor cuando `IdCatEstadoPedido` corresponde al estado terminal `cancelado`; su asignación queda fuera de alcance de este requisito |
+| FechaRegistro            | datetime              | Alta del registro (momento en que se crea, típicamente en `ocrecibida`)                                                                                                                            |
 | FechaUltimaActualizacion | datetime              | Última vez que cambió `IdCatEstadoPedido` (o se agregó una de las FK de origen)                                                                                                                     |
 | Activo                   | bit                   | Control (borrado lógico)                                                                                                                                                                            |
 
@@ -510,10 +534,10 @@ CREATE TABLE dbo.PedidoEstadoActual (
 | IX_PedidoEstadoActual_IdCatEstadoPedido | IdCatEstadoPedido | Nonclustered (filtrado por estado, tableros/consultas) |
 
 **Consideraciones especiales:**
-- **Un registro por pedido, no una bitácora.** El nombre (`PedidoEstadoActual`) y los tres campos de control reflejan un registro que se actualiza in-place: se crea una vez (normalmente en `OC_RECIBIDA`) y se actualiza conforme el pedido avanza — no se inserta una fila nueva por cada cambio de estado. Si el cliente requiere el historial completo de transiciones (no solo el estado vigente) para auditoría o Power BI, es una tabla adicional fuera de alcance de este ajuste (ver Gaps).
-- **Alta del registro:** ocurre en el punto del flujo donde nace el pedido — normalmente al bajar la OC del Buzón (`pcPromesaDeCompra`, `OC_RECIBIDA`). Los pedidos que ingresan sin ese paso (origen Venta Digital u otro) deben identificar su propio punto de alta; confirmar con el flujo real de cada origen (fuera de alcance de este requisito, ver Gaps).
+- **Un registro por pedido, no una bitácora.** El nombre (`PedidoEstadoActual`) y los tres campos de control reflejan un registro que se actualiza in-place: se crea una vez (normalmente en `ocrecibida`) y se actualiza conforme el pedido avanza — no se inserta una fila nueva por cada cambio de estado. Si el cliente requiere el historial completo de transiciones (no solo el estado vigente) para auditoría o Power BI, es una tabla adicional fuera de alcance de este ajuste (ver Gaps).
+- **Alta del registro:** ocurre en el punto del flujo donde nace el pedido — normalmente al bajar la OC del Buzón (`pcPromesaDeCompra`, `ocrecibida`). Los pedidos que ingresan sin ese paso (origen Venta Digital u otro) deben identificar su propio punto de alta; confirmar con el flujo real de cada origen (fuera de alcance de este requisito, ver Gaps).
 - **Enriquecimiento progresivo:** cuando el pedido pasa de una etapa a otra (`pcPromesaDeCompra` → `ppPedido` → `tpPedido`), el mismo registro se localiza por la FK que ya tiene poblada y se actualiza para agregar la FK de la nueva etapa — no se crea un registro nuevo. Este ajuste puntual (T7/T8) cubre la etapa que corresponde a este requisito (cierre de Tramitar Pedido con FAA, `IdTPPedido` ya poblado desde antes por RE-013/014); los puntos de alta y enriquecimiento en etapas anteriores (Buzón → Pretramitar → Tramitar) son responsabilidad de los requisitos que implementan esas etapas (RE-013/014 y anteriores) y no se tocan en este ajuste.
-- `IdCatMotivoCancelacion` solo debe tener valor cuando `IdCatEstadoPedido` referencia la clave `CANCELADO` de `catEstadoPedido` — no se declara como restricción de verificación en este documento porque `CANCELADO` es un dato (una fila de catálogo), no un valor fijo de esquema; queda como regla de negocio a validar en el servicio que escribe (T8) o, si se prefiere blindarlo en BD, como disparador (`trValidaMotivoCancelacion`) a evaluar en implementación.
+- `IdCatMotivoCancelacion` solo debe tener valor cuando `IdCatEstadoPedido` referencia la clave `cancelado` de `catEstadoPedido` — no se declara como restricción de verificación en este documento porque `cancelado` es un dato (una fila de catálogo), no un valor fijo de esquema; queda como regla de negocio a validar en el servicio que escribe (T8) o, si se prefiere blindarlo en BD, como disparador (`trValidaMotivoCancelacion`) a evaluar en implementación.
 - El endpoint que actualiza `IdCatEstadoPedido` (ver `-Back.md`, T8) localiza el registro por la FK de mayor jerarquía informada, en orden descendente del flujo: `IdTPPedido` → `IdPPPedido` → `IdPcPromesaDeCompra`.
 
 ---
@@ -526,38 +550,38 @@ CREATE TABLE dbo.PedidoEstadoActual (
 
 | Origen / condición | Clave `catEstadoPedido` resultante |
 |---|---|
-| `pcPromesaDeCompra` con `IdPPPedido IS NULL` | `OC_RECIBIDA` |
-| `ppPedido.Cancelada = 1` | `CANCELADO` (motivo sin determinar — ver nota) |
-| `ppPedido.Tramitado = 0` y `ppPedido.Intramitable = 1` | `INTRAMITABLE` (sub-estado ACEPTACION/FEA sin determinar — ver nota) |
-| `ppPedido.Tramitado = 0` y `ppPedido.Intramitable` es `0`/`NULL` | `EN_PRETRAMITE` |
-| `ppPedido.Tramitado = 1` y no existe `tpPedido` asociado aún | `EN_TRAMITE` |
-| `tpPedido.Finalizado = 1` | `ENTREGADO` |
-| `tpPedido.Liberado = 1` y `Finalizado` no es `1` | `PEDIDO_CONFIRMADO` |
-| `tpPedido.FacturaPorAdelantado = 1` y `Liberado = 0` | `PREPAGO_CON_FAA` o `PREPAGO_EN_COBRO` según exista o no un pendiente FAA histórico ya emitido (sin determinar — ver nota) |
-| `tpPedido.Liberado = 0`, sin FAA, con partidas en seguimiento logístico | según `MAX(catSeguimientoPartidaPedido.Clave)` de las partidas del pedido (`encompra` → `EN_COMPRA`, `almacenmatriz` → `EN_ALMACEN_MATRIZ`, `rechazadoeninspeccion` → `RECHAZADO_EN_INSPECCION`, `enentrega` → `EN_ENTREGA`) |
+| `pcPromesaDeCompra` con `IdPPPedido IS NULL` | `ocrecibida` |
+| `ppPedido.Cancelada = 1` | `cancelado` (motivo sin determinar — ver nota) |
+| `ppPedido.Tramitado = 0` y `ppPedido.Intramitable = 1` | `intramitable` (sub-estado ACEPTACION/FEA sin determinar — ver nota) |
+| `ppPedido.Tramitado = 0` y `ppPedido.Intramitable` es `0`/`NULL` | `enpretramite` |
+| `ppPedido.Tramitado = 1` y no existe `tpPedido` asociado aún | `entramite` |
+| `tpPedido.Finalizado = 1` | `entregado` |
+| `tpPedido.Liberado = 1` y `Finalizado` no es `1` | `pedidoconfirmado` |
+| `tpPedido.FacturaPorAdelantado = 1` y `Liberado = 0` | `prepagoconfaa` o `prepagoencobro` según exista o no un pendiente FAA histórico ya emitido (sin determinar — ver nota) |
+| `tpPedido.Liberado = 0`, sin FAA, con partidas en seguimiento logístico | según `MAX(catSeguimientoPartidaPedido.Clave)` de las partidas del pedido (`encompra` → `encompra`, `almacenmatriz` → `enalmacenmatriz`, `rechazadoeninspeccion` → `rechazadoeninspeccion`, `enentrega` → `enentrega`) |
 
 ```sql
 -- Ejemplo simplificado — paso 1: pedidos aun en pcPromesaDeCompra (no llegaron a ppPedido)
 INSERT INTO dbo.PedidoEstadoActual (IdPcPromesaDeCompra, IdCatEstadoPedido)
 SELECT pc.IdPcPromesaDeCompra, ce.IdCatEstadoPedido
 FROM dbo.pcPromesaDeCompra pc
-CROSS JOIN (SELECT IdCatEstadoPedido FROM dbo.catEstadoPedido WHERE Clave = 'OC_RECIBIDA') ce
+CROSS JOIN (SELECT IdCatEstadoPedido FROM dbo.catEstadoPedido WHERE Clave = 'ocrecibida') ce
 WHERE pc.IdPPPedido IS NULL
   AND pc.Activo = 1
   AND NOT EXISTS (
       SELECT 1 FROM dbo.PedidoEstadoActual pea WHERE pea.IdPcPromesaDeCompra = pc.IdPcPromesaDeCompra
   );
 
--- Paso 2: pedidos en ppPedido (sin tpPedido aun) — EN_PRETRAMITE / INTRAMITABLE / EN_TRAMITE / CANCELADO
+-- Paso 2: pedidos en ppPedido (sin tpPedido aun) — enpretramite / intramitable / entramite / cancelado
 -- (repetir el patron NOT EXISTS por IdPPPedido, con el CASE de la tabla de mapeo)
 
--- Paso 3: pedidos con tpPedido — PREPAGO_CON_FAA / PEDIDO_CONFIRMADO / logistica / ENTREGADO
+-- Paso 3: pedidos con tpPedido — prepagoconfaa / pedidoconfirmado / logistica / entregado
 -- (repetir el patron NOT EXISTS por IdTPPedido, con el CASE de la tabla de mapeo y el JOIN a catSeguimientoPartidaPedido)
 ```
 
 **Nota — piezas que requieren confirmación de negocio antes de correr en PROD (no bloquean T7/T8, sí la ejecución del script en el ambiente productivo):**
-- Sub-estados de `INTRAMITABLE` (`INTRAMITABLE_PENDIENTE_ACEPTACION`, `INTRAMITABLE_FEA_SOLICITADA`, `OC_AJUSTADA_RECIBIDA`) requieren inspeccionar tablas adicionales (`ppPedidoAceptacionConError`, `ppPedido.FechaEstimadaAjuste`) no cubiertas por este requisito.
-- Distinguir `PREPAGO_CON_FAA` de `PREPAGO_EN_COBRO` para pedidos históricos requiere revisar el pendiente FAA legado (`tpProformaAdelanto`, previo a este requisito) en vez de `fccFactura` (que nace vacía con este requisito).
+- Sub-estados de `intramitable` (`intramitablependienteaceptacion`, `intramitablefeasolicitada`, `ocajustadarecibida`) requieren inspeccionar tablas adicionales (`ppPedidoAceptacionConError`, `ppPedido.FechaEstimadaAjuste`) no cubiertas por este requisito.
+- Distinguir `prepagoconfaa` de `prepagoencobro` para pedidos históricos requiere revisar el pendiente FAA legado (`tpProformaAdelanto`, previo a este requisito) en vez de `fccFactura` (que nace vacía con este requisito).
 - El motivo de cancelación (`IdCatMotivoCancelacion`) de pedidos ya cancelados no se puede reconstruir de forma confiable con las columnas actuales (`Cancelada bit`, sin motivo) — se deja `NULL` en la migración y se documenta como dato no migrable.
 
 ---
@@ -601,27 +625,27 @@ WHERE pc.IdPPPedido IS NULL
        por ProquifaDotNet antes de llamar a Finanzas)
     3. Fija datos de facturacion del catalogo vigente del cliente
     4. ProquifaDotNet.Finanzas INSERT atomico:
-       - fccFactura (EsFacturaPorAdelantado=1, IdCatFacturaEstado=POR_GENERAR,
+       - fccFactura (EsFacturaPorAdelantado=1, IdCatFacturaEstado=porgenerar,
          campos fiscales timbrado NULL)
        - fccFacturaPartida (una por partida del pedido)
        - fccFacturaReferenciaBancaria (cuentas M.N./DLS + ReferenciaCliente)
     5. NO se genera tpProformaPedido, PDF ni correo en este flujo
     6. NO INSERT pendiente Validar Cobro
-    7. Actualiza PedidoEstadoActual.IdCatEstadoPedido = PREPAGO_CON_FAA (localizado por
+    7. Actualiza PedidoEstadoActual.IdCatEstadoPedido = prepagoconfaa (localizado por
        IdTPPedido, via PUT /v1/api/orders/status) -> cierra pendiente Tramitar Pedido
        (OBS-027 resuelto)
 
    === POSTERIORMENTE (fuera scope este requisito) ===
    8. Modulo FAA emite factura PPD -> INSERT CFDIGenerada (Finanzas) ->
       UPDATE fccFactura SET EsFacturaPorAdelantado=0, IdCFDIGenerada=@Id,
-      IdCatFacturaEstado=GENERADA (si el PAC rechaza: ERROR_TIMBRADO, reintento de Finanzas)
+      IdCatFacturaEstado=generada (si el PAC rechaza: errortimbrado, reintento de Finanzas)
       (Serie/Folio/FolioFiscal/Version/TipoDeComprobante/FechaCertificacion
       se leen de CFDIGenerada via este FK, no se duplican en fccFactura)
    8b. Al enviar la factura -> UPDATE fccFactura SET Enviada=1, FechaEnvio=GETDATE(),
-       IdCatFacturaEstado=ENVIADA
+       IdCatFacturaEstado=enviada
    9. FAA genera pendiente Validar Cobro
-   10. Validar Cobro aplica cobros -> IdCatFacturaEstado=PAGADA_PARCIAL o PAGADA;
-       cancelacion (RE-032) -> IdCatFacturaEstado=CANCELADA
+   10. Validar Cobro aplica cobros -> IdCatFacturaEstado=pagadaparcial o pagada;
+       cancelacion (RE-032) -> IdCatFacturaEstado=cancelada
 
 ---
 
@@ -664,7 +688,7 @@ WHERE pc.IdPPPedido IS NULL
 | 2 | H-01 — Campos fiscales de Perú en `fccFactura` | Agregar columnas equivalentes a Tipo de Operación / Condición de Pago SUNAT, o documentar por qué no aplican |
 | 3 | Documento disponible para TaskScheduler/Legacy | Confirmar si el job de Venta Digital puede operar sin ningun PDF generado en este flujo |
 | 4 | ~~Catalogo de estatus del pedido (OBS-027 / Criterio D5)~~ | **Resuelto** — `catEstadoPedido` extendido + `catMotivoCancelacion` + `PedidoEstadoActual` (ver sección "Estatus del pedido" arriba) |
-| 5 | Sub-estados de `INTRAMITABLE` y distinción `PREPAGO_CON_FAA`/`PREPAGO_EN_COBRO` para el backfill histórico | Confirmar con negocio antes de correr la migración en PROD (ver sección de migración) |
+| 5 | Sub-estados de `intramitable` y distinción `prepagoconfaa`/`prepagoencobro` para el backfill histórico | Confirmar con negocio antes de correr la migración en PROD (ver sección de migración) |
 | 6 | ¿`PedidoEstadoActual` necesita historial completo de transiciones, o basta el estado vigente? | El nombre y diseño actual asumen solo estado vigente (no bitácora) — confirmar si Power BI u otro consumidor requiere historial; sería tabla adicional fuera de este alcance |
 
 > Ya no aplican: "Folio proforma lineal global" y "Politica de folio si ESAC cancela previsualizacion" — este flujo no genera proforma.
@@ -705,9 +729,9 @@ Ver el detalle de la migración en cada requisito afectado (`_BD.md`/`-Back.md`/
 | R16A-RE-FU-016         | Criterio E1 — dos cuentas bancarias del grupo PROQUIFA México                                                                                                             |
 | R16A-RE-FU-018/019/020 | Módulo FAA — consulta `vfccFactura`, actualiza `fccFactura` a factura final (`EsFacturaPorAdelantado=0`, `IdCFDIGenerada`, `IdCatFacturaEstado`, `Enviada`, `FechaEnvio`) |
 | R16A-RE-FU-021         | `catClaveProdServSAT` reutilizado por `fccFacturaPartida.ClaveProductoServicioSAT`                                                                                        |
-| R16A-RE-FU-026/027     | Asociación de cobro — `fccPagoFacturaAdelanto.IdFccFactura`; transiciones PAGADA / PAGADA_PARCIAL                                                                         |
+| R16A-RE-FU-026/027     | Asociación de cobro — `fccPagoFacturaAdelanto.IdFccFactura`; transiciones pagada / pagadaparcial                                                                         |
 | R16A-RE-FU-028/029/030 | Complemento de Pago — JOIN `fccPagoFacturaAdelanto → fccFactura → CFDIGenerada` para `CFDIRelacionados`                                                                   |
-| R16A-RE-FU-032         | Cancelación de factura origen — transición CANCELADA                                                                                                                      |
+| R16A-RE-FU-032         | Cancelación de factura origen — transición cancelada                                                                                                                      |
 
 ---
 

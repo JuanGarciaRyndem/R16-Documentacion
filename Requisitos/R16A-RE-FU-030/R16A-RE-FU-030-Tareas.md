@@ -6,7 +6,7 @@
 
 > **Orden de ejecución sugerido:** BD catFormaPagoSAT (T1) → BD DML CP01 (T2) → BD ALTER fccDocumentoFiscalCobro (T3) → BD EmpresaFolio Serie P (T4) → BD DocumentTemplate (T5) → BD ALTER vista v3.0 (T6) → Timbrado endpoint CP (T7) → Finanzas: MappingService + PersistirService (T8) → Finanzas: Preview PDF CP (T9) → Finanzas: Cascada PPD + Escenario D (T10) → DocumentBuilder: templates HTML *_MEX_CP (T11).
 >
-> **Dependencias externas:** R16A-RE-FU-028 completo (`catTipoCFDI.COMPLEMENTO_PAGO`, `fccDocumentoFiscalCobro` con `IdCFDIGeneradaComplemento`, `CFDIGenerada` con `IdCFDIRelacionado`, `catMetodoDePagoCFDI`). R16A-RE-FU-029 completo (`catTipoCFDI.IdRegion`, `vfccDocumentoFiscalCobro` v2.0). R16A-RE-FU-021 completo (`InvoicePdfMappingService`, `PersistInvoicePdfService` — patrón base de los nuevos servicios PDF del CP).
+> **Dependencias externas:** R16A-RE-FU-028 completo (`catTipoCFDI.complementopago`, `fccDocumentoFiscalCobro` con `IdCFDIGeneradaComplemento`, `CFDIGenerada` con `IdCFDIRelacionado`, `catMetodoDePagoCFDI`). R16A-RE-FU-029 completo (`catTipoCFDI.IdRegion`, `vfccDocumentoFiscalCobro` v2.0). R16A-RE-FU-021 completo (`InvoicePdfMappingService`, `PersistInvoicePdfService` — patrón base de los nuevos servicios PDF del CP).
 >
 > **Brechas activas sin bloqueante:** B1 (hora FechaPago) y B5 (formato folio Serie P) son pendientes de bajo impacto que se documentan en código con TODO sin bloquear la implementación. B2 (plantilla correo) bloquea solo la configuración de la plantilla en ProquifaDotNet.EnvioCorreo (Aplicativo Nuevo, regla 7); el despacho de adjuntos sí puede implementarse. B3 (política reintento CP) se implementa como "línea queda en PENDIENTE" hasta que PMO defina el flujo formal. **No hay brecha bloqueante en este requisito.**
 
@@ -195,7 +195,7 @@ Ver sección *"DML catUsoCFDI — INSERT clave CP01 (Pagos)"* en `R16A-RE-FU-030
 - La tabla `fccDocumentoFiscalCobro` existe desde RE-028 y fue extendida en RE-029. Las 8 columnas nuevas son nullable — no afectan filas existentes.
 - **Prerrequisito:** La Tarea 1 (`catFormaPagoSAT`) debe estar ejecutada antes de agregar la FK `IdCatFormaPagoSAT`.
 - Las columnas almacenan el **snapshot fiscal inmutable** del nodo DoctoRelacionado y del nodo Pago del XML Pagos20 v2.0, en el momento del timbrado. No se recomputarán post-timbrado.
-- Son NULL para todas las líneas no-CP (FACTURA, FACTURA_ANTICIPO, líneas Perú). La validación de presencia se hace en la capa de aplicación (Finanzas), no con CHECK CONSTRAINT.
+- Son NULL para todas las líneas no-CP (factura, facturaanticipo, líneas Perú). La validación de presencia se hace en la capa de aplicación (Finanzas), no con CHECK CONSTRAINT.
 
 **Columnas a agregar:**
 
@@ -237,7 +237,7 @@ Extender `fccDocumentoFiscalCobro` con las 8 columnas del snapshot fiscal del Co
 ALTER TABLE dbo.fccDocumentoFiscalCobro
     ADD [FechaPagoCP] datetime2(7) NULL;
         -- FechaPago del nodo Pago en el XML del CP.
-        -- NULL para líneas no-CP (FACTURA, FACTURA_ANTICIPO, FACTURA_CPE).
+        -- NULL para líneas no-CP (factura, facturaanticipo, facturacpe).
         -- ⚠️ Pendiente: confirmar si hora es 12:00:00 fija o la hora real del cobro.
 GO
 
@@ -571,7 +571,7 @@ Actualizar `vfccDocumentoFiscalCobro` a v3.0 para exponer las 8 columnas del sna
 - Construir el script `ALTER VIEW` completo (v2.0 base + agregados v3.0).
 - Agregar `LEFT JOIN catFormaPagoSAT fpago ON p3l.IdCatFormaPagoSAT = fpago.IdCatFormaPagoSAT`.
 - Agregar las 8 columnas DR del CP en el SELECT.
-- Ejecutar el script y validar con `SELECT TOP 5 ... WHERE TipoDocumentoFiscal = 'COMPLEMENTO_PAGO'`.
+- Ejecutar el script y validar con `SELECT TOP 5 ... WHERE TipoDocumentoFiscal = 'complementopago'`.
 
 **Resultado esperado:**
 `vfccDocumentoFiscalCobro` v3.0 expone todas las columnas del Complemento de Pago. Finanzas puede consultar la vista para obtener el estado completo de una línea CP, incluyendo los valores fiscales del DoctoRelacionado.
@@ -619,14 +619,14 @@ SELECT TOP 5
     FormaPagoClave, NumParcialidad,
     ImpSaldoAnt, ImpPagado, ImpSaldoInsoluto, EquivalenciaDR
 FROM dbo.vfccDocumentoFiscalCobro
-WHERE TipoDocumentoFiscal = 'COMPLEMENTO_PAGO';
+WHERE TipoDocumentoFiscal = 'complementopago';
 ```
 
 **Criterios de aceptación:**
 - La vista compila sin errores.
 - `SELECT FormaPagoClave, NumParcialidad, ImpSaldoAnt, ImpPagado, ImpSaldoInsoluto FROM vfccDocumentoFiscalCobro` ejecuta correctamente.
 - Las columnas Perú (v2.0) siguen presentes y funcionales.
-- `SELECT TOP 5 * FROM vfccDocumentoFiscalCobro WHERE TipoDocumentoFiscal = 'COMPLEMENTO_PAGO'` retorna filas para líneas CP existentes.
+- `SELECT TOP 5 * FROM vfccDocumentoFiscalCobro WHERE TipoDocumentoFiscal = 'complementopago'` retorna filas para líneas CP existentes.
 
 **Más información de la tarea:**
 Ver sección *"ALTER VIEW vfccDocumentoFiscalCobro v3.0"* en `R16A-RE-FU-030_BD.md` y sección *"Parte A / A6"* en `R16A-RE-FU-030-Back.md`.
@@ -655,7 +655,7 @@ Ver sección *"ALTER VIEW vfccDocumentoFiscalCobro v3.0"* en `R16A-RE-FU-030_BD.
 - El manejo de errores PAC sigue el mismo patrón que Facturas (RE-019): si el PAC rechaza, retornar error sin INSERT en CFDIGenerada.
 
 **Objetivo general:**
-Implementar en ProquifaDotNet.Timbrado la generación del XML CFDI 4.0 Pagos20 v2.0, el consumo atómico del folio Serie P, la llamada al PAC TurboPac y la persistencia del resultado en `CFDIGenerada` con `IdCatTipoCFDI='COMPLEMENTO_PAGO'` e `IdCFDIRelacionado` al UUID de la factura relacionada.
+Implementar en ProquifaDotNet.Timbrado la generación del XML CFDI 4.0 Pagos20 v2.0, el consumo atómico del folio Serie P, la llamada al PAC TurboPac y la persistencia del resultado en `CFDIGenerada` con `IdCatTipoCFDI='complementopago'` e `IdCFDIRelacionado` al UUID de la factura relacionada.
 
 **Objetivos específicos:**
 - Implementar la construcción del XML Pagos20 v2.0 según los criterios B1–G3 del requisito:
@@ -666,7 +666,7 @@ Implementar en ProquifaDotNet.Timbrado la generación del XML CFDI 4.0 Pagos20 v
   - Complemento Pagos20: Totales (MontoTotalPagos + IVA si aplica), 1 Pago con 1 DoctoRelacionado (+ ImpuestosDR si `ObjetoImpDR=02`).
 - Implementar consumo atómico del folio: `UPDATE EmpresaFolio WITH (UPDLOCK) SET UltimoFolio = UltimoFolio + 1 OUTPUT inserted.UltimoFolio WHERE IdEmpresa = @Id AND Serie = 'P'`.
 - Firmar el XML con el CSD de la empresa emisora y llamar al PAC TurboPac.
-- Insertar en `CFDIGenerada` con `IdCatTipoCFDI='COMPLEMENTO_PAGO'`, `IdCFDIRelacionado`, UUID, Serie P, Folio, FechaEmision.
+- Insertar en `CFDIGenerada` con `IdCatTipoCFDI='complementopago'`, `IdCFDIRelacionado`, UUID, Serie P, Folio, FechaEmision.
 - Insertar en `StampingLog`.
 - Retornar a Finanzas: UUID, Serie, Folio, FechaTimbre, XML timbrado con `TimbreFiscalDigital`.
 
@@ -682,7 +682,7 @@ Implementar en ProquifaDotNet.Timbrado la generación del XML CFDI 4.0 Pagos20 v
 **Criterios de aceptación:**
 - El XML generado supera la validación de esquema XSD de CFDI 4.0 y del complemento Pagos20.
 - El PAC TurboPac retorna UUID sin error para un CP de prueba.
-- `CFDIGenerada` recibe la fila con `IdCatTipoCFDI='COMPLEMENTO_PAGO'` e `IdCFDIRelacionado` correcto.
+- `CFDIGenerada` recibe la fila con `IdCatTipoCFDI='complementopago'` e `IdCFDIRelacionado` correcto.
 - El folio en `EmpresaFolio Serie P` se incrementa en 1 por cada timbrado exitoso.
 - Un XML con `SubTotal≠0` o `Total≠0` es rechazado por el PAC (validación SAT).
 
@@ -759,7 +759,7 @@ Ver sección *"Parte B / B6"* y *"Parte E"* en `R16A-RE-FU-030-Back.md` y criter
 **Módulos:** Finanzas — Validar Cobro Paso 3 México — Preview Complemento de Pago
 
 **Consideraciones previas:**
-- RE-028 B3 (paso 3) documentó explícitamente: *"Para líneas COMPLEMENTO_PAGO: la previsualización del PDF del Complemento se implementa en R16A-RE-FU-030"*. Esta tarea cierra ese stub.
+- RE-028 B3 (paso 3) documentó explícitamente: *"Para líneas complementopago: la previsualización del PDF del Complemento se implementa en R16A-RE-FU-030"*. Esta tarea cierra ese stub.
 - **Prerrequisito:** Tarea 8 (`PaymentComplementPdfMappingService.MapearPreviewAsync()`) debe estar implementada.
 - El preview usa `NumParcialidad` estimado (SELECT COUNT + 1 **sin** UPDLOCK — solo informativo).
 - `ImpSaldoAnt` estimado: si primer CP → Total de la factura relacionada; si CPs subsecuentes → `ImpSaldoInsoluto` del CP anterior consultado desde `fccDocumentoFiscalCobro`.
@@ -767,7 +767,7 @@ Ver sección *"Parte B / B6"* y *"Parte E"* en `R16A-RE-FU-030-Back.md` y criter
 - El PDF de preview no incluye UUID, sello digital ni QR — se muestra un placeholder visual.
 
 **Objetivo general:**
-Implementar el endpoint/handler de previsualización del PDF del Complemento de Pago en el Paso 3 de Validar Cobro, cerrando el stub de RE-028 B3 para líneas de tipo `COMPLEMENTO_PAGO`.
+Implementar el endpoint/handler de previsualización del PDF del Complemento de Pago en el Paso 3 de Validar Cobro, cerrando el stub de RE-028 B3 para líneas de tipo `complementopago`.
 
 **Objetivos específicos:**
 - Leer datos de la línea desde `vfccDocumentoFiscalCobro`.
@@ -778,14 +778,14 @@ Implementar el endpoint/handler de previsualización del PDF del Complemento de 
 - Retornar el PDF al frontend sin escrituras en BD.
 
 **Resultado esperado:**
-El usuario puede presionar "Previsualizar" en una línea `COMPLEMENTO_PAGO` del Paso 3 y ver el PDF con los datos del CP antes de timbrar, incluyendo valores estimados de parcialidad y saldos.
+El usuario puede presionar "Previsualizar" en una línea `complementopago` del Paso 3 y ver el PDF con los datos del CP antes de timbrar, incluyendo valores estimados de parcialidad y saldos.
 
 **Entregables:**
 - Endpoint/handler de previsualización CP extendido en el Paso 3
 - Tests unitarios: preview primer CP; preview CP subsecuente; verificación de no-escritura en BD
 
 **Criterios de aceptación:**
-- El endpoint retorna un PDF en memoria para líneas `COMPLEMENTO_PAGO` del Paso 3.
+- El endpoint retorna un PDF en memoria para líneas `complementopago` del Paso 3.
 - El PDF incluye los datos del Emisor, Receptor, Pago y DoctoRelacionado con valores estimados.
 - No se insertan ni actualizan filas en BD durante la previsualización.
 - El PDF muestra placeholder en lugar de UUID y sello digital.

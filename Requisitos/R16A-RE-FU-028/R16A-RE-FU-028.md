@@ -25,7 +25,7 @@ El sistema debe contar con la tercera pantalla del wizard de Validar Cobro (Paso
 - Pantalla del Paso 3 del wizard de Validar Cobro: Facturación y Envío.
 - Aplica a clientes con Región México exclusivamente (Perú se documenta en requisito independiente con diferencias significativas).
 - Cabecera del cliente (estructura consistente con Paso 1 y Paso 2: logo, Alias, etiquetas preexistentes de clasificación, RFC/RUC, razón social legal, moneda de facturación).
-- Barra de pasos del wizard: 1-CAPTURAR COBRO (✓), 2-ASOCIAR FACTURA/PROFORMA (✓), 3-FACTURACIÓN Y ENVÍO (activo).
+- Barra de pasos del wizard: 1-CAPTURAR COBRO (✓), 2-ASOCIAR factura/PROFORMA (✓), 3-FACTURACIÓN Y ENVÍO (activo).
 - Listado de líneas a procesar, una por cada documento de la asociación cerrada en el Paso 2.
 - Lógica condicional por línea según el tipo de documento origen del Paso 2:
   - Proforma normal (sin productos controlados) → genera Factura nueva (CFDI Ingreso).
@@ -72,7 +72,7 @@ El Paso 3 del wizard de Validar Cobro opera exclusivamente sobre clientes con Re
 El sistema genera una línea por cada documento (proforma o factura) asociado en el Paso 2 que requiera emisión de un documento fiscal. Cada línea referencia: tipo de documento origen (Proforma normal, Proforma con controlados, Factura existente), folio del documento origen, Pedido Interno, empresa emisora del grupo, cobros asociados, y NCs aplicadas (si las hubo).
 
 **Regla 3 — Lógica condicional del tipo de documento fiscal a generar**
-El tipo de documento fiscal a generar por línea depende del tipo de documento origen: si la línea parte de una Proforma normal (sin productos controlados), se genera una Factura nueva (CFDI Ingreso); si parte de una Proforma con productos controlados, se genera una Factura Anticipo (CFDI Ingreso). ~~con tipo de relación 07 SAT — Aplicación de Anticipo~~ si parte de una Factura existente (de Prepago con Factura por Adelantado previo) con cobro asociado, se genera un Complemento de Pago (CFDI Pagos 2.0) que se relaciona al UUID de la factura existente. **RESUELTO — DUDA-088 (corrige error anterior):** la Factura Anticipo NO usa tipo de relación 07 SAT — es incorrecto usar la relación 07 en la Factura Anticipo. La relación 07 aplica en la FACTURA FINAL (cuando declara que aplica el anticipo de una Factura Anticipo previa), documento fuera de alcance de este requisito. La Factura Anticipo debe generarse conforme a `Guia_Tecnica_Facturas_Ingreso_MX.md`.
+El tipo de documento fiscal a generar por línea depende del tipo de documento origen: si la línea parte de una Proforma normal (sin productos controlados), se genera una Factura nueva (CFDI Ingreso); si parte de una Proforma con productos controlados, se genera una Factura Anticipo (CFDI Ingreso). ~~con tipo de relación 07 SAT — Aplicación de Anticipo~~ si parte de una Factura existente (de Prepago con Factura por Adelantado previo) con cobro asociado, se genera un Complemento de Pago (CFDI Pagos 2.0) que se relaciona al UUID de la factura existente. **RESUELTO — DUDA-088 (corrige error anterior):** la Factura Anticipo NO usa tipo de relación 07 SAT — es incorrecto usar la relación 07 en la Factura Anticipo. La relación 07 aplica en la factura FINAL (cuando declara que aplica el anticipo de una Factura Anticipo previa), documento fuera de alcance de este requisito. La Factura Anticipo debe generarse conforme a `Guia_Tecnica_Facturas_Ingreso_MX.md`.
 
 **Regla 4 — Edición del Uso CFDI por línea**
 El campo Uso CFDI de cada línea es un combo del catálogo SAT c_UsoCFDI (ejemplo: "G01 - Adquisición de mercancías", "G03 - Gastos en general", "P01 - Por definir", etc.) editable por el usuario antes del timbrado. El valor por defecto corresponde al Uso CFDI configurado del cliente o capturado en el pedido original; el usuario puede ajustarlo previo al timbrado.
@@ -148,7 +148,7 @@ Entonces deberá mostrar: logo del cliente (si existe), Alias, etiquetas preexis
 **Criterio A2 — Barra de pasos del wizard**
 Dado que el usuario está en el Paso 3,
 Cuando el sistema renderiza la barra de pasos,
-Entonces deberá mostrar los tres pasos: "1 - CAPTURAR COBRO" (✓), "2 - ASOCIAR FACTURA/PROFORMA" (✓), "3 - FACTURACIÓN Y ENVÍO" (activo).
+Entonces deberá mostrar los tres pasos: "1 - CAPTURAR COBRO" (✓), "2 - ASOCIAR factura/PROFORMA" (✓), "3 - FACTURACIÓN Y ENVÍO" (activo).
 
 ═══════════════════════════════════════════════════════════════
 SECCIÓN B — LISTADO DE LÍNEAS A PROCESAR

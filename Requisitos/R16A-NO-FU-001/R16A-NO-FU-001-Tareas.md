@@ -796,7 +796,7 @@ Refactorizar `CorreoGenericoBO.GenerarCorreo<T>` para delegar el envío al API d
 
 **Consideraciones previas:**
 - Brevo ofrece un sistema propio de plantillas donde el renderizado ocurre en sus servidores. Solo se necesita pasar el `IdTemplateBrevo` (entero) y un objeto `params` con los valores dinámicos.
-- Esta tabla es el **catálogo local** que mapea una clave lógica (e.g. `BIENVENIDA_CLIENTE`) al ID de plantilla en Brevo, con metadata descriptiva y el esquema JSON de los parámetros esperados.
+- Esta tabla es el **catálogo local** que mapea una clave lógica (e.g. `bienvenidacliente`) al ID de plantilla en Brevo, con metadata descriptiva y el esquema JSON de los parámetros esperados.
 - Es diferente a `PlantillaCorreo` (T1): esa tabla almacena HTML local para renderizado en el servidor; esta tabla apunta a plantillas gestionadas en la plataforma de Brevo.
 - La columna `EsquemaParametros` (JSON) documenta los campos que acepta la plantilla de Brevo, facilitando la validación del request antes de enviarlo.
 - La tabla vive en `ProquifaDotNetSendInBlue`.
@@ -819,7 +819,7 @@ Tabla `CatalogoPlantillaBrevo` creada en `ProquifaDotNetSendInBlue`. La nueva so
 | Columna | Tipo | Descripción |
 |---|---|---|
 | `IdCatalogoPlantillaBrevo` | `uniqueidentifier` PK | Identificador interno |
-| `Clave` | `nvarchar(100)` NOT NULL UNIQUE | Clave lógica de la plantilla (e.g. `BIENVENIDA_CLIENTE`) |
+| `Clave` | `nvarchar(100)` NOT NULL UNIQUE | Clave lógica de la plantilla (e.g. `bienvenidacliente`) |
 | `IdTemplateBrevo` | `int` NOT NULL | ID de la plantilla en la plataforma Brevo |
 | `Nombre` | `nvarchar(200)` NOT NULL | Nombre descriptivo de la plantilla |
 | `Descripcion` | `nvarchar(500)` NOT NULL DEFAULT '' | Descripción del uso de la plantilla |
@@ -873,7 +873,7 @@ GO
 INSERT INTO [dbo].[CatalogoPlantillaBrevo]
     ([Clave], [IdTemplateBrevo], [Nombre], [Descripcion], [EsquemaParametros])
 VALUES (
-    'BIENVENIDA_CLIENTE',
+    'bienvenidacliente',
     1,
     'Bienvenida a nuevo cliente',
     'Correo de bienvenida enviado al registrar un nuevo cliente en el sistema',
@@ -886,7 +886,7 @@ GO
 -- -------------------------------------------------------
 SELECT [IdCatalogoPlantillaBrevo], [Clave], [IdTemplateBrevo], [Nombre], [Activo]
 FROM [dbo].[CatalogoPlantillaBrevo]
-WHERE [Clave] = 'BIENVENIDA_CLIENTE';
+WHERE [Clave] = 'bienvenidacliente';
 GO
 
 SELECT [IdCatalogoPlantillaBrevo], [Clave], [IdTemplateBrevo]
@@ -955,7 +955,7 @@ Implementar el flujo completo de envío por plantilla nativa de Brevo: nuevo Com
 - Backoff exponencial igual que los otros tipos de envío.
 
 **Resultado esperado:**
-Un consumidor puede llamar `POST /api/v1/mail/template` con `{ "clave": "BIENVENIDA_CLIENTE", "receptores": ["x@y.com"], "params": { "nombre": "Juan" } }` y Brevo envía el correo usando la plantilla configurada en su plataforma.
+Un consumidor puede llamar `POST /api/v1/mail/template` con `{ "clave": "bienvenidacliente", "receptores": ["x@y.com"], "params": { "nombre": "Juan" } }` y Brevo envía el correo usando la plantilla configurada en su plataforma.
 
 **Entregables:**
 - `EnviarCorreoPlantillaBrevoCommand.cs` + Handler + Validator

@@ -12,7 +12,7 @@
 >
 > El cliente propuso el catálogo de 17 estados sobre `dbo.catEstadoPedido` (catálogo ya existente en BD, hoy vacío y sin FK — se extiende con `Orden`, `EsTerminal`, `Aplicativo`, `AliasOperativo`) y el catálogo nuevo `dbo.catMotivoCancelacion`. **Ya NO se crea el catálogo `CatEstadoTpPedido` ni se agrega `IdCatEstadoTpPedido` directo en `tpPedido`**, como se documentaba antes de esta actualización.
 >
-> En su lugar, el estatus del pedido (Criterio D5) se centraliza en la tabla nueva **`PedidoEstadoActual`**: un registro por pedido que referencia, según la etapa del flujo en la que se encuentre, a `pcPromesaDeCompra` (OC_RECIBIDA), `ppPedido` (Pretramitar/Intramitable/En Trámite) y/o `tpPedido` (Prepago con FAA/Confirmado/Logística/Entregado), más el estado vigente (`IdCatEstadoPedido`) y, si aplica, el motivo de cancelación (`IdCatMotivoCancelacion`). Esta tabla resuelve también la Observación #4 del catálogo propuesto (¿el campo va en `tpPedido`, en `ppPedido` o en ambas?): en vez de duplicar la FK en varias tablas, se centraliza en una sola.
+> En su lugar, el estatus del pedido (Criterio D5) se centraliza en la tabla nueva **`PedidoEstadoActual`**: un registro por pedido que referencia, según la etapa del flujo en la que se encuentre, a `pcPromesaDeCompra` (ocrecibida), `ppPedido` (Pretramitar/Intramitable/En Trámite) y/o `tpPedido` (Prepago con FAA/Confirmado/Logística/Entregado), más el estado vigente (`IdCatEstadoPedido`) y, si aplica, el motivo de cancelación (`IdCatMotivoCancelacion`). Esta tabla resuelve también la Observación #4 del catálogo propuesto (¿el campo va en `tpPedido`, en `ppPedido` o en ambas?): en vez de duplicar la FK en varias tablas, se centraliza en una sola.
 >
 > **T7 (BD) y T8 (Back) quedan DESBLOQUEADAS.** Ver diccionario de datos completo en `R16A-RE-FU-015_BD.md`.
 >
@@ -34,7 +34,7 @@ Este requisito es la variante Prepago sin controlados donde el ESAC **activa Fac
 - `tpPedido.FacturaPorAdelantado = 1`
 - Activación directa sin código de autorización (Regla 3 / RT-07)
 - Datos de facturación bloqueados y fijados al activar FAA (snapshot en `fccFactura`)
-- El cierre del pendiente operativo en Tramitar Pedido no implica que el pedido quede "tramitado en su totalidad" (Regla 13 / Criterio D3) — se realiza actualizando `PedidoEstadoActual.IdCatEstadoPedido` a `PREPAGO_CON_FAA` (RT-05, OBS-027 resuelto — ver arriba)
+- El cierre del pendiente operativo en Tramitar Pedido no implica que el pedido quede "tramitado en su totalidad" (Regla 13 / Criterio D3) — se realiza actualizando `PedidoEstadoActual.IdCatEstadoPedido` a `prepagoconfaa` (RT-05, OBS-027 resuelto — ver arriba)
 
 ---
 
@@ -137,7 +137,7 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 
 **Criterio D3 — Desaparición del pendiente operativo en bandeja Tramitar Pedido**
 - **Dado** que la acción de Tramitar Pedido se completó (con la generación del pendiente en Factura por Adelantado),
-- **Cuando** se actualiza `PedidoEstadoActual.IdCatEstadoPedido` a `PREPAGO_CON_FAA` vía `PUT /v1/api/orders/status` (RT-05, OBS-027 resuelto),
+- **Cuando** se actualiza `PedidoEstadoActual.IdCatEstadoPedido` a `prepagoconfaa` vía `PUT /v1/api/orders/status` (RT-05, OBS-027 resuelto),
 - **Entonces** el pedido no deberá seguir apareciendo como pendiente en la bandeja del módulo Tramitar Pedido del ESAC.
 
 **Criterio D4 — Cancelación del pedido**
@@ -164,7 +164,7 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 | GAP-06 | Cancelación del pedido | Dependencia de R16A-RE-FU-010 (endpoint de cancelación) | Referencia |
 | GAP-07 | Ausencia de documento/PDF disponible para TaskScheduler de Venta Digital | Confirmar si el job de TaskScheduler que transfiere PDFs a Legacy puede operar cuando no existe ningún PDF generado en Tramitar Pedido para este flujo (ver `R16A-RE-FU-015-Tareas.md`) | Medio |
 | GAP-08 | H-01 — Campos fiscales de Perú en `fccFactura` | Antes de cerrar desarrollo, agregar a `fccFactura` (o tabla de extensión regional) los campos equivalentes a Tipo de Operación (catálogo 51 SUNAT) y Condición de Pago SUNAT, siguiendo el mismo patrón snapshot que los campos SAT de México — o documentar explícitamente por qué no aplican | Medio |
-| GAP-09 | Actualizar `PedidoEstadoActual` al cerrar el pendiente Tramitar Pedido (OBS-027 resuelto) | Al insertar el pendiente FAA (paso 3i), invocar `PUT /v1/api/orders/status` con `IdTPPedido` + `IdCatEstadoPedido=PREPAGO_CON_FAA` para cerrar el pendiente operativo (ver T7/T8 en `-Tareas.md`) | Medio |
+| GAP-09 | Actualizar `PedidoEstadoActual` al cerrar el pendiente Tramitar Pedido (OBS-027 resuelto) | Al insertar el pendiente FAA (paso 3i), invocar `PUT /v1/api/orders/status` con `IdTPPedido` + `IdCatEstadoPedido=prepagoconfaa` para cerrar el pendiente operativo (ver T7/T8 en `-Tareas.md`) | Medio |
 
 ---
 
@@ -206,7 +206,7 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
       (cuentas M.N./DLS del grupo PROQUIFA + ReferenciaCliente por Código Validador)
       → e, f, g en una sola transacción (atómico)
    h. NO genera pendiente Validar Cobro
-   i. Llama PUT /v1/api/orders/status con IdTPPedido + IdCatEstadoPedido=PREPAGO_CON_FAA
+   i. Llama PUT /v1/api/orders/status con IdTPPedido + IdCatEstadoPedido=prepagoconfaa
       → localiza y actualiza el registro de PedidoEstadoActual (ya tiene IdTPPedido
         poblado desde etapas anteriores del flujo) → cierra pendiente Tramitar Pedido
       (OBS-027 resuelto — ver catEstadoPedido — Estados Propuestos.md)

@@ -27,11 +27,11 @@
 | #   | Clave                 | Título simple                                                                                    | Tipo            | Aplicativo              |
 | --- | --------------------- | ------------------------------------------------------------------------------------------------ | --------------- | ----------------------- |
 | 1   | CREATE-TABL-CH        | Crear catTipoOperacionSUNAT (catálogo 51 SUNAT) con DML inicial                                  | BD              | ProquifaDotNet          |
-| 2   | UPDATE-TABL-CH        | Extender catTipoCFDI: ADD IdRegion + UPDATE entradas MEX + INSERT FACTURA_CPE                    | BD              | ProquifaDotNet          |
+| 2   | UPDATE-TABL-CH        | Extender catTipoCFDI: ADD IdRegion + UPDATE entradas MEX + INSERT facturacpe                    | BD              | ProquifaDotNet          |
 | 3   | UPDATE-TABL-M         | Extender fccDocumentoFiscalCobro con columnas Perú (TipoOperacion, CondicionPago)                | BD              | ProquifaDotNet          |
 | 4   | CREATE-SCRIPT-CONTROL | Actualizar vista vfccDocumentoFiscalCobro v2.0 (JOINs Perú + corrección resolución catálogos)   | BD              | ProquifaDotNet          |
 | 5   | IMP-EXIST-SERVICE     | Extender endpoint de timbrado en Timbrado para CPE SUNAT Perú (⚠️ bloqueado Brecha B1)           | Back            | ProquifaDotNet.Timbrado |
-| 6   | SERV-TRANSACT         | Implementar inicialización del Paso 3 Perú (tipo único FACTURA, sin lógica condicional)          | Back            | ProquifaDotNet.Finanzas |
+| 6   | SERV-TRANSACT         | Implementar inicialización del Paso 3 Perú (tipo único factura, sin lógica condicional)          | Back            | ProquifaDotNet.Finanzas |
 | 7   | SERV-SIMPLE-PUT       | Implementar auto-guardado Tipo de Operación SUNAT y Condición de Pago por línea                  | Back            | ProquifaDotNet.Finanzas |
 | 8   | IMP-EXIST-SERVICE     | Implementar previsualización PDF CPE por línea (reutiliza FacturaPdfMappingService Perú RE-020)  | Back            | ProquifaDotNet.Finanzas |
 | 9   | ALG-COMPLX-LOGIC      | Implementar timbrado CPE por línea — escenario único sin cascada (⚠️ bloqueado Brechas B1/B4)    | Back            | ProquifaDotNet.Finanzas |
@@ -126,7 +126,7 @@ Ver sección *"Catálogo Nuevo: catTipoOperacionSUNAT"* en `R16A-RE-FU-029_BD.md
 
 ## TAREA 2
 
-**[ RE-FU-029 ] [UPDATE-TABL-CH] Extender catTipoCFDI: ADD IdRegion + UPDATE entradas MEX + INSERT FACTURA_CPE**
+**[ RE-FU-029 ] [UPDATE-TABL-CH] Extender catTipoCFDI: ADD IdRegion + UPDATE entradas MEX + INSERT facturacpe**
 
 **Aplicativos:** ProquifaDotNet
 
@@ -135,27 +135,27 @@ Ver sección *"Catálogo Nuevo: catTipoOperacionSUNAT"* en `R16A-RE-FU-029_BD.md
 **Consideraciones previas:**
 - `catTipoCFDI` fue creado en RE-FU-028 (Tarea 1) exclusivamente para México. RE-029 lo convierte en un catálogo cross-región.
 - **Prerequisito:** RE-FU-028 Tarea 1 debe estar ejecutada en producción (`catTipoCFDI` y `catRegion` deben existir).
-- Se agregan 3 pasos: (1) ADD columna `IdRegion uniqueidentifier NULL FK → catRegion`; (2) UPDATE entradas México existentes; (3) INSERT entrada Perú `FACTURA_CPE`.
+- Se agregan 3 pasos: (1) ADD columna `IdRegion uniqueidentifier NULL FK → catRegion`; (2) UPDATE entradas México existentes; (3) INSERT entrada Perú `facturacpe`.
 - La columna va como **nullable** para no romper las filas existentes al momento del ALTER.
 - Confirmar la estructura de `catRegion` (Clave `'MEX'`/`'PER'`) antes de ejecutar los UPDATEs.
 - Es **prerrequisito** de la Tarea 5 (Timbrado usa `catTipoCFDI.IdRegion` para discriminar tipo de comprobante por región).
 
 **Objetivo general:**
-Extender `catTipoCFDI` con la columna `IdRegion` para soportar la diferenciación de tipos de documento fiscal por región (MEX/PER), y agregar la clave `FACTURA_CPE` para los CPE SUNAT de Perú.
+Extender `catTipoCFDI` con la columna `IdRegion` para soportar la diferenciación de tipos de documento fiscal por región (MEX/PER), y agregar la clave `facturacpe` para los CPE SUNAT de Perú.
 
 **Objetivos específicos:**
 - `ALTER TABLE catTipoCFDI ADD IdRegion uniqueidentifier NULL` + FK a `catRegion`.
-- `UPDATE catTipoCFDI SET IdRegion = (MEX)` para las 4 entradas existentes de RE-028 (`FACTURA_PPD`, `FACTURA_PUE`, `FACTURA_ANTICIPO`, `COMPLEMENTO_PAGO`).
-- `INSERT catTipoCFDI (FACTURA_CPE, Perú)` con `IdRegion = (PER)`.
+- `UPDATE catTipoCFDI SET IdRegion = (MEX)` para las 4 entradas existentes de RE-028 (`facturappd`, `facturapue`, `facturaanticipo`, `complementopago`).
+- `INSERT catTipoCFDI (facturacpe, Perú)` con `IdRegion = (PER)`.
 - Verificar que el FK a `catRegion` está activo.
 - Verificar que los 4 registros México tienen `IdRegion` poblado y el nuevo registro Perú tiene `IdRegion = PER`.
 
 **Resultado esperado:**
-`catTipoCFDI` con columna `IdRegion` activa: 4 entradas México y 1 entrada Perú (`FACTURA_CPE`), todas con `IdRegion` correcto.
+`catTipoCFDI` con columna `IdRegion` activa: 4 entradas México y 1 entrada Perú (`facturacpe`), todas con `IdRegion` correcto.
 
 **Entregables:**
 - Script DDL: `ALTER TABLE catTipoCFDI ADD IdRegion` + FK
-- Script DML: `UPDATE` entradas México + `INSERT FACTURA_CPE`
+- Script DML: `UPDATE` entradas México + `INSERT facturacpe`
 - Script de validación
 
 **Scripts:**
@@ -177,12 +177,12 @@ GO
 -- 2. Poblar entradas México de RE-FU-028
 UPDATE dbo.catTipoCFDI
 SET IdRegion = (SELECT IdRegion FROM dbo.catRegion WHERE Clave = 'MEX')
-WHERE Clave IN ('FACTURA_PPD', 'FACTURA_PUE', 'FACTURA_ANTICIPO', 'COMPLEMENTO_PAGO');
+WHERE Clave IN ('facturappd', 'facturapue', 'facturaanticipo', 'complementopago');
 GO
 
 -- 3. Insertar entrada Perú
 INSERT INTO dbo.catTipoCFDI (Clave, Descripcion, IdRegion)
-SELECT 'FACTURA_CPE',
+SELECT 'facturacpe',
        'Factura electrónica SUNAT — CPE tipo 01 UBL 2.1 (Perú)',
        IdRegion
 FROM dbo.catRegion
@@ -199,11 +199,11 @@ ORDER BY cr.Clave, ct.Clave;
 **Criterios de aceptación:**
 - `catTipoCFDI.IdRegion uniqueidentifier NULL` existe con FK activo hacia `catRegion`.
 - Las 4 entradas México tienen `IdRegion` poblado con la región MEX.
-- `FACTURA_CPE` existe con `IdRegion` poblado con la región PER.
+- `facturacpe` existe con `IdRegion` poblado con la región PER.
 - Total de registros en `catTipoCFDI`: 5 (4 MEX + 1 PER).
 
 **Más información de la tarea:**
-Ver sección *"ALTER TABLE catTipoCFDI — Agregar IdRegion + FACTURA_CPE"* en `R16A-RE-FU-029_BD.md` y sección *"Parte A / A2"* en `R16A-RE-FU-029-Back.md`.
+Ver sección *"ALTER TABLE catTipoCFDI — Agregar IdRegion + facturacpe"* en `R16A-RE-FU-029_BD.md` y sección *"Parte A / A2"* en `R16A-RE-FU-029-Back.md`.
 
 **Recursos:**
 - `R16A-RE-FU-029_BD.md` — ALTER TABLE catTipoCFDI
@@ -318,7 +318,7 @@ Ver sección *"ALTER TABLE fccDocumentoFiscalCobro — Columnas Perú"* en `R16A
 - **Corrección incluida:** En RE-028 la vista accedía a `p3l.TipoDocumentoFiscal` y `p3l.EstadoLinea` como si fueran columnas de texto; son FKs. La v2.0 corrige esto con `INNER JOIN` a `catTipoDocumentoFiscal` y `catDocumentoFiscalCobroEstado`.
 - Usar `ALTER VIEW` (no DROP + CREATE) para preservar permisos existentes.
 - Agregar columna `c.Region AS ClienteRegion` para que Finanzas pueda discriminar líneas MEX/PER en la misma consulta.
-- Los alias `CPE_Serie` y `CPE_Correlativo` reutilizan el JOIN `cg_f` (mismo JOIN que Factura México) — el discriminador `catTipoCFDI.Clave = 'FACTURA_CPE'` en la capa de aplicación distingue si el registro es CPE o CFDI.
+- Los alias `CPE_Serie` y `CPE_Correlativo` reutilizan el JOIN `cg_f` (mismo JOIN que Factura México) — el discriminador `catTipoCFDI.Clave = 'facturacpe'` en la capa de aplicación distingue si el registro es CPE o CFDI.
 
 **Objetivo general:**
 Reemplazar `vfccDocumentoFiscalCobro` con la versión v2.0 que: (1) agrega JOINs a los catálogos Perú (`catTipoOperacionSUNAT`, `catCondicionesDePago`), (2) corrige la resolución de `TipoDocumentoFiscal` y `EstadoLinea` con `INNER JOIN` a sus respectivos catálogos, y (3) expone `ClienteRegion` como discriminador MEX/PER.
@@ -489,9 +489,9 @@ Ver sección *"ALTER VIEW vfccDocumentoFiscalCobro — Extensión Perú (v2.0)"*
 **Consideraciones previas:**
 - ⚠️ **Brecha B1 BLOQUEANTE:** La modalidad de emisión electrónica SUNAT (SEE-SOL, SEE del Contribuyente, SEE-OSE o Facturador SUNAT) está pendiente de definir. No se reutiliza el PAC TurboPac de México. El endpoint puede prepararse en estructura, pero la llamada al servicio SUNAT queda como stub hasta resolver B1.
 - El módulo de timbrado México (PAC TurboPac, RE-FU-019) ya existe. El módulo Perú es nuevo y separado, discriminado por región.
-- La Tarea 2 debe estar ejecutada (`catTipoCFDI` tiene `FACTURA_CPE` e `IdRegion`).
+- La Tarea 2 debe estar ejecutada (`catTipoCFDI` tiene `facturacpe` e `IdRegion`).
 - En Perú: siempre **1 CPE por solicitud** — sin cascada (no hay Complemento de Pago).
-- Por cada timbrado exitoso: INSERT `CFDIGenerada` (`IdCatTipoCFDI=FACTURA_CPE`, `UUID=NULL`, `Serie=F001`, `Folio=Correlativo`), `UPDATE EmpresaFolio GOLPERU` con UPDLOCK atómico, `INSERT StampingLog`.
+- Por cada timbrado exitoso: INSERT `CFDIGenerada` (`IdCatTipoCFDI=facturacpe`, `UUID=NULL`, `Serie=F001`, `Folio=Correlativo`), `UPDATE EmpresaFolio GOLPERU` con UPDLOCK atómico, `INSERT StampingLog`.
 - Retorna a Finanzas: Serie, Correlativo (Folio), FechaEmision, XML CPE, XML CDR de aceptación SUNAT.
 - ⚠️ **Brecha B4:** Los datos fiscales SUNAT del producto (`Producto.CodigoSUNAT`, `catUnidad.ClaveSUNAT`, `catAfectacionIGV`) son obligatorios en UBL 2.1 y están pendientes de migrar (RE-FU-020). Sin ellos no es posible generar el XML válido.
 
@@ -502,7 +502,7 @@ Implementar en ProquifaDotNet.Timbrado el módulo de timbrado Perú que recibe s
 - Crear `StampSunatCpeCommand` + Handler en ProquifaDotNet.Timbrado (separado del Handler México; ambos se sirven desde el mismo endpoint `POST /api/v1/stamp/invoice`, la región se resuelve por los datos del request).
 - Recibir request: datos emisor GOLPERU, datos receptor (RUC), partidas UBL 2.1, TipoOperacion catálogo 51, CondicionPago, NCs aplicadas (pendiente mecánica B3 — campo opcional).
 - Implementar `ISunatStampingService` con implementación stub (`SunatStampingServiceSimulator`) hasta resolver B1.
-- INSERT `CFDIGenerada`: `IdCatTipoCFDI=FACTURA_CPE`, `UUID=NULL`, `Serie=F001`, `Folio=Correlativo`.
+- INSERT `CFDIGenerada`: `IdCatTipoCFDI=facturacpe`, `UUID=NULL`, `Serie=F001`, `Folio=Correlativo`.
 - UPDATE `EmpresaFolio GOLPERU SET UltimoFolio+1` con UPDLOCK atómico (mismo patrón México RE-FU-019).
 - INSERT `StampingLog` con resultado (éxito o fallo CDR SUNAT).
 - Retornar Serie, Correlativo, FechaEmision, XML CPE, XML CDR a Finanzas.
@@ -520,7 +520,7 @@ Endpoint de timbrado Perú en ProquifaDotNet.Timbrado con arquitectura lista par
 - Pruebas unitarias con stub (timbrado exitoso + rechazo SUNAT + servicio indisponible)
 
 **Criterios de aceptación:**
-- Con stub activo: INSERT `CFDIGenerada` con `IdCatTipoCFDI=FACTURA_CPE`, `UUID=NULL`, `Folio=Correlativo`, `Serie=F001`. Correlativo incrementa atómicamente en `EmpresaFolio GOLPERU` con UPDLOCK.
+- Con stub activo: INSERT `CFDIGenerada` con `IdCatTipoCFDI=facturacpe`, `UUID=NULL`, `Folio=Correlativo`, `Serie=F001`. Correlativo incrementa atómicamente en `EmpresaFolio GOLPERU` con UPDLOCK.
 - Rechazo SUNAT simulado: no INSERT `CFDIGenerada`, retorna código de error al caller.
 - El flujo México (PAC TurboPac) no se ve afectado — sin regresiones.
 - La interfaz `ISunatStampingService` permite reemplazar el stub por la implementación real sin cambiar el Handler.
@@ -537,7 +537,7 @@ Ver sección *"Parte C / C1"* en `R16A-RE-FU-029-Back.md` y sección *"EmpresaFo
 
 ## TAREA 6
 
-**[ RE-FU-029 ] [SERV-TRANSACT] Implementar inicialización del Paso 3 Perú (tipo único FACTURA, sin lógica condicional)**
+**[ RE-FU-029 ] [SERV-TRANSACT] Implementar inicialización del Paso 3 Perú (tipo único factura, sin lógica condicional)**
 
 **Aplicativos:** ProquifaDotNet.Finanzas
 
@@ -546,22 +546,22 @@ Ver sección *"Parte C / C1"* en `R16A-RE-FU-029-Back.md` y sección *"EmpresaFo
 **Consideraciones previas:**
 - Las Tareas 3 y 4 deben estar ejecutadas (columnas Perú en `fccDocumentoFiscalCobro` y vista v2.0 disponibles).
 - En Perú la lógica de tipo por línea es significativamente más simple que en México:
-  - `fccPagoFacturaPedido` → siempre `FACTURA` (CPE tipo 01). No hay `HayControlados` check.
+  - `fccPagoFacturaPedido` → siempre `factura` (CPE tipo 01). No hay `HayControlados` check.
   - `fccPagoFacturaAdelanto` → ⚠️ **sin documento fiscal en Perú** (Brecha B7 — pendiente definir acción del sistema para este escenario).
 - Al reingresar al Paso 3 con líneas existentes, recuperar desde `vfccDocumentoFiscalCobro WHERE ClienteRegion = 'PER'` sin reinicializar.
-- Retornar `CanGoBackSteps: bool` = false si alguna línea está en `GENERADO` o `ENVIADO`.
+- Retornar `CanGoBackSteps: bool` = false si alguna línea está en `generado` o `enviado`.
 - Incluir por línea: catálogos disponibles (`catTipoOperacionSUNAT`, `catCondicionesDePago`) y NCs aplicadas (para visualización — mecánica SUNAT pendiente de Brecha B3).
 
 **Objetivo general:**
-Implementar en Finanzas el endpoint de inicialización del Paso 3 Perú que crea las líneas de `fccDocumentoFiscalCobro` con tipo `FACTURA` para todas las proformas de la asociación, y al reingresar recupera el estado existente sin duplicar.
+Implementar en Finanzas el endpoint de inicialización del Paso 3 Perú que crea las líneas de `fccDocumentoFiscalCobro` con tipo `factura` para todas las proformas de la asociación, y al reingresar recupera el estado existente sin duplicar.
 
 **Objetivos específicos:**
 - Implementar `POST /api/v1/validate-collection/fiscalDocumentStep/initialize` (o rama Perú dentro del endpoint genérico).
 - Crear `InitializeStep3PeruCommand` + Handler.
-- Para cada `fccPagoFacturaPedido`: INSERT `fccDocumentoFiscalCobro` con `IdCatTipoDocumentoFiscal=FACTURA`, estado `PENDIENTE`.
+- Para cada `fccPagoFacturaPedido`: INSERT `fccDocumentoFiscalCobro` con `IdCatTipoDocumentoFiscal=factura`, estado `pendiente`.
 - Para `fccPagoFacturaAdelanto`: ⚠️ documentar comportamiento como pendiente (Brecha B7); no crear fila hasta definir.
-- Detectar re-entrada: si ya hay filas en `vfccDocumentoFiscalCobro WHERE ClienteRegion='PER' AND IdCliente=@Id AND EstadoLinea != 'ENVIADO'`, retornar estado existente sin reinicializar.
-- Calcular `CanGoBackSteps = false` si alguna línea está en `GENERADO` o `ENVIADO`.
+- Detectar re-entrada: si ya hay filas en `vfccDocumentoFiscalCobro WHERE ClienteRegion='PER' AND IdCliente=@Id AND EstadoLinea != 'enviado'`, retornar estado existente sin reinicializar.
+- Calcular `CanGoBackSteps = false` si alguna línea está en `generado` o `enviado`.
 - DTO `Step3PeruInitializedDto`: lista de líneas (tipo, estado, folio proforma, monto, NCs), catálogos Perú y flag `CanGoBackSteps`.
 
 **Resultado esperado:**
@@ -571,13 +571,13 @@ Endpoint `POST .../fiscalDocumentStep/initialize` que crea las líneas Perú del
 - Endpoint `POST /api/v1/validate-collection/fiscalDocumentStep/initialize`
 - Command + Handler: `InitializeStep3PeruCommand`
 - DTO: `Step3PeruInitializedDto` (lista de líneas, catálogos SUNAT, `CanGoBackSteps`)
-- Pruebas unitarias (tipo único FACTURA, detección re-entrada, flag CanGoBackSteps)
+- Pruebas unitarias (tipo único factura, detección re-entrada, flag CanGoBackSteps)
 
 **Criterios de aceptación:**
-- Líneas `fccPagoFacturaPedido` crean una fila con `TipoDocumentoFiscal=FACTURA`, estado `PENDIENTE`.
-- No existe lógica de `HayControlados` — toda proforma genera tipo `FACTURA`.
+- Líneas `fccPagoFacturaPedido` crean una fila con `TipoDocumentoFiscal=factura`, estado `pendiente`.
+- No existe lógica de `HayControlados` — toda proforma genera tipo `factura`.
 - Al reingresar con líneas previas: no se duplican; se retorna estado desde `vfccDocumentoFiscalCobro`.
-- `CanGoBackSteps = false` si alguna línea está en `GENERADO` o `ENVIADO`; `true` si todas en `PENDIENTE`.
+- `CanGoBackSteps = false` si alguna línea está en `generado` o `enviado`; `true` si todas en `pendiente`.
 - El DTO incluye los catálogos `catTipoOperacionSUNAT` y `catCondicionesDePago` filtrados por región PER.
 - ⚠️ Brecha B7 (escenario FAA sin documento fiscal Perú) documentada como pendiente.
 
@@ -601,8 +601,8 @@ Ver sección *"Parte B / B1"* en `R16A-RE-FU-029-Back.md`.
 **Consideraciones previas:**
 - La Tarea 3 debe estar ejecutada y la Tarea 6 debe haberse ejecutado al menos una vez para que existan líneas en `fccDocumentoFiscalCobro` Perú.
 - El usuario puede modificar el Tipo de Operación SUNAT y la Condición de Pago antes de timbrar; Finanzas persiste el cambio inmediatamente.
-- A diferencia de México (donde `COMPLEMENTO_PAGO` no persiste Método de Pago), en Perú **ambos campos siempre se persisten** — toda línea Perú es de tipo `FACTURA`.
-- Validar que la línea pertenece a un cliente Perú (`ClienteRegion = 'PER'`) y está en estado `PENDIENTE`.
+- A diferencia de México (donde `complementopago` no persiste Método de Pago), en Perú **ambos campos siempre se persisten** — toda línea Perú es de tipo `factura`.
+- Validar que la línea pertenece a un cliente Perú (`ClienteRegion = 'PER'`) y está en estado `pendiente`.
 
 **Objetivo general:**
 Implementar en Finanzas el endpoint de auto-guardado que persiste inmediatamente el Tipo de Operación SUNAT y la Condición de Pago al seleccionarlos en la pantalla del Paso 3 Perú.
@@ -611,7 +611,7 @@ Implementar en Finanzas el endpoint de auto-guardado que persiste inmediatamente
 - Implementar `PUT /api/v1/validate-collection/fiscalDocumentLine/{idLinea}/cfdiConfig`.
 - Crear `UpdateLineConfigurationStep3PeruCommand` + Handler.
 - `UPDATE fccDocumentoFiscalCobro SET IdCatTipoOperacionSUNAT=@Id, IdCatCondicionesDePago=@Id, FechaUltimaActualizacion WHERE IdFCCDocumentoFiscalCobro=@Id`.
-- Validar que la línea existe, pertenece al cliente activo y está en estado `PENDIENTE`.
+- Validar que la línea existe, pertenece al cliente activo y está en estado `pendiente`.
 - Retornar el estado actualizado de la línea.
 
 **Resultado esperado:**
@@ -621,11 +621,11 @@ Endpoint `PUT .../lineas/{idLinea}/configuracion-peru` que persiste Tipo de Oper
 - Endpoint `PUT /api/v1/validate-collection/fiscalDocumentLine/{idLinea}/cfdiConfig`
 - Command + Handler: `UpdateLineConfigurationStep3PeruCommand`
 - DTO request: `UpdateLineConfigurationPeruDto` (IdCatTipoOperacionSUNAT, IdCatCondicionesDePago)
-- Pruebas unitarias (actualización correcta, validación estado PENDIENTE, pertenencia al cliente)
+- Pruebas unitarias (actualización correcta, validación estado pendiente, pertenencia al cliente)
 
 **Criterios de aceptación:**
 - `UPDATE fccDocumentoFiscalCobro.IdCatTipoOperacionSUNAT` e `IdCatCondicionesDePago` se ejecutan correctamente.
-- Retorna error si la línea está en estado `GENERADO` o `ENVIADO` (inmutable).
+- Retorna error si la línea está en estado `generado` o `enviado` (inmutable).
 - Retorna error si la línea no pertenece al cliente activo.
 - No modifica columnas México (`IdCatUsoCFDI`, `IdCatMetodoDePagoCFDI`).
 
@@ -650,7 +650,7 @@ Ver sección *"Parte B / B2"* en `R16A-RE-FU-029-Back.md`.
 - `FacturaPdfMappingService` Perú y el template `GOLPERU_PER_FAC` ya existen desde RE-FU-020 (`MapearPreviewAsync` para preview sin CDR/sello).
 - La Tarea 6 debe haberse ejecutado para que existan líneas Perú en el Paso 3.
 - El PDF de previsualización se genera en memoria sin persistir en BD ni MinIO.
-- En Perú **toda línea es de tipo FACTURA** — no hay casos especiales por tipo (a diferencia de México donde COMPLEMENTO_PAGO tenía tratamiento diferente).
+- En Perú **toda línea es de tipo factura** — no hay casos especiales por tipo (a diferencia de México donde complementopago tenía tratamiento diferente).
 - ⚠️ Brecha B4: si `Producto.CodigoSUNAT` o `catUnidad.ClaveSUNAT` no existen, el PDF preview no puede generarse. La previsualización completa está condicionada a la resolución de B4.
 
 **Objetivo general:**
@@ -703,36 +703,36 @@ Ver sección *"Parte B / B3"* en `R16A-RE-FU-029-Back.md` y `FacturaPdfMappingSe
 - `ApiCallerStamping` (HttpClient + Polly) ya existe de RE-FU-018/019 — se usa `StampInvoiceAsync` (`POST /api/v1/stamp/invoice`), compartido SAT/SUNAT.
 - En Perú **solo existe 1 escenario:** 1 CPE por línea. No hay cascada PPD ni Complemento de Pago.
 - Post-timbrado exitoso: invocar `FacturaPdfMappingService.MapearAsync()` Perú para PDF definitivo con CDR/sello → subir a MinIO → UPDATE `CFDIGenerada.IdArchivoPdf`.
-- El CPE va en `IdCFDIGeneradaFactura` (mismo campo que la Factura en México — `catTipoCFDI.Clave='FACTURA_CPE'` discrimina).
-- Manejo de errores SUNAT: si el servicio rechaza, la línea permanece en `PENDIENTE`; Finanzas retorna el detalle del error (código CDR + descripción).
+- El CPE va en `IdCFDIGeneradaFactura` (mismo campo que la Factura en México — `catTipoCFDI.Clave='facturacpe'` discrimina).
+- Manejo de errores SUNAT: si el servicio rechaza, la línea permanece en `pendiente`; Finanzas retorna el detalle del error (código CDR + descripción).
 
 **Objetivo general:**
-Implementar en Finanzas el servicio de timbrado del Paso 3 Perú con el escenario único (1 CPE por línea), invocando ProquifaDotNet.Timbrado vía API, persistiendo el PDF definitivo en MinIO y actualizando el estado de la línea a `GENERADO`.
+Implementar en Finanzas el servicio de timbrado del Paso 3 Perú con el escenario único (1 CPE por línea), invocando ProquifaDotNet.Timbrado vía API, persistiendo el PDF definitivo en MinIO y actualizando el estado de la línea a `generado`.
 
 **Objetivos específicos:**
 - Implementar `POST /api/v1/validate-collection/fiscalDocumentLine/{idLinea}/stamp`.
 - Crear `StampLinePeruCommand` + Handler.
-- Finanzas → Timbrado: request con `TipoCFDI=FACTURA_CPE`, datos emisor GOLPERU, RUC receptor, partidas UBL 2.1, Tipo de Operación, Condición de Pago.
+- Finanzas → Timbrado: request con `TipoCFDI=facturacpe`, datos emisor GOLPERU, RUC receptor, partidas UBL 2.1, Tipo de Operación, Condición de Pago.
 - Recibir de Timbrado: Serie, Correlativo, FechaEmision, XML CPE, XML CDR.
 - Invocar `FacturaPdfMappingService.MapearAsync()` con CDR/sello → subir PDF a MinIO → INSERT `Archivo` → UPDATE `CFDIGenerada.IdArchivoPdf`.
 - `UPDATE tpProformaPedido SET IdCFDIGenerada = @IdCPE` directo vía EF Core (Scaffold Finanzas — movida a Finanzas 07/07/2026).
-- `UPDATE fccDocumentoFiscalCobro SET EstadoLinea=GENERADO, IdCFDIGeneradaFactura=@IdCPE, FechaGeneracion`.
+- `UPDATE fccDocumentoFiscalCobro SET EstadoLinea=generado, IdCFDIGeneradaFactura=@IdCPE, FechaGeneracion`.
 - Modal de éxito muestra Serie y Correlativo (no UUID — SUNAT no lo genera).
-- Ante error SUNAT/CDR: línea permanece en `PENDIENTE`, retornar código de error con descripción.
+- Ante error SUNAT/CDR: línea permanece en `pendiente`, retornar código de error con descripción.
 
 **Resultado esperado:**
-Endpoint `POST .../lineas/{idLinea}/timbrar-peru` que ejecuta el timbrado CPE, persiste el PDF definitivo y actualiza el estado a `GENERADO`.
+Endpoint `POST .../lineas/{idLinea}/timbrar-peru` que ejecuta el timbrado CPE, persiste el PDF definitivo y actualiza el estado a `generado`.
 
 **Entregables:**
 - Endpoint `POST /api/v1/validate-collection/fiscalDocumentLine/{idLinea}/stamp`
 - Command + Handler: `StampLinePeruCommand`
 - DTO response: `CpeStampingResultDto` (Serie, Correlativo, FechaEmision — sin UUID)
-- Pruebas unitarias (timbrado exitoso con stub, error SUNAT → línea permanece PENDIENTE, PDF definitivo en MinIO)
+- Pruebas unitarias (timbrado exitoso con stub, error SUNAT → línea permanece pendiente, PDF definitivo en MinIO)
 
 **Criterios de aceptación:**
-- Timbrado exitoso: `fccDocumentoFiscalCobro.IdCFDIGeneradaFactura` poblado, estado = `GENERADO`, PDF CPE en MinIO.
+- Timbrado exitoso: `fccDocumentoFiscalCobro.IdCFDIGeneradaFactura` poblado, estado = `generado`, PDF CPE en MinIO.
 - `tpProformaPedido.IdCFDIGenerada` actualizado con `@IdCPE`.
-- Error SUNAT/CDR: línea permanece en `PENDIENTE`; detalle del error retornado al frontend.
+- Error SUNAT/CDR: línea permanece en `pendiente`; detalle del error retornado al frontend.
 - El modal de éxito recibe Serie y Correlativo (no UUID).
 - No existe lógica de cascada (no hay segundo CFDI por línea).
 - ⚠️ Brechas B1 y B4 documentadas como pendientes.
@@ -755,16 +755,16 @@ Ver sección *"Parte B / B4"* en `R16A-RE-FU-029-Back.md`.
 **Módulos:** Validar Cobro — Paso 3 Perú
 
 **Consideraciones previas:**
-- La Tarea 9 debe estar ejecutada (línea en estado `GENERADO` para poder enviar).
+- La Tarea 9 debe estar ejecutada (línea en estado `generado` para poder enviar).
 - El template `GOLPERU_PER_CDP` ya existe en DocumentBuilder — no requiere creación previa.
 - Adjuntos Perú: **siempre 3** — PDF CPE + XML CPE + PDF Confirmación de Pedido. No hay variantes por tipo (a diferencia de México con 4 tipos y adjuntos diferentes).
 - ⚠️ **Brecha B2:** Formato del asunto y plantilla del cuerpo del correo para Perú pendientes de confirmar con PMO. Propuesta: `"{FolioPedidoInterno} — Factura {Serie}-{Correlativo}"`.
-- **Orden de ejecución al confirmar envío:** (1) Generar PDF Confirmación de Pedido vía DocumentBuilder (`GOLPERU_PER_CDP`) → subir a MinIO → obtener `RutaArchivoPDF`; (2) construir adjuntos (PDF CPE + XML CPE + PDF CDP); (3) llamar al API de ProquifaDotNet.EnvioCorreo (Aplicativo Nuevo — regla 7); (4) al éxito: UPDATE estado `ENVIADO` + INSERT CorreoEnviado + INSERT ArchivoCorreoEnviado + registrar en ProquifaDotNet.BitacoraCambios (regla 8). El PDF **debe generarse ANTES de llamar a ProquifaDotNet.EnvioCorreo**.
+- **Orden de ejecución al confirmar envío:** (1) Generar PDF Confirmación de Pedido vía DocumentBuilder (`GOLPERU_PER_CDP`) → subir a MinIO → obtener `RutaArchivoPDF`; (2) construir adjuntos (PDF CPE + XML CPE + PDF CDP); (3) llamar al API de ProquifaDotNet.EnvioCorreo (Aplicativo Nuevo — regla 7); (4) al éxito: UPDATE estado `enviado` + INSERT CorreoEnviado + INSERT ArchivoCorreoEnviado + registrar en ProquifaDotNet.BitacoraCambios (regla 8). El PDF **debe generarse ANTES de llamar a ProquifaDotNet.EnvioCorreo**.
 - Pasar `RutaArchivoPDF` a la Tarea 11 para el `INSERT fccConfirmacionPedido`.
 - Los adjuntos de CPE (PDF + XML) se sirven desde MinIO (ya persistidos en Tarea 9).
 
 **Objetivo general:**
-Implementar en Finanzas el endpoint del modal de Envío Perú que: (1) genera el PDF CDP vía DocumentBuilder, (2) despacha el correo vía ProquifaDotNet.EnvioCorreo con los 3 adjuntos (PDF CPE + XML CPE + PDF CDP), (3) actualiza el estado a `ENVIADO` y (4) deja `RutaArchivoPDF` disponible para la Tarea 12.
+Implementar en Finanzas el endpoint del modal de Envío Perú que: (1) genera el PDF CDP vía DocumentBuilder, (2) despacha el correo vía ProquifaDotNet.EnvioCorreo con los 3 adjuntos (PDF CPE + XML CPE + PDF CDP), (3) actualiza el estado a `enviado` y (4) deja `RutaArchivoPDF` disponible para la Tarea 12.
 
 **Objetivos específicos:**
 - Implementar `POST /api/v1/validate-collection/fiscalDocumentLine/{idLinea}/send`.
@@ -777,24 +777,24 @@ Implementar en Finanzas el endpoint del modal de Envío Perú que: (1) genera el
 - **Asunto:** `"{FolioPedidoInterno} — Factura {Serie}-{Correlativo}"` (⚠️ Brecha B2).
 - Construir adjuntos: PDF CPE + XML CPE + PDF CDP.
 - Llamar al API de ProquifaDotNet.EnvioCorreo (`ApiCallerEnvioCorreo`, RE-FU-016) con destinatarios y adjuntos.
-- Al envío exitoso: `UPDATE fccDocumentoFiscalCobro SET EstadoLinea=ENVIADO, FechaEnvio` + INSERT `CorreoEnviado` + INSERT `ArchivoCorreoEnviado` (×3) + registrar en ProquifaDotNet.BitacoraCambios (Aplicativo Nuevo — regla 8).
+- Al envío exitoso: `UPDATE fccDocumentoFiscalCobro SET EstadoLinea=enviado, FechaEnvio` + INSERT `CorreoEnviado` + INSERT `ArchivoCorreoEnviado` (×3) + registrar en ProquifaDotNet.BitacoraCambios (Aplicativo Nuevo — regla 8).
 - Pasar `RutaArchivoPDF` a la Tarea 12.
 
 **Resultado esperado:**
-Endpoint `POST .../lineas/{idLinea}/enviar-peru` que genera el CDP, adjunta los 3 documentos al correo despachado vía ProquifaDotNet.EnvioCorreo, actualiza estado a `ENVIADO` y deja la ruta del CDP para T12.
+Endpoint `POST .../lineas/{idLinea}/enviar-peru` que genera el CDP, adjunta los 3 documentos al correo despachado vía ProquifaDotNet.EnvioCorreo, actualiza estado a `enviado` y deja la ruta del CDP para T12.
 
 **Entregables:**
 - Endpoint `POST /api/v1/validate-collection/fiscalDocumentLine/{idLinea}/send`
 - Command + Handler: `SendLinePeruCommand`
 - DTO request: `SendLinePeruRequestDto` (destinatarios editables)
 - DTO response: incluye `RutaArchivoPDF` para T12
-- Pruebas unitarias (3 adjuntos correctos, CDP generado antes de llamar a ProquifaDotNet.EnvioCorreo, fallo CDP → no envío, UPDATE ENVIADO)
+- Pruebas unitarias (3 adjuntos correctos, CDP generado antes de llamar a ProquifaDotNet.EnvioCorreo, fallo CDP → no envío, UPDATE enviado)
 
 **Criterios de aceptación:**
 - Adjuntos del correo: exactamente 3 (PDF CPE + XML CPE + PDF CDP). No varía por tipo.
 - El PDF CDP se genera con `GOLPERU_PER_CDP` antes de llamar a ProquifaDotNet.EnvioCorreo.
 - Si la generación del PDF CDP falla: correo **no** se despacha, retornar error controlado.
-- `fccDocumentoFiscalCobro.EstadoLinea = ENVIADO` tras el envío exitoso.
+- `fccDocumentoFiscalCobro.EstadoLinea = enviado` tras el envío exitoso.
 - La validación de cobro queda registrada en ProquifaDotNet.BitacoraCambios (regla 8).
 - `INSERT CorreoEnviado` + `INSERT ArchivoCorreoEnviado` correctamente registrados (3 adjuntos).
 - ⚠️ Brechas B2 (asunto/plantilla correo) y B7 (contacto no disponible) documentadas como pendientes.
@@ -822,7 +822,7 @@ Ver sección *"Parte B / B5"* en `R16A-RE-FU-029-Back.md`.
 - **El PDF CDP lo genera y sube a MinIO la Tarea 10.** Esta tarea solo persiste la referencia con la ruta ya disponible.
 - ⚠️ **Brecha B5 COMPARTIDA:** Las reglas de cálculo de la FEE (días hábiles, fórmula, parámetro por empresa) están pendientes con Operaciones PROQUIFA — igual que México. Implementar con regla parametrizable.
 - **DIFERENCIA CLAVE vs México:** Esta tarea **NO ejecuta transferencias ETL a Legacy**. No hay E1/E2/E3/E6 para Perú. El post-envío Perú termina en FEE + CDP.
-- Si cualquier acción falla: la línea ya está en `ENVIADO`, manejar error individualmente con log sin revertir.
+- Si cualquier acción falla: la línea ya está en `enviado`, manejar error individualmente con log sin revertir.
 
 **Objetivo general:**
 Implementar en Finanzas las acciones post-envío del Paso 3 Perú: (1) establecer la FEE en `tpPedido` y (2) registrar la trazabilidad del CDP en `fccConfirmacionPedido`. Sin transferencia a Legacy.
@@ -848,13 +848,13 @@ Al confirmar envío exitoso de una línea Perú: FEE actualizada y registro CDP 
 - Servicio `PostSendPeruDeliveryConfirmationService` (FEE + INSERT CDP)
 - `UPDATE tpPedido SET FechaEstimadaEntrega` (regla parametrizable compartida con México)
 - `INSERT fccConfirmacionPedido` (RutaArchivoPDF recibida de T11)
-- Pruebas unitarias (FEE e INSERT correctos, fallo en una acción no revierte ENVIADO, sin ETL Legacy)
+- Pruebas unitarias (FEE e INSERT correctos, fallo en una acción no revierte enviado, sin ETL Legacy)
 
 **Criterios de aceptación:**
 - `tpPedido.FechaEstimadaEntrega` se actualiza al enviar una línea Perú exitosamente.
 - `fccConfirmacionPedido` contiene un nuevo registro con `RutaArchivoPDF` poblada (ruta de T11).
 - Esta tarea **no** invoca DocumentBuilder, MinIO ni Legacy.
-- Si cualquier acción post-envío falla: línea permanece en `ENVIADO`, error en Serilog, sin reversión.
+- Si cualquier acción post-envío falla: línea permanece en `enviado`, error en Serilog, sin reversión.
 - ⚠️ Brecha B5 (regla FEE) documentada como pendiente compartida con México.
 
 **Más información de la tarea:**
@@ -877,15 +877,15 @@ Ver secciones *"Parte B / B6.1 y B6.2 y B6.3"* en `R16A-RE-FU-029-Back.md`. Comp
 **Consideraciones previas:**
 - La Tarea 11 debe estar ejecutada. El cierre se verifica después de cada envío exitoso de línea.
 - Lógica idéntica a México (RE-FU-028 Tarea 16), pero filtrando por `ClienteRegion = 'PER'` en `vfccDocumentoFiscalCobro`.
-- El wizard cierra automáticamente cuando **todas** las líneas Perú del cliente están en estado `ENVIADO`.
+- El wizard cierra automáticamente cuando **todas** las líneas Perú del cliente están en estado `enviado`.
 - El cliente sale del listado de pendientes de Validar Cobro.
 
 **Objetivo general:**
-Implementar en Finanzas la lógica de cierre automático del wizard Paso 3 Perú, detectando cuando todas las líneas del cliente están en `ENVIADO` y retornando al listado de Validar Cobro.
+Implementar en Finanzas la lógica de cierre automático del wizard Paso 3 Perú, detectando cuando todas las líneas del cliente están en `enviado` y retornando al listado de Validar Cobro.
 
 **Objetivos específicos:**
 - Integrar `VerifyStep3ClosurePeruQuery` + Handler (o reutilizar la lógica de RE-028 Tarea 16 con filtro de región).
-- Consulta: `SELECT COUNT(*) FROM vfccDocumentoFiscalCobro WHERE IdCliente=@Id AND ClienteRegion='PER' AND EstadoLinea != 'ENVIADO'`.
+- Consulta: `SELECT COUNT(*) FROM vfccDocumentoFiscalCobro WHERE IdCliente=@Id AND ClienteRegion='PER' AND EstadoLinea != 'enviado'`.
 - Si `COUNT=0`: `{ closed: true }` — frontend navega al listado.
 - Si `COUNT>0`: `{ closed: false, pendingLines: N }`.
 
@@ -895,11 +895,11 @@ Tras cada envío Perú exitoso, el frontend detecta si el wizard puede cerrarse.
 **Entregables:**
 - Query + Handler: `VerifyStep3ClosurePeruQuery` (o extensión del Query México con filtro región)
 - DTO de response: `Step3ClosureStatusDto` (closed: bool, pendingLines: int) — reutilizable de RE-028 T16
-- Pruebas unitarias (todas ENVIADO → closed=true; una PENDIENTE → closed=false)
+- Pruebas unitarias (todas enviado → closed=true; una pendiente → closed=false)
 
 **Criterios de aceptación:**
-- Cuando todas las líneas Perú del cliente están en `ENVIADO`: `closed=true`.
-- Cuando al menos una línea no está en `ENVIADO`: `closed=false`, `pendingLines=N`.
+- Cuando todas las líneas Perú del cliente están en `enviado`: `closed=true`.
+- Cuando al menos una línea no está en `enviado`: `closed=false`, `pendingLines=N`.
 - La consulta filtra por `ClienteRegion='PER'` para no interferir con líneas México.
 - El cliente sale del listado de pendientes de Validar Cobro al detectar `closed=true`.
 
