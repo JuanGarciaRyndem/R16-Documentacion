@@ -14,7 +14,7 @@ Una **adenda** es un bloque de información adicional que se agrega al XML de un
 
 ---
 
-## 2. Hallazgos en el código actual (ProquifaDotNet-R14)
+## 2. Hallazgos en el código actual (ProquifaDotNet)
 
 ### 2.1 Tablas actuales de adenda
 
@@ -44,12 +44,12 @@ Esto es lo que hace cada transacción sobre esas tablas:
 
 ### 2.3 Evidencia con datos reales de BD
 
-| Consulta | Resultado |
-|---|---|
-| Conteo de filas | `ppPartidaPedidoAddendaSanofi` = 1,231 · `tpPedidoAddendaSanofi` (**cabecera**) = **0** · `tpPartidaPedidoAddendaSanofi` (detalle) = 1,221 |
-| Campos de correo (`CorreoEmpresaAddenda`, `CorreoContactoClienteAddenda`) | **NULL en el 100% de la muestra**, tanto en Promesa de Compra como en Tramitar Pedido — nunca se usan en la operación real |
-| `LineaDeOrden` — Promesa de Compra vs. Tramitar Pedido, misma partida | **No siempre coincide** (ej. `0034` en Promesa vs. `0030` en Tramitar) — se recalcula porque las partidas pueden reordenarse/eliminarse entre etapas |
-| `IdCatUnidad` | Mismo valor fijo en toda la muestra (`02234CF0-230F-4F29-B686-E16E673CCE4B`) — constante para Sanofi |
+| Consulta                                                                  | Resultado                                                                                                                                            |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Conteo de filas                                                           | `ppPartidaPedidoAddendaSanofi` = 1,231 · `tpPedidoAddendaSanofi` (**cabecera**) = **0** · `tpPartidaPedidoAddendaSanofi` (detalle) = 1,221           |
+| Campos de correo (`CorreoEmpresaAddenda`, `CorreoContactoClienteAddenda`) | **NULL en el 100% de la muestra**, tanto en Promesa de Compra como en Tramitar Pedido — nunca se usan en la operación real                           |
+| `LineaDeOrden` — Promesa de Compra vs. Tramitar Pedido, misma partida     | **No siempre coincide** (ej. `0034` en Promesa vs. `0030` en Tramitar) — se recalcula porque las partidas pueden reordenarse/eliminarse entre etapas |
+| `IdCatUnidad`                                                             | Mismo valor fijo en toda la muestra (`02234CF0-230F-4F29-B686-E16E673CCE4B`) — constante para Sanofi                                                 |
 
 **Conclusiones de esta evidencia:**
 1. La tabla de **cabecera nunca se llena** en la práctica (0 filas), aunque el código la escribe — refuerza que este código está incompleto.

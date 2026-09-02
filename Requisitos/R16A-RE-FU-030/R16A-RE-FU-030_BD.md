@@ -39,7 +39,7 @@ las entradas del foliador con Serie "P" en `EmpresaFolio` y los templates PDF en
 
 | #   | Cambio                                                                                                            | Base de Datos             | Tipo      | Prioridad |
 | --- | ----------------------------------------------------------------------------------------------------------------- | ------------------------- | --------- | --------- |
-| 1   | ~~CREATE TABLE catFormaPagoSAT~~ — **creada en RE-FU-019** (prerrequisito disponible)             | ProquifaDotNet            | Existente | —         |
+| 1   | ~~CREATE TABLE catFormaPagoSAT~~ — **creada en RE-FU-019** (prerrequisito disponible)                             | ProquifaDotNet            | Existente | —         |
 | 2   | DML catUsoCFDI — INSERT clave CP01 (Pagos) — confirmado no existe                                                 | ProquifaDotNet            | DML       | Alta      |
 | 3   | ALTER TABLE fccDocumentoFiscalCobro — ADD columnas DR del Complemento de Pago (8 cols)                            | ProquifaDotNet            | DDL       | Alta      |
 | 4   | DML EmpresaFolio — INSERT filas Serie "P" para GOL, MUN, PRO, PQF                                                 | ProquifaDotNet (Finanzas) | DML       | Alta      |
@@ -538,18 +538,18 @@ WHERE TipoDocumentoFiscal = 'COMPLEMENTO_PAGO';
 
 ## Estructuras reutilizadas — Resumen de uso en RE-030
 
-| Estructura | Origen | Uso en RE-030 |
-|---|---|---|
-| `CFDIGenerada` | RE-019 | INSERT por cada CP timbrado con `IdCatTipoCFDI='COMPLEMENTO_PAGO'`, `UUID` del SAT, `IdCFDIRelacionado` = `IdCFDIGenerada` de la Factura PPD relacionada |
-| `catTipoCFDI.COMPLEMENTO_PAGO` | RE-028 T1 | Discriminador del tipo de CFDI en `CFDIGenerada` |
-| `catTipoCFDI.IdRegion` (MEX) | RE-029 T2 | `COMPLEMENTO_PAGO` tiene `IdRegion = MEX` — solo aplica a México |
-| `fccDocumentoFiscalCobro.IdCFDIGeneradaComplemento` | RE-028 T3 | Se puebla con el `IdCFDIGenerada` del CP timbrado en la cascada PPD |
-| `CFDIGenerada.IdCFDIRelacionado` | RE-028 T5 | FK blanda al `IdCFDIGenerada` de la Factura PPD que este CP complementa |
-| `EmpresaFolio` (estructura) | RE-019 | Foliador con UPDLOCK atómico; RE-030 agrega filas Serie P |
-| PAC TurboPac | RE-019 | Mismo cliente/servicio para timbrar el CP vía ProquifaDotNet.Timbrado |
-| `catUsoCFDI` (CP01) | RE-028 o anterior | UsoCFDI=CP01 fijo en el receptor del Complemento de Pago — verificar que `Clave='CP01'` exista |
-| `catMetodoDePagoCFDI.PPD` | RE-028 T1 | Solo facturas PPD generan CP; se verifica al inicializar líneas del Paso 3 |
-| `CorreoEnviado` / `ArchivoCorreoEnviado` | RE-028 | Trazabilidad del correo con PDF + XML del CP adjuntos |
+| Estructura                                          | Origen            | Uso en RE-030                                                                                                                                            |
+| --------------------------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CFDIGenerada`                                      | RE-019            | INSERT por cada CP timbrado con `IdCatTipoCFDI='COMPLEMENTO_PAGO'`, `UUID` del SAT, `IdCFDIRelacionado` = `IdCFDIGenerada` de la Factura PPD relacionada |
+| `catTipoCFDI.COMPLEMENTO_PAGO`                      | RE-028 T1         | Discriminador del tipo de CFDI en `CFDIGenerada`                                                                                                         |
+| `catTipoCFDI.IdRegion` (MEX)                        | RE-029 T2         | `COMPLEMENTO_PAGO` tiene `IdRegion = MEX` — solo aplica a México                                                                                         |
+| `fccDocumentoFiscalCobro.IdCFDIGeneradaComplemento` | RE-028 T3         | Se puebla con el `IdCFDIGenerada` del CP timbrado en la cascada PPD                                                                                      |
+| `CFDIGenerada.IdCFDIRelacionado`                    | RE-028 T5         | FK blanda al `IdCFDIGenerada` de la Factura PPD que este CP complementa                                                                                  |
+| `EmpresaFolio` (estructura)                         | RE-019            | Foliador con UPDLOCK atómico; RE-030 agrega filas Serie P                                                                                                |
+| PAC TurboPac                                        | RE-019            | Mismo cliente/servicio para timbrar el CP vía ProquifaDotNet.Timbrado                                                                                    |
+| `catUsoCFDI` (CP01)                                 | RE-028 o anterior | UsoCFDI=CP01 fijo en el receptor del Complemento de Pago — verificar que `Clave='CP01'` exista                                                           |
+| `catMetodoDePagoCFDI.PPD`                           | RE-028 T1         | Solo facturas PPD generan CP; se verifica al inicializar líneas del Paso 3                                                                               |
+| `CorreoEnviado` / `ArchivoCorreoEnviado`            | RE-028            | Trazabilidad del correo con PDF + XML del CP adjuntos                                                                                                    |
 
 ---
 

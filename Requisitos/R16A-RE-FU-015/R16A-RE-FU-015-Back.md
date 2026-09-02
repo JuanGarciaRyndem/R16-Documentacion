@@ -6,13 +6,17 @@
 
 ---
 
-## ⛔ BLOQUEANTE — OBS-027: Transición de estados del pedido
+## ✅ OBS-027 RESUELTO — Estatus del pedido: catálogo `catEstadoPedido` + tabla `PedidoEstadoActual`
 
-> **BLOQUEANTE — En espera de propuesta del cliente.**
+> **Resuelto (11/08/2026, actualizado 12/08/2026)** — ver `Analisis/Estados de Pedidos/catEstadoPedido — Estados Propuestos.md`.
 >
-> Se requiere el catálogo `CatEstadoTpPedido` y el campo `IdCatEstadoTpPedido` en `tpPedido` para implementar la lógica de transición de estados durante el flujo de tramitación (cierre del pendiente Tramitar Pedido, RT-05 del DIS-SOL). Sin esta definición no es posible implementar la lógica de transición en Back (T8 de este requisito).
+> El cliente propuso el catálogo de 17 estados sobre `dbo.catEstadoPedido` (catálogo ya existente en BD, hoy vacío y sin FK — se extiende con `Orden`, `EsTerminal`, `Aplicativo`, `AliasOperativo`) y el catálogo nuevo `dbo.catMotivoCancelacion`. **Ya NO se crea el catálogo `CatEstadoTpPedido` ni se agrega `IdCatEstadoTpPedido` directo en `tpPedido`**, como se documentaba antes de esta actualización.
 >
-> **Las tareas T7 (BD) y T8 (Back) están BLOQUEADAS hasta recibir la propuesta del cliente sobre `CatEstadoTpPedido`.**
+> En su lugar, el estatus del pedido (Criterio D5) se centraliza en la tabla nueva **`PedidoEstadoActual`**: un registro por pedido que referencia, según la etapa del flujo en la que se encuentre, a `pcPromesaDeCompra` (OC_RECIBIDA), `ppPedido` (Pretramitar/Intramitable/En Trámite) y/o `tpPedido` (Prepago con FAA/Confirmado/Logística/Entregado), más el estado vigente (`IdCatEstadoPedido`) y, si aplica, el motivo de cancelación (`IdCatMotivoCancelacion`). Esta tabla resuelve también la Observación #4 del catálogo propuesto (¿el campo va en `tpPedido`, en `ppPedido` o en ambas?): en vez de duplicar la FK en varias tablas, se centraliza en una sola.
+>
+> **T7 (BD) y T8 (Back) quedan DESBLOQUEADAS.** Ver diccionario de datos completo en `R16A-RE-FU-015_BD.md`.
+>
+> **Nota de alcance de este ajuste:** por indicación del cliente, este endpoint/tabla **no gestiona la cancelación** (no asigna `IdCatMotivoCancelacion`) — la columna existe en `PedidoEstadoActual` para cuando ese requisito se desarrolle, pero su lógica de escritura es un requisito aparte, fuera de este alcance.
 
 ---
 
@@ -30,7 +34,7 @@ Este requisito es la variante Prepago sin controlados donde el ESAC **activa Fac
 - `tpPedido.FacturaPorAdelantado = 1`
 - Activación directa sin código de autorización (Regla 3 / RT-07)
 - Datos de facturación bloqueados y fijados al activar FAA (snapshot en `fccFactura`)
-- El cierre del pendiente operativo en Tramitar Pedido no implica que el pedido quede "tramitado en su totalidad" (Regla 13 / Criterio D3) — se realiza asignando `IdCatEstadoTpPedido` en `tpPedido` (RT-05, ⛔ OBS-027)
+- El cierre del pendiente operativo en Tramitar Pedido no implica que el pedido quede "tramitado en su totalidad" (Regla 13 / Criterio D3) — se realiza actualizando `PedidoEstadoActual.IdCatEstadoPedido` a `PREPAGO_CON_FAA` (RT-05, OBS-027 resuelto — ver arriba)
 
 ---
 
@@ -51,6 +55,7 @@ Este requisito es la variante Prepago sin controlados donde el ESAC **activa Fac
 | `ProquifaDotNet` | `POST /v1/api/invoices/advance-invoice/{orderId}` | Nuevo | `orderId` (Guid, ruta); body vacío | Confirmación: `orderId`, `internalOrderFolio`, `invoiceId`, `advanceInvoiceStatus`, `processOrderTaskClosed` |
 | `ProquifaDotNet.Finanzas` (interno) | `POST /v1/api/invoices/advance-invoice/create/{orderId}` | Nuevo | `orderId` (Guid, ruta) | Confirmación de creación del pendiente |
 | `ProquifaDotNet` | `GET /Logistica/vTramitarPedidoDetalle` | Reutilizado (RE-013 T8) | `idTPPedido` (Guid, query) | Modelo `vTramitarPedidoDetalle` (incluye `TieneProductosControlados` y `CorreoElectronicoEsac`) |
+| `ProquifaDotNet` | `PUT /v1/api/orders/status` | Nuevo (OBS-027, T8) | Body: `idPcPromesaDeCompra`, `idPPPedido`, `idTPPedido` (Guid, opcionales — exactamente uno informado), `idCatEstadoPedido` (Guid, requerido) | Confirmación: `idPedidoEstadoActual`, `estadoAnterior`, `estadoNuevo`. No administra cancelación (no recibe `idCatMotivoCancelacion`) |
 
 ---
 
@@ -132,7 +137,7 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 
 **Criterio D3 — Desaparición del pendiente operativo en bandeja Tramitar Pedido**
 - **Dado** que la acción de Tramitar Pedido se completó (con la generación del pendiente en Factura por Adelantado),
-- **Cuando** se asigna `IdCatEstadoTpPedido` en `tpPedido` (RT-05, ⛔ OBS-027),
+- **Cuando** se actualiza `PedidoEstadoActual.IdCatEstadoPedido` a `PREPAGO_CON_FAA` vía `PUT /v1/api/orders/status` (RT-05, OBS-027 resuelto),
 - **Entonces** el pedido no deberá seguir apareciendo como pendiente en la bandeja del módulo Tramitar Pedido del ESAC.
 
 **Criterio D4 — Cancelación del pedido**
@@ -143,7 +148,7 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 **Criterio D5 — Estatus del pedido a lo largo del flujo**
 - **Dado** que el sistema opera por pendientes (que aparecen y desaparecen de cada bandeja a medida que se trabajan) y que esos pendientes no reflejan por sí solos el estatus global del pedido,
 - **Cuando** un pedido avanza por las distintas etapas del flujo,
-- **Entonces** el sistema deberá mantener un estatus del pedido que refleje su punto en el flujo (catálogo `CatEstadoTpPedido`, ⛔ OBS-027).
+- **Entonces** el sistema deberá mantener un estatus del pedido que refleje su punto en el flujo, persistido en `PedidoEstadoActual.IdCatEstadoPedido` contra el catálogo `catEstadoPedido` (OBS-027 resuelto — ver `catEstadoPedido — Estados Propuestos.md`).
 
 ---
 
@@ -159,6 +164,7 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 | GAP-06 | Cancelación del pedido | Dependencia de R16A-RE-FU-010 (endpoint de cancelación) | Referencia |
 | GAP-07 | Ausencia de documento/PDF disponible para TaskScheduler de Venta Digital | Confirmar si el job de TaskScheduler que transfiere PDFs a Legacy puede operar cuando no existe ningún PDF generado en Tramitar Pedido para este flujo (ver `R16A-RE-FU-015-Tareas.md`) | Medio |
 | GAP-08 | H-01 — Campos fiscales de Perú en `fccFactura` | Antes de cerrar desarrollo, agregar a `fccFactura` (o tabla de extensión regional) los campos equivalentes a Tipo de Operación (catálogo 51 SUNAT) y Condición de Pago SUNAT, siguiendo el mismo patrón snapshot que los campos SAT de México — o documentar explícitamente por qué no aplican | Medio |
+| GAP-09 | Actualizar `PedidoEstadoActual` al cerrar el pendiente Tramitar Pedido (OBS-027 resuelto) | Al insertar el pendiente FAA (paso 3i), invocar `PUT /v1/api/orders/status` con `IdTPPedido` + `IdCatEstadoPedido=PREPAGO_CON_FAA` para cerrar el pendiente operativo (ver T7/T8 en `-Tareas.md`) | Medio |
 
 ---
 
@@ -200,8 +206,10 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
       (cuentas M.N./DLS del grupo PROQUIFA + ReferenciaCliente por Código Validador)
       → e, f, g en una sola transacción (atómico)
    h. NO genera pendiente Validar Cobro
-   i. Asigna IdCatEstadoTpPedido en tpPedido → cierra pendiente Tramitar Pedido
-      (⛔ bloqueado hasta resolver OBS-027)
+   i. Llama PUT /v1/api/orders/status con IdTPPedido + IdCatEstadoPedido=PREPAGO_CON_FAA
+      → localiza y actualiza el registro de PedidoEstadoActual (ya tiene IdTPPedido
+        poblado desde etapas anteriores del flujo) → cierra pendiente Tramitar Pedido
+      (OBS-027 resuelto — ver catEstadoPedido — Estados Propuestos.md)
 ```
 
 ---
@@ -261,5 +269,6 @@ El requisito R16A-RE-FU-015 tiene **impacto medio** en desarrollo Back tras adop
 5. **Vinculación con FAA** (GAP-05) — asegurar consumo del pendiente por RE-FU-018/019/020
 6. **Punto abierto de Venta Digital/Legacy** (GAP-07) — confirmar comportamiento de TaskScheduler sin PDF disponible
 7. **H-01 pendiente** (GAP-08) — campos fiscales de Perú en `fccFactura`
+8. **Estatus del pedido — OBS-027 resuelto** (GAP-09) — actualizar `PedidoEstadoActual` al cerrar el pendiente Tramitar Pedido, vía el nuevo endpoint compartido `PUT /v1/api/orders/status` (T7/T8)
 
-El desarrollador debe implementar el endpoint orquestador en `ProquifaDotNet` y el servicio de creación del pendiente en `ProquifaDotNet.Finanzas` conforme al DIS-SOL v1.0. `tpProformaAdelantoBO.cs` ya no es código de referencia para este requisito.
+El desarrollador debe implementar el endpoint orquestador en `ProquifaDotNet` y el servicio de creación del pendiente en `ProquifaDotNet.Finanzas` conforme al DIS-SOL v1.0. `tpProformaAdelantoBO.cs` ya no es código de referencia para este requisito. OBS-027 quedó resuelto con el catálogo `catEstadoPedido` (extendido) y la tabla nueva `PedidoEstadoActual` — ya no aplica el `ALTER TABLE tpPedido ADD IdCatEstadoTpPedido` documentado en versiones anteriores de este archivo.

@@ -66,14 +66,14 @@ La política operativa de R16 es **1 CP por factura**: si un cobro cubre N factu
 
 Catálogo c_FormaPago SAT. Almacena las formas reales de cobro para el campo `FormaDePagoP` del nodo Pago del Complemento de Pago. Confirmado inexistente en ProquifaDotNet.
 
-| Clave representativa | Descripción |
-|---|---|
-| `01` | Efectivo |
-| `02` | Cheque nominativo |
-| `03` | Transferencia electrónica de fondos |
-| `04` | Tarjeta de crédito |
-| `28` | Tarjeta de débito |
-| *(otros)* | 22 claves iniciales; completar con catálogo SAT vigente |
+| Clave representativa | Descripción                                             |
+| -------------------- | ------------------------------------------------------- |
+| `01`                 | Efectivo                                                |
+| `02`                 | Cheque nominativo                                       |
+| `03`                 | Transferencia electrónica de fondos                     |
+| `04`                 | Tarjeta de crédito                                      |
+| `28`                 | Tarjeta de débito                                       |
+| *(otros)*            | 22 claves iniciales; completar con catálogo SAT vigente |
 
 > Ver script completo en `R16A-RE-FU-030_BD.md` — Catálogo: catFormaPagoSAT.
 

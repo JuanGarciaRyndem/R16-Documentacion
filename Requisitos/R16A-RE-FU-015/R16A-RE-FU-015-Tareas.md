@@ -1,6 +1,6 @@
 # Tareas Back — R16A-RE-FU-015
 **Requisito:** Tramitación de pedidos Prepago con Factura por Adelantado
-**Total de tareas:** 10 (adopta DIS-SOL v1.0 — reemplaza tpProformaAdelanto por fccFactura; T3 obsoleta; T9 2026-06-16 — Validación VD; T10 2026-06-16 — Escenarios E2E flujo completo)
+**Total de tareas:** 10 (adopta DIS-SOL v1.0 — reemplaza tpProformaAdelanto por fccFactura; T3 obsoleta; T9 2026-06-16 — Validación VD; T10 2026-06-16 — Escenarios E2E flujo completo; T7/T8 DESBLOQUEADAS — OBS-027 resuelto con el catálogo `catEstadoPedido` + tabla `PedidoEstadoActual`, ver `catEstadoPedido — Estados Propuestos.md`)
 
 ---
 
@@ -219,41 +219,113 @@ El pendiente FAA generado en la tramitación es consumido correctamente por el m
 
 ---
 
-## T7 — [ R16A-RE-FU-015 ] [UPDATE-TABL-CH] ⛔ BLOQUEANTE — Crear catálogo CatEstadoTpPedido e IdCatEstadoTpPedido en tpPedido (OBS-027)
+## T7 — [ R16A-RE-FU-015 ] [CREATE-TABL-M] Extender catálogo catEstadoPedido, crear catMotivoCancelacion y PedidoEstadoActual (OBS-027 resuelto)
 
-> **⛔ BLOQUEANTE — OBS-027**
->
-> Esta tarea está **BLOQUEADA** hasta recibir la propuesta del cliente sobre el catálogo `CatEstadoTpPedido`.
->
-> **Pendiente del cliente:**
-> - Definición de estados requeridos para `CatEstadoTpPedido` (clave, descripción, estados terminales, transiciones permitidas).
-> - Confirmación de si `IdCatEstadoTpPedido` aplica en `tpPedido`, `ppPedido`, o ambas.
->
-> **No iniciar desarrollo hasta que se resuelva el BLOQUEANTE.**
->
-> Una vez desbloqueada, esta tarea incluirá:
-> - `CREATE TABLE dbo.CatEstadoTpPedido` con los campos definidos por el cliente.
-> - `ALTER TABLE dbo.tpPedido ADD IdCatEstadoTpPedido uniqueidentifier NULL FK → CatEstadoTpPedido`.
-> - Scripts DDL + DML (INSERT de catálogo) con los estados acordados.
+### Aplicativos
+- ProquifaDotNet
+
+### Módulos
+- Base de datos `ProquifaDotNet` (dbo)
+
+### Consideraciones previas
+- **OBS-027 resuelto (11/08/2026, actualizado 12/08/2026):** el cliente propuso el catálogo de 17 estados del pedido. Ver `Analisis/Estados de Pedidos/catEstadoPedido — Estados Propuestos.md` para la matriz de transiciones completa, la fuente de cada estado y las observaciones abiertas (no bloqueantes).
+- Ya **NO** se crea `CatEstadoTpPedido` ni se agrega `IdCatEstadoTpPedido` en `tpPedido`, como se documentaba antes de esta actualización. En su lugar, esta tarea crea la tabla `PedidoEstadoActual` (ver diccionario de datos completo en `R16A-RE-FU-015_BD.md`).
+- `dbo.catEstadoPedido` **ya existe** en BD (vacío, sin FK, verificado en `ProquifaDotNet.sql` líneas 29278–29289) — esta tarea lo extiende, no lo crea desde cero.
+- Esta tarea es predecesora de T8 (lógica de actualización de estatus) — la estructura debe existir antes de implementar el servicio/endpoint.
+- Fuera de alcance: la lógica de escritura de `IdCatMotivoCancelacion` (cancelación) — solo se modela la columna y su FK.
+- El backfill de datos de esta tarea corresponde a la actividad catalogada `MIG-DATOS` (`Catalogo BackEnd.md`).
+
+### Objetivo general
+Dejar en base de datos la estructura completa para sostener el estatus del pedido (Criterio D5): extender el catálogo existente `catEstadoPedido`, crear el catálogo `catMotivoCancelacion` y crear la tabla `PedidoEstadoActual`, y migrar a ella los pedidos existentes.
+
+### Objetivos específicos
+- `ALTER TABLE dbo.catEstadoPedido` — agregar `Orden`, `EsTerminal`, `Aplicativo`, `AliasOperativo` (y `FechaRegistro`, faltante en la definición original) + `UNIQUE (Clave)`
+- Seed de los 17 estados en `catEstadoPedido` (clave, descripción, orden, terminal, aplicativo, alias — ver catálogo propuesto sección 8)
+- `CREATE TABLE dbo.catMotivoCancelacion` + seed de 5 motivos (`INTRAMITABLE`, `OC_NO_AJUSTADA`, `FALTA_PAGO`, `OPERATIVO`, `SOLICITUD_CLIENTE`)
+- `CREATE TABLE dbo.PedidoEstadoActual` — PK `IdPedidoEstadoActual`; FK nullable a `pcPromesaDeCompra`, `ppPedido`, `tpPedido`; FK requerida a `catEstadoPedido`; FK opcional a `catMotivoCancelacion`; los 3 campos de control estándar
+- Índices no clusterizados sobre las cuatro FK principales (`IdPcPromesaDeCompra`, `IdPPPedido`, `IdTPPedido`, `IdCatEstadoPedido`)
+- Script de datos: backfill de `PedidoEstadoActual` con los pedidos existentes en `pcPromesaDeCompra`/`ppPedido`/`tpPedido`, mapeando su estado actual (flags `Tramitado`, `Intramitable`, `Cancelada`, `Liberado`, `Finalizado`, `FacturaPorAdelantado`, `catSeguimientoPartidaPedido.Clave`) a la clave correspondiente de `catEstadoPedido` (ver regla de mapeo y notas de negocio pendientes en `R16A-RE-FU-015_BD.md`)
+
+### Resultado esperado
+`catEstadoPedido` queda extendido y poblado con los 17 estados; `catMotivoCancelacion` existe con sus 5 motivos; `PedidoEstadoActual` existe con su estructura completa; los pedidos existentes tienen su registro de estatus en `PedidoEstadoActual` con el mejor mapeo posible desde sus datos actuales.
+
+### Entregables
+- Script DDL `ALTER TABLE catEstadoPedido` + seed (17 estados)
+- Script DDL `CREATE TABLE catMotivoCancelacion` + seed (5 motivos)
+- Script DDL `CREATE TABLE PedidoEstadoActual` (con FK e índices)
+- Script de datos — backfill de `PedidoEstadoActual`
+- Reporte de los pedidos que quedaron con mapeo ambiguo (sub-estados de `INTRAMITABLE`, distinción `PREPAGO_CON_FAA`/`PREPAGO_EN_COBRO` histórica, motivo de cancelación no reconstruible) para revisión de negocio
+
+### Criterios de aceptación
+- `catEstadoPedido` tiene las columnas nuevas, la restricción `UNIQUE (Clave)` y los 17 estados sembrados
+- `catMotivoCancelacion` existe con los 5 motivos sembrados
+- `PedidoEstadoActual` existe con las columnas, FK e índices documentados en `R16A-RE-FU-015_BD.md`
+- Todo pedido activo (`pcPromesaDeCompra`/`ppPedido`/`tpPedido` con `Activo=1`) tiene al menos un registro en `PedidoEstadoActual` tras el backfill
+- Los scripts son idempotentes (reejecutables sin duplicar ni fallar), conforme al estándar de construcción SQL Server del proyecto
+
+### Más información de la tarea
+- Diccionario de datos completo, DDL y regla de mapeo del backfill: `R16A-RE-FU-015_BD.md`, sección "Estatus del pedido (OBS-027 resuelto)"
+- No confundir con `catFacturaEstado` (T1) — ese catálogo es del ciclo de vida de la Factura, no del pedido
+
+### Recursos
+- `Analisis/Estados de Pedidos/catEstadoPedido — Estados Propuestos.md`
+- `R16A-RE-FU-015_BD.md`
 
 ---
 
-## T8 — [ R16A-RE-FU-015 ] [ALG-COMPLX-LOGIC] ⛔ BLOQUEANTE — Lógica de transición de estados del pedido (OBS-027)
 
-> **⛔ BLOQUEANTE — OBS-027**
->
-> Esta tarea está **BLOQUEADA** hasta que T7 (`CatEstadoTpPedido` + `IdCatEstadoTpPedido`) esté resuelta y desbloqueada.
->
-> **Depende de:** T7 (`CatEstadoTpPedido` definido por el cliente).
->
-> **No iniciar desarrollo hasta que se resuelva el BLOQUEANTE.**
->
-> Una vez desbloqueada, esta tarea incluirá:
-> - Lógica de asignación de `IdCatEstadoTpPedido` en `ProquifaDotNet.Finanzas` al cerrar el pendiente Tramitar Pedido (paso 3i del flujo, RT-05).
-> - Validación de transiciones permitidas según el catálogo acordado.
-> - Actualización de `tpPedido.IdCatEstadoTpPedido` en los puntos del flujo definidos.
+## T8 — [ R16A-RE-FU-015 ] [ALG-COMPLX-LOGIC] Endpoint y lógica de actualización de estatus del pedido (OBS-027 resuelto)
+
+### Aplicativos
+- ProquifaDotNet
+- ProquifaDotNet.Finanzas (consumidor)
+
+### Módulos
+- L05.TramitarPedido (punto de uso dentro de este requisito)
+- Nuevo endpoint compartido de actualización de estatus
+
+### Consideraciones previas
+- Predecesora: T7 (`catEstadoPedido` extendido, `catMotivoCancelacion` y `PedidoEstadoActual` deben existir).
+- El endpoint es de uso compartido entre módulos/aplicativos del flujo de venta (no exclusivo de este requisito), pero el único punto de uso que se ajusta **dentro del alcance de este requisito** es el cierre del pendiente Tramitar Pedido con FAA (paso 3i del flujo, RT-05): al insertar el pendiente FAA, `ProquifaDotNet.Finanzas` reporta el cambio de estatus a `PREPAGO_CON_FAA`.
+- **Fuera de alcance de esta tarea:** la cancelación. El endpoint no recibe ni asigna `IdCatMotivoCancelacion` — esa lógica se cubre en un requisito aparte.
+- Ajustar otros puntos del flujo de venta (Buzón → Pretramitar → Tramitar, fuera de este requisito) para que también reporten sus cambios de estatus queda para los requisitos que implementan esas etapas (RE-013/014 y anteriores) — no se tocan aquí.
+
+### Objetivo general
+Implementar el endpoint que actualiza el estatus vigente del pedido en `PedidoEstadoActual`, y ajustar el cierre del pendiente Tramitar Pedido de este requisito (paso 3i) para que lo use.
+
+### Objetivos específicos
+- Implementar `PUT /v1/api/orders/status` en `ProquifaDotNet`: recibe `idPcPromesaDeCompra`, `idPPPedido`, `idTPPedido` (exactamente uno informado) e `idCatEstadoPedido`
+- Resolver, en orden descendente del flujo (`IdTPPedido` → `IdPPPedido` → `IdPcPromesaDeCompra`), cuál de los tres campos viene informado, y localizar con él el registro de `PedidoEstadoActual`
+- Actualizar `IdCatEstadoPedido` y `FechaUltimaActualizacion` del registro localizado
+- No aceptar ni asignar `IdCatMotivoCancelacion` en este endpoint (ver Consideraciones previas)
+- Ajustar el paso 3i del flujo de este requisito (`R16A-RE-FU-015-Back.md`) para que, al insertar el pendiente FAA (`fccFactura`), `ProquifaDotNet.Finanzas` invoque este endpoint con `IdTPPedido` + `IdCatEstadoPedido = PREPAGO_CON_FAA`, cerrando así el pendiente operativo de Tramitar Pedido (Criterio D3)
+
+### Resultado esperado
+Al tramitar un pedido Prepago con FAA, `PedidoEstadoActual.IdCatEstadoPedido` queda en `PREPAGO_CON_FAA` y el pendiente operativo de Tramitar Pedido se cierra en la bandeja del ESAC, usando el mecanismo genérico de actualización de estatus en vez de un campo directo en `tpPedido`.
+
+### Entregables
+- Nuevo endpoint `PUT /v1/api/orders/status` en `ProquifaDotNet`
+- Lógica de resolución de la FK a usar (prioridad `IdTPPedido` > `IdPPPedido` > `IdPcPromesaDeCompra`)
+- Ajuste del paso 3i del flujo FAA (T2) para invocar el endpoint
+
+### Criterios de aceptación
+- El endpoint actualiza `IdCatEstadoPedido` del registro correcto de `PedidoEstadoActual` cuando se le informa `IdTPPedido`, `IdPPPedido` o `IdPcPromesaDeCompra` por separado
+- Si viene más de un identificador informado, se usa el de mayor jerarquía (`IdTPPedido` primero) y no genera error
+- El endpoint rechaza o ignora `IdCatMotivoCancelacion` si se envía (no es un parámetro del contrato)
+- Al tramitar Prepago con FAA (T2), `PedidoEstadoActual.IdCatEstadoPedido` queda en `PREPAGO_CON_FAA` y el pedido deja de aparecer en la bandeja de Tramitar Pedido (Criterio D3)
+- `FechaUltimaActualizacion` se actualiza en cada cambio de estatus
+
+### Más información de la tarea
+- Diccionario de datos y diseño de `PedidoEstadoActual`: `R16A-RE-FU-015_BD.md`
+- Flujo completo y paso 3i: `R16A-RE-FU-015-Back.md`, sección "Flujo Back Completo"
+
+### Recursos
+- `Analisis/Estados de Pedidos/catEstadoPedido — Estados Propuestos.md`
+- `R16A-RE-FU-015_BD.md`
+- `R16A-RE-FU-015-Back.md`
 
 ---
+
 
 ## T9 — [ R16A-RE-FU-015 ] [ALG-BASIC-LOGIC] Validar flujo Venta Digital al tramitar pedido Prepago con FAA
 
@@ -322,8 +394,8 @@ El job de TaskScheduler de Venta Digital procesa correctamente los pedidos trami
 | T4 | ALG-BASIC-LOGIC | Eliminar código de autorización para Factura por Adelantado | — |
 | T5 | ALG-BASIC-LOGIC | Bloquear datos de facturación al activar FAA | — |
 | T6 | ALG-BASIC-LOGIC | Vinculación del pendiente FAA con módulo de facturación (RE-FU-018/019/020) | T2 |
-| T7 | UPDATE-TABL-CH | ⛔ BLOQUEANTE — Crear CatEstadoTpPedido + IdCatEstadoTpPedido en tpPedido (OBS-027) | — |
-| T8 | ALG-COMPLX-LOGIC | ⛔ BLOQUEANTE — Lógica de transición de estados del pedido (OBS-027) | T7 |
+| T7 | CREATE-TABL-M | Extender catálogo catEstadoPedido, crear catMotivoCancelacion y PedidoEstadoActual (OBS-027 resuelto) | — |
+| T8 | ALG-COMPLX-LOGIC | Endpoint y lógica de actualización de estatus del pedido (OBS-027 resuelto) | T7 |
 | T9 | ALG-BASIC-LOGIC | Validar flujo Venta Digital al tramitar pedido Prepago con FAA (sin PDF disponible) | T2 |
 | T10 | ALG-BASIC-LOGIC | Pruebas de flujo completo E2E — Tramitación Prepago con y sin FAA | T1,T2,T4,T5,T9 |
 

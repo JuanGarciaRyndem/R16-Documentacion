@@ -51,16 +51,16 @@ Las siguientes transferencias, actualmente en SSIS, serán migradas progresivame
 
 ## 3. Relación con Otros Sistemas
 
-| Sistema | Rol | Canal de integración |
-|---|---|---|
-| **ProquifaDotNet** | Origen de datos — entidades a sincronizar | EF Core Scaffold (`ProquifaDotNetDbContext`) — solo lectura |
-| **ProquifaDotNet.Finanzas** | Disparador de eventos E1–E6 al completar wizard Validar Cobro | INSERT en `SyncControl` desde Finanzas |
-| **PCconnect (Legacy)** | Destino de sincronización | EF Core Scaffold (`PConnectDbContext`) — escritura |
-| **PConnectProquifaDotNet** | BD de control operativo propia de LegacySync | EF Core (`LegacySyncDbContext`) — lectura/escritura |
-| **MinIO** | Almacenamiento de archivos origen (PDFs, adjuntos) | HTTP download vía `FileSyncService` |
-| **Brevo** | Envío de notificaciones de fallos de integración | API Brevo (mismo proveedor que el ecosistema ProquifaDotNet) |
-| **IdentityServer** | Autenticación/autorización para la API de monitoreo | JWT Bearer — misma infraestructura que Finanzas y Timbrado |
-| **Hangfire** | Motor de jobs asíncronos y reintentos | SQL Server storage en `PConnectProquifaDotNet` |
+| Sistema                     | Rol                                                           | Canal de integración                                         |
+| --------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------ |
+| **ProquifaDotNet**          | Origen de datos — entidades a sincronizar                     | EF Core Scaffold (`ProquifaDotNetDbContext`) — solo lectura  |
+| **ProquifaDotNet.Finanzas** | Disparador de eventos E1–E6 al completar wizard Validar Cobro | INSERT en `SyncControl` desde Finanzas                       |
+| **PCconnect (Legacy)**      | Destino de sincronización                                     | EF Core Scaffold (`PConnectDbContext`) — escritura           |
+| **PConnectProquifaDotNet**  | BD de control operativo propia de LegacySync                  | EF Core (`LegacySyncDbContext`) — lectura/escritura          |
+| **MinIO**                   | Almacenamiento de archivos origen (PDFs, adjuntos)            | HTTP download vía `FileSyncService`                          |
+| **Brevo**                   | Envío de notificaciones de fallos de integración              | API Brevo (mismo proveedor que el ecosistema ProquifaDotNet) |
+| **IdentityServer**          | Autenticación/autorización para la API de monitoreo           | JWT Bearer — misma infraestructura que Finanzas y Timbrado   |
+| **Hangfire**                | Motor de jobs asíncronos y reintentos                         | SQL Server storage en `PConnectProquifaDotNet`               |
 
 > **Regla de negocio crítica:** Solo México transfiere datos a Legacy. Perú nunca ejecuta transferencias de LegacySync. La evaluación de región se realiza en el servicio de sincronización, no en la configuración del job.
 
@@ -270,13 +270,13 @@ Mecanismo genérico para transferir archivos relacionados con las entidades (PDF
 
 ### 7.8 API de Monitoreo
 
-| Endpoint | Método | Descripción |
-|---|---|---|
-| `/sync/status/{entidad}` | GET | Resumen de estado por entidad (conteo Pendiente/EnProceso/Completado/Error) |
-| `/sync/pendientes/{entidad}` | GET | Lista paginada de registros elegibles para reintento |
-| `/sync/log/{idSyncControl}` | GET | Historial completo de intentos de un registro |
-| `/sync/reintentar/{idSyncControl}` | POST | Fuerza reintento (solo si `TipoError != Permanent`) |
-| `/sync/jobs` | GET | Estado de todos los recurring jobs de Hangfire |
+| Endpoint                           | Método | Descripción                                                                 |
+| ---------------------------------- | ------ | --------------------------------------------------------------------------- |
+| `/sync/status/{entidad}`           | GET    | Resumen de estado por entidad (conteo Pendiente/EnProceso/Completado/Error) |
+| `/sync/pendientes/{entidad}`       | GET    | Lista paginada de registros elegibles para reintento                        |
+| `/sync/log/{idSyncControl}`        | GET    | Historial completo de intentos de un registro                               |
+| `/sync/reintentar/{idSyncControl}` | POST   | Fuerza reintento (solo si `TipoError != Permanent`)                         |
+| `/sync/jobs`                       | GET    | Estado de todos los recurring jobs de Hangfire                              |
 
 ---
 

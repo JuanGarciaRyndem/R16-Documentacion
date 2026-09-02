@@ -60,18 +60,18 @@ Se crean 2 tablas nuevas (inconsistencias) y 1 SEQUENCE (foliador COB).
 
 ## Impacto en BD
 
-| #   | Cambio                                                                                              | Tipo | Estado                   |
-| --- | --------------------------------------------------------------------------------------------------- | ---- | ------------------------ |
-| 1   | ALTER TABLE fccPagoCliente ADD Confirmado bit NOT NULL DEFAULT(0) *(semántica: cobro capturado)*    | DDL  | ✅ Ejecutado en RE-FU-023 |
-| 2   | ALTER TABLE fccPagoCliente ADD FechaConfirmacion datetime NULL                                     | DDL  | ✅ Ejecutado en RE-FU-023 |
-| 3   | ALTER TABLE fccPagoCliente ADD IdUsuarioConfirmacion uniqueidentifier NULL                          | DDL  | ✅ Ejecutado en RE-FU-023 |
-| 4   | ALTER TABLE fccPagoCliente ADD Notas varchar(500) NULL                                              | DDL  | ✅ Ejecutado en RE-FU-023 |
-| 5   | ALTER TABLE fccPagoCliente ADD IdCatMoneda uniqueidentifier NULL FK catMoneda                       | DDL  | ✅ Ejecutado en RE-FU-023 |
-| 6   | **ALTER TABLE fccPagoCliente ADD BloqueadoPorTimbrado bit NOT NULL DEFAULT(0)** *(inmutabilidad)*   | DDL  | ❌ Pendiente RE-FU-024    |
-| 7   | **ALTER TABLE fccPagoCliente ADD FechaBloqueoTimbrado datetime NULL** *(trazabilidad del bloqueo)* | DDL  | ❌ Pendiente RE-FU-024    |
-| 8   | CREATE TABLE catTipoInconsistenciaCobro                                                             | DDL  | ❌ Pendiente              |
-| 9   | CREATE TABLE fccInconsistenciaCobro                                                                 | DDL  | ❌ Pendiente              |
-| 10  | ~~CREATE SEQUENCE dbo.SeqFolioCobro~~ **CREATE SEQUENCE dbo.SeqFolioCobroMEX + dbo.SeqFolioCobroPER (DUDA-072)** | DDL  | ❌ Pendiente              |
+| #   | Cambio                                                                                                                      | Tipo | Estado                   |
+| --- | --------------------------------------------------------------------------------------------------------------------------- | ---- | ------------------------ |
+| 1   | ALTER TABLE fccPagoCliente ADD Confirmado bit NOT NULL DEFAULT(0) *(semántica: cobro capturado)*                            | DDL  | ✅ Ejecutado en RE-FU-023 |
+| 2   | ALTER TABLE fccPagoCliente ADD FechaConfirmacion datetime NULL                                                              | DDL  | ✅ Ejecutado en RE-FU-023 |
+| 3   | ALTER TABLE fccPagoCliente ADD IdUsuarioConfirmacion uniqueidentifier NULL                                                  | DDL  | ✅ Ejecutado en RE-FU-023 |
+| 4   | ALTER TABLE fccPagoCliente ADD Notas varchar(500) NULL                                                                      | DDL  | ✅ Ejecutado en RE-FU-023 |
+| 5   | ALTER TABLE fccPagoCliente ADD IdCatMoneda uniqueidentifier NULL FK catMoneda                                               | DDL  | ✅ Ejecutado en RE-FU-023 |
+| 6   | **ALTER TABLE fccPagoCliente ADD BloqueadoPorTimbrado bit NOT NULL DEFAULT(0)** *(inmutabilidad)*                           | DDL  | ❌ Pendiente RE-FU-024    |
+| 7   | **ALTER TABLE fccPagoCliente ADD FechaBloqueoTimbrado datetime NULL** *(trazabilidad del bloqueo)*                          | DDL  | ❌ Pendiente RE-FU-024    |
+| 8   | CREATE TABLE catTipoInconsistenciaCobro                                                                                     | DDL  | ❌ Pendiente              |
+| 9   | CREATE TABLE fccInconsistenciaCobro                                                                                         | DDL  | ❌ Pendiente              |
+| 10  | ~~CREATE SEQUENCE dbo.SeqFolioCobro~~ **CREATE SEQUENCE dbo.SeqFolioCobroMEX + dbo.SeqFolioCobroPER (DUDA-072)**            | DDL  | ❌ Pendiente              |
 | 11  | **ALTER TABLE fccPagoCliente ADD TipoDeCambioMonedaFacturacion decimal(18,6) NULL** *(OBS-050 — doble TC fiscal+operativo)* | DDL  | ❌ Pendiente RE-FU-024    |
 
 > **Nota #5 — IdCatMoneda:** La pantalla del Paso 1 (Captura del Cobro) muestra un combo
