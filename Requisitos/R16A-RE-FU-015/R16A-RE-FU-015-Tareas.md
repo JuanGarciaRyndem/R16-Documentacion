@@ -281,43 +281,74 @@ Dejar en base de datos la estructura completa para sostener el estatus del pedid
 - ProquifaDotNet.Finanzas (consumidor)
 
 ### Módulos
-- L05.TramitarPedido (punto de uso dentro de este requisito)
+- L03.AtenderPromesaDeCompra
+- L04.PretramitarPedido (incluye Gestionar Intramitables y Validar OC Ajustada)
+- L05.TramitarPedido (orquestador; punto de uso propio de este requisito, paso 3i)
+- L06–L09 (Compra, Importaciones, Inspección, Embalar — cadena logística)
 - Nuevo endpoint compartido de actualización de estatus
 
 ### Consideraciones previas
-- Predecesora: T7 (`catEstadoPedido` extendido, `catMotivoCancelacion` y `PedidoEstadoActual` deben existir).
-- El endpoint es de uso compartido entre módulos/aplicativos del flujo de venta (no exclusivo de este requisito), pero el único punto de uso que se ajusta **dentro del alcance de este requisito** es el cierre del pendiente Tramitar Pedido con FAA (paso 3i del flujo, RT-05): al insertar el pendiente FAA, `ProquifaDotNet.Finanzas` reporta el cambio de estatus a `prepagoconfaa`.
-- **Fuera de alcance de esta tarea:** la cancelación. El endpoint no recibe ni asigna `IdCatMotivoCancelacion` — esa lógica se cubre en un requisito aparte.
-- Ajustar otros puntos del flujo de venta (Buzón → Pretramitar → Tramitar, fuera de este requisito) para que también reporten sus cambios de estatus queda para los requisitos que implementan esas etapas (RE-013/014 y anteriores) — no se tocan aquí.
+- Predecesora: T7 (`catEstadoPedido` extendido, `catMotivoCancelacion` y `PedidoEstadoActual` deben existir) — y su backfill debe quedar **ejecutado**, no solo escrito, antes de cerrar esta tarea (ver Entregables).
+- **Alcance ampliado por indicación del cliente:** esta tarea ajusta, dentro de `ProquifaDotNet`, todos los puntos del flujo de venta que escriben uno de los 13 estados no terminales de `catEstadoPedido` distintos de cancelación (ver tabla de puntos de integración) — no se limita al cierre del pendiente Tramitar Pedido con FAA (paso 3i, RT-05), que sigue siendo el único punto de `ProquifaDotNet.Finanzas` que toca este requisito.
+- **Fuera de alcance de esta tarea:** la cancelación. El endpoint no recibe ni asigna `IdCatMotivoCancelacion`, y ningún punto de integración de esta tarea escribe la clave `cancelado` — esa lógica se cubre en un requisito aparte.
+- Un punto de integración (fila 6, Validar OC Ajustada) queda con el BO exacto **por identificar** — el catálogo propuesto (`Analisis/Estados de Pedidos/...`, sección 2) todavía no lo nombra; se confirma en construcción sin bloquear el resto de la tarea. La fila 7 (`entramite`) requiere confirmar en construcción si a esa altura del flujo ya existe `IdTPPedido` o si todavía se informa `IdPPPedido`.
+- Los estados que escribe `ProquifaDotNet.Finanzas`/Timbrado desde sus propios requisitos (`prepagoencobro` → RE-FU-016/023/024–027, `facturado` → RE-FU-028/029/030) no son entregable de esta tarea — esos requisitos son responsables de invocar el mismo endpoint compartido desde su propio alcance. La única excepción es `prepagoconfaa` (fila 14), que sí pertenece a RE-FU-015.
 
 ### Objetivo general
-Implementar el endpoint que actualiza el estatus vigente del pedido en `PedidoEstadoActual`, y ajustar el cierre del pendiente Tramitar Pedido de este requisito (paso 3i) para que lo use.
+Implementar el endpoint que actualiza el estatus vigente del pedido en `PedidoEstadoActual`, y ajustar en `ProquifaDotNet` todos los puntos del flujo de venta (Atender Promesa de Compra → Pretramitar → Intramitable → OC Ajustada → En Trámite → Confirmado/Abierto → cadena logística) para que lo invoquen en cada transición, además del cierre del pendiente Tramitar Pedido con FAA (paso 3i) propio de este requisito — y dejar migrados a `PedidoEstadoActual` los pedidos que ya estaban en curso antes de esta liberación.
 
 ### Objetivos específicos
 - Implementar `PUT /v1/api/orders/status` en `ProquifaDotNet`: recibe `idPcPromesaDeCompra`, `idPPPedido`, `idTPPedido` (exactamente uno informado) e `idCatEstadoPedido`
 - Resolver, en orden descendente del flujo (`IdTPPedido` → `IdPPPedido` → `IdPcPromesaDeCompra`), cuál de los tres campos viene informado, y localizar con él el registro de `PedidoEstadoActual`
 - Actualizar `IdCatEstadoPedido` y `FechaUltimaActualizacion` del registro localizado
 - No aceptar ni asignar `IdCatMotivoCancelacion` en este endpoint (ver Consideraciones previas)
-- Ajustar el paso 3i del flujo de este requisito (`R16A-RE-FU-015-Back.md`) para que, al insertar el pendiente FAA (`fccFactura`), `ProquifaDotNet.Finanzas` invoque este endpoint con `IdTPPedido` + `IdCatEstadoPedido = prepagoconfaa`, cerrando así el pendiente operativo de Tramitar Pedido (Criterio D3)
+- Ajustar cada uno de los siguientes puntos de `ProquifaDotNet` para que, al ejecutarse, invoquen el endpoint con la clave de `catEstadoPedido` correspondiente:
+
+| # | Módulo / BO | Disparador | Identificador que envía | Clave `catEstadoPedido` |
+|---|---|---|---|---|
+| 1 | L03 · `PretramitarPromesaDeCompraTransaccionBO.cs` | Alta en bandeja de Atender Promesa de Compra (OC / OC interna / sin OC) | `IdPcPromesaDeCompra` | `ocrecibida` |
+| 2 | L04 · `ppPedidoBO.cs` / `PretramitarPedidoTransaccionBO.cs` | Alta en `ppPedido` (`Tramitado=false`, `Intramitable=null`) | `IdPPPedido` | `enpretramite` |
+| 3 | L04 · `ppPedidoBO.cs` / `PretramitarPedidoTransaccionBO.cs` | `ppPedido.Intramitable=true` | `IdPPPedido` | `intramitable` |
+| 4 | L04 · `ppPedidoIncidenciaCorreoTransaccionBO.cs` / `ppPedidoOcNoAmparadaCorreoTransaccioBO.cs` | Correo de aceptación enviado al cliente (My ProquifaNet 2) | `IdPPPedido` | `intramitablependienteaceptacion` |
+| 5 | L04 · `ppPedidosSolicitarFEATransaccionBO.cs` | Solicitud de FEA enviada | `IdPPPedido` | `intramitablefeasolicitada` |
+| 6 | L04 · Validar OC Ajustada (**BO por identificar**) | Alta en bandeja "Validar ajustes OC" (OC ajustada recibida por Buzones) | `IdPPPedido` | `ocajustadarecibida` |
+| 7 | L05 · `tpPedidoTramitarTransaccionBO.cs` / `tpPedidoBO.cs` | `ppPedido.Tramitado=true` sin `Liberado` aún (resuelto de Pretramitar/Intramitable/OC Ajustada) | `IdPPPedido` (confirmar en construcción si a esta altura ya existe `IdTPPedido`) | `entramite` |
+| 8 | L05 · `tpPedidoTramitarTransaccionBO.cs` / `tpPedidoBO.cs` | `tpPedido.Tramitado=true`, `FechaTramitacion` seteada, `Liberado=true` (folio interno + confirmación de pedido) | `IdTPPedido` | `pedidoconfirmado` |
+| 9 | L06/L07 · punto donde se escribe `catSeguimientoPartidaPedido.Clave='encompra'` | OC de compra generada, seguimiento del proveedor | `IdTPPedido` | `encompra` |
+| 10 | L07/L08 · punto donde se escribe `Clave='almacenmatriz'` | Recepción en almacén matriz | `IdTPPedido` | `enalmacenmatriz` |
+| 11 | L08 · punto donde se escribe `Clave='rechazadoeninspeccion'` | Rechazo en inspección | `IdTPPedido` | `rechazadoeninspeccion` |
+| 12 | L09 · punto donde se escribe `Clave='enentrega'` | Salida a ruta de entrega | `IdTPPedido` | `enentrega` |
+| 13 | L09 · punto donde se escribe `Clave='pedidoentregado'` | Entrega confirmada al cliente | `IdTPPedido` | `entregado` |
+| 14 | `ProquifaDotNet.Finanzas` — cierre pendiente Tramitar Pedido con FAA (paso 3i, ya cubierto por T2) | INSERT del pendiente FAA en `fccFactura` | `IdTPPedido` | `prepagoconfaa` |
+
+  > Filas 9–12 comparten el mismo disparador técnico que ya existe hoy para Venta Digital (`catSeguimientoPartidaPedido.Clave`, expuesto vía `ServicioLegacyBO`/`ExternalAppSettings.config`) — el ajuste es agregar la llamada al endpoint en el mismo punto donde ese valor ya se escribe, no crear un disparador nuevo.
+  > Los estados `prepagoencobro` y `facturado` no aparecen en la tabla porque los escribe `ProquifaDotNet.Finanzas`/Timbrado desde sus propios requisitos (RE-FU-016/023/024–027 y RE-FU-028/029/030) — quedan fuera del alcance de esta tarea. `cancelado` no aparece porque está expresamente fuera de alcance (ver Consideraciones previas).
+- Ejecutar el backfill de `PedidoEstadoActual` de T7 (no solo dejarlo escrito) antes de dar por cerrada esta tarea, para que los pedidos ya existentes tengan un registro que el endpoint pueda localizar y actualizar
 
 ### Resultado esperado
-Al tramitar un pedido Prepago con FAA, `PedidoEstadoActual.IdCatEstadoPedido` queda en `prepagoconfaa` y el pendiente operativo de Tramitar Pedido se cierra en la bandeja del ESAC, usando el mecanismo genérico de actualización de estatus en vez de un campo directo en `tpPedido`.
+`PedidoEstadoActual` refleja el estatus vigente del pedido en cualquier etapa de `ProquifaDotNet` (excepto cancelación), tanto para pedidos nuevos — cada uno de los 13 puntos de integración de `ProquifaDotNet` reporta su transición al endpoint — como para los pedidos que ya estaban en curso antes de esta liberación, gracias al backfill de T7 ya ejecutado. Como caso propio de este requisito, al tramitar un pedido Prepago con FAA, `PedidoEstadoActual.IdCatEstadoPedido` queda en `prepagoconfaa` y el pendiente operativo de Tramitar Pedido se cierra en la bandeja del ESAC.
 
 ### Entregables
 - Nuevo endpoint `PUT /v1/api/orders/status` en `ProquifaDotNet`
 - Lógica de resolución de la FK a usar (prioridad `IdTPPedido` > `IdPPPedido` > `IdPcPromesaDeCompra`)
-- Ajuste del paso 3i del flujo FAA (T2) para invocar el endpoint
+- Ajuste de los 13 puntos de integración de `ProquifaDotNet` listados en la tabla (filas 1–13) para que invoquen el endpoint
+- Ajuste del paso 3i del flujo FAA (T2, fila 14) para invocar el endpoint
+- Backfill de `PedidoEstadoActual` (script de T7) ejecutado en el ambiente correspondiente, con el reporte de mapeo ambiguo de T7 revisado por negocio
 
 ### Criterios de aceptación
 - El endpoint actualiza `IdCatEstadoPedido` del registro correcto de `PedidoEstadoActual` cuando se le informa `IdTPPedido`, `IdPPPedido` o `IdPcPromesaDeCompra` por separado
 - Si viene más de un identificador informado, se usa el de mayor jerarquía (`IdTPPedido` primero) y no genera error
 - El endpoint rechaza o ignora `IdCatMotivoCancelacion` si se envía (no es un parámetro del contrato)
+- Cada uno de los 13 puntos de integración de la tabla invoca el endpoint con la clave de `catEstadoPedido` correcta al ocurrir su disparador
 - Al tramitar Prepago con FAA (T2), `PedidoEstadoActual.IdCatEstadoPedido` queda en `prepagoconfaa` y el pedido deja de aparecer en la bandeja de Tramitar Pedido (Criterio D3)
 - `FechaUltimaActualizacion` se actualiza en cada cambio de estatus
+- El backfill de T7 está ejecutado: un pedido preexistente (anterior a la liberación) también tiene registro en `PedidoEstadoActual`, y el endpoint lo actualiza sin error de "registro no encontrado"
 
 ### Más información de la tarea
 - Diccionario de datos y diseño de `PedidoEstadoActual`: `R16A-RE-FU-015_BD.md`
 - Flujo completo y paso 3i: `R16A-RE-FU-015-Back.md`, sección "Flujo Back Completo"
+- Fuente de cada punto de integración (módulo, BO, disparador): `Analisis/Estados de Pedidos/catEstadoPedido — Estados Propuestos.md`, sección 2 ("Fuente de la propuesta") y sección 3 ("Estados propuestos")
+- Regla de mapeo y script del backfill: `R16A-RE-FU-015_BD.md`, sección "Migración de los estados de los pedidos actuales"
 
 ### Recursos
 - `Analisis/Estados de Pedidos/catEstadoPedido — Estados Propuestos.md`
@@ -325,6 +356,7 @@ Al tramitar un pedido Prepago con FAA, `PedidoEstadoActual.IdCatEstadoPedido` qu
 - `R16A-RE-FU-015-Back.md`
 
 ---
+
 
 
 ## T9 — [ R16A-RE-FU-015 ] [ALG-BASIC-LOGIC] Validar flujo Venta Digital al tramitar pedido Prepago con FAA
