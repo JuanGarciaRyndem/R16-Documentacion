@@ -188,3 +188,11 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 - El flujo de envío del correo de proforma requiere dos pasos secuenciales en la UI: primero previsualizar y aceptar el PDF; después confirmar los datos de envío del correo.
 - El pendiente del pedido en la bandeja del módulo Tramitar Pedido se cierra automáticamente al completarse la acción de tramitar. La consulta del pedido tramitado sigue disponible desde módulos de consulta. Esta mecánica evita que el ESAC vea pedidos ya gestionados en su bandeja de pendientes.
 - Los campos de información fiscal del módulo están actualmente configurados conforme a las normas fiscales de México. Para pedidos peruanos se espera capacitación al equipo operativo para clarificar el manejo de estos campos en contexto peruano.
+
+---
+
+## Cambios
+
+| # | Fecha | Observación | Descripción del cambio |
+|---|-------|-------------|-------------------------|
+| 1 | 2026-09-04 | Verificación contra matriz | Se comparó este documento contra un nuevo extracto de la matriz de requisitos: el contenido ya coincide (incluye Regla 14 / Criterio A5 de panel regionalizado y la resolución de DUDA-030). La matriz traía reabierta la pregunta de DUDA-030 bajo el Criterio C2 y la de estatus del pedido bajo el Criterio D5; se conservó el cierre ya registrado el 2026-08-21 para DUDA-030 en vez de reabrirlo, y la pregunta de estatus del pedido sigue abierta en ambas versiones (sin cambio). |

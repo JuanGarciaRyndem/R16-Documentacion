@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+      <head>
+        <title>Modificación de pedido - Correo OC Temporal</title>
+        <meta charset="utf-8" />
+				<meta name="viewport" content="width=device-width, initial-scale=1" />
+            <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+              <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+              <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+              <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+            </head>
+      <body>
+
+        <!-- Bootstrap Static Header -->
+        <!-- <div style="background: url(https://i.postimg.cc/3N7wnb75/background.jpg)" class="jumbotron bg-cover text-white"> -->
+        <!-- <div class="container py-5 text-center"> -->
+        <!-- <h1 class="display-4 font-weight-bold">Bootstrap static header</h1> -->
+        <!-- <p class="font-italic mb-0">Using simple jumbotron-style component, create a nice Bootstrap 4 header with a background image.</p> -->
+        <!-- <p class="font-italic">Snippe by -->
+        <!-- <a href="https://bootstrapious.com" class="text-white"> -->
+        <!-- <u>Bootstrapious</u> -->
+        <!-- </a> -->
+        <!-- </p> -->
+        <!-- <a href="#" role="button" class="btn btn-primary px-5">See All Features</a> -->
+        <!-- </div> -->
+        <!-- </div> -->
+
+        <header style="background-image: url('http://www.proquifa.com.mx/templates/pqw/images/texturaBackground.jpg');padding: 0;">
+          <ul style="list-style-type: none;  margin: 0;  padding: 0;  overflow: hidden;">
+            <li style="float: left;display: block;">
+              <img src="http://www.proquifa.com.mx/images/logo_proquifa.svg" alt="proquifa" width="137" height="160" style="display: block;font-family: Arial;color: #000000;font-size: 14px;" border="0" />
+            </li>
+            <li style="float: right;display: block;color: #fff;font-size: 13px;padding: 58;">
+              <p>
+                <strong>Autrización - </strong>
+                <!-- <xsl:value-of select="CorreoCotizacion/ProcesoTramite"/> -->
+              </p>
+            </li>
+          </ul>
+        </header>
+
+        <div class="container-fluid">
+          <h1 style="color:#008894">¡Estimado {{Contacto}}!</h1>
+			<h2 style="color:#008894">
+				No cuenta con una orden de compra.
+			</h2>
+          <p style="font-size:28px">
+            Por medio de este correo electrónico le hacemos llegar la <span style="font-weight:bold">Orde de Compra #{{OrdenDeCompra}},</span> solicitamos su autorización
+			para dar continuidad a su pedido.
+          </p>
+
+          <div class="container-fluid">
+            <!--<br/>-->
+
+              <div class="row">
+                <div class="col-sm-12" style="background-color:#f2f9fa;font-weight:bold;font-size:22px;padding:20px">Datos del Cliente</div>
+              </div>
+
+              <div class="row" style="font-weight:bold;font-size:16px">
+                <div class="col-sm-6">Razón Social</div>
+                <div class="col-sm-6 text-right" style="">Condiciones de Pago</div>
+              </div>
+
+              <!-- Or let Bootstrap automatically handle the layout -->
+              <div class="row" style="font-size:16px;">
+                <div class="col-sm-6" style="color:#008894;">
+                  {{RazonSocial}}
+                </div>
+                <div class="col-sm-6 text-right" style="">{{CondicionesDePago}}</div>
+              </div>
+
+                <div class="row" style="font-size:16px">
+                  <div class="col-sm-12">RFC: {{RFC}} · C.P. Facturación: {{CPFacturacion}}</div> 
+                </div>
+
+			 
+        <br />
+
+          <div class="row">
+            <div class="col-sm-12" style="background-color:#f2f9fa;font-weight:bold;font-size:22px;padding:20px">
+              {{NumeroPartidas}} Partidas · Total: <span style="color:#4ba92b">{{ValorTotal}} {{Moneda}}</span>
+            </div>
+          </div>
+
+          <table class="table">
+            <tbody>
+              
+              <!-- se repite por cada elemento de: CorreoModPedidoOCTemporal/PartidasConInconsistencias/ppPartidaPedidoModel -->
+              <tr>
+                <td>
+                  <span>#{{Numero}} · </span>
+                  <span style="color:#008894;font-weight:bold">{{NombreMarca}} · {{Catalogo}} · </span>
+                  <span style="font-weight:bold">{{Descripcion}}</span>
+                <br />
+        <span>TEE {{TEE}} · {{NumeroDePiezas}} Piezas · P.U {{PrecioUnitario}} {{Moneda}} · Subtotal {{SubTotal}} {{Moneda}} · IVA {{IVA}} {{Moneda}} </span>
+        <span style="color:#008894">· Total {{Total}} {{Moneda}}</span>
+        </td>
+        </tr>
+              
+              <tr>
+                <td>
+                  <span>#{{Numero}} · </span>
+                  <span style="color:#008894;font-weight:bold">{{NombreMarca}} · {{Catalogo}} · </span>
+                  <span style="font-weight:bold">{{Descripcion}}</span>
+                <br />
+        <span>TEE {{TEE}} · {{NumeroDePiezas}} Piezas · P.U {{PrecioUnitario}} {{Moneda}} · Subtotal {{SubTotal}} {{Moneda}} · IVA {{IVA}} {{Moneda}} </span>
+        <span style="color:#008894">· Total {{Total}} {{Moneda}}</span>
+        </td>
+        </tr>
+              
+        </tbody>
+        </table>
+        <!-- <table style="width:50%; border: red 5px solid" class="table" align="right"> -->
+        <table style="width:50%" class="table table-borderless" align="right">
+          <tbody>
+            <tr>
+              <td style=""></td>
+              <td style=""></td>
+              <td style=""></td>
+              <td style=""></td>
+              <td style=""></td>
+              <td style=""></td>
+              <td style=""></td>
+              <td style=""></td>
+              <td style=""></td>
+              <td class="text-right">Subtotal:</td>
+              <td class="text-right" style="color:#008894">{{Subtotal}} {{Moneda}}</td>
+            </tr>
+            <tr>
+              <td style=""></td>
+              <td style=""></td>
+              <td style=""></td>
+              <td style=""></td>
+              <td style=""></td>
+              <td style=""></td>
+              <td style=""></td>
+              <td style=""></td>
+              <td style=""></td>
+              <td class="text-right">Iva:</td>
+              <td class="text-right" style="color:#008894">{{Iva}} {{Moneda}}</td>
+            </tr>
+            <tr style="font-weight:bold">
+              <td style=""></td>
+              <td style=""></td>
+              <td style=""></td>
+              <td style=""></td>
+              <td style=""></td>
+              <td style=""></td>
+              <td style=""></td>
+              <td style=""></td>
+              <td style=""></td>
+              <td class="text-right">Total:</td>
+              <td class="text-right" style="color:#4ba92b">{{ValorTotal}} {{Moneda}}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        </div>
+
+        <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+			
+			<div class="row">
+            <div class="col-sm-4"></div>
+            <div class="col-sm-4" style="background-color:#f2f9fa;font-weight:bold;font-size:22px;padding:20px; text-align: center">
+              <div class="form-check" style="background-color:#008894">
+                <input class="form-check-input" type="checkbox" value="" id="flexCheckChecked" checked="" />
+                  <label class="form-check-label" for="flexCheckChecked">
+                    Acepto
+                  </label>
+                </div>
+              <div style="font-size:10px;">
+                Al aceptar, usted está autorizando que proquifa utilice este correo como
+                documento de amparo para realizar su pedido solicitado
+              </div>
+            </div>
+            <div class="col-sm-4"></div>
+          </div>
+
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+
+        <div class="row" style="text-align: center; color:#9699a0">
+          <div class="col-sm-12" style="">
+            <span style="font-weight:bold">© PROQUIFA.</span> Todos los derechos reservados.
+          </div>
+          <br />
+          <div class="col-sm-12" style="">
+            Número único nacional sin costo: 01 (55) 1315 1498 · <u>Aviso de Privacidad</u>
+          </div>
+          <br />
+          <br />
+          <div class="col-sm-12" style="font-size:14px; width: 50%">Este correo electrónico y/o el material anexo son para uso exclusivo de la persona o entidad a la que expresamente se le ha enviado y puede contener información conﬁdencial y/o material privilegiado. Si usted no es el destinatario legítimo del mismo, deberá notiﬁcar inmediatamente al remitente del correo y borrar este mensaje y sus anexos en su totalidad permanentemente de su sistema. Cualquier revisión, retransmisión, difusión o cualquier otro uso de este correo, por personas o entidades distintas a las del destinatario legítimo, queda expresamente prohibido. Este correo electrónico no pretende ni debe ser considerado como constructivo de ninguna relación legal, contractual o de otra índole similar.</div>
+        </div>
+
+        </div>
+
+
+
+
+      </body>
+    </html>

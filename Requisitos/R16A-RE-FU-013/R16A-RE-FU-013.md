@@ -194,3 +194,11 @@ El manejo de Sustancias Controladas para Región Perú no está contemplado en e
 - Los campos de información fiscal del módulo están actualmente configurados conforme a las normas fiscales de México. Para pedidos peruanos se espera capacitación al equipo operativo para clarificar el manejo de estos campos en contexto peruano.
 - Aplicable a las operaciones de México y Perú. Las diferencias regionales (transferencia a Legacy, foliador del pedido) se materializan en módulos posteriores al de Tramitar Pedido.
 - **Trazabilidad (2026-08-21):** DUDA-027 confirma que el avance de un controlado de Perú hacia facturación no tiene bloqueo técnico y se asume como riesgo operativo comunicado al cliente (Riesgo 3). DUDA-029 confirma que la exclusión de Factura por Adelantado con controlados aplica igual para México y Perú, con control operativo y no por código (Regla 1, Alcance). DUDA-030 resuelve que el folio de proforma se conserva y reintenta con el mismo folio hasta el envío exitoso, sin descartarlo (Regla 12, Criterio C2bis).
+
+---
+
+## Cambios
+
+| # | Fecha | Observación | Descripción del cambio |
+|---|-------|-------------|-------------------------|
+| 1 | 2026-09-04 | Verificación contra matriz | Se comparó este documento contra un nuevo extracto de la matriz de requisitos. El extracto corresponde a una versión más antigua que no refleja las resoluciones ya cerradas aquí (DUDA-027, DUDA-029, DUDA-030, Duda 061; Regla 12; Criterio C2bis); no se aplicaron esos cambios para no reabrir preguntas ya resueltas. Diferencias menores de redacción del extracto, sin impacto en el contenido, no se incorporaron. |

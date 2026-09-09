@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="es">
+			<head>
+				<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+				<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+				<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+				<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+			</head>
+			<!--<body style="font-family: roboto;">-->
+			<body>
+				
+
+				<header style=" height: 100px; background-image: linear-gradient(to right, #203849 1%, #0c151b 96%); background-size: cover;">
+					<ul style="list-style-type: none;  margin: 0;  padding: 0;  overflow: hidden;">
+						<li style="float: left;display: block; padding: 1% 0; margin-left: 5px; ">
+							<a title="Proquifa" href="http://www.proquifa.com.mx/index.php/es/">
+								<img src="https://i.imgur.com/Tl1hYlA.png" alt="proquifa" width="255" height="52" aspect-ratio="auto 255 / 52" />
+							</a>
+						</li>
+						<li style="float: right;display: block;color: #fff;font-size: 14px;padding: 2% 0; margin-right: 2%; ">
+							<p>
+								<strong>Autorización · </strong>
+								{{procesoTramite}}
+							</p>
+						</li>
+					</ul>
+				</header>
+				
+
+				<div class="container-fluid">
+					<section style="margin: 8%;">
+						<h1 style="color: #008894;">
+							¡Hola
+							<strong>
+								{{usuarioAutoriza}}
+							</strong>
+							!
+						</h1>
+						<p style="font-size:28px">
+							<strong style="">
+								{{usuarioESAC}}
+							</strong> a solicitado un código de autorización
+						</p>
+					</section>
+
+
+					<section style="background-color: #f2f9fa; color: #000; font-size: 26px; text-align: center;padding:25px;">
+						<p>
+							Tu Código es:
+							<strong style="color: #008894;">
+								{{codigoAleatorio}}
+							</strong>
+						</p>
+						<p style="font-size: 12px;color: #008894;">Este código permanecerá activo durante 24 Hrs.</p>
+					</section>
+
+
+					<section style="margin: 8%;">
+						<!--<section>-->
+						<article style="font-size:20px">
+							{{motivoDeCodgioAutorizacion}}
+							·
+							<strong style="color: #008894;">
+								{{nombreCliente}}
+							</strong>
+							·
+							<strong>
+								Pedido
+							</strong>
+							·
+							<strong>
+								{{numeroOrdenDeCompra}}
+							</strong>
+						</article>
+
+						<div class="row">
+							<div class="col-sm-12" style="background-color:#0088943f;font-weight:bold;font-size:20px;padding:18px">
+								{{descripcionEncabezado}}
+								<span style="color:#EE0A0A; font-weight:bold;">
+									{{totalPartidasPedido}}
+								</span>
+							</div>
+						</div>
+
+						<table class="table">
+							<tbody style="border-bottom: 1px solid #000000">
+								<!-- se repite por cada elemento de: CorreoTPedidoConSinCreditoMoroso/datosModificados/DatosModificados -->
+									<tr>
+										<td width="90%">
+											<span>
+												<strong>
+													{{datoModificado}}
+												</strong>
+											</span>
+											<br />
+											<span>
+												{{valDatoModificado}}
+											</span>
+										</td>
+									</tr>
+								
+									<tr>
+										<td width="90%">
+											<span>
+												<strong>
+													{{datoModificado}}
+												</strong>
+											</span>
+											<br />
+											<span>
+												{{valDatoModificado}}
+											</span>
+										</td>
+									</tr>
+								
+							</tbody>
+						</table>
+						<table class="table">
+							<tbody style="border-bottom: 1px solid #399B08">
+								
+								<!-- se repite por cada elemento de: CorreoTPedidoConSinCreditoMoroso/listaTPPartidaOCModel/tpPartidaOCModel -->
+									<tr>
+										<td>
+											<span>
+												#{{Numero}} ·
+											</span>
+											<span style="color:#008894;font-weight:bold">
+												{{NombreMarca}} · {{Catalogo}} ·
+											</span>
+											<span style="font-weight:bold">
+												{{Descripcion}}
+											</span>
+											<br />
+											<span style="color:#008894">
+												TEE {{TEE}}
+											</span>
+											<span>
+												· {{NumeroDePiezas}} Piezas
+											</span>
+											<span style="color:#008894">
+												· P.U. {{PrecioUnitario}} {{DivisaMoneda}}
+											</span>
+											<span>
+												· Subtotal {{SubTotal}} {{DivisaMoneda}}
+											</span>
+											<span style="color:#008894">
+												· IVA {{IVA}} {{DivisaMoneda}}
+											</span>
+											<span style="color:#008894">
+												· Total {{Total}} {{DivisaMoneda}}
+											</span>
+											<!--Estados de la Partida-->
+											
+												<span style="color:#0E98D5;font-weight:bold;">
+													· {{estadoPartidaTramitacion}}
+												</span>
+											
+											
+												<span style="color:#7906CD;font-weight:bold;">
+													· {{estadoPartidaTramitacion}}
+												</span>
+											
+											
+												<span style="color:#CD8B06;font-weight:bold;">
+													· {{estadoPartidaTramitacion}}
+												</span>
+											
+											
+												<span style="color:#027712;font-weight:bold;">
+													· {{estadoPartidaTramitacion}}
+												</span>
+											
+											
+												<span style="color:#008894;font-weight:bold;">
+													· {{estadoPartidaTramitacion}}
+												</span>
+											
+											
+												<span style="color:#1DC309;font-weight:bold;">
+													· {{estadoPartidaTramitacion}}
+												</span>
+											
+											<!--Estados de la Partida-->
+										</td>
+									</tr>
+								
+									<tr>
+										<td>
+											<span>
+												#{{Numero}} ·
+											</span>
+											<span style="color:#008894;font-weight:bold">
+												{{NombreMarca}} · {{Catalogo}} ·
+											</span>
+											<span style="font-weight:bold">
+												{{Descripcion}}
+											</span>
+											<br />
+											<span style="color:#008894">
+												TEE {{TEE}}
+											</span>
+											<span>
+												· {{NumeroDePiezas}} Piezas
+											</span>
+											<span style="color:#008894">
+												· P.U. {{PrecioUnitario}} {{DivisaMoneda}}
+											</span>
+											<span>
+												· Subtotal {{SubTotal}} {{DivisaMoneda}}
+											</span>
+											<span style="color:#008894">
+												· IVA {{IVA}} {{DivisaMoneda}}
+											</span>
+											<span style="color:#008894">
+												· Total {{Total}} {{DivisaMoneda}}
+											</span>
+											<!--Estados de la Partida-->
+											
+												<span style="color:#0E98D5;font-weight:bold;">
+													· {{estadoPartidaTramitacion}}
+												</span>
+											
+											
+												<span style="color:#7906CD;font-weight:bold;">
+													· {{estadoPartidaTramitacion}}
+												</span>
+											
+											
+												<span style="color:#CD8B06;font-weight:bold;">
+													· {{estadoPartidaTramitacion}}
+												</span>
+											
+											
+												<span style="color:#027712;font-weight:bold;">
+													· {{estadoPartidaTramitacion}}
+												</span>
+											
+											
+												<span style="color:#008894;font-weight:bold;">
+													· {{estadoPartidaTramitacion}}
+												</span>
+											
+											
+												<span style="color:#1DC309;font-weight:bold;">
+													· {{estadoPartidaTramitacion}}
+												</span>
+											
+											<!--Estados de la Partida-->
+										</td>
+									</tr>
+								
+							</tbody>
+						</table>
+					</section>
+				</div>
+				<footer style="padding: 0 10%; font-size: 10px;text-align: center; ">
+					<div style=" border-top: 1px solid #FFFFFF;  height: 2px;  padding: 0;  margin: 20px auto 0 auto;"></div>
+					<p style="color: #87858A;">
+						©<span style="font-weight:bold;  ">PROQUIFA.</span>Todos los derechos reservados.
+					</p>
+					<div>
+						<p style="color: #87858A;">
+							Número único nacional sin costo: 01 (55) 1315 1498 · <a href="http://www.proquifa.com.mx/aviso_privacidad.html" style="color: #87858A; text-decoration: underline;">Aviso de Privacidad</a>
+						</p>
+					</div>
+
+					<p style="font-size: 7px;font-weight: normal;font-stretch: normal;font-style: italic;line-height: 1.14;letter-spacing: 0.2px;text-align: justify;color: #87858A;">
+						Este correo electrónico y/o el material anexo son para uso exclusivo de la persona o entidad a la que expresamente se le ha enviado y puede contener información confidencial y/o material privilegiado. Si usted no es el destinatario legítimo del mismo, deberá notificar inmediatamente al remitente del correo y borrar este mensaje y sus anexos en su totalidad permanentemente de su sistema. Cualquier revisión, retransmisión, difusión o cualquier otro uso de este correo, por personas o entidades distintas a las del destinatario legítimo, queda expresamente prohibido. Este correo electrónico no pretende ni debe ser considerado como constructivo de ninguna relación legal, contractual o de otra índole similar.
+					</p>
+
+					<div style="display: flex; justify-content: center;">
+						<a title="Proquifa" href="http://www.ryndem.mx/">
+							<img src="https://i.imgur.com/j5IRCCX.png" alt="Ryndem" style="display: block;font-family: Arial;color: #000000;font-size: 14px;  height: 30px; width:auto" border="0" />
+						</a>
+					</div>
+
+				</footer>
+
+			</body>
+		</html>

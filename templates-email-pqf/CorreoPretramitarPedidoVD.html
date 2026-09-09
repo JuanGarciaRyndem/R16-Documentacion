@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+			<head>
+				<title>Correo de pedido tramitado para el cliente. </title>
+				<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+				<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+				<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+				<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+				<style>
+					header {
+					height: 100px;
+					background-image: linear-gradient(to right, #203849 1%, #0c151b 96%);
+					background-size: cover;
+					}
+					header ul {
+					list-style-type: none;
+					margin: 0;
+					padding: 0;
+					overflow: hidden;
+					}
+					header ul li {
+					float: left;
+					display: block;
+					padding: 1% 0;
+					margin-left: 5px;
+					}
+					header ul li:last-child {
+					float: right;
+					color: #fff;
+					font-size: 14px;
+					padding: 2% 0;
+					margin-right: 2%;
+					}
+					section {
+					margin: 3% 8% 0 8%;
+					}
+					section h1 {
+					color: #008894;
+					font-size: 28px;
+					}
+					section p {
+					color: #424242;
+					font-size: 19px;
+					text-align: justify;
+					}
+					section .details {
+					background-color: #E5E5E5;
+					width: 100%;
+					padding: 20px;
+					box-sizing: border-box;
+					}
+					footer {
+					padding: 0 10%;
+					font-size: 10px;
+					text-align: center;
+					width: 100%;
+					}
+					footer .separator {
+					border-top: 1px solid #FFFFFF;
+					height: 2px;
+					padding: 0;
+					margin: 20px auto 0 auto;
+					}
+					footer p {
+					color: #87858A;
+					}
+					footer p.italic {
+					font-size: 7px;
+					font-weight: normal;
+					font-stretch: normal;
+					font-style: italic;
+					line-height: 1.14;
+					letter-spacing: 0.2px;
+					text-align: justify;
+					}
+					footer .logo {
+					display: block;
+					font-family: Arial;
+					color: #000000;
+					font-size: 14px;
+					height: 30px;
+					width: auto;
+					border: 0;
+					}
+					.center {
+					display: flex;
+					justify-content: center;
+					}
+				</style>
+			</head>
+			<body>
+				<header>
+					<ul>
+						<li>
+							<a title="Proquifa" href="http://www.proquifa.com.mx/index.php/es/">
+								<img src="https://i.imgur.com/Tl1hYlA.png" alt="proquifa" width="255" height="52" aspect-ratio="auto 255 / 52" />
+							</a>
+						</li>
+						<li>
+							<p>
+								<strong>Pedido</strong>
+							</p>
+						</li>
+					</ul>
+				</header>
+				<div class="container-fluid">
+					<section>
+						<h1>
+							Pedido en Proceso
+							{{FolioOC}}
+						</h1>
+						<p>
+							Nos complace informarte que hemos recibido tu pedido y está siendo procesado en este momento. Dentro de las próximas 24 horas recibirás una confirmación.
+						</p>
+						<br />
+						<p>
+							A continuación, encontrará los detalles de su pedido:
+						</p>
+						<div class="details">
+							<ul>
+								<li>
+									Folio de Pedido:  
+									{{FolioOC}}
+								</li>
+								<li>
+									Cantidad de Partidas:  
+									{{NumeroPartidas}}
+								</li>
+								<li>
+									Fecha de Creacion:  
+									{{FechaCreacion}}
+								</li>
+								<br />
+								<li>
+									<strong>
+										Monto Total:  
+										{{MontoTotal}}
+										{{Moneda}}
+									</strong>
+								</li>
+							</ul>
+						</div>
+						<br />
+						<p>
+							¡Gracias por tu paciencia!
+							<br /><br />
+							Atentamente, <br />
+							<strong>Equipo de PROQUIFA</strong>
+						</p>
+						<br />
+						<br />
+					</section>
+				</div>
+				<footer>
+					<div class="separator"></div>
+					<p>
+						©<span style="font-weight:bold;">PROQUIFA.</span>Todos los derechos reservados.
+					</p>
+					<div>
+						<p>
+							Número único nacional sin costo: 01 (55) 1315 1498 · <a href="http://www.proquifa.com.mx/aviso_privacidad.html" style="color: #87858A; text-decoration: underline;">Aviso de Privacidad</a>
+						</p>
+					</div>
+					<p class="italic">
+						Este correo electrónico y/o el material anexo son para uso exclusivo de la persona o entidad a la que expresamente se le ha enviado y puede contener información confidencial y/o material privilegiado. Si usted no es el destinatario legítimo del mismo, deberá notificar inmediatamente al remitente del correo y borrar este mensaje y sus anexos en su totalidad permanentemente de su sistema. Cualquier revisión, retransmisión, difusión o cualquier otro uso de este correo, por personas o entidades distintas a las del destinatario legítimo, queda expresamente prohibido. Este correo electrónico no pretende ni debe ser considerado como constructivo de ninguna relación legal, contractual o de otra índole similar.
+					</p>
+					<div class="center">
+						<a title="Proquifa" href="http://www.ryndem.mx/">
+							<img src="https://i.imgur.com/j5IRCCX.png" alt="Ryndem" class="logo" />
+						</a>
+					</div>
+				</footer>
+			</body>
+		</html>

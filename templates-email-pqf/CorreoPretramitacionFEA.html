@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="es">
+			<head>
+				<title>Correo Solicitar FEA</title>
+				<meta charset="utf-8" />
+				<meta name="viewport" content="width=device-width, initial-scale=1" />
+				<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+				<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+				<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+				<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+			</head>
+			<body>
+				<table style="             width: 100%;             background-color: #003658;             padding: 21px 80px;             border-collapse: collapse;           ">
+					<tr>
+						<td style="padding: 21px 0px; text-align: left">
+							<img src="https://i.imgur.com/Tl1hYlA.png" alt="proquifa" height="33" style="display: block; padding-left: 80px" />
+						</td>
+						<td style="padding: 21px 0; text-align: right; color: #ffffff">
+							<p style="                   margin: 0;                   font-size: 18px;                   line-height: 33px;                   padding-right: 80px;                 ">
+								OC con Ajustes
+							</p>
+						</td>
+					</tr>
+				</table>
+				<div style="padding: 30px 0px; margin: 0 80px">
+					<table style="width: 100%; padding: 21px 80px; border-collapse: collapse">
+						<tr>
+							<td style="padding: 0; text-align: left">
+								<p style="                     color: #008894;                     font-weight: 700;                     font-size: 26px;                     line-height: 30px;                     margin: 0;                     padding-bottom: 15px;                   ">
+									¡Estimado
+									{{Contacto}}!
+								</p>
+								<div style="                     font-size: 16px;                     line-height: 25px;                     text-align: justify;                   ">
+									<span style="font-size: 16px; line-height: 25px; font-weight: 400">
+										Por medio de este correo le hacemos llegar las
+										siguientes
+									</span>
+									<span style="font-size: 16px; line-height: 25px; font-weight: 700">
+										inconsistencias y/o cancelaciones
+									</span>
+									<span style="font-size: 16px; line-height: 25px; font-weight: 400">
+										identificadas en su
+									</span>
+									<span style="font-size: 16px; line-height: 25px; font-weight: 700">
+										Orden de Compra #{{OrdenDeCompra}}
+									</span>
+									<span style="font-size: 16px; line-height: 25px; font-weight: 400">
+										, solicitamos, nos envíe a la brevedad vía email, su orden
+										con los ajustes realizados.
+									</span>
+								</div>
+							</td>
+						</tr>
+					</table>
+				</div>
+
+
+				<div style="             background: #f2f9fa; /* #F2F9FA */             font-size: 17px;             line-height: 20px;             letter-spacing: 0.14px;             font-weight: 700;             padding: 16px 80px;           ">
+					Datos del cliente
+				</div>
+
+
+				<div style="padding: 24px 80px 16px">
+					<table class="contentTwo" style="width: 100%; padding: 21px 80px; border-collapse: collapse">
+						<tr class="info" style="                 display: flex;                 justify-content: space-between;                 align-items: center;               ">
+							<!-- Columna Contacto -->
+							<td class="contact" style="                   text-align: start;                   display: flex;                   flex-direction: column;                   row-gap: 4px;                 ">
+								<div class="title" style="                     font-size: 16px;                     line-height: 14px;                     font-weight: 700;                     letter-spacing: 0.14px;                     margin: 4px 0px;                   ">
+									Contacto
+								</div>
+								<div>
+									<span class="nameContact" style="                       font-size: 16px;                       line-height: 14px;                       font-weight: 400;                       letter-spacing: 0.14px;                       color: #008894;                     ">
+										{{Contacto}} ·
+									</span>
+									<span class="email" style="                       font-size: 16px;                       line-height: 14px;                       font-weight: 400;                       letter-spacing: 0.14px;                       color: #1868e5;                     ">
+										{{CorreoContacto}}
+									</span>
+								</div>
+							</td>
+
+
+							<!-- Columna Fecha -->
+							<td class="date" style="                   text-align: end;                   display: flex;                   flex-direction: column;                   row-gap: 4px;                   min-width: max-content;                 ">
+								<div class="title" style="                     font-size: 16px;                     line-height: 14px;                     font-weight: 700;                     letter-spacing: 0.14px;                     margin: 4px 0px;                   ">
+									Fecha estimada de ajuste
+								</div>
+								<div class="value" style="                     font-size: 16px;                     line-height: 14px;                     font-weight: 400;                     letter-spacing: 0.14px;                     color: #008894;                   ">
+									{{FechaEstimadaAjuste}}
+								</div>
+							</td>
+						</tr>
+					</table>
+				</div>
+
+
+				<div style="padding-top: 20px; margin: 0px 80px">
+					<div style="font-size: 12px; line-height: 14px; font-weight: 700">
+						Observaciones:
+					</div>
+					<div style="font-size: 16x; line-height: 25px; font-weight: 400">
+						{{ObservacionesFEA}}
+					</div>
+				</div>
+
+
+				<div style="             max-height: 36px;             padding-top: 16px;             background: #f2f9fa; /* #F2F9FA */             padding: 16px;             margin: 16px 80px;             display: flex;             align-items: center;             justify-content: start;             column-gap: 4px;           ">
+					<span style="font-size: 17px; line-height: 20px; font-weight: 700">
+						{{NumeroPartidas}}
+					</span>
+					<span style="font-size: 17px; line-height: 20px; font-weight: 700">Partida • Total:</span>
+					<span style="               font-size: 17px;               line-height: 20px;               font-weight: 700;               color: #4ba92b; /* #4BA92B */             ">
+						<span class="quantity">
+							{{ValorTotal}}
+							 
+						</span>
+					</span>
+					<span style="               font-size: 17px;               line-height: 20px;               font-weight: 700;               color: #4ba92b; /* #4BA92B */             ">
+						{{Moneda}}
+					</span>
+				</div>
+				
+					<div style="               font-size: 16px;               line-height: 20px;               font-weight: 700;               padding-bottom: 10px;               padding-top: 10px;               margin: 0 80px;             ">
+						Partidas Canceladas:
+					</div>
+					<!-- se repite por cada elemento de: CorreoPretramitacionFEA/ListaPartidasCanceladas/ppPartidaActivaValidada -->
+						<div style="                 padding: 8px 24px;                 background-color: #f6eaf0;                 margin: 8px 80px 0px 80px;               ">
+							<table style="                   width: 100%;                   border-collapse: collapse;                   background-color: #f6eaf0;                 ">
+								<tr style="text-align: left">
+									<td style="                       font-size: 12px;                       line-height: 14.06px;                       font-weight: 700;                     ">
+										<span class="number black-text">
+											#{{NumPartida}}
+										</span>
+										<span class="img">
+											{{NombreMarca}}
+										</span>
+										<span class="cat green-text" style="color: #008894">
+											CAT. {{Catalogo}} ·
+											{{TipoPresentacion}}
+											 {{Presentacion}} {{Unidad}}
+										</span>
+									</td>
+								</tr>
+								<tr>
+									<td colspan="1" style="                       font-size: 12px;                       line-height: 14.06px;                       font-weight: 400;                     ">
+										{{Descripcion}}
+									</td>
+								</tr>
+								<tr>
+									<td colspan="1" style="                       font-size: 12px;                       line-height: 14.06px;                       font-weight: 400;                     ">
+										<span class="tee">
+											TEE {{TEE}} •
+										</span>
+										<span class="tee">
+											{{NumeroDePiezas}}
+											Piezas •
+										</span>
+										<span class="unitPrice">
+											Precio Unitario
+											{{PrecioUnitario}}
+
+											
+											 {{moneda}} •
+										</span>
+										<span class="subtotal">
+											Subtotal {{Subtotal}}
+                      {{moneda}} •
+										</span>
+										<span class="iva">
+											IVA
+											{{IVA}}
+											
+                      {{moneda}} •
+										</span>
+									</td>
+								</tr>
+								<tr>
+									<td style="                       font-size: 11px;                       line-height: 13.06px;                       color: #008894;                     ">
+										Total
+										<span class="quantity">
+											{{Total}}
+											 
+										</span>
+										<span class="currency">
+											{{moneda}}
+										</span>
+									</td>
+								</tr>
+								<tr>
+									<td colspan="1" style="                       font-size: 11px;                       line-height: 13.06px;                       text-align: justify;                       color: #be2016;                     ">
+										Partida Cancelada
+									</td>
+								</tr>
+								
+									<tr>
+										<td colspan="1" style="                         font-size: 11px;                         line-height: 13.06px;                         text-align: justify;                         color: #be2016;                       ">
+											Inconsistencia en:
+											{{Inconsistencias}}
+										</td>
+									</tr>
+									<tr>
+										<td colspan="1" style="                         font-size: 11px;                         line-height: 13.06px;                         text-align: justify;                         color: #be2016;                       ">
+											Comentarios: {{Comentarios}}
+										</td>
+									</tr>
+								
+							</table>
+						</div>
+					
+						<div style="                 padding: 8px 24px;                 background-color: #f6eaf0;                 margin: 8px 80px 0px 80px;               ">
+							<table style="                   width: 100%;                   border-collapse: collapse;                   background-color: #f6eaf0;                 ">
+								<tr style="text-align: left">
+									<td style="                       font-size: 12px;                       line-height: 14.06px;                       font-weight: 700;                     ">
+										<span class="number black-text">
+											#{{NumPartida}}
+										</span>
+										<span class="img">
+											{{NombreMarca}}
+										</span>
+										<span class="cat green-text" style="color: #008894">
+											CAT. {{Catalogo}} ·
+											{{TipoPresentacion}}
+											 {{Presentacion}} {{Unidad}}
+										</span>
+									</td>
+								</tr>
+								<tr>
+									<td colspan="1" style="                       font-size: 12px;                       line-height: 14.06px;                       font-weight: 400;                     ">
+										{{Descripcion}}
+									</td>
+								</tr>
+								<tr>
+									<td colspan="1" style="                       font-size: 12px;                       line-height: 14.06px;                       font-weight: 400;                     ">
+										<span class="tee">
+											TEE {{TEE}} •
+										</span>
+										<span class="tee">
+											{{NumeroDePiezas}}
+											Piezas •
+										</span>
+										<span class="unitPrice">
+											Precio Unitario
+											{{PrecioUnitario}}
+
+											
+											 {{moneda}} •
+										</span>
+										<span class="subtotal">
+											Subtotal {{Subtotal}}
+                      {{moneda}} •
+										</span>
+										<span class="iva">
+											IVA
+											{{IVA}}
+											
+                      {{moneda}} •
+										</span>
+									</td>
+								</tr>
+								<tr>
+									<td style="                       font-size: 11px;                       line-height: 13.06px;                       color: #008894;                     ">
+										Total
+										<span class="quantity">
+											{{Total}}
+											 
+										</span>
+										<span class="currency">
+											{{moneda}}
+										</span>
+									</td>
+								</tr>
+								<tr>
+									<td colspan="1" style="                       font-size: 11px;                       line-height: 13.06px;                       text-align: justify;                       color: #be2016;                     ">
+										Partida Cancelada
+									</td>
+								</tr>
+								
+									<tr>
+										<td colspan="1" style="                         font-size: 11px;                         line-height: 13.06px;                         text-align: justify;                         color: #be2016;                       ">
+											Inconsistencia en:
+											{{Inconsistencias}}
+										</td>
+									</tr>
+									<tr>
+										<td colspan="1" style="                         font-size: 11px;                         line-height: 13.06px;                         text-align: justify;                         color: #be2016;                       ">
+											Comentarios: {{Comentarios}}
+										</td>
+									</tr>
+								
+							</table>
+						</div>
+					
+				
+				
+					<div style="               font-size: 16px;               line-height: 20px;               font-weight: 700;               padding-bottom: 10px;               padding-top: 10px;               margin: 0 80px;             ">
+						Partidas con Inconsistencias:
+					</div>
+					<!-- se repite por cada elemento de: CorreoPretramitacionFEA/ListaPartidasActivasValidadas/ppPartidaActivaValidada -->
+						<div style="                 padding: 8px 24px;                 background-color: #fcf3e6;                 margin: 8px 80px 0px 80px;               ">
+							<table style="                   width: 100%;                   border-collapse: collapse;                   background-color: #fcf3e6;                 ">
+								<tr style="text-align: left">
+									<td style="                       font-size: 12px;                       line-height: 14.06px;                       font-weight: 700;                     ">
+										<span class="number black-text">
+											#{{NumPartida}}
+										</span>
+										<span class="img">
+											{{NombreMarca}}
+										</span>
+										<span class="cat green-text" style="color: #008894">
+											CAT. {{Catalogo}} ·
+											{{TipoPresentacion}}
+											 {{Presentacion}} {{Unidad}}
+										</span>
+									</td>
+								</tr>
+								<tr>
+									<td colspan="1" style="                       font-size: 12px;                       line-height: 14.06px;                       font-weight: 400;                     ">
+										{{Descripcion}}
+									</td>
+								</tr>
+								<tr>
+									<td colspan="1" style="                       font-size: 12px;                       line-height: 14.06px;                       font-weight: 400;                     ">
+										<span class="tee">
+											{{NumeroDePiezas}}
+											Piezas •
+										</span>
+										<span class="unitPrice">
+											Precio Unitario
+											{{PrecioUnitario}}
+
+											
+											 {{moneda}} •
+										</span>
+										<span class="subtotal">
+											Subtotal {{Subtotal}}
+                      {{moneda}} •
+										</span>
+										<span class="iva">
+											IVA
+											{{IVA}}
+											
+                      {{moneda}} •
+										</span>
+									</td>
+								</tr>
+								<tr>
+									<td style="                       font-size: 11px;                       line-height: 13.06px;                       color: #008894;                     ">
+										Total
+										<span class="quantity">
+											{{Total}}
+											 
+										</span>
+										<span class="currency">
+											{{moneda}}
+										</span>
+									</td>
+								</tr>
+								<tr>
+									<td colspan="1" style="                       font-size: 11px;                       line-height: 13.06px;                       text-align: justify;                       color: #be2016;                     ">
+										Inconsistencia en: {{Inconsistencias}}
+									</td>
+								</tr>
+								<!--<tr>
+                  <td
+                    colspan="1"
+                    style="
+                      font-size: 11px;
+                      line-height: 13.06px;
+                      text-align: justify;
+                      color: #be2016;
+                    "
+                  >
+                    Comentarios: <xsl:value-of select="Comentarios" />
+                  </td>
+                </tr>-->
+							</table>
+						</div>
+					
+						<div style="                 padding: 8px 24px;                 background-color: #fcf3e6;                 margin: 8px 80px 0px 80px;               ">
+							<table style="                   width: 100%;                   border-collapse: collapse;                   background-color: #fcf3e6;                 ">
+								<tr style="text-align: left">
+									<td style="                       font-size: 12px;                       line-height: 14.06px;                       font-weight: 700;                     ">
+										<span class="number black-text">
+											#{{NumPartida}}
+										</span>
+										<span class="img">
+											{{NombreMarca}}
+										</span>
+										<span class="cat green-text" style="color: #008894">
+											CAT. {{Catalogo}} ·
+											{{TipoPresentacion}}
+											 {{Presentacion}} {{Unidad}}
+										</span>
+									</td>
+								</tr>
+								<tr>
+									<td colspan="1" style="                       font-size: 12px;                       line-height: 14.06px;                       font-weight: 400;                     ">
+										{{Descripcion}}
+									</td>
+								</tr>
+								<tr>
+									<td colspan="1" style="                       font-size: 12px;                       line-height: 14.06px;                       font-weight: 400;                     ">
+										<span class="tee">
+											{{NumeroDePiezas}}
+											Piezas •
+										</span>
+										<span class="unitPrice">
+											Precio Unitario
+											{{PrecioUnitario}}
+
+											
+											 {{moneda}} •
+										</span>
+										<span class="subtotal">
+											Subtotal {{Subtotal}}
+                      {{moneda}} •
+										</span>
+										<span class="iva">
+											IVA
+											{{IVA}}
+											
+                      {{moneda}} •
+										</span>
+									</td>
+								</tr>
+								<tr>
+									<td style="                       font-size: 11px;                       line-height: 13.06px;                       color: #008894;                     ">
+										Total
+										<span class="quantity">
+											{{Total}}
+											 
+										</span>
+										<span class="currency">
+											{{moneda}}
+										</span>
+									</td>
+								</tr>
+								<tr>
+									<td colspan="1" style="                       font-size: 11px;                       line-height: 13.06px;                       text-align: justify;                       color: #be2016;                     ">
+										Inconsistencia en: {{Inconsistencias}}
+									</td>
+								</tr>
+								<!--<tr>
+                  <td
+                    colspan="1"
+                    style="
+                      font-size: 11px;
+                      line-height: 13.06px;
+                      text-align: justify;
+                      color: #be2016;
+                    "
+                  >
+                    Comentarios: <xsl:value-of select="Comentarios" />
+                  </td>
+                </tr>-->
+							</table>
+						</div>
+					
+				
+
+
+				<div style="             display: flex;             align-items: center;             justify-content: flex-end;             margin: 16px 80px;           ">
+					<table align="right" cellpadding="0" cellspacing="0" role="presentation" style="width: auto; text-align: right; padding-top: 12px">
+						<tr>
+							<td style="                   font-size: 12px;                   line-height: 14px;                   letter-spacing: 0.14px;                 ">
+								<div style="margin: 4px 8px 4px 0px">Subtotal:</div>
+							</td>
+							<td style="                   font-size: 12px;                   line-height: 14px;                   letter-spacing: 0.14px;                   color: #008894;                 ">
+								<span class="quantity">
+									{{Subtotal}}
+									 
+								</span>
+								 
+								{{Moneda}}
+							</td>
+						</tr>
+						<tr>
+							<td style="                   font-size: 12px;                   line-height: 14px;                   letter-spacing: 0.14px;                 ">
+								<div style="margin: 4px 8px 4px 0px">Iva:</div>
+							</td>
+							<td style="                   font-size: 12px;                   line-height: 14px;                   letter-spacing: 0.14px;                   color: #008894;                 ">
+								<span class="quantity">
+									{{Iva}}
+									 
+								</span>
+								 
+								{{Moneda}}
+							</td>
+						</tr>
+						<tr>
+							<td style="                   font-size: 12px;                   line-height: 14px;                   letter-spacing: 0.14px;                   font-weight: bold;                 ">
+								<div style="margin: 4px 8px 4px 0px">Total:</div>
+							</td>
+							<td style="                   font-size: 12px;                   line-height: 14px;                   letter-spacing: 0.14px;                   color: #4ba92b;                   font-weight: bold;                 ">
+								<span class="quantity">
+									{{ValorTotal}}
+									 
+								</span>
+								 
+								{{Moneda}}
+							</td>
+						</tr>
+					</table>
+				</div>
+				<div style="margin: 0px 80px">
+					<table align="center" cellpadding="0" cellspacing="0" role="presentation" style="               width: 100%;               text-align: center;               font-size: 10px;               line-height: 12px;               color: #969595;               letter-spacing: -0.08px;             ">
+						<tr>
+							<td>
+								<div>
+									<span style="font-weight: bold; margin: 6px 0px">© PROQUIFA.</span>
+									<span style="margin: 6px 0px">Todos los derechos reservados.</span>
+								</div>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<div style="text-decoration: underline; margin: 6px 0px">
+									<span>Aviso de Privacidad</span>
+								</div>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<div>
+									<span style="margin: 6px 0px">Número único nacional sin costo: 01 (55) 1315 1498 ·</span>
+								</div>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<div style="                     text-align: justify;                     font-size: 7px;                     line-height: 8px;                     letter-spacing: 0.02px;                     font-style: italic;                     margin: 6px 0px;                   ">
+									Este correo electrónico y/o el material anexo son para uso
+									exclusivo de la persona o entidad a la que expresamente se le
+									ha enviado y puede contener información confidencial y/o
+									material privilegiado. Si usted no es el destinatario legítimo
+									del mismo, deberá notificar inmediatamente al remitente del
+									correo y borrar este mensaje y sus anexos en su totalidad
+									permanentemente de su sistema. Cualquier revisión,
+									retransmisión, difusión o cualquier otro uso de este correo,
+									por personas o entidades distintas a las del destinatario
+									legítimo, queda expresamente prohibido. Este correo
+									electrónico no pretende ni debe ser considerado como
+									constructivo de ninguna relación legal, contractual o de otra
+									índole similar.
+								</div>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<center style="padding-top: 12px">
+									<a title="Proquifa" href="http://www.ryndem.mx/">
+										<img src="https://i.imgur.com/j5IRCCX.png" alt="Ryndem" style="                         display: block;                         height: 30px;                         width: auto;                         border: 0;                       " />
+									</a>
+								</center>
+							</td>
+						</tr>
+					</table>
+				</div>
+			</body>
+		</html>

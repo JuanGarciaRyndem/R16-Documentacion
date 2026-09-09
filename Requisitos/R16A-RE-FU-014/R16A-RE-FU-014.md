@@ -87,6 +87,9 @@ Una vez completados el envío del correo de la proforma y la generación del pen
 **Regla 12 — Conservación del folio de proforma ante reintento de envío (DUDA-030, resuelta 2026-08-21)**
 El folio de proforma ya asignado se CONSERVA (se consume) hasta que el envío del correo se complete exitosamente. Si el envío falla, el sistema debe reintentar con el MISMO folio de proforma; no se descarta el folio asignado ni se genera uno nuevo por cada intento fallido de envío. Esto evita huecos innecesarios en la numeración lineal global del foliador de proformas por simples reintentos de envío.
 
+**Regla 13 — Composición regionalizada del panel de Información de Facturación**
+El panel de Información de Facturación de Tramitar Pedido es transversal a ambas regiones y muestra los datos del cliente tomados del catálogo, en modo solo lectura. Los campos comunes a México y Perú son: Razón Social, identificador fiscal (RFC para México / RUC para Perú), Moneda, Quién Factura (empresa emisora), Condiciones de Pago (plazo comercial; ej. "60 Días", "Prepago 100%") y Comentarios para la Facturación. Los campos fiscales se regionalizan según la Región del cliente: para México se muestran Uso CFDI y Método de Pago (catálogos SAT); para Perú estos se reemplazan por Tipo de Operación (catálogo 51 SUNAT, en lugar de Uso CFDI) y Condición de Pago SUNAT en singular, Contado/Crédito (en lugar de Método de Pago). La "Condición de Pago" SUNAT de Perú es un campo fiscal distinto de las "Condiciones de Pago" comerciales (plazo) y ambos coexisten en el panel para clientes Perú. Los campos Forma de Pago (medio) y correo de envío no se muestran en este panel en ninguna región.
+
 ---
 
 ## Riesgos
@@ -119,6 +122,11 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 - **Dado** que el pedido es de cliente Prepago,
 - **Cuando** el ESAC visualiza la pantalla del pedido,
 - **Entonces** el botón "Editar Datos" para datos de facturación no debe aparecer disponible. Los datos de facturación se muestran en modo solo lectura tomados del catálogo del cliente.
+
+**Criterio A5 — Composición regionalizada del panel de Información de Facturación**
+- **Dado** que el ESAC visualiza el panel de Información de Facturación de un pedido en Tramitar Pedido,
+- **Cuando** el sistema muestra el panel según la Región del cliente,
+- **Entonces** para clientes México deberá mostrar Uso CFDI y Método de Pago (catálogos SAT); para clientes Perú deberá mostrar Tipo de Operación (catálogo 51 SUNAT) y Condición de Pago Contado/Crédito SUNAT en su lugar; en ambas regiones deberá mostrar los campos comunes (Razón Social, RFC/RUC, Moneda, Quién Factura, Condiciones de Pago comerciales y Comentarios) y NO deberá mostrar Forma de Pago ni correo de envío.
 
 ### Sección B — Folios y generación de la proforma
 
@@ -205,3 +213,4 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 | Fecha | Cambio | Referencia |
 |---|---|---|
 | 2026-08-21 | Se resuelve la política del folio de proforma ante reintento de envío fallido: se conserva/consume el mismo folio hasta el envío exitoso (no se descarta ni se reasigna). Se agrega Regla 12 y Criterio C2b; se cierra la nota pendiente bajo el Criterio C2. | DUDA-030 |
+| 2026-09-04 | Se sincroniza contra la matriz vigente: se agrega Regla 13 y Criterio A5 (composición regionalizada del panel de Información de Facturación), ausentes en la versión local pero presentes en los requisitos hermanos (FU-012/013/015). La matriz traía reabierta la pregunta de DUDA-030 (nota bajo Criterio C2); se conservó el cierre ya registrado el 2026-08-21 en vez de reabrirla. | Sincronización matriz |

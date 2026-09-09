@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="es">
+			<head>
+				<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+				<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+				<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+				<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+			</head>
+			<!--<body style="font-family: roboto;">-->
+			<body>
+
+				<header style="background-image: url('http://www.proquifa.com.mx/templates/pqw/images/texturaBackground.jpg');padding: 0;">
+					<ul style="list-style-type: none;  margin: 0;  padding: 0;  overflow: hidden;">
+						<li style="float: left;display: block;">
+							<img src="http://www.proquifa.com.mx/images/logo_proquifa.svg" alt="proquifa" width="137" height="160" style="display: block;font-family: Arial;color: #000000;font-size: 14px;" border="0" />
+						</li>
+						<li style="float: right;display: block;color: #fff;font-size: 13px;padding: 58;">
+							<p>
+								<strong>Autorización · </strong>
+								{{ProcesoTramite}}
+							</p>
+						</li>
+					</ul>
+				</header>
+
+				<div class="container-fluid">
+
+					<section style="margin: 8%;">
+						<h1 style="color: #008894;">
+							¡Hola
+							<strong>
+								{{UsuarioAutorizador}}
+							</strong>
+							!
+						</h1>
+						<p style="font-size:28px">
+							<strong style="">
+								{{UsuarioESAC}}
+							</strong> a solicitado un código de autorización
+						</p>
+					</section>
+
+
+					<section style="background-color: #f2f9fa; color: #000; font-size: 26px; text-align: center;padding:25px;">
+						<p>
+							Tu Código es:
+							<strong style="color: #008894;">
+								{{CodigoAleatorio}}
+							</strong>
+						</p>
+						<p style="font-size: 12px;color: #008894;">Este código permanecerá activo durante 24 Hrs.</p>
+					</section>
+
+
+
+
+					<section style="margin: 8%;">
+						<!--<section>-->
+						<article style="font-size:20px">
+							Ajuste de Oferta · <strong style="color: #008894;">{{Cliente}}</strong> · <strong>
+							Cotización {{Folio}}
+						</strong>
+						</article>
+
+						<!-- variante condicional: se muestra 1 de 1 opciones posibles -->
+								<div class="row">
+									<div class="col-sm-12" style="background-color:#f2f9fa;font-weight:bold;font-size:20px;padding:18px">
+										Condiciones de Pago: <span style="font-weight:Normal;color:#ff0000">{{CondicionesDePago}}</span>
+									</div>
+								</div>
+
+									
+
+						<!-- variante condicional: se muestra 1 de 1 opciones posibles -->
+								<div class="row">
+									<div class="col-sm-12" style="background-color:#f2f9fa;font-weight:bold;font-size:20px;padding:18px">
+										Ajustar Precios: <span style="font-weight:Normal;color:#ff0000">{{AjustarPrecios}}</span>
+									</div>
+								</div>
+
+							
+
+						<table class="table">
+							<tbody>
+								
+								<!-- se repite por cada elemento de: CorreoAjusteDeOfertaValidacion/PartidasLista/ppPartidaPedidoModel -->
+
+									<!--<xsl:choose>-->
+										<!--<xsl:when test="tipoPartidaPretramitacion='Eliminada'">
+											<tr style="background-color:#F9EBED">
+												<td width ="90%">
+													<span>
+														#<xsl:value-of select="Numero"/> ·
+													</span>
+													<span style="color:#008894;font-weight:bold">
+														<xsl:value-of select="NombreMarca"/> · <xsl:value-of select="Catalogo"/> ·
+													</span>
+													<span style="font-weight:bold">
+														<xsl:value-of select="Descripcion"/>
+													</span>
+													<br/>
+													<span>
+														TEE <xsl:value-of select="TEE"/> · <xsl:value-of select="NumeroDePiezas"/> Piezas · P.U <xsl:value-of select="PrecioUnitario"/> <xsl:copy-of select="$moneda" /> · Subtotal <xsl:value-of select="SubTotal"/> <xsl:copy-of select="$moneda" /> · IVA <xsl:value-of select="IVA"/> <xsl:copy-of select="$moneda" />
+													</span>
+													<span style="color:#008894">
+														· Total <xsl:value-of select="Total"/> <xsl:copy-of select="$moneda" />
+													</span>
+												</td>
+												<td width ="10%">
+													<xsl:value-of select="tipoPartidaPretramitacion"/>
+												</td>
+											</tr>
+										</xsl:when>
+										<xsl:when test="tipoPartidaPretramitacion='Agregada'">
+											<tr style="background-color:#E4F2DF">
+												<td width ="90%">
+													<span>
+														#<xsl:value-of select="Numero"/> ·
+													</span>
+													<span style="color:#008894;font-weight:bold">
+														<xsl:value-of select="NombreMarca"/> · <xsl:value-of select="Catalogo"/> ·
+													</span>
+													<span style="font-weight:bold">
+														<xsl:value-of select="Descripcion"/>
+													</span>
+													<br/>
+													<span>
+														TEE <xsl:value-of select="TEE"/> · <xsl:value-of select="NumeroDePiezas"/> Piezas · P.U <xsl:value-of select="PrecioUnitario"/> <xsl:copy-of select="$moneda" /> · Subtotal <xsl:value-of select="SubTotal"/> <xsl:copy-of select="$moneda" /> · IVA <xsl:value-of select="IVA"/> <xsl:copy-of select="$moneda" />
+													</span>
+													<span style="color:#008894">
+														· Total <xsl:value-of select="Total"/> <xsl:copy-of select="$moneda" />
+													</span>
+												</td>
+												<td width ="10%">
+													<xsl:value-of select="tipoPartidaPretramitacion"/>
+												</td>
+											</tr>
+										</xsl:when>
+
+										<xsl:when test="tipoPartidaPretramitacion='Reemplazada'">
+											<tr style="background-color:#F3F1CF">
+												<td width ="90%">
+													<span>
+														#<xsl:value-of select="Numero"/> ·
+													</span>
+													<span style="color:#008894;font-weight:bold">
+														<xsl:value-of select="NombreMarca"/> · <xsl:value-of select="Catalogo"/> ·
+													</span>
+													<span style="font-weight:bold">
+														<xsl:value-of select="Descripcion"/>
+													</span>
+													<br/>
+													<span>
+														TEE <xsl:value-of select="TEE"/> · <xsl:value-of select="NumeroDePiezas"/> Piezas · P.U <xsl:value-of select="PrecioUnitario"/> <xsl:copy-of select="$moneda" /> · Subtotal <xsl:value-of select="SubTotal"/> <xsl:copy-of select="$moneda" /> · IVA <xsl:value-of select="IVA"/> <xsl:copy-of select="$moneda" />
+													</span>
+													<span style="color:#008894">
+														· Total <xsl:value-of select="Total"/> <xsl:copy-of select="$moneda" />
+													</span>
+												</td>
+												<td width ="10%">
+													<xsl:value-of select="tipoPartidaPretramitacion"/>
+												</td>
+											</tr>
+											
+											
+											<xsl:choose>
+												<xsl:when test="partidaOriginal">
+													<tr style="background-color:#F3F1CF">
+														<td width ="90%">
+															<span>
+																#<xsl:value-of select="partidaOriginal/Numero"/> ·
+															</span>
+															<span style="color:#008894;font-weight:bold">
+																<xsl:value-of select="partidaOriginal/NombreMarca"/> · <xsl:value-of select="partidaOriginal/Catalogo"/> ·
+															</span>
+															<span style="font-weight:bold">
+																<xsl:value-of select="partidaOriginal/Descripcion"/>
+															</span>
+															<br/>
+															<span>
+																TEE <xsl:value-of select="partidaOriginal/TEE"/> · <xsl:value-of select="partidaOriginal/NumeroDePiezas"/> Piezas · P.U <xsl:value-of select="partidaOriginal/PrecioUnitario"/> <xsl:copy-of select="$moneda" /> · Subtotal <xsl:value-of select="partidaOriginal/SubTotal"/> <xsl:copy-of select="$moneda" /> · IVA <xsl:value-of select="partidaOriginal/IVA"/> <xsl:copy-of select="$moneda" />
+															</span>
+															<span style="color:#008894">
+																· Total <xsl:value-of select="partidaOriginal/Total"/> <xsl:copy-of select="$moneda" />
+															</span>
+														</td>
+														<td width ="10%">
+															<xsl:value-of select="partidaOriginal/tipoPartidaPretramitacion"/>
+														</td>
+													</tr>
+												</xsl:when>
+											</xsl:choose>
+
+										</xsl:when>-->
+										<!--<xsl:otherwise>-->
+											<tr>
+												<td>
+													<span>
+														#{{Numero}} ·
+													</span>
+													<span style="color:#008894;font-weight:bold">
+														{{NombreMarca}} · {{Catalogo}} ·
+													</span>
+													<span style="font-weight:bold">
+														{{Descripcion}}
+													</span>
+													<br />
+													<span>
+														{{NumeroDePiezas}} Piezas ·  
+													</span>
+													<span style="color:#008894">
+														· Precio Cat. {{PrecioUnitario}} {{DivisaMoneda}} {{Inconsistencias}}
+													</span>
+												</td>
+											</tr>
+										<!--</xsl:otherwise>-->
+									<!--</xsl:choose>-->
+								
+
+									<!--<xsl:choose>-->
+										<!--<xsl:when test="tipoPartidaPretramitacion='Eliminada'">
+											<tr style="background-color:#F9EBED">
+												<td width ="90%">
+													<span>
+														#<xsl:value-of select="Numero"/> ·
+													</span>
+													<span style="color:#008894;font-weight:bold">
+														<xsl:value-of select="NombreMarca"/> · <xsl:value-of select="Catalogo"/> ·
+													</span>
+													<span style="font-weight:bold">
+														<xsl:value-of select="Descripcion"/>
+													</span>
+													<br/>
+													<span>
+														TEE <xsl:value-of select="TEE"/> · <xsl:value-of select="NumeroDePiezas"/> Piezas · P.U <xsl:value-of select="PrecioUnitario"/> <xsl:copy-of select="$moneda" /> · Subtotal <xsl:value-of select="SubTotal"/> <xsl:copy-of select="$moneda" /> · IVA <xsl:value-of select="IVA"/> <xsl:copy-of select="$moneda" />
+													</span>
+													<span style="color:#008894">
+														· Total <xsl:value-of select="Total"/> <xsl:copy-of select="$moneda" />
+													</span>
+												</td>
+												<td width ="10%">
+													<xsl:value-of select="tipoPartidaPretramitacion"/>
+												</td>
+											</tr>
+										</xsl:when>
+										<xsl:when test="tipoPartidaPretramitacion='Agregada'">
+											<tr style="background-color:#E4F2DF">
+												<td width ="90%">
+													<span>
+														#<xsl:value-of select="Numero"/> ·
+													</span>
+													<span style="color:#008894;font-weight:bold">
+														<xsl:value-of select="NombreMarca"/> · <xsl:value-of select="Catalogo"/> ·
+													</span>
+													<span style="font-weight:bold">
+														<xsl:value-of select="Descripcion"/>
+													</span>
+													<br/>
+													<span>
+														TEE <xsl:value-of select="TEE"/> · <xsl:value-of select="NumeroDePiezas"/> Piezas · P.U <xsl:value-of select="PrecioUnitario"/> <xsl:copy-of select="$moneda" /> · Subtotal <xsl:value-of select="SubTotal"/> <xsl:copy-of select="$moneda" /> · IVA <xsl:value-of select="IVA"/> <xsl:copy-of select="$moneda" />
+													</span>
+													<span style="color:#008894">
+														· Total <xsl:value-of select="Total"/> <xsl:copy-of select="$moneda" />
+													</span>
+												</td>
+												<td width ="10%">
+													<xsl:value-of select="tipoPartidaPretramitacion"/>
+												</td>
+											</tr>
+										</xsl:when>
+
+										<xsl:when test="tipoPartidaPretramitacion='Reemplazada'">
+											<tr style="background-color:#F3F1CF">
+												<td width ="90%">
+													<span>
+														#<xsl:value-of select="Numero"/> ·
+													</span>
+													<span style="color:#008894;font-weight:bold">
+														<xsl:value-of select="NombreMarca"/> · <xsl:value-of select="Catalogo"/> ·
+													</span>
+													<span style="font-weight:bold">
+														<xsl:value-of select="Descripcion"/>
+													</span>
+													<br/>
+													<span>
+														TEE <xsl:value-of select="TEE"/> · <xsl:value-of select="NumeroDePiezas"/> Piezas · P.U <xsl:value-of select="PrecioUnitario"/> <xsl:copy-of select="$moneda" /> · Subtotal <xsl:value-of select="SubTotal"/> <xsl:copy-of select="$moneda" /> · IVA <xsl:value-of select="IVA"/> <xsl:copy-of select="$moneda" />
+													</span>
+													<span style="color:#008894">
+														· Total <xsl:value-of select="Total"/> <xsl:copy-of select="$moneda" />
+													</span>
+												</td>
+												<td width ="10%">
+													<xsl:value-of select="tipoPartidaPretramitacion"/>
+												</td>
+											</tr>
+											
+											
+											<xsl:choose>
+												<xsl:when test="partidaOriginal">
+													<tr style="background-color:#F3F1CF">
+														<td width ="90%">
+															<span>
+																#<xsl:value-of select="partidaOriginal/Numero"/> ·
+															</span>
+															<span style="color:#008894;font-weight:bold">
+																<xsl:value-of select="partidaOriginal/NombreMarca"/> · <xsl:value-of select="partidaOriginal/Catalogo"/> ·
+															</span>
+															<span style="font-weight:bold">
+																<xsl:value-of select="partidaOriginal/Descripcion"/>
+															</span>
+															<br/>
+															<span>
+																TEE <xsl:value-of select="partidaOriginal/TEE"/> · <xsl:value-of select="partidaOriginal/NumeroDePiezas"/> Piezas · P.U <xsl:value-of select="partidaOriginal/PrecioUnitario"/> <xsl:copy-of select="$moneda" /> · Subtotal <xsl:value-of select="partidaOriginal/SubTotal"/> <xsl:copy-of select="$moneda" /> · IVA <xsl:value-of select="partidaOriginal/IVA"/> <xsl:copy-of select="$moneda" />
+															</span>
+															<span style="color:#008894">
+																· Total <xsl:value-of select="partidaOriginal/Total"/> <xsl:copy-of select="$moneda" />
+															</span>
+														</td>
+														<td width ="10%">
+															<xsl:value-of select="partidaOriginal/tipoPartidaPretramitacion"/>
+														</td>
+													</tr>
+												</xsl:when>
+											</xsl:choose>
+
+										</xsl:when>-->
+										<!--<xsl:otherwise>-->
+											<tr>
+												<td>
+													<span>
+														#{{Numero}} ·
+													</span>
+													<span style="color:#008894;font-weight:bold">
+														{{NombreMarca}} · {{Catalogo}} ·
+													</span>
+													<span style="font-weight:bold">
+														{{Descripcion}}
+													</span>
+													<br />
+													<span>
+														{{NumeroDePiezas}} Piezas ·  
+													</span>
+													<span style="color:#008894">
+														· Precio Cat. {{PrecioUnitario}} {{DivisaMoneda}} {{Inconsistencias}}
+													</span>
+												</td>
+											</tr>
+										<!--</xsl:otherwise>-->
+									<!--</xsl:choose>-->
+								
+							</tbody>
+						</table>
+
+						<!--<article>
+							<table align="right" style="border:0;text-align: right;">
+								<tbody>
+									<tr>
+										<td>Subtotal:</td>
+										<td style="color:#008894">
+											<xsl:value-of select="CorreoAjusteDeOfertaValidacion/Subtotal"/>
+											<xsl:value-of select="CorreoAjusteDeOfertaValidacion/DivisaMoneda"/>
+										</td>
+									</tr>
+									<tr>
+										<td>IVA:</td>
+										<td style="color:#008894">
+											<xsl:value-of select="CorreoAjusteDeOfertaValidacion/Iva"/>
+											<xsl:value-of select="CorreoAjusteDeOfertaValidacion/DivisaMoneda"/>
+										</td>
+									</tr>
+									<tr>
+										<td>Total:</td>
+										<td style="color:#008894">
+											<xsl:value-of select="CorreoAjusteDeOfertaValidacion/Total"/>
+											<xsl:value-of select="CorreoAjusteDeOfertaValidacion/DivisaMoneda"/>
+										</td>
+									</tr>
+								</tbody>
+							</table>
+						</article>-->
+					</section>
+				</div>
+
+
+
+
+				<footer style="padding: 10%; font-size: 10px;text-align: center;">
+					<p style="color: #969595;">© PROQUIFA. Todos los derechos reservados.</p>
+					<p style="color: #969595;">Número único nacional sin costo: 01 (55) 1315 1498 · Aviso de Privacidad</p>
+					<p style="font-size: 7px;font-weight: normal;font-stretch: normal;font-style: italic;line-height: 1.14;letter-spacing: 0.2px;text-align: justify;color: #87858a;">
+						Este correo electrónico y/o el material anexo son para uso exclusivo de la persona o entidad a la que expresamente se le ha enviado y puede contener información confidencial y/o material privilegiado. Si usted no es el destinatario legítimo del mismo, deberá notificar inmediatamente al remitente del correo y borrar este mensaje y sus anexos en su totalidad permanentemente de su sistema. Cualquier revisión, retransmisión, difusión o cualquier otro uso de este correo, por personas o entidades distintas a las del destinatario legítimo, queda expresamente prohibido. Este correo electrónico no pretende ni debe ser considerado como constructivo de ninguna relación legal, contractual o de otra índole similar.
+					</p>
+				</footer>
+
+
+
+
+			</body>
+		</html>

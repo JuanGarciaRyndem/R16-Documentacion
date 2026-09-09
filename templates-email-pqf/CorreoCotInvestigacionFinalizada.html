@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+			<head>
+				<title>Correo de OC interna a el cliente para su aceptacion. </title>
+				<meta charset="utf-8" />
+				<meta name="viewport" content="width=device-width, initial-scale=1" />
+				<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+				<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+				<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+				<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+			</head>
+			<body>
+				<header style=" height: 100px; background-image: linear-gradient(to right, #203849 1%, #0c151b 96%); background-size: cover;">
+					<ul style="list-style-type: none;  margin: 0;  padding: 0;  overflow: hidden;">
+						<li style="float: left;display: block; padding: 1% 0; margin-left: 5px; ">
+							<a title="Proquifa" href="http://www.proquifa.com.mx/index.php/es/">
+								<img src="https://i.imgur.com/Tl1hYlA.png" alt="proquifa" width="255" height="52" aspect-ratio="auto 255 / 52" />
+							</a>
+						</li>
+						<li style="float: right;display: block;color: #fff;font-size: 14px;padding: 2% 0; margin-right: 2%; ">
+							<p>
+								<strong>Investigación Finalizada</strong>
+							</p>
+						</li>
+					</ul>
+				</header>
+				<div class="container-fluid">
+					<section style="margin: 8% 8% 0 8%;">
+						<h1 style="color: #008894; font-size:28px;">
+							¡Hola {{Nombre}}!
+						</h1>
+						<p style="font-size:20px">
+							Te informamos que el producto fuera del sistema que enviaste a Investigación
+							<span style="color:#008894;font-weight:bold; font-size:20px; line-height:17px;">
+								"{{Descripcion}}"
+							</span>
+							ya se encuentra configurado y disponible. Te recordamos que es necesario que lo agregues manualmente a la cotización de tu cliente.
+						</p>
+						<br />
+
+					</section>
+
+					<section style="background-color: #f2f9fa; color: #000; font-size: 26px; text-align: left;padding:25px; margin: 2% 8% 0 8%;">
+						<p style="font-size: 20px;color: #005C77;">Detalles del producto</p>
+						
+							<div style="margin-bottom: 8px;">
+								<span style="color:#008894;font-weight:bold; font-size:20px; line-height:20px;">Cliente: </span>
+								<span style="color:#424242;font-weight:bold; font-size:16px; line-height:20px;">{{NombreCliente}}</span>
+							</div>
+						
+						
+							<div style="margin-bottom: 8px;">
+								<span style="color:#008894;font-weight:bold; font-size:20px; line-height:20px;">Cotización: </span>
+								<span style="color:#424242;font-weight:bold; font-size:16px; line-height:20px;">{{FolioCotizacion}}</span>
+							</div>
+						
+						<div style="margin-top: 4px;">
+							<span style="color:#008894;font-weight:bold; font-size:20px; line-height:20px;">Familia solicitada para habilitar: </span>
+							<span style="color:#424242;font-weight:bold; font-size:16px; line-height:20px;">{{NombreProveedor}} · {{NombreMarca}}</span>
+						</div>
+
+					</section>
+					<section style="margin-top: 2%; margin-left: 8%; margin-bottom: 8%; margin-right: 8%;">
+						<table style="width: 100%;">
+							<tbody>
+								<tr style="height:84px; background-color: #FFFFFF; border-top: 5px solid #ffffff;">
+									<td style="width:10%">
+										<div>
+											<span style="color:#424242;font-weight:bold; font-size:15px; line-height:17px;">
+												Logo Imagen
+											</span>
+										</div>
+									</td>
+									<td style="width:70%">
+										<div>
+											<span style="color: #4BA92B; font-weight:bold; font-size:12px; line-height:17px;">
+												Disponible ·
+											</span>
+											<span style="color:#008894;font-weight:bold; font-size:12px; line-height:17px;">
+												CAT{{Catalogo}} ·
+												{{TipoPresentacion}}
+												{{Presentacion}}
+												{{Unidad}}
+											</span>
+
+										</div>
+										<div>
+											<span style="color: #424242; font-size:11px; line-height:17px;">
+												{{Descripcion}}
+											</span>
+										</div>
+										<div>
+											<span style="color:#008894;font-weight:bold; font-size:11px; line-height:17px;">
+												{{Tipo}} ·
+												{{Subtipo}} ·
+												{{Control}}
+											</span>
+										</div>
+										<div>
+											<span style="color:#008894;font-weight:bold; font-size:13px; line-height:17px;">
+												vigencia:
+											</span>
+
+											
+												<span style="color:#BE2016;font-weight:bold; font-size:13px; line-height:17px;">
+													{{FechaCaducidadVigenciaCuraduria}} · Vencida
+												</span>
+											
+
+											
+												<span style="color:#4BA92B;font-weight:bold; font-size:13px; line-height:17px;">
+													{{FechaCaducidadVigenciaCuraduria}}
+												</span>
+											
+										</div>
+									</td>
+									<td>
+										<div>
+											<span style="color:#424242;font-weight:bold; font-size:15px; line-height:13px;">
+												Logo {{NombreMarca}}
+											</span>
+										</div>
+									</td>
+								</tr>
+							</tbody>
+
+						</table>
+
+					</section>
+				</div>
+				<footer style="padding: 0 10%; font-size: 10px;text-align: center; ">
+					<div style=" border-top: 1px solid #FFFFFF;  height: 2px;  padding: 0;  margin: 20px auto 0 auto;"></div>
+					<p style="color: #87858A;">
+						©<span style="font-weight:bold;  ">PROQUIFA.</span>Todos los derechos reservados.
+					</p>
+					<div>
+						<p style="color: #87858A;">
+							Número único nacional sin costo: 01 (55) 1315 1498 · <a href="http://www.proquifa.com.mx/aviso_privacidad.html" style="color: #87858A; text-decoration: underline;">Aviso de Privacidad</a>
+						</p>
+					</div>
+
+					<p style="font-size: 7px;font-weight: normal;font-stretch: normal;font-style: italic;line-height: 1.14;letter-spacing: 0.2px;text-align: justify;color: #87858A;">
+						Este correo electrónico y/o el material anexo son para uso exclusivo de la persona o entidad a la que expresamente se le ha enviado y puede contener información confidencial y/o material privilegiado. Si usted no es el destinatario legítimo del mismo, deberá notificar inmediatamente al remitente del correo y borrar este mensaje y sus anexos en su totalidad permanentemente de su sistema. Cualquier revisión, retransmisión, difusión o cualquier otro uso de este correo, por personas o entidades distintas a las del destinatario legítimo, queda expresamente prohibido. Este correo electrónico no pretende ni debe ser considerado como constructivo de ninguna relación legal, contractual o de otra índole similar.
+					</p>
+
+					<div style="display: flex; justify-content: center;">
+						<a title="Proquifa" href="http://www.ryndem.mx/">
+							<img src="https://i.imgur.com/j5IRCCX.png" alt="Ryndem" style="display: block;font-family: Arial;color: #000000;font-size: 14px;  height: 30px; width:auto" border="0" />
+						</a>
+					</div>
+
+				</footer>
+			</body>
+		</html>

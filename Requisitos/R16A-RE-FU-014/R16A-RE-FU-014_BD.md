@@ -1,4 +1,4 @@
-﻿# Impacto en BD - Tramitacion Pedidos Prepago sin Controlados sin FAA
+# Impacto en BD - Tramitacion Pedidos Prepago sin Controlados sin FAA
 **Requisito:** R16A-RE-FU-014
 **Base de Datos:** ProquifaDotNet
 **Version:** 1.0
@@ -69,13 +69,13 @@ Datos facturacion solo lectura. SIN CAMBIOS ESTRUCTURALES en BD.
 
 ## Diferencia vs R16A-RE-FU-013 (Prepago CON controlados)
 
-| Aspecto | RE-FU-013 (controlados) | RE-FU-014 (sin controlados) |
-|---------|------------------------|----------------------------|
-| tpProformaPedido.Controlados | = 1 | = 0 |
-| FAA radio button | NO renderizado | SI renderizado (disponible) |
-| Remision radio button | NO renderizado | NO renderizado (prepago) |
-| Factura posterior (Validar Cobro) | Anticipo | Normal |
-| Deteccion de controlados | Requerida | No requerida |
+| Aspecto                           | RE-FU-013 (controlados) | RE-FU-014 (sin controlados) |
+| --------------------------------- | ----------------------- | --------------------------- |
+| tpProformaPedido.Controlados      | = 1                     | = 0                         |
+| FAA radio button                  | NO renderizado          | SI renderizado (disponible) |
+| Remision radio button             | NO renderizado          | NO renderizado (prepago)    |
+| Factura posterior (Validar Cobro) | Anticipo                | Normal                      |
+| Deteccion de controlados          | Requerida               | No requerida                |
 
 ---
 
@@ -167,11 +167,11 @@ Datos facturacion solo lectura. SIN CAMBIOS ESTRUCTURALES en BD.
 
 ## Dependencias
 
-| Requisito | Relacion |
-|-----------|----------|
-| R16A-RE-FU-006 | ReferenciaPago en proforma |
+| Requisito      | Relacion                                                         |
+| -------------- | ---------------------------------------------------------------- |
+| R16A-RE-FU-006 | ReferenciaPago en proforma                                       |
 | R16A-RE-FU-013 | Variante CON controlados (mismo flujo, diferentes restricciones) |
-| R16A-RE-FU-015 | Si ESAC activa FAA -> cambia a ese flujo |
+| R16A-RE-FU-015 | Si ESAC activa FAA -> cambia a ese flujo                         |
 
 ---
 

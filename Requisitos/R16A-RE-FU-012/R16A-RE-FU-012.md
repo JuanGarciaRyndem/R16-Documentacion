@@ -27,7 +27,7 @@ El sistema debe permitir, en el módulo Tramitar Pedido, la activación opcional
 ### Aplica a
 
 - Activación de Factura por Adelantado: pedidos de clientes con condición de pago Crédito en la operación de México exclusivamente. En Perú la Factura por Adelantado NO está disponible para pedidos Crédito, porque el timbrado fiscal en Perú aplica únicamente a pedidos Prepago en R16; un Crédito peruano no podría emitir la factura, por lo que la opción no se ofrece.
-- Pedidos con condición Crédito - Pago contra entrega.
+- Pedidos con condición Pago contra entrega.
 - Pedidos sin sustancias controladas (Mundial, Nacional, Origen).
 - Activación opcional de la opción Factura por Adelantado desde el módulo Tramitar Pedido como punto de entrada único al flujo Factura por Adelantado.
 - Generación de un pendiente en el módulo Factura por Adelantado al tramitar (la emisión y timbrado de la factura PPD ocurre posteriormente dentro de ese módulo, NO en Tramitar Pedido).
@@ -38,7 +38,7 @@ El sistema debe permitir, en el módulo Tramitar Pedido, la activación opcional
 
 - Pedidos de clientes con condición de pago Prepago (esos siguen un flujo distinto descrito en los requisitos del bloque Prepago).
 - Pedidos con sustancias controladas (la combinación Factura por Adelantado + sustancias controladas no es permitida por regla regulatoria).
-- La gestión del pendiente "Relacionar facturas" dentro de Legacy (responsabilidad de Legacy, no de PQF2).
+- La gestión del pendiente "Relacionar facturas" dentro de Legacy es responsabilidad de Legacy, no de PQF2. La responsabilidad de PQF2 se limita a transferir a Legacy los datos y documentos necesarios (inserción plana de datos en base de datos y transferencia de los documentos); PQF2 no ejecuta operaciones ni lógica sobre esos datos para construir el pendiente. Que el pendiente "Relacionar facturas" aparezca en Legacy depende de los registros que el contrato de transferencia especifique, los cuales PQF2 inserta tal cual (Sesión Cliente 2).
 - El conteo de los días de crédito del cliente (inicia con la emisión efectiva de la factura PPD, evento que ocurre fuera de Tramitar Pedido).
 - Activación de Factura por Adelantado para pedidos Crédito de la región Perú: el timbrado fiscal peruano en R16 está limitado a Prepago, por lo que la factura anticipada de un Crédito peruano no podría emitirse.
 
@@ -50,7 +50,7 @@ El sistema debe permitir, en el módulo Tramitar Pedido, la activación opcional
 Para pedidos de clientes con condición de pago Crédito sin sustancias controladas, el módulo Tramitar Pedido ofrece la opción de activar Factura por Adelantado como mecanismo opcional. Si no se activa, el pedido sigue el flujo crédito regular sin cambios; si se activa, dispara la generación del pendiente correspondiente en el módulo Factura por Adelantado al tramitar.
 
 **Regla 2 — Tramitar Pedido como punto de entrada único al flujo Factura por Adelantado**
-La activación de Factura por Adelantado se realiza exclusivamente desde el módulo Tramitar Pedido, no desde Pretramitar Pedido ni otros módulos.
+La activación de Factura por Adelantado se realiza exclusivamente desde el módulo Tramitar Pedido.
 
 **Regla 3 — Activación de Factura por Adelantado sin código de autorización**
 La activación de Factura por Adelantado en Tramitar Pedido es directa, sin requerir código de autorización ni validación adicional.
@@ -73,7 +73,7 @@ Para pedidos de clientes Crédito de la región Perú, al concluir el flujo de t
 Una vez ejecutada exitosamente la acción de tramitar, completado el envío del correo correspondiente al flujo y generados los pendientes derivados (si aplica), el sistema cierra y elimina el pendiente del pedido en la bandeja de Tramitar Pedido, de modo que el pedido ya no aparece como acción pendiente para el ESAC.
 
 **Regla 9 — Composición regionalizada del panel de Información de Facturación**
-El panel de Información de Facturación de Tramitar Pedido es transversal a ambas regiones y muestra los datos del cliente tomados del catálogo, en modo solo lectura. Los campos comunes a México y Perú son: Razón Social, identificador fiscal (RFC para México / RUC para Perú), Moneda, Quién Factura (empresa emisora), Condiciones de Pago (plazo comercial; ej. "60 Días", "Prepago 100%") y Comentarios para la Facturación. Los campos fiscales se regionalizan según la Región del cliente: para México se muestran Uso CFDI y Método de Pago (catálogos SAT); para Perú estos se reemplazan por Tipo de Operación (catálogo 51 SUNAT) y Condición de Pago SUNAT (Contado/Crédito). Los campos Forma de Pago (medio) y correo de envío no se muestran en este panel en ninguna región.
+El panel de Información de Facturación de Tramitar Pedido es transversal a ambas regiones y muestra los datos del cliente tomados del catálogo, en modo solo lectura. Los campos comunes a México y Perú son: Razón Social, identificador fiscal (RFC para México / RUC para Perú), Moneda, Quién Factura (empresa emisora), Condiciones de Pago (plazo comercial; ej. "60 Días", "Prepago 100%") y Comentarios para la Facturación. Los campos fiscales se regionalizan según la Región del cliente: para México se muestran Uso CFDI y Método de Pago (catálogos SAT); para Perú estos se reemplazan por Tipo de Operación (catálogo 51 SUNAT, en lugar de Uso CFDI) y Condición de Pago SUNAT en singular, Contado/Crédito (en lugar de Método de Pago). La "Condición de Pago" SUNAT de Perú es un campo fiscal distinto de las "Condiciones de Pago" comerciales (plazo) y ambos coexisten en el panel para clientes Perú. Los campos Forma de Pago (medio) y correo de envío no se muestran en este panel en ninguna región.
 
 ---
 
@@ -88,8 +88,8 @@ Como los datos de facturación se fijan al activar Factura por Adelantado sin op
 
 ### Sección A — Activación y tramitación con Factura por Adelantado
 
-**Criterio A1 — Tramitación con Factura por Adelantado activada para Crédito sin controlados**
-- **Dado** que un pedido pertenece a un cliente Crédito en México, sin productos controlados, y el ESAC activa la opción Factura por Adelantado en el módulo Tramitar Pedido,
+**Criterio A1 — Tramitación con Factura por Adelantado activada para Crédito México sin controlados**
+- **Dado** que un pedido pertenece a un cliente Crédito en México, sin productos controlados, y el ESAC activa la opción Factura por Adelantado en el módulo Tramitar Pedido (en Región Perú la Factura por Adelantado no está disponible para pedidos Crédito, ver Regla y Criterio C6),
 - **Cuando** se ejecuta la acción de tramitar,
 - **Entonces** el sistema deberá tramitar el pedido siguiendo el flujo crédito regular, generar la Confirmación de Pedido al cliente y, en paralelo, generar el pendiente correspondiente en el módulo Factura por Adelantado para que el rol responsable emita y timbre la factura PPD.
 
@@ -99,20 +99,20 @@ Como los datos de facturación se fijan al activar Factura por Adelantado sin op
 - **Entonces** el sistema deberá ofrecer la opción de activar Factura por Adelantado. La activación es directa y no requiere código de autorización.
 
 **Criterio A3 — Variante Pago contra entrega con Factura por Adelantado**
-- **Dado** que un pedido pertenece a un cliente con condición Crédito - Pago contra entrega sin controlados y el ESAC activa Factura por Adelantado,
+- **Dado** que un pedido pertenece a un cliente con condición Pago contra entrega sin controlados y el ESAC activa Factura por Adelantado,
 - **Cuando** el ESAC opera el módulo Tramitar Pedido,
 - **Entonces** el sistema deberá tramitarlo aplicando el mismo flujo de un Crédito normal con Factura por Adelantado. La detención por falta de validación de pago la ejecuta Legacy.
 
 **Criterio A4 — Composición regionalizada del panel de Información de Facturación**
 - **Dado** que el ESAC visualiza el panel de Información de Facturación de un pedido en Tramitar Pedido,
-- **Cuando** el sistema renderiza el panel según la Región del cliente,
+- **Cuando** el sistema muestra el panel según la Región del cliente,
 - **Entonces** para clientes México deberá mostrar Uso CFDI y Método de Pago (catálogos SAT); para clientes Perú deberá mostrar Tipo de Operación (catálogo 51 SUNAT) y Condición de Pago Contado/Crédito SUNAT en su lugar; en ambas regiones deberá mostrar los campos comunes (Razón Social, RFC/RUC, Moneda, Quién Factura, Condiciones de Pago comerciales y Comentarios) y NO deberá mostrar Forma de Pago ni correo de envío.
 
 ### Sección B — Bloqueo de datos y generación del pendiente
 
 **Criterio B1 — Bloqueo de edición de datos de facturación al activar Factura por Adelantado**
 - **Dado** que el ESAC activó la opción Factura por Adelantado en Tramitar Pedido,
-- **Cuando** se renderiza la pantalla del pedido,
+- **Cuando** se muestra la pantalla del pedido,
 - **Entonces** el botón "Editar Datos" para datos de facturación no debe aparecer disponible para este pedido. El sistema deberá mostrar los datos de facturación en modo solo lectura tomados del catálogo del cliente vigente al momento de la activación.
 
 **Criterio B2 — Generación del pendiente en el módulo Factura por Adelantado**
@@ -124,7 +124,7 @@ Como los datos de facturación se fijan al activar Factura por Adelantado sin op
 
 ### Sección C — Confirmación, FEE, cancelación y transferencia
 
-**Criterio C1 — Generación de Confirmación de Pedido sin esperar factura**
+**Criterio C1 — Tramitación con Factura por Adelantado activada para Crédito sin controlados (México)**
 - **Dado** que un pedido pertenece a un cliente Crédito de México, sin productos controlados, y el ESAC activa la opción Factura por Adelantado en el módulo Tramitar Pedido,
 - **Cuando** se ejecuta la acción de tramitar,
 - **Entonces** el sistema deberá generar la Confirmación de Pedido en formato PDF y permitir su envío al cliente, sin esperar a que se gestione el pendiente de Factura por Adelantado.
@@ -135,12 +135,12 @@ Como los datos de facturación se fijan al activar Factura por Adelantado sin op
 - **Entonces** el sistema deberá calcular automáticamente la FEE correspondiente al pedido conforme a las reglas vigentes en el sistema.
 
 **Criterio C3 — Cancelación del pedido**
-- **Dado** que un pedido tramitado tiene solicitud del cliente para cancelar,
+- **Dado** que un pedido tiene solicitud del cliente para cancelar,
 - **Cuando** el ESAC ejecuta la acción Cancelar pedido en Tramitar Pedido,
 - **Entonces** el sistema deberá presentar un modal de confirmación y requerir confirmación explícita antes de proceder.
 
 **Criterio C4 — Variante Pago contra entrega: transferencia a Legacy con marca de detención (México)**
-- **Dado** que un pedido Crédito - Pago contra entrega con Factura por Adelantado se tramitó en PQF2 para un cliente de México,
+- **Dado** que un pedido Pago contra entrega con Factura por Adelantado se tramitó en PQF2 para un cliente de México,
 - **Cuando** el sistema transfiere el pedido al sistema Legacy,
 - **Entonces** deberá incluir en la transferencia la marca de detención que indica a Legacy que el pedido no debe entregarse hasta validar el pago.
 
@@ -159,7 +159,7 @@ Como los datos de facturación se fijan al activar Factura por Adelantado sin op
 ## Notas
 
 - Variante del flujo crédito preexistente del módulo Tramitar Pedido en PQF2 con la activación opcional del flujo Factura por Adelantado. El punto de entrada al flujo Factura por Adelantado se ubica exclusivamente en Tramitar Pedido (confirmado por el cliente; descartada la activación desde Pretramitar Pedido).
-- Cubre tres requisitos del cliente: activación de Factura por Adelantado para clientes crédito generando pendiente y continuidad de flujo; tramitación bajo condición Crédito - Pago contra entrega apegada al flujo crédito existente; y transferencia a Legacy con marca de detención para Pago contra entrega.
+- Cubre tres requisitos del cliente: activación de Factura por Adelantado para clientes crédito generando pendiente y continuidad de flujo; tramitación bajo condición Pago contra entrega apegada al flujo crédito existente; y transferencia a Legacy con marca de detención para Pago contra entrega.
 - Al tramitar con Factura por Adelantado activada, el sistema NO emite la factura PPD en ese momento. Lo que hace es generar un pendiente en el módulo Factura por Adelantado para que el rol responsable gestione posteriormente la emisión y timbrado. La Confirmación del pedido se genera de inmediato sin esperar a la factura.
 - Cambio respecto al comportamiento actual: se elimina el código de autorización para activar Factura por Adelantado (antes lo requería). La activación ahora es directa.
 - Cambio respecto al comportamiento actual: cuando se activa Factura por Adelantado, los datos de facturación quedan fijados al momento de la activación y el botón "Editar Datos" se oculta para este pedido. Los datos de facturación se toman directamente del catálogo del cliente. Modificaciones posteriores requieren actualizar el catálogo o gestionar el ajuste en el módulo Factura por Adelantado. El botón "Editar Datos" sigue disponible para pedidos crédito que no activen Factura por Adelantado.
@@ -172,7 +172,8 @@ Como los datos de facturación se fijan al activar Factura por Adelantado sin op
 
 ## Cambios
 
-| #   | Fecha      | Observación           | Descripción del cambio                                                                                                                                                                                                                                                            |
-| --- | ---------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | 2026-06-10 | Sincronización matriz | Regla 4: campo Cobrador actualizado para incluir campos fiscales regionales (RFC/RUC, Uso CFDI / Tipo de Operación SUNAT según región). Regla 9 agregada: composición regionalizada del panel de Información de Facturación. Criterio A4 agregado: validación regional del panel. |
-| 2   | 2026-08-21 | Cierre de duda (DUDA-028) | Regla 5 y Criterio B2: se cierra la pregunta abierta sobre qué rol gestiona la emisión y timbrado de la factura PPD. Queda establecido que la definición del rol responsable corresponde a los permisos/roles de acceso del módulo Factura por Adelantado (ver DUDA-047), y no a este requisito. |
+| # | Fecha | Observación | Descripción del cambio |
+| --- | ---------- | --------------------- | --- |
+| 1 | 2026-06-10 | Sincronización matriz | Regla 4: campo Cobrador actualizado para incluir campos fiscales regionales (RFC/RUC, Uso CFDI / Tipo de Operación SUNAT según región). Regla 9 agregada: composición regionalizada del panel de Información de Facturación. Criterio A4 agregado: validación regional del panel. |
+| 2 | 2026-08-21 | Cierre de duda (DUDA-028) | Regla 5 y Criterio B2: se cierra la pregunta abierta sobre qué rol gestiona la emisión y timbrado de la factura PPD. Queda establecido que la definición del rol responsable corresponde a los permisos/roles de acceso del módulo Factura por Adelantado (ver DUDA-047), y no a este requisito. |
+| 3 | 2026-09-04 | Sincronización matriz | Se quita el prefijo "Crédito -" al referirse a Pago contra entrega. No aplica a: se amplía la nota sobre "Relacionar facturas" (PQF2 solo inserta los datos que el contrato de transferencia define, sin lógica adicional — Sesión Cliente 2). Regla 9 / Criterio A4: se agrega la aclaración de que la "Condición de Pago" SUNAT (fiscal) es un campo distinto de las "Condiciones de Pago" comerciales, y ambos coexisten en el panel para Perú. Criterio A1: se renombra y se agrega referencia cruzada al Criterio C6 (Perú). Criterio C1: se renombra para reflejar el escenario evaluado (el contenido no cambia). La matriz de origen traía reabierta la pregunta de DUDA-028 (Regla 5 / Criterio B2); se conservó el cierre ya registrado el 2026-08-21 en vez de reabrirla — confirmar si esa reapertura en la matriz es intencional. |

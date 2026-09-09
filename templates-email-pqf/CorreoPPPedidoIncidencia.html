@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+			<head>
+				<title>Correo de partidas intramitrables a el cliente para su aceptacion. </title>
+				<meta charset="utf-8" />
+				<meta name="viewport" content="width=device-width, initial-scale=1" />
+				<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+				<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+				<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+				<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+			</head>
+			<body>
+				<header style=" height: 100px; background-image: linear-gradient(to right, #203849 1%, #0c151b 96%); background-size: cover;">
+					<ul style="list-style-type: none;  margin: 0;  padding: 0;  overflow: hidden;">
+						<li style="float: left;display: block; padding: 1% 0; margin-left: 5px; ">
+							<a title="Proquifa" href="http://www.proquifa.com.mx/index.php/es/">
+								<img src="https://i.imgur.com/Tl1hYlA.png" alt="proquifa" width="255" height="52" aspect-ratio="auto 255 / 52" />
+							</a>
+						</li>
+						<li style="float: right;display: block;color: #fff;font-size: 14px;padding: 2% 0; margin-right: 2%; ">
+							<p>
+								<strong>Tramitar Pedido con Errores</strong>
+							</p>
+						</li>
+					</ul>
+				</header>
+				<div class="container-fluid">
+					<section style="margin: 8% 8% 0 8%;">
+						<h1 style="color: #008894; font-size:28px;">
+							¡{{SaludoCorreo}}!
+						</h1>
+						<p style="font-size:19px">
+							Para no comprometer el servicio y tiempos de entrega, usted a acordado
+							que procedamos a tramitar su <b>
+								OC-{{FolioOC}}
+							</b> con las siguientes
+							inconsistencias e instrucciones para la entrega:
+						</p>
+						<br />
+						<h1 style="font-size:16px; background-color:#F2F9FA; height: 50px;">
+							<p style="margin: 14px 0px 0 25px; float: left; font-size: 17px; font-weight: bold; font-stretch: normal; font-style: normal; line-height: normal; letter-spacing: normal; color: #424242;">
+								Instrucciones para la entrega:
+							</p>
+						</h1>
+						<p style="font-size:19px; padding:0 0 0 25px">
+							{{InstruccionesEntrega}}
+						</p>
+						<h1 style="font-size:16px; background-color:#F2F9FA; height: 50px;">
+							<p style="margin: 14px 0px 0 25px; float: left; font-size: 17px; font-weight: bold; font-stretch: normal; font-style: normal; line-height: normal; letter-spacing: normal; color: #424242;">
+								{{TotalPartidas}} Partidas · Total:
+							</p>
+							<p style="margin: 14px 0px 0 2px; float: left;font-size: 17px; font-weight: bold; font-stretch: normal; font-style: normal; line-height: normal; letter-spacing: normal; color: #4ba92b;">
+								${{TotalUSDPartidas}}  {{Moneda}}
+							</p>
+						</h1>
+						<table style="width: 100%;">
+							<tbody style="">
+								<!-- se repite por cada elemento de: CorreoPPPedidoIncidencia/ListaPartidasIncidencias/ppPartidasIncidencias -->
+									<tr style="height:84px; background-color: #fcf3e6; border-top: 5px solid #ffffff;">
+										<td>
+											<div>
+												<span style="font-weight:bold; font-size:12px; line-height:17px; margin-left:10px;">
+													#{{NumPartida}} ·
+												</span>
+												<span style="color:#008894;font-weight:bold; font-size:12px; line-height:17px;">
+													{{NombreMarca}} ·
+												</span>
+												<span style="color:#008894;font-weight:bold; font-size:12px; line-height:17px;">
+													CAT{{Catalogo}} · {{TipoPresentacion}}{{Presentacion}} {{Unidad}}
+												</span>
+											</div>
+											<div>
+												<span style="color: #424242; font-size:12px; line-height:17px; margin-left:10px">
+													{{Descripcion}}
+												</span>
+											</div>
+											<div>
+												<span style="color: #424242; font-size:11px; line-height:17px; margin-left:10px;">
+													TEE {{TEE}} ·
+													{{NumeroDePiezas}} Pieza(s) ·
+													Precio Unitario {{PrecioUnitario}} Moneda·
+													Subtotal {{Subtotal}}  {{Moneda}} ·
+													IVA {{IVA}}  {{Moneda}} ·
+												</span>
+												<span style="color:#008894;font-size:12px; line-height:17px; ">
+													Total {{Total}}  {{Moneda}} ·
+												</span>
+
+											</div>
+											<div>
+												<span style="color: #cc435e; font-size:11px; line-height:17px; margin-left:10px; font-weight: bold;">
+													Inconsistencia en: {{TiposInconsistencia}}
+												</span>
+											</div>
+											<div>
+												<span style="color: #cc435e; font-size:11px; line-height:17px; margin-left:10px; font-weight: bold;">
+													Comentarios: {{Comentarios}}
+												</span>
+											</div>
+										</td>
+									</tr>
+								
+									<tr style="height:84px; background-color: #fcf3e6; border-top: 5px solid #ffffff;">
+										<td>
+											<div>
+												<span style="font-weight:bold; font-size:12px; line-height:17px; margin-left:10px;">
+													#{{NumPartida}} ·
+												</span>
+												<span style="color:#008894;font-weight:bold; font-size:12px; line-height:17px;">
+													{{NombreMarca}} ·
+												</span>
+												<span style="color:#008894;font-weight:bold; font-size:12px; line-height:17px;">
+													CAT{{Catalogo}} · {{TipoPresentacion}}{{Presentacion}} {{Unidad}}
+												</span>
+											</div>
+											<div>
+												<span style="color: #424242; font-size:12px; line-height:17px; margin-left:10px">
+													{{Descripcion}}
+												</span>
+											</div>
+											<div>
+												<span style="color: #424242; font-size:11px; line-height:17px; margin-left:10px;">
+													TEE {{TEE}} ·
+													{{NumeroDePiezas}} Pieza(s) ·
+													Precio Unitario {{PrecioUnitario}} Moneda·
+													Subtotal {{Subtotal}}  {{Moneda}} ·
+													IVA {{IVA}}  {{Moneda}} ·
+												</span>
+												<span style="color:#008894;font-size:12px; line-height:17px; ">
+													Total {{Total}}  {{Moneda}} ·
+												</span>
+
+											</div>
+											<div>
+												<span style="color: #cc435e; font-size:11px; line-height:17px; margin-left:10px; font-weight: bold;">
+													Inconsistencia en: {{TiposInconsistencia}}
+												</span>
+											</div>
+											<div>
+												<span style="color: #cc435e; font-size:11px; line-height:17px; margin-left:10px; font-weight: bold;">
+													Comentarios: {{Comentarios}}
+												</span>
+											</div>
+										</td>
+									</tr>
+								
+							</tbody>
+							<tfoot style="border-top: 5px solid #FFFFFF;">
+								<tr>
+									<td>
+										<div style="border-top: 1px solid #eceef0;">
+											<div style="width:85%; float:left; color:#424242; text-align: right;">Subtotal:</div>
+											<div style="width:15%; float:left; color:#008894; text-align: right;">
+												{{SubtotalPartidas}} {{Moneda}}
+											</div>
+										</div>
+										<div>
+											<div style="width:85%; float:left; color:#424242; text-align: right;">Iva:</div>
+											<div style="width:15%; float:left; color:#008894; text-align: right;">
+												{{IvaTotalPartidas}} {{Moneda}}
+											</div>
+										</div>
+										<div>
+											<div style="width:85%; float:left; color:#424242; text-align: right;font-weight: bold;">Total:</div>
+											<div style="width:15%; float:left; color:#4ba92b; text-align: right;font-weight: bold;">
+												{{TotalUSDPartidas}} {{Moneda}}
+											</div>
+										</div>
+									</td>
+								</tr>
+							</tfoot>
+						</table>
+						<div style="width:100%;height: 109px;background-color:#F2F9FA;margin-top:30px;position: relative;">
+							<a target="_blank" href="{{LinkBotonAcepto}}">
+								<div style="background-color:#008894;width: 223px;height: 43px;margin-top: -12px;position: absolute;top: 50%;left: 41%;transform: translate(0, -50%); color: #ffffff;text-align: center;font-size: 27px;font-weight: bold;">ACEPTO</div>
+							</a>
+							<div style="background-color: #F2F9FA;width: 223px;height: 28px;margin-top: -12px;position: absolute;top: 92%;left: 41%;transform: translate(0, -50%); color: #424242;text-align: center;font-size: 7px;font-weight: bold;">
+								Al aceptar, usted está autorizando que proquifa utilice este correo como documento de amparo para realizar su pedido solicitado
+							</div>
+						</div>
+					</section>
+				</div>
+				<footer style="padding: 0 10%; font-size: 10px;text-align: center; ">
+					<div style=" border-top: 1px solid #FFFFFF;  height: 2px;  padding: 0;  margin: 20px auto 0 auto;"></div>
+					<p style="color: #87858A;">
+						©<span style="font-weight:bold;  ">PROQUIFA.</span>Todos los derechos reservados.
+					</p>
+					<div>
+						<p style="color: #87858A;">
+							Número único nacional sin costo: 01 (55) 1315 1498 · <a href="http://www.proquifa.com.mx/aviso_privacidad.html" style="color: #87858A; text-decoration: underline;">Aviso de Privacidad</a>
+						</p>
+					</div>
+
+					<p style="font-size: 7px;font-weight: normal;font-stretch: normal;font-style: italic;line-height: 1.14;letter-spacing: 0.2px;text-align: justify;color: #87858A;">
+						Este correo electrónico y/o el material anexo son para uso exclusivo de la persona o entidad a la que expresamente se le ha enviado y puede contener información confidencial y/o material privilegiado. Si usted no es el destinatario legítimo del mismo, deberá notificar inmediatamente al remitente del correo y borrar este mensaje y sus anexos en su totalidad permanentemente de su sistema. Cualquier revisión, retransmisión, difusión o cualquier otro uso de este correo, por personas o entidades distintas a las del destinatario legítimo, queda expresamente prohibido. Este correo electrónico no pretende ni debe ser considerado como constructivo de ninguna relación legal, contractual o de otra índole similar.
+					</p>
+
+					<div style="display: flex; justify-content: center;">
+						<a title="Proquifa" href="http://www.ryndem.mx/">
+							<img src="https://i.imgur.com/j5IRCCX.png" alt="Ryndem" style="display: block;font-family: Arial;color: #000000;font-size: 14px;  height: 30px; width:auto" border="0" />
+						</a>
+					</div>
+
+				</footer>
+			</body>
+		</html>
