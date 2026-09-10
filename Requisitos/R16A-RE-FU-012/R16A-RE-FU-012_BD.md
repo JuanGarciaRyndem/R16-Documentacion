@@ -163,7 +163,7 @@ paralelo). Ver `R16A-RE-FU-015_BD.md`, seccion "Migracion de tpProformaAdelanto"
 
 | Aspecto | Mexico (MEX) | Peru (PER) |
 |---------|-------------|------------|
-| FAA disponible para Credito | SI | NO (timbrado peruano R16 = solo Prepago) |
+| FAA disponible para Credito | SI | NO (no se emiten comprobantes fiscales para Perú) |
 | Tramitacion Credito | Flujo normal | Flujo normal |
 | Transferencia a Legacy | SI | NO |
 
@@ -194,7 +194,7 @@ paralelo). Ver `R16A-RE-FU-015_BD.md`, seccion "Migracion de tpProformaAdelanto"
 |--------|-------|-------------|
 | Codigo de autorizacion para FAA | Requeria codigo | Activacion directa sin codigo |
 | Boton Editar Datos con FAA activa | Disponible | **Oculto** cuando FAA=1 |
-| FAA para Peru Credito | No existia Peru | NO disponible (timbrado Peru = solo Prepago) |
+| FAA para Peru Credito | No existia Peru | NO disponible (no se emiten comprobantes fiscales para Perú) |
 
 > Estos cambios son de LOGICA DE APLICACION, no de estructura de BD.
 
@@ -205,7 +205,7 @@ paralelo). Ver `R16A-RE-FU-015_BD.md`, seccion "Migracion de tpProformaAdelanto"
 | # | Gap | Accion |
 |---|-----|--------|
 | 1 | ~~Relacion tpProformaAdelanto con tpPedido no es FK directa~~ | **Resuelto por la migración**: `fccFactura.IdTPPedido` es FK directa y obligatoria |
-| 2 | ~~Rol que gestiona FAA no confirmado (Finanzas o Coordinador de Planeacion)~~ | **Resuelto (DUDA-028, 2026-08-21)**: no se define en este requisito; el rol responsable queda determinado por los permisos/roles de acceso al módulo Factura por Adelantado (ver DUDA-047) |
+| 2 | ~~Rol que gestiona FAA no confirmado (Finanzas o Coordinador de Planeacion)~~ | **Resuelto (DUDA-028, 2026-08-21; precisado 2026-09-10)**: el rol responsable es el Analista de Cuentas por Cobrar, con rol Gestor de Cobranza |
 | 3 | Pendiente 'Relacionar facturas' en Legacy | Mecanismo PQF2->Legacy para este pendiente fuera de scope |
 | 4 | Migración de `fccPagoFacturaAdelanto.IdTPProformaAdelanto` → `IdFccFactura` | Ver `R16A-RE-FU-026_BD.md`/`R16A-RE-FU-027-Back.md` — impacta la asociación de cobro para FAA de Crédito |
 

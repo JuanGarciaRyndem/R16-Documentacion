@@ -199,7 +199,7 @@ Misma funcionalidad documentada en R16A-RE-FU-010 Seccion B. El endpoint de canc
 | Requisito      | Relacion                                                       |
 | -------------- | -------------------------------------------------------------- |
 | R16A-RE-FU-007 | fnEsProductoControlado compartida (GAP-01)                     |
-| R16A-RE-FU-009 | Validacion regulatoria en Pretramitar (prerequisito)           |
+| R16A-RE-FU-009 | Validacion regulatoria (Licencia Sanitaria / Aviso de Responsable Sanitario) — se ejecuta dentro de este mismo modulo, documentada en su propio requisito (corregido 2026-09-10) |
 | R16A-RE-FU-010 | Flujo base Credito sin controlados (este agrega restricciones) |
 
 ---

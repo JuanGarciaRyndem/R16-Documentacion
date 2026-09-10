@@ -22,7 +22,7 @@
 
 ## Resumen
 
-> **Actualización de diseño (adopción del DIS-SOL v1.0):** este documento adopta la arquitectura definida en `[R16A-RE-FU-015][DIS-SOL] Diseño de la solución.pdf` (v1.0, 29/06/2026, revisado por Juan David García Cruz el 02/07/2026). La decisión de diseño **no reutiliza `tpProformaAdelanto`**; en su lugar, el pendiente FAA se modela con tres tablas nuevas propiedad de `ProquifaDotNet.Finanzas`: `fccFactura` (cabecera), `fccFacturaPartida` (detalle) y `fccFacturaReferenciaBancaria` (referencias bancarias). Queda pendiente el hallazgo H-01 de `R16A-RE-FU-015_DIS-SOL_Revision.md` (ver Riesgos abajo).
+> **Actualización de diseño (adopción del DIS-SOL v1.0):** este documento adopta la arquitectura definida en `[R16A-RE-FU-015][DIS-SOL] Diseño de la solución.pdf` (v1.0, 29/06/2026, revisado por Juan David García Cruz el 02/07/2026). La decisión de diseño **no reutiliza `tpProformaAdelanto`**; en su lugar, el pendiente FAA se modela con tres tablas nuevas propiedad de `ProquifaDotNet.Finanzas`: `fccFactura` (cabecera), `fccFacturaPartida` (detalle) y `fccFacturaReferenciaBancaria` (referencias bancarias). El hallazgo H-01 de `R16A-RE-FU-015_DIS-SOL_Revision.md` quedó resuelto el 2026-09-10 (ver Riesgos abajo).
 
 Este requisito es la variante Prepago sin controlados donde el ESAC **activa Factura por Adelantado**. A diferencia de RE-FU-013/014, este flujo **no genera proforma, PDF ni correo**: al tramitar, `ProquifaDotNet` actúa como orquestador (genera y commitea `FolioPedidoInterno`) y delega a `ProquifaDotNet.Finanzas`, que inserta el pendiente FAA y cierra el pendiente operativo de Tramitar Pedido.
 
@@ -32,9 +32,9 @@ Este requisito es la variante Prepago sin controlados donde el ESAC **activa Fac
 
 **Otras diferencias:**
 - `tpPedido.FacturaPorAdelantado = 1`
-- Activación directa sin código de autorización (Regla 3 / RT-07)
+- Activación directa sin código de autorización (Regla 1 / RT-07)
 - Datos de facturación bloqueados y fijados al activar FAA (snapshot en `fccFactura`)
-- El cierre del pendiente operativo en Tramitar Pedido no implica que el pedido quede "tramitado en su totalidad" (Regla 13 / Criterio D3) — se realiza actualizando `PedidoEstadoActual.IdCatEstadoPedido` a `prepagoconfaa` (RT-05, OBS-027 resuelto — ver arriba)
+- El cierre del pendiente operativo en Tramitar Pedido no implica que el pedido quede "tramitado en su totalidad" (Regla 7 / Criterio D3) — se realiza actualizando `PedidoEstadoActual.IdCatEstadoPedido` a `prepagoconfaa` (RT-05, OBS-027 resuelto — ver arriba)
 
 ---
 
@@ -85,11 +85,11 @@ Este requisito es la variante Prepago sin controlados donde el ESAC **activa Fac
 
 ## Riesgos
 
-**Riesgo 1 — H-01 (`R16A-RE-FU-015_DIS-SOL_Revision.md`): `fccFactura` no modela campos fiscales de Perú**
-El bloque de datos del receptor de `fccFactura` (snapshot de `DatosFacturacionCliente`) solo contempla catálogos SAT de México (`RegimenFiscalClaveSAT`, `UsoCFDIClaveSAT`, `MetodoDePagoClaveSAT`, `FormaDePagoClaveSAT`). La Regla 14 / Criterio A5 del requisito exige que para clientes Perú se persistan Tipo de Operación (catálogo 51 SUNAT) y Condición de Pago SUNAT en su lugar, y el propio Alcance del DIS-SOL declara operación en México **y Perú**. Mientras no se resuelva este hallazgo (agregar columnas equivalentes a `fccFactura` o documentar explícitamente por qué no aplican), un pedido peruano con FAA activada no tendría dónde fijar sus datos fiscales correctos. **No bloquea la adopción de la tabla `fccFactura` en este documento, pero debe resolverse antes de cerrar el desarrollo de T2 (INSERT del pendiente FAA) para Perú.**
+**Riesgo 1 — ✅ Resuelto — H-01 (`R16A-RE-FU-015_DIS-SOL_Revision.md`): `fccFactura` no modela campos fiscales de Perú**
+El bloque de datos del receptor de `fccFactura` (snapshot de `DatosFacturacionCliente`) solo contempla catálogos SAT de México (`RegimenFiscalClaveSAT`, `UsoCFDIClaveSAT`, `MetodoDePagoClaveSAT`, `FormaDePagoClaveSAT`). El hallazgo original señalaba que, para clientes Perú, debían persistirse Tipo de Operación (catálogo 51 SUNAT) y Condición de Pago SUNAT en su lugar (antigua Regla 14 / Criterio A5 del requisito). **Resuelto (2026-09-10):** al retirarse el timbrado fiscal de Perú del alcance de esta release, se eliminaron la Regla 14 y el Criterio A5 del requisito; no se requieren columnas equivalentes SUNAT en `fccFactura`.
 
-**Riesgo 2 — Campos de información fiscal originalmente configurados para México**
-Los campos de información fiscal del módulo Tramitar Pedido están actualmente configurados conforme a las normas fiscales de México. Al operar pedidos peruanos, el ESAC podría experimentar confusión sobre qué campos aplican o cómo interpretarlos en el contexto fiscal peruano. Se espera capacitación al equipo operativo para clarificar el manejo de los campos fiscales en pedidos de la región Perú.
+**Riesgo 2 — Panel de Información de Facturación sin diferenciación regional**
+El panel de Información de Facturación de Tramitar Pedido muestra los mismos campos (conforme a las normas fiscales de México) para todos los clientes, sin diferenciar por Región, dado que el timbrado fiscal de Perú queda fuera del alcance de esta release. Es un riesgo operativo menor y no bloquea el desarrollo.
 
 ---
 
@@ -100,7 +100,7 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 **Criterio A1 — Tramitación habilitada para Prepago sin controlados con Factura por Adelantado activada**
 - **Dado** que un pedido pertenece a un cliente Prepago en México o Perú, sin productos controlados, y el ESAC activa la opción Factura por Adelantado,
 - **Cuando** el ESAC opera el módulo Tramitar Pedido,
-- **Entonces** el sistema deberá permitir la tramitación y, al ejecutarse, generar el pendiente FAA (`fccFactura` + detalle) — no se genera proforma (ver Notas: cláusula heredada de proforma pendiente de limpieza editorial en el requisito, ver `R16A-RE-FU-015_DIS-SOL_Revision.md` H-03).
+- **Entonces** el sistema deberá permitir la tramitación y, al ejecutarse, generar el pendiente FAA (`fccFactura` + detalle) — no se genera proforma. (H-03 de `R16A-RE-FU-015_DIS-SOL_Revision.md`, sobre la cláusula heredada de proforma en el requisito, quedó resuelto el 2026-09-10: el requisito eliminó la Sección C y corrigió este mismo criterio.)
 
 **Criterio A2 — Activación de Factura por Adelantado desde Tramitar Pedido**
 - **Dado** que un pedido pertenece a un cliente Prepago sin productos controlados,
@@ -117,18 +117,12 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 - **Cuando** el ESAC visualiza la pantalla del pedido,
 - **Entonces** el radio button de Entrega con Remisión no deberá aparecer en la pantalla, dado que esta opción no aplica para clientes prepago en ninguna variante.
 
-**Criterio A5 — Composición regionalizada del panel de Información de Facturación**
-- **Dado** que el ESAC visualiza el panel de Información de Facturación de un pedido en Tramitar Pedido,
-- **Cuando** el sistema muestra el panel según la Región del cliente,
-- **Entonces** para clientes México deberá mostrar Uso CFDI y Método de Pago (catálogos SAT); para clientes Perú deberá mostrar Tipo de Operación (catálogo 51 SUNAT) y Condición de Pago Contado/Crédito SUNAT en su lugar; en ambas regiones deberá mostrar los campos comunes (Razón Social, RFC/RUC, Moneda, Quién Factura, Condiciones de Pago comerciales y Comentarios) y NO deberá mostrar Forma de Pago ni correo de envío.
-- ⚠️ **No cubierto por el modelo de datos actual de `fccFactura`** — ver Riesgo 1 / H-01.
-
 ### Sección D — Pendientes generados y cierre
 
 **Criterio D1 — Generación del pendiente Factura por Adelantado al tramitar**
 - **Dado** un pedido prepago sin controlados con Factura por Adelantado activada,
 - **Cuando** el ESAC ejecuta la acción Tramitar,
-- **Entonces** el sistema deberá generar automáticamente un pendiente en el módulo Factura por Adelantado asociado al folio del pedido (INSERT atómico en `fccFactura` + `fccFacturaPartida` + `fccFacturaReferenciaBancaria`), para que Finanzas gestione posteriormente la emisión y timbrado de la factura.
+- **Entonces** el sistema deberá generar automáticamente un pendiente en el módulo Factura por Adelantado asociado al folio del pedido (INSERT atómico en `fccFactura` + `fccFacturaPartida` + `fccFacturaReferenciaBancaria`), para que el Analista de Cuentas por Cobrar (rol Gestor de Cobranza) gestione posteriormente la emisión y timbrado de la factura.
 
 **Criterio D2 — Momento de generación del pendiente Validar Cobro**
 - **Dado** que el ESAC tramitó un pedido prepago con Factura por Adelantado activada,
@@ -158,12 +152,12 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 |---|-----|--------|----------|
 | GAP-01 | Generación pendiente FAA al tramitar con FAA=1 | Al confirmar la acción de tramitar (sin generación previa de proforma), INSERT atómico en `fccFactura` + `fccFacturaPartida` + `fccFacturaReferenciaBancaria` (en `ProquifaDotNet.Finanzas`) con datos del pedido/cliente/empresa/monto/partidas/referencias bancarias | Medio |
 | GAP-02 | ~~NO generar pendiente Validar Cobro cuando FAA=1~~ | **Ya no aplica.** Como este flujo no genera `tpProformaPedido`, no existe `MontoPendiente` que pudiera disparar un pendiente en Validar Cobro (RT-06) — no hay nada que suprimir | — |
-| GAP-03 | Eliminar código de autorización para FAA | Buscar y eliminar validación de código de autorización para activar Factura por Adelantado (Regla 3 / RT-07: activación directa) | Bajo |
+| GAP-03 | Eliminar código de autorización para FAA | Buscar y eliminar validación de código de autorización para activar Factura por Adelantado (Regla 1 / RT-07: activación directa) | Bajo |
 | GAP-04 | Bloquear datos facturación al activar FAA | Fijar datos de facturación del catálogo del cliente vigente al momento de activar FAA como snapshot en `fccFactura` (RFC, Razón Social, CP, Régimen Fiscal, Uso CFDI, Método de Pago, Forma de Pago) | Bajo |
 | GAP-05 | Vinculación con módulo FAA (RE-FU-018/019/020) | Tarea para asegurar que el pendiente generado en `fccFactura`/`fccFacturaPartida`/`fccFacturaReferenciaBancaria` sea consumido correctamente por el módulo FAA (RT-10: `fccFactura` es tabla única para FAA y factura final, diferenciadas por `EsFacturaPorAdelantado`) | Bajo |
 | GAP-06 | Cancelación del pedido | Dependencia de R16A-RE-FU-010 (endpoint de cancelación) | Referencia |
 | GAP-07 | Ausencia de documento/PDF disponible para TaskScheduler de Venta Digital | Confirmar si el job de TaskScheduler que transfiere PDFs a Legacy puede operar cuando no existe ningún PDF generado en Tramitar Pedido para este flujo (ver `R16A-RE-FU-015-Tareas.md`) | Medio |
-| GAP-08 | H-01 — Campos fiscales de Perú en `fccFactura` | Antes de cerrar desarrollo, agregar a `fccFactura` (o tabla de extensión regional) los campos equivalentes a Tipo de Operación (catálogo 51 SUNAT) y Condición de Pago SUNAT, siguiendo el mismo patrón snapshot que los campos SAT de México — o documentar explícitamente por qué no aplican | Medio |
+| GAP-08 | ~~H-01 — Campos fiscales de Perú en `fccFactura`~~ | **Resuelto (2026-09-10)** — se elimina la Regla 14/Criterio A5 (panel regionalizado) del requisito al retirarse el timbrado de Perú de esta release; no se agregan columnas SUNAT a `fccFactura` | — |
 | GAP-09 | Actualizar `PedidoEstadoActual` al cerrar el pendiente Tramitar Pedido (OBS-027 resuelto) | Al insertar el pendiente FAA (paso 3i), invocar `PUT /v1/api/orders/status` con `IdTPPedido` + `IdCatEstadoPedido=prepagoconfaa` para cerrar el pendiente operativo (ver T7/T8 en `-Tareas.md`) | Medio |
 
 ---
@@ -268,7 +262,7 @@ El requisito R16A-RE-FU-015 tiene **impacto medio** en desarrollo Back tras adop
 4. **Bloqueo datos facturación** (GAP-04) — fijar al activar FAA
 5. **Vinculación con FAA** (GAP-05) — asegurar consumo del pendiente por RE-FU-018/019/020
 6. **Punto abierto de Venta Digital/Legacy** (GAP-07) — confirmar comportamiento de TaskScheduler sin PDF disponible
-7. **H-01 pendiente** (GAP-08) — campos fiscales de Perú en `fccFactura`
+7. **H-01 resuelto** (GAP-08) — campos fiscales de Perú en `fccFactura` ya no requeridos, tras retirarse el timbrado de Perú de esta release
 8. **Estatus del pedido — OBS-027 resuelto** (GAP-09) — actualizar `PedidoEstadoActual` al cerrar el pendiente Tramitar Pedido, vía el nuevo endpoint compartido `PUT /v1/api/orders/status` (T7/T8)
 
 El desarrollador debe implementar el endpoint orquestador en `ProquifaDotNet` y el servicio de creación del pendiente en `ProquifaDotNet.Finanzas` conforme al DIS-SOL v1.0. `tpProformaAdelantoBO.cs` ya no es código de referencia para este requisito. OBS-027 quedó resuelto con el catálogo `catEstadoPedido` (extendido) y la tabla nueva `PedidoEstadoActual` — ya no aplica el `ALTER TABLE tpPedido ADD IdCatEstadoTpPedido` documentado en versiones anteriores de este archivo.

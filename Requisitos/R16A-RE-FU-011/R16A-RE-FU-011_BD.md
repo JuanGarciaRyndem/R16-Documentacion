@@ -113,7 +113,7 @@ Reutiliza flujo credito existente con restricciones regulatorias.
 
 | Requisito | Relacion |
 |-----------|----------|
-| R16A-RE-FU-009 | Validacion regulatoria en Pretramitar (prerequisito para llegar aqui) |
+| R16A-RE-FU-009 | Validacion regulatoria (Licencia Sanitaria / Aviso de Responsable Sanitario) — se ejecuta dentro de este mismo modulo (Tramitar Pedido) y se documenta en su propio requisito; no es un modulo previo/prerequisito (corregido 2026-09-10) |
 | R16A-RE-FU-010 | Flujo base Credito sin controlados (este agrega restricciones) |
 | R16A-RE-FU-007 | fnEsProductoControlado compartida |
 

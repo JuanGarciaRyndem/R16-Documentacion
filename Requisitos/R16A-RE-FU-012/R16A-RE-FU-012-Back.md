@@ -98,40 +98,26 @@ Al activar FAA:
 - **Back:** datos se toman del catalogo vigente del cliente y se fijan
 - **Validacion Back:** rechazar actualizacion si `tpPedido.FacturaPorAdelantado = 1`
 
-### Datos que se fijan (DatosFacturacionCliente) — regionalizados (Regla 9 — OBS sincronización matriz)
+### Datos que se fijan (DatosFacturacionCliente)
 
-Los campos que se fijan y se exponen en el Panel de Información de Facturación dependen de la región del pedido. La estructura es la misma para ambas regiones, pero los campos fiscales difieren:
-
-**Campos comunes (México y Perú):**
-
-| Campo       | Tipo           | Descripción |
-|-------------|----------------|-------------|
-| RFC / RUC   | varchar(50)    | Identificador fiscal (RFC para MX, RUC para PE) — etiqueta unificada en UI |
-| RazonSocial | varchar(120)   | Razón social legal del cliente |
-| Correo      | varchar(200)   | Correo de envío de la factura |
-
-**Campos fiscales México:**
+Este flujo aplica únicamente a Región México (ver Alcance). El Panel de Información de Facturación **no se regionaliza**: al no implementarse campos fiscales propios de Perú, el panel queda igual al del sistema preexistente (ajuste 2026-09-10, retiro del timbrado de Perú — se elimina la Regla 9 / Criterio A4 del requisito que describían una composición regionalizada).
 
 | Campo                 | Tipo             | Descripción |
 |-----------------------|------------------|-------------|
+| RFC                   | varchar(50)      | Identificador fiscal del cliente |
+| RazonSocial           | varchar(120)     | Razón social legal del cliente |
+| Correo                | varchar(200)     | Correo de envío de la factura |
 | IdCatUsoCFDI          | uniqueidentifier | Uso CFDI (catálogo SAT) |
 | IdCatMetodoDePagoCFDI | uniqueidentifier | Método de Pago (catálogo SAT) |
 | IdCatRegimenFiscal    | uniqueidentifier | Régimen Fiscal (catálogo SAT) |
 
-**Campos fiscales Perú:**
-
-| Campo            | Tipo             | Descripción |
-|------------------|------------------|-------------|
-| TipoOperacion    | varchar(50)      | Tipo de Operación (SUNAT) |
-| CondicionPago    | varchar(50)      | Condición de Pago (SUNAT) |
-
-> **Nota:** Los campos `Forma de Pago` y `correo de envío` NO se muestran en el Panel de Información de Facturación (Regla 9). La Forma de Pago se captura en Validar Cobro; el correo de envío se gestiona en el paso de envío de factura.
+> **Nota:** Los campos `Forma de Pago` y `correo de envío` NO se muestran en el Panel de Información de Facturación. La Forma de Pago se captura en Validar Cobro; el correo de envío se gestiona en el paso de envío de factura.
 
 ---
 
 ## Seccion D — Eliminacion del Codigo de Autorizacion
 
-Regla 3: activacion directa sin codigo. Eliminar validacion si existe.
+Activacion directa sin codigo de autorizacion (nunca se considero un codigo para activar FAA — el requisito ya no documenta esta precision como regla propia, ver Cambios 2026-09-10 en `R16A-RE-FU-012.md`). Eliminar validacion de codigo si existe en el codigo actual.
 
 ---
 

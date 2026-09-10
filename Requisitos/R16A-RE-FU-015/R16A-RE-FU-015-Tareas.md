@@ -16,7 +16,7 @@
 - Decisión de diseño del DIS-SOL v1.0: el pendiente FAA **no reutiliza `tpProformaAdelanto`**. Se modela con tres tablas nuevas propiedad de `ProquifaDotNet.Finanzas`.
 - `fccFactura` es tabla **única** para la FAA y la factura final, diferenciadas por `EsFacturaPorAdelantado` (RT-10). Los campos fiscales del timbrado SAT van `NULL` en la FAA.
 - Ver diccionario de datos completo (columnas, relaciones, índices, consideraciones especiales) en `R16A-RE-FU-015_BD.md`.
-- ⚠️ H-01 (`R16A-RE-FU-015_DIS-SOL_Revision.md`): `fccFactura` no modela aún columnas para Tipo de Operación / Condición de Pago SUNAT (Perú) — pendiente de resolver antes de cerrar desarrollo para Perú, no bloquea esta tarea.
+- ✅ H-01 (`R16A-RE-FU-015_DIS-SOL_Revision.md`) resuelto (2026-09-10): al retirarse el timbrado fiscal de Perú del alcance de esta release, ya no se requieren columnas para Tipo de Operación / Condición de Pago SUNAT (Perú) en `fccFactura`.
 - Esta tarea es predecesora de T2 (INSERT del pendiente FAA) — la estructura debe existir antes de implementar la lógica de servicio.
 
 ### Objetivo general
@@ -121,7 +121,7 @@ Al tramitar un pedido Prepago con FAA=1, se genera automáticamente el pendiente
 - L05.TramitarPedido
 
 ### Consideraciones previas
-- RT-07 / Regla 3: la activación de FAA es directa, sin código de autorización
+- RT-07 / Regla 1: la activación de FAA es directa, sin código de autorización
 - Anteriormente se requería código para activar FAA
 - Buscar y eliminar la validación si existe en el código actual
 
@@ -156,7 +156,7 @@ La activación de FAA no requiere código de autorización.
 - WebApi.Logistica
 
 ### Consideraciones previas
-- Regla 4: al activar FAA se fijan los datos de facturación del catálogo vigente del cliente
+- Regla 3: al activar FAA se fijan los datos de facturación del catálogo vigente del cliente
 - Los datos fijados se persisten como snapshot en `fccFactura`: RFC, Razón Social, CP, Régimen Fiscal, Uso CFDI, Método de Pago, Forma de Pago
 - Rechazar edición posterior si FAA=1
 

@@ -64,7 +64,7 @@ Para pedidos de clientes con condición de pago Prepago, el sistema no permite e
 Al ejecutar la acción de tramitar un pedido prepago sin sustancias controladas y sin Factura por Adelantado, el sistema genera automáticamente una proforma en formato PDF.
 
 **Regla 5 — Folio de la proforma desde foliador lineal global**
-El folio de la proforma se toma del foliador lineal global de PQF2, que mantiene un solo contador para todas las proformas del sistema sin segmentación por empresa o región.
+El folio de la proforma se toma del foliador lineal global de PQF2, que mantiene un solo contador para todas las proformas del sistema sin segmentación por empresa o región. El folio se consume en el momento en que el envío del correo de la proforma se completa exitosamente; un intento de envío fallido no consume folio (ver Regla 12 y Criterio C2b).
 
 **Regla 6 — Folio del pedido interno conforme a mecánica actual**
 El folio interno del pedido se asigna siguiendo la mecánica actual del sistema, sin cambios respecto a la versión vigente.
@@ -86,9 +86,6 @@ Una vez completados el envío del correo de la proforma y la generación del pen
 
 **Regla 12 — Conservación del folio de proforma ante reintento de envío (DUDA-030, resuelta 2026-08-21)**
 El folio de proforma ya asignado se CONSERVA (se consume) hasta que el envío del correo se complete exitosamente. Si el envío falla, el sistema debe reintentar con el MISMO folio de proforma; no se descarta el folio asignado ni se genera uno nuevo por cada intento fallido de envío. Esto evita huecos innecesarios en la numeración lineal global del foliador de proformas por simples reintentos de envío.
-
-**Regla 13 — Composición regionalizada del panel de Información de Facturación**
-El panel de Información de Facturación de Tramitar Pedido es transversal a ambas regiones y muestra los datos del cliente tomados del catálogo, en modo solo lectura. Los campos comunes a México y Perú son: Razón Social, identificador fiscal (RFC para México / RUC para Perú), Moneda, Quién Factura (empresa emisora), Condiciones de Pago (plazo comercial; ej. "60 Días", "Prepago 100%") y Comentarios para la Facturación. Los campos fiscales se regionalizan según la Región del cliente: para México se muestran Uso CFDI y Método de Pago (catálogos SAT); para Perú estos se reemplazan por Tipo de Operación (catálogo 51 SUNAT, en lugar de Uso CFDI) y Condición de Pago SUNAT en singular, Contado/Crédito (en lugar de Método de Pago). La "Condición de Pago" SUNAT de Perú es un campo fiscal distinto de las "Condiciones de Pago" comerciales (plazo) y ambos coexisten en el panel para clientes Perú. Los campos Forma de Pago (medio) y correo de envío no se muestran en este panel en ninguna región.
 
 ---
 
@@ -123,11 +120,6 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 - **Cuando** el ESAC visualiza la pantalla del pedido,
 - **Entonces** el botón "Editar Datos" para datos de facturación no debe aparecer disponible. Los datos de facturación se muestran en modo solo lectura tomados del catálogo del cliente.
 
-**Criterio A5 — Composición regionalizada del panel de Información de Facturación**
-- **Dado** que el ESAC visualiza el panel de Información de Facturación de un pedido en Tramitar Pedido,
-- **Cuando** el sistema muestra el panel según la Región del cliente,
-- **Entonces** para clientes México deberá mostrar Uso CFDI y Método de Pago (catálogos SAT); para clientes Perú deberá mostrar Tipo de Operación (catálogo 51 SUNAT) y Condición de Pago Contado/Crédito SUNAT en su lugar; en ambas regiones deberá mostrar los campos comunes (Razón Social, RFC/RUC, Moneda, Quién Factura, Condiciones de Pago comerciales y Comentarios) y NO deberá mostrar Forma de Pago ni correo de envío.
-
 ### Sección B — Folios y generación de la proforma
 
 **Criterio B1 — Asignación de folio interno al tramitar**
@@ -135,15 +127,10 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 - **Cuando** el sistema procesa la solicitud,
 - **Entonces** deberá asignar el folio interno del pedido siguiendo la mecánica actual del sistema.
 
-**Criterio B2 — Asignación de folio de proforma desde foliador lineal global**
-- **Dado** que el sistema genera la proforma al tramitar,
-- **Cuando** se asigna el folio del documento,
-- **Entonces** el sistema deberá tomar el siguiente número del foliador lineal global de PQF2 (un solo contador compartido por todas las proformas del sistema).
-
-**Criterio B3 — Generación del PDF de la proforma**
+**Criterio B2 — Generación del PDF de la proforma**
 - **Dado** que el ESAC ejecuta la acción de tramitar,
-- **Cuando** se completa la asignación de folios,
-- **Entonces** el sistema deberá generar automáticamente el archivo PDF de la proforma con los datos del pedido, del cliente y los folios correspondientes.
+- **Cuando** el sistema procesa la solicitud,
+- **Entonces** deberá generar automáticamente el archivo PDF de la proforma con los datos del pedido, del cliente y el folio correspondiente, quedando este folio sujeto a consumo definitivo hasta que el envío del correo se complete exitosamente (ver Regla 5 y Criterio C6).
 
 ### Sección C — Previsualización y envío de la proforma
 
@@ -180,12 +167,17 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 - **Cuando** se completa el envío,
 - **Entonces** el sistema deberá generar automáticamente un pendiente en el módulo Validar Cobro asociado al pedido tramitado y la proforma emitida.
 
+**Criterio C6 — Consumo del folio de proforma al completar el envío**
+- **Dado** que el correo de la proforma se envía,
+- **Cuando** el envío se completa exitosamente,
+- **Entonces** el sistema deberá consumir de forma definitiva el folio de proforma asignado; un intento de envío fallido no consume el folio (ver Criterio C2b y Regla 12).
+
 ### Sección D — Cierre y cancelación
 
 **Criterio D1 — Desaparición del pendiente en bandeja Tramitar Pedido**
 - **Dado** que el pedido se tramitó exitosamente (incluyendo el envío del correo de proforma y la generación del pendiente en Validar Cobro),
 - **Cuando** se completa la tramitación,
-- **Entonces** el pedido no deberá seguir apareciendo como pendiente en la bandeja del módulo Tramitar Pedido del ESAC. La consulta histórica del pedido sigue disponible desde los reportes correspondientes.
+- **Entonces** el pedido no deberá seguir apareciendo como pendiente en la bandeja del módulo Tramitar Pedido del ESAC.
 
 **Criterio D2 — Cancelación del pedido**
 - **Dado** que un pedido tramitado tiene solicitud del cliente para cancelar,
@@ -202,7 +194,7 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 - El radio button de Factura por Adelantado se renderiza disponible en este flujo porque el cliente sí podría solicitar esta variante.
 - El radio button de Entrega con Remisión no se renderiza en el módulo Tramitar Pedido para clientes prepago en ninguna variante.
 - Para clientes prepago, los datos de facturación nunca se pueden editar en Tramitar Pedido. El botón "Editar Datos" no aparece. Cualquier ajuste a los datos fiscales del cliente debe gestionarse en el Catálogo de Clientes.
-- El foliador de la proforma es lineal global a PQF2 (un solo contador para todas las proformas del sistema). El folio del pedido interno conserva la mecánica actual del sistema.
+- El foliador de la proforma es lineal global a PQF2 (un solo contador para todas las proformas del sistema). El folio del pedido interno conserva la mecánica actual del sistema. El folio de la proforma se consume al completarse exitosamente el envío del correo; un intento fallido no lo consume (Regla 5, Regla 12, Criterio C2b, Criterio C6).
 - El asunto del correo de proforma se compone como "Proforma" más el folio del pedido interno.
 - El flujo de envío del correo de proforma requiere dos pasos secuenciales en la UI: primero previsualizar y aceptar el PDF; después confirmar los datos de envío del correo.
 - El pendiente del pedido en la bandeja del módulo Tramitar Pedido se cierra automáticamente al completarse la acción de tramitar.
@@ -214,3 +206,4 @@ Los campos de información fiscal del módulo Tramitar Pedido están actualmente
 |---|---|---|
 | 2026-08-21 | Se resuelve la política del folio de proforma ante reintento de envío fallido: se conserva/consume el mismo folio hasta el envío exitoso (no se descarta ni se reasigna). Se agrega Regla 12 y Criterio C2b; se cierra la nota pendiente bajo el Criterio C2. | DUDA-030 |
 | 2026-09-04 | Se sincroniza contra la matriz vigente: se agrega Regla 13 y Criterio A5 (composición regionalizada del panel de Información de Facturación), ausentes en la versión local pero presentes en los requisitos hermanos (FU-012/013/015). La matriz traía reabierta la pregunta de DUDA-030 (nota bajo Criterio C2); se conservó el cierre ya registrado el 2026-08-21 en vez de reabrirla. | Sincronización matriz |
+| 2026-09-10 | Se elimina la Regla 13 y el Criterio A5 (panel regionalizado México/Perú, agregados el 2026-09-04): al retirarse el timbrado fiscal de Perú de esta release, los campos SUNAT dejan de aplicar. Se agrega a la Regla 5 el momento de consumo del folio de proforma (se consume al completarse el envío; un envío fallido no lo consume). Se elimina el Criterio B2 (asignación de folio al tramitar); el antiguo Criterio B3 se renumera a **Criterio B2** con redacción ajustada. Se agrega el nuevo **Criterio C6 — Consumo del folio al completar el envío**. Se retira de Criterio D1 la referencia a "consulta histórica...desde los reportes correspondientes" (fuera de alcance). Se actualizan las Notas con las referencias cruzadas correspondientes. | Ajuste retiro timbrado Perú / corrección foliador / consistencia |

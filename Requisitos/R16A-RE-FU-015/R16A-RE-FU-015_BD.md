@@ -36,9 +36,9 @@ con la factura final via `EsFacturaPorAdelantado`), `fccFacturaPartida`
 
 ---
 
-## ⚠️ Hallazgo abierto — H-01 (`R16A-RE-FU-015_DIS-SOL_Revision.md`)
+## ✅ H-01 RESUELTO (`R16A-RE-FU-015_DIS-SOL_Revision.md`)
 
-`fccFactura` solo modela campos fiscales de México en el bloque "Datos del receptor" (`RegimenFiscalClaveSAT`, `UsoCFDIClaveSAT`, `MetodoDePagoClaveSAT`, `FormaDePagoClaveSAT`). La Regla 14 / Criterio A5 de `R16A-RE-FU-015.md` exige que, para clientes Perú, se persistan Tipo de Operación (catálogo 51 SUNAT) y Condición de Pago SUNAT en su lugar. **Antes de cerrar el desarrollo para Perú**, debe agregarse a `fccFactura` (o a una tabla de extensión regional) las columnas equivalentes, o documentarse explícitamente por qué no aplican. No bloquea la creación de la tabla en esta fase.
+`fccFactura` solo modela campos fiscales de México en el bloque "Datos del receptor" (`RegimenFiscalClaveSAT`, `UsoCFDIClaveSAT`, `MetodoDePagoClaveSAT`, `FormaDePagoClaveSAT`). El hallazgo original señalaba que, para clientes Perú, debían persistirse Tipo de Operación (catálogo 51 SUNAT) y Condición de Pago SUNAT en su lugar (antigua Regla 14 / Criterio A5 de `R16A-RE-FU-015.md`). **Resuelto (2026-09-10):** al retirarse el timbrado fiscal de Perú del alcance de esta release, se eliminaron la Regla 14 y el Criterio A5 del requisito; ya no se requieren columnas equivalentes SUNAT en `fccFactura`. No se agregan columnas ni tabla de extensión regional.
 
 ---
 
@@ -158,8 +158,8 @@ INSERT INTO [dbo].[catFacturaEstado] (Clave, Descripcion, Orden, EsTerminal) VAL
 | RazonSocialReceptor                                     | varchar            | Snapshot — Nombre/Razón Social                                           |
 | CodigoPostalReceptor                                    | varchar            | Snapshot — CP / domicilio fiscal receptor                                |
 | RegimenFiscalClaveSAT / RegimenFiscalLeyendaSAT         | varchar            | Catálogo `c_RegimenFiscal` (México)                                      |
-| UsoCFDIClaveSAT / UsoCFDILeyendaSAT                     | varchar            | Catálogo `c_UsoCFDI` (México) — ⚠️ ver H-01, sin equivalente Perú        |
-| MetodoDePagoClaveSAT / MetodoDePagoLeyendaSAT           | varchar            | Catálogo `c_MetodoPago` (México) — ⚠️ ver H-01, sin equivalente Perú     |
+| UsoCFDIClaveSAT / UsoCFDILeyendaSAT                     | varchar            | Catálogo `c_UsoCFDI` (México) — sin equivalente Perú; no aplica (H-01 resuelto, timbrado Perú fuera de alcance) |
+| MetodoDePagoClaveSAT / MetodoDePagoLeyendaSAT           | varchar            | Catálogo `c_MetodoPago` (México) — sin equivalente Perú; no aplica (H-01 resuelto, timbrado Perú fuera de alcance) |
 | FormaDePagoClaveSAT / FormaDePagoLeyendaSAT             | varchar            | Catálogo `c_FormaPago` (México)                                          |
 | IdCFDIGenerada                                          | uniqueidentifier NULL | FK → `CFDIGenerada.IdCFDIGenerada` (Finanzas) — `NULL` mientras la factura no se ha timbrado (FAA pendiente); se llena al emitir/timbrar la factura final (RE-FU-018/019/020). Reemplaza el corte de `tpProformaAdelanto.IdCFDIGenerada` — **no se duplican** Serie/Folio/FolioFiscal/Version/TipoDeComprobante/FechaCertificacion en `fccFactura`: esos datos se leen de `CFDIGenerada` vía este FK (single source of truth, mismo criterio aplicado en RE-FU-018/019/020/021/022) |
 | Activo                                                  | bit                | Control                                                                  |
@@ -194,7 +194,7 @@ INSERT INTO [dbo].[catFacturaEstado] (Clave, Descripcion, Orden, EsTerminal) VAL
 - `EsFacturaPorAdelantado = 1` en el flujo RE-015 (al tramitar) y en el flujo RE-012 (Crédito, con `IdTPProformaPedido` poblado). El módulo FAA (RE-018/019/020) actualiza este registro a `EsFacturaPorAdelantado = 0` y puebla `IdCFDIGenerada` al emitir la factura final — no se crea un segundo registro (RT-10).
 - `IdCFDIGenerada` debe permanecer `NULL` mientras `EsFacturaPorAdelantado = 1` y no se haya timbrado (`EstadoFAA = 'PendienteGenerar'` en `vfccFactura`).
 - `IdTPProformaPedido` es `NULL` para pedidos Prepago (RE-FU-015, que no genera proforma) y está poblado para pedidos Crédito (RE-FU-012, cuya proforma/Confirmación de Pedido se genera en paralelo a `fccFactura` dentro de la misma transacción de tramitación).
-- ⚠️ H-01 abierto: sin columnas para Tipo de Operación / Condición de Pago SUNAT (Perú).
+- H-01 resuelto: no se requieren columnas para Tipo de Operación / Condición de Pago SUNAT (Perú); el timbrado fiscal de Perú queda fuera del alcance de esta release.
 - `IdCatFacturaEstado` sigue el ciclo de `catFacturaEstado` (ver catálogo arriba): porgenerar al crear; generada al timbrar (junto con `IdCFDIGenerada`); enviada al enviar (junto con `Enviada = 1` y `FechaEnvio = GETDATE()`); pagadaparcial/pagada desde Validar Cobro; cancelada desde el flujo de cancelación. Convive con `EstadoFAA` (calculado en `vfccFactura`, específico del pendiente FAA) sin sustituirlo.
 - **Tabla única para el pendiente FAA, tanto en el origen Prepago (RE-015) como Crédito (RE-012)** — reemplaza `tpProformaAdelanto` en ambos flujos. Ver vista `vfccFactura` para el listado/estado calculado que antes ofrecía `vtpProformaAdelanto`.
 
@@ -685,7 +685,7 @@ WHERE pc.IdPPPedido IS NULL
 | # | Gap | Accion |
 |---|-----|--------|
 | 1 | Vinculacion FAA -> Validar Cobro posterior | Confirmar logica del modulo FAA (RE-018/019/020) sobre UPDATE de `fccFactura` |
-| 2 | H-01 — Campos fiscales de Perú en `fccFactura` | Agregar columnas equivalentes a Tipo de Operación / Condición de Pago SUNAT, o documentar por qué no aplican |
+| 2 | ~~H-01 — Campos fiscales de Perú en `fccFactura`~~ | **Resuelto (2026-09-10)** — se elimina la Regla 14/Criterio A5 (panel regionalizado) del requisito al retirarse el timbrado de Perú de esta release; no se agregan columnas SUNAT a `fccFactura` |
 | 3 | Documento disponible para TaskScheduler/Legacy | Confirmar si el job de Venta Digital puede operar sin ningun PDF generado en este flujo |
 | 4 | ~~Catalogo de estatus del pedido (OBS-027 / Criterio D5)~~ | **Resuelto** — `catEstadoPedido` extendido + `catMotivoCancelacion` + `PedidoEstadoActual` (ver sección "Estatus del pedido" arriba) |
 | 5 | Sub-estados de `intramitable` y distinción `prepagoconfaa`/`prepagoencobro` para el backfill histórico | Confirmar con negocio antes de correr la migración en PROD (ver sección de migración) |

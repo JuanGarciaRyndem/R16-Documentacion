@@ -117,11 +117,11 @@ El manejo de Sustancias Controladas para Región Perú no está soportado en est
 - Cubre dos requisitos del cliente sobre la tramitación bajo condición de pago Pago contra entrega y la transferencia a Legacy con marca de detención.
 - A diferencia del flujo Prepago, en Crédito la Confirmación de Pedido se genera dentro del módulo Tramitar Pedido.
 - La detención del pedido Pago contra entrega por falta de validación de pago es responsabilidad de Legacy.
-- La validación de Licencia Sanitaria y Aviso de Responsable Sanitario del cliente ocurre antes de llegar a Tramitar Pedido (responsabilidad del módulo Pretramitar Pedido), por lo que no se incluye como criterio en este requisito.
+- La validación de presencia de la Licencia Sanitaria y el Aviso de Responsable Sanitario del cliente se ejecuta en este mismo módulo (Tramitar Pedido) y se documenta en su propio requisito, por lo que no se incluye como criterio en este requisito.
 - Aplicable únicamente a la operación de México. Perú no soporta sustancias controladas en R16.
 
 **Resueltos (dudas cerradas):**
-- **Alcance Perú (DUDA-027):** el cliente confirmó que Perú no soporta sustancias controladas en R16. No se desarrolla bloqueo técnico ni validación para esa región en este requisito; el avance de un controlado de Perú hacia facturación se asume como riesgo operativo, comunicado al cliente (control operativo, no de sistema). Ver Riesgo 2.
+- **Alcance Perú (DUDA-027):** el cliente confirmó que Perú no soporta sustancias controladas en R16. No se desarrolla bloqueo técnico ni validación para esa región en este requisito; el avance de un controlado de Perú por el flujo de tramitación se asume como riesgo operativo, comunicado al cliente (control operativo, no de sistema; no aplica referencia a facturación, ya que no se emiten comprobantes fiscales para Región Perú). Ver Riesgo 2.
 
 ---
 
@@ -131,3 +131,4 @@ El manejo de Sustancias Controladas para Región Perú no está soportado en est
 |---|-------|-------------|------------------------|
 | 1 | 2026-08-21 | Cierre de duda | Se incorpora la resolución de DUDA-027: Perú no soporta sustancias controladas en R16 y no se construye bloqueo técnico ni validación para esa región; el riesgo se asume como operativo y comunicado al cliente. Se marcan como obsoletos (tachados, con motivo) los pasajes de Alcance, Regla 4 y Criterios A1/C3 que describían un flujo funcional para Perú, y se agrega Riesgo 2 documentando el riesgo operativo asumido. Se anota nota equivalente en `R16A-RE-FU-011-Back.md`. |
 | 2 | 2026-09-04 | Sincronización matriz | Se reescribe el documento en limpio a partir de la matriz vigente, retirando el marcado de tachado/obsoleto usado para registrar el cierre de DUDA-027 (la conclusión se conserva en Regla 4, Riesgo 2 y en "Resueltos"). Se elimina formalmente el Criterio C3 (ya marcado como retirado). Se quita el prefijo "Crédito -" al referirse a la condición de pago Pago contra entrega. Requisito: se completa la redacción (la fuente de la matriz llegaba truncada) manteniendo la conclusión ya documentada de transferencia a Legacy. |
+| 3 | 2026-09-10 | Ajuste retiro timbrado Perú / consistencia | Riesgo 2 y "Resueltos": se acota el riesgo del avance de pedidos con controlados de Región Perú al flujo de tramitación, retirando la referencia a la facturación (no aplica al no emitirse comprobantes fiscales para Perú). Notas: se corrige la mención a que la validación de Licencia Sanitaria/Aviso de Responsable Sanitario ocurre en Pretramitar Pedido antes de llegar a Tramitar Pedido — esa validación se ejecuta en este mismo módulo y se documenta en su propio requisito (consistente con Alcance, "No aplica a"). |

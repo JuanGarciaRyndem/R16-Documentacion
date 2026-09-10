@@ -150,7 +150,7 @@ No renderiza FAA ni Entrega con Remisión. Datos de facturación en solo lectura
 | Restricción por código | ✅ Validaciones regulatorias activas | ❌ Sin restricción por código — control operativo |
 | Transferencia a Legacy (post-Validar Cobro) | ✅ | ❌ No aplica — operación termina en PQF2 |
 
-> **Controlados Perú (Duda 061 / DUDA-027):** El cliente confirmó que el manejo de sustancias controladas no está contemplado en el alcance de esta release para Perú. El sistema no restringe el avance de un pedido con controlados de cliente Perú (Riesgo 3 del requisito); el control es operativo, no de sistema. DUDA-029 confirma además que la exclusión de Factura por Adelantado con controlados aplica igual para México y Perú (mismo criterio operativo, sin validación adicional por código).
+> **Controlados Perú (Duda 061 / DUDA-027):** El cliente confirmó que el manejo de sustancias controladas no está contemplado en el alcance de esta release para Perú. El sistema no restringe el avance de un pedido con controlados de cliente Perú (Riesgo 2 del requisito); el control es operativo, no de sistema. DUDA-029 confirma además que la exclusión de Factura por Adelantado con controlados aplica igual para México y Perú (mismo criterio operativo, sin validación adicional por código).
 
 ---
 

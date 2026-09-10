@@ -8,7 +8,7 @@
 
 ## Resumen
 
-Este requisito corresponde a la tramitación de pedidos Prepago con sustancias controladas (Mundial, Nacional, Origen) **para la operación de México**. El manejo de sustancias controladas en Región Perú no está contemplado en el alcance de esta release (confirmado por el cliente — Duda 061); el sistema no lo restringe por código, el control es operativo (ver Riesgo 3 del requisito). El flujo base **ya existe**:
+Este requisito corresponde a la tramitación de pedidos Prepago con sustancias controladas (Mundial, Nacional, Origen) **para la operación de México**. El manejo de sustancias controladas en Región Perú no está contemplado en el alcance de esta release (confirmado por el cliente — Duda 061); el sistema no lo restringe por código, el control es operativo (ver Riesgo 2 del requisito). El flujo base **ya existe**:
 
 - `tpPedidoFacturaToTPProformaPedidoBO.cs` ya detecta controlados y genera proformas con `Controlados=true`
 - `tpProformaPedidoFactory.cs` crea la entidad `tpProformaPedido` (actualmente recibe `Empresa` como parametro)
