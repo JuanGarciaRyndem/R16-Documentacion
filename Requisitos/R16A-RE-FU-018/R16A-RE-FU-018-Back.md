@@ -145,7 +145,7 @@ ProquifaDotNet.Timbrado/
 
 | Servicio        | Responsabilidad                                                                 |
 | --------------- | ------------------------------------------------------------------------------- |
-| StampingService | Orquesta: validar request, llamar SAP, registrar StampingLog, regresar el resultado a Finanzas (sin persistir CFDI) |
+| StampingService | Orquesta el timbrado y la cancelacion: validar request, llamar SAP, registrar StampingLog, regresar el resultado a Finanzas (sin persistir CFDI) |
 
 #### Infrastructure - Integraciones
 
@@ -171,9 +171,9 @@ ProquifaDotNet.Timbrado/
 | POST   | /api/v1/stamp/invoice                   | Timbra una Factura (CFDI tipo I / CPE 01 SUNAT, incluye FAA): recibe datos fiscales armados por Finanzas, timbra ante SAP y regresa Uuid/XML/Series/Folio/estatus |
 | POST   | /api/v1/stamp/payment-complement        | Timbra un Complemento de Pago (CFDI tipo P): recibe el nodo Pagos con documentos relacionados (UUID factura PPD, saldos, parcialidad) |
 | POST   | /api/v1/stamp/credit-note               | Timbra una Nota de Credito (CFDI tipo E / CPE 07 SUNAT): recibe conceptos + CFDIRelacionados (UUID factura origen, TipoRelacion 01/03) |
-| POST   | /api/v1/stamp/cancel                    | Solicita cancelacion de un CFDI ante SAP (recibe Uuid + datos minimos, sin leer tabla propia) |
+| POST   | /api/v1/stamp/cancel                    | Solicita cancelacion de un CFDI ante SAP: recibe `{ Uuid, ClaveMotivo }`, invoca al PAC con el UUID y el motivo de cancelacion, actualiza `StampingLog` (NewStatus, `Action='Cancel'`) y regresa el resultado a Finanzas |
 
-> Los tres endpoints de timbrado comparten el mismo pipeline interno (`StampingService` -> `SapStampingClient` -> `StampingLog`): la diferencia vive en el DTO de entrada y su validador. SAT (Mexico) y SUNAT (Peru) comparten endpoint por tipo de documento; la region se resuelve por los datos del request, sin rutas separadas por region.
+> Los tres endpoints de timbrado comparten el mismo pipeline interno (`StampingService` -> `SapStampingClient` -> `StampingLog`): la diferencia vive en el DTO de entrada y su validador. SAT (Mexico) y SUNAT (Peru) comparten endpoint por tipo de documento; la region se resuelve por los datos del request, sin rutas separadas por region. El endpoint de cancelacion (`/api/v1/stamp/cancel`) es compartido por cualquier requisito que necesite cancelar un CFDI ante el SAT (ver, por ejemplo, R16A-RE-FU-032, que lo reutiliza).
 
 ---
 
@@ -225,7 +225,7 @@ El recurso de negocio **CFDI** (crear, consultar, cancelar, listar) vive en **Pr
 | Metodo | Endpoint                      | Descripcion                                          |
 | ------ | ----------------------------- | ----------------------------------------------------- |
 | POST   | /api/v1/cfdi                  | Arma datos fiscales, llama a Timbrado, persiste CFDIGenerada + Archivo (XML) |
-| POST   | /api/v1/cfdi/{id}/cancel      | Llama a Timbrado para cancelar ante SAP y actualiza Estado en CFDIGenerada |
+| POST   | /api/v1/cfdi/{id}/cancel      | Llama a Timbrado para cancelar ante SAP (`POST /api/v1/stamp/cancel`), actualiza `CFDIGenerada.Estado='Cancelado'` |
 | GET    | /api/v1/cfdi/{id}             | Consulta CFDIGenerada por Id |
 | GET    | /api/v1/cfdi/{id}/xml         | Descarga XML desde Minio via Archivo.FileKey/FileBucket |
 | POST   | /api/v1/cfdi/search           | Listado paginado con QueryInfo |

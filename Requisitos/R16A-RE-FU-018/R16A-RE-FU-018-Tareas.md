@@ -93,7 +93,7 @@ Capa Domain completa con todas las abstracciones necesarias para el servicio tec
 **Criterios de aceptacion:**
 - El proyecto Domain no tiene referencias a otros proyectos de la solucion
 - Las entidades reflejan exactamente la estructura de BD (R16A-RE-FU-018_BD.md, Parte 2: solo AppSetting y StampingLog)
-- ISapStampingClient define metodos StampAsync y CancelAsync
+- ISapStampingClient define los metodos StampAsync y CancelAsync
 
 **Mas informacion de la tarea:**
 Corresponde a GAP-02.
@@ -202,12 +202,12 @@ Corresponde a GAP-04.
 **Consideraciones previas:**
 - Depende de Tarea 2 (ISapStampingClient definido en Domain)
 - SAP es el proveedor de timbrado fiscal (PAC)
-- Operaciones: Stamp (enviar documento, recibir Uuid/XML) y Cancel
+- Operacion: Stamp y Cancel (enviar documento / solicitar cancelacion, recibir Uuid/XML o confirmacion)
 - Un solo intento por peticion: Timbrado no reintenta ante fallo del PAC (esa politica es responsabilidad de Finanzas, implementada localmente en cada punto de generacion del documento). Polly se usa unicamente para timeout, no para retry
 - Configuracion via SapSettings (endpoint, credenciales, timeout)
 
 **Objetivo general:**
-Implementar el cliente HTTP para invocar al proveedor SAP y generar/cancelar documentos fiscales CFDI.
+Implementar el cliente HTTP para invocar al proveedor SAP y generar/cancelar documentos fiscales CFDI (timbrar/cancelar).
 
 **Objetivos especificos:**
 - Crear Services/SapStampingClient.cs implementando ISapStampingClient
@@ -533,6 +533,7 @@ API de Finanzas con el recurso `cfdi` completamente funcional.
 
 **Criterios de aceptacion:**
 - POST /api/v1/cfdi arma el timbrado (via Timbrado) y persiste CFDIGenerada + Archivo
+- POST /api/v1/cfdi/{id}/cancel solicita la cancelacion a Timbrado y actualiza CFDIGenerada
 - GET /api/v1/cfdi/{id}/xml retorna el XML descargandolo desde Minio via Archivo
 - Los endpoints aparecen documentados en Swagger
 

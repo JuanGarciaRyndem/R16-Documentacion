@@ -174,7 +174,7 @@ Timbrado invoca al PAC y regresa UUID + XML + estatus (sin persistirlos como ent
 |---------|------|------|---------|-------------|
 | Id | uniqueidentifier | NO | NEWID() | PK |
 | CfdiGeneradaId | uniqueidentifier | SI | - | Referencia informativa a `CFDIGenerada.IdCFDIGenerada` (ProquifaDotNet) — no es FK real, es cross-database |
-| Action | varchar(50) | NO | - | Stamp/Cancel |
+| Action | varchar(50) | NO | - | Stamp \| Cancel |
 | PreviousStatus | varchar(30) | SI | - | Estado antes de la accion |
 | NewStatus | varchar(30) | NO | - | Estado despues de la accion |
 | Request | varchar(max) | SI | - | Payload enviado al PAC |
