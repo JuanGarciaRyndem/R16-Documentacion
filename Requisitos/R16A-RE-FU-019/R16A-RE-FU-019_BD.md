@@ -1,7 +1,7 @@
 # Impacto en BD - Factura por Adelantado: Detalle Mexico
 **Requisito:** R16A-RE-FU-019
 **Bases de Datos:** ProquifaDotNet (lectura/escritura)
-**Version:** 3.1 - EmpresaFolio corregida: IdEmpresa FK (no EmpresaClave), columnas de auditoría estándar, UPDLOCK atómico como mecanismo único de folio (sin integración Legacy consecutivo)
+**Version:** 3.2 - Serie de la Factura definida como "A2" (antes NULL); corrección del puesto de trabajo a Analista de Cuentas por Cobrar; salida a Legacy incluye Pago contra entrega
 
 ---
 
@@ -434,9 +434,9 @@ Foliador por empresa/serie. `UltimoFolio` es el **consecutivo** — el entero qu
     );
     GO
 
-    -- Serie NULL = factura (serie por empresa); 'P' = CDP; 'P2' = NC
+    -- Serie 'A2' = Factura por Adelantado (distinta de la serie del sistema Legacy, evita colisión de folios); 'P' = CDP; 'P2' = NC
     INSERT INTO [dbo].[EmpresaFolio] ([IdEmpresa], [Serie], [UltimoFolio])
-    SELECT e.[IdEmpresa], NULL, 0
+    SELECT e.[IdEmpresa], 'A2', 0
     FROM   [dbo].[Empresa] e
     WHERE  e.[Prefijo] IN ('GOL', 'MUN', 'PRO', 'PQF');
     -- Ajustar UltimoFolio al valor actual en producción antes del go-live (ver Gap-1)
@@ -446,7 +446,7 @@ Foliador por empresa/serie. `UltimoFolio` es el **consecutivo** — el entero qu
 |---|---|---|---|---|
 | IdEmpresaFolio | uniqueidentifier | NO | NEWID() | PK |
 | IdEmpresa | uniqueidentifier | NO | — | FK → `Empresa` — empresa emisora |
-| Serie | varchar(25) | SÍ | — | Serie del foliador: NULL = factura, `'P'` = CDP, `'P2'` = NC, `'F001'` = GOLPERU |
+| Serie | varchar(25) | SÍ | — | Serie del foliador: `'A2'` = Factura por Adelantado (distinta de la serie Legacy), `'P'` = CDP, `'P2'` = NC |
 | UltimoFolio | int | NO | 0 | **Consecutivo** — último entero asignado; se incrementa con UPDLOCK atómico |
 | FormatoFolio | varchar(50) | NO | `'{folio}'` | Patrón de formato del folio presentado (ej. `'A{folio:D6}'`) |
 | LongitudMaxima | int | NO | 6 | Longitud máxima del campo folio en caracteres |
@@ -499,8 +499,8 @@ Foliador por empresa/serie. `UltimoFolio` es el **consecutivo** — el entero qu
        ProquifaDotNet:
          INSERT CorreoEnviado + ArchivoCorreoEnviado
          UPDATE fccFactura SET Enviada = 1, FechaEnvio = GETDATE(), IdCatFacturaEstado = ENVIADA (antes: UPDATE tpProformaAdelanto SET Enviada = 1)
-         Segun tipo (fccFactura.IdTPProformaPedido NOT NULL = origen Credito):
-           Credito -> transferencia Legacy
+         Segun tipo de pedido:
+           Credito o Pago contra entrega -> transferencia Legacy
            Prepago -> pendiente Validar Cobro
 
 ---
@@ -509,8 +509,8 @@ Foliador por empresa/serie. `UltimoFolio` es el **consecutivo** — el entero qu
 
 | EstadoFAA | Condicion | Accion UI |
 |-----------|-----------|-----------|
-| PendienteGenerar | IdCFDIGenerada IS NULL | 'Generar Factura' (azul) |
-| PendienteEnviar | IdCFDIGenerada IS NOT NULL AND Enviada=0 | 'Enviar Factura' (verde) |
+| PendienteGenerar | IdCFDIGenerada IS NULL | 'Generar Factura' |
+| PendienteEnviar | IdCFDIGenerada IS NOT NULL AND Enviada=0 | 'Enviar Factura' |
 | Completada | Enviada=1 | Desaparece del listado |
 
 ---
@@ -540,7 +540,7 @@ Foliador por empresa/serie. `UltimoFolio` es el **consecutivo** — el entero qu
 | 1 | UltimoFolio inicial por empresa | Técnico | Inicializar `EmpresaFolio.UltimoFolio` al valor de producción vigente (Mungen 2374, Golocaer 7156, Proquifa 20913, Proveedora QF 143103) antes del go-live |
 | 2 | Lote del producto al timbrar FAA | Negocio | No disponible - confirmar |
 | ~~3~~ | ~~Politica ante caida del PAC~~ | Tecnico | **[Resuelto — DUDA-050]** Timbrado es síncrono, un solo intento por petición (sin reintento propio); el reintento/encolamiento ante fallo del PAC es responsabilidad de Finanzas (contador de reintentos + notificación a soporte). Cliente aceptó que el timbrado sea uno a uno, no masivo/por lote. Ver `R16A-RE-FU-019.md`, Notas Adicionales, y `Diagramas/Diagrama Secuencia Encolamiento Finanzas y Timbrado Factura.md`. |
-| ~~4~~ | ~~Rol operativo~~ | Negocio | **[Resuelto — Duda 047]** Rol: **Gestor de Cobranza**. Puesto de trabajo: **Analista de Cuentas por Pagar**. |
+| ~~4~~ | ~~Rol operativo~~ | Negocio | **[Resuelto — Duda 047]** Rol: **Gestor de Cobranza**. Puesto de trabajo: **Analista de Cuentas por Cobrar**. |
 | ~~5~~ | ~~Alias vs RazonSocial~~ | Negocio | **[Resuelto — DUDA-048]** El cliente se identifica por RAZÓN SOCIAL (homologado con el resto de Facturación), no por Alias. |
 | ~~6~~ | ~~Estructura tabla legacy `consecutivo`~~ | — | **[Resuelto]** El folio de Factura México proviene de `EmpresaFolio` (PQF2/Finanzas) con UPDLOCK atómico — sin dependencia de Legacy. Ver `Analisis/Foliados-Documentos.md`, sección Factura. |
 | 7 | Nivel de configuración ClaveProdServ/ClaveUnidad/PerfilFiscal | Negocio/Técnico | Confirmar si cada campo se configura a nivel Producto, Familia, o con precedencia Producto→Familia — y si los 3 campos comparten el mismo nivel o cada uno puede tener el suyo (ver sección "Datos del producto") |

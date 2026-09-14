@@ -236,7 +236,7 @@ El pendiente FAA generado en la tramitación es consumido correctamente por el m
 - El backfill de datos de esta tarea corresponde a la actividad catalogada `MIG-DATOS` (`Catalogo BackEnd.md`).
 
 ### Objetivo general
-Dejar en base de datos la estructura completa para sostener el estatus del pedido (Criterio D5): extender el catálogo existente `catEstadoPedido`, crear el catálogo `catMotivoCancelacion` y crear la tabla `PedidoEstadoActual`, y migrar a ella los pedidos existentes.
+Dejar en base de datos la estructura completa para sostener el estatus del pedido (Criterio D4): extender el catálogo existente `catEstadoPedido`, crear el catálogo `catMotivoCancelacion` y crear la tabla `PedidoEstadoActual`, y migrar a ella los pedidos existentes.
 
 ### Objetivos específicos
 - `ALTER TABLE dbo.catEstadoPedido` — agregar `Orden`, `EsTerminal`, `Aplicativo`, `AliasOperativo` (y `FechaRegistro`, faltante en la definición original) + `UNIQUE (Clave)`
@@ -340,7 +340,7 @@ Implementar el endpoint que actualiza el estatus vigente del pedido en `PedidoEs
 - Si viene más de un identificador informado, se usa el de mayor jerarquía (`IdTPPedido` primero) y no genera error
 - El endpoint rechaza o ignora `IdCatMotivoCancelacion` si se envía (no es un parámetro del contrato)
 - Cada uno de los 13 puntos de integración de la tabla invoca el endpoint con la clave de `catEstadoPedido` correcta al ocurrir su disparador
-- Al tramitar Prepago con FAA (T2), `PedidoEstadoActual.IdCatEstadoPedido` queda en `prepagoconfaa` y el pedido deja de aparecer en la bandeja de Tramitar Pedido (Criterio D3)
+- Al tramitar Prepago con FAA (T2), `PedidoEstadoActual.IdCatEstadoPedido` queda en `prepagoconfaa` y el pedido deja de aparecer en la bandeja de Tramitar Pedido (Criterio D2)
 - `FechaUltimaActualizacion` se actualiza en cada cambio de estatus
 - El backfill de T7 está ejecutado: un pedido preexistente (anterior a la liberación) también tiene registro en `PedidoEstadoActual`, y el endpoint lo actualiza sin error de "registro no encontrado"
 

@@ -5,7 +5,7 @@
 | **ID**                  | R16A-RE-FU-017                                                                                                                                                                                                                                                                                          |
 | **Título**              | Diseño y generación de Documentos: Proforma Perú                                                                                                                                                                                                                                                        |
 | **Módulo / Épica**      | Tramitar Pedido                                                                                                                                                                                                                                                                                         |
-| **Historia de Usuario** | Yo como ESAC, quiero que el sistema genere automáticamente el PDF de la Proforma adaptado a la normativa fiscal SUNAT al tramitar un pedido Prepago para clientes de Perú, para entregar al cliente un documento estandarizado y conforme a la regulación peruana que respalde el cobro por adelantado. |
+| **Historia de Usuario** | Yo como ESAC, quiero que el sistema genere automáticamente el PDF de la Proforma adaptado a las convenciones fiscales y administrativas peruanas al tramitar un pedido Prepago sin Factura por Adelantado para clientes de Perú, para entregar al cliente un documento estandarizado y conforme a esas convenciones que respalde el cobro por adelantado. |
 | **Prioridad**           | Alta                                                                                                                                                                                                                                                                                                    |
 | **Estado**              | Propuesto                                                                                                                                                                                                                                                                                               |
 | **Requisito asociado**  | R16.1M-RE-FU-007                                                                                                                                                                                                                                                                                        |
@@ -14,7 +14,7 @@
 
 ## Requisito Funcional
 
-El sistema debe generar un PDF de Proforma al tramitar un pedido Prepago sin Factura por Adelantado para clientes con Región Perú, con un diseño estandarizado equivalente al de la Proforma México pero adaptado a la normativa fiscal SUNAT. Dado que la única empresa emisora del grupo operando en Perú es Golocaer S.A.C., el branding del documento es único. El PDF se genera bajo demanda durante el flujo previo al envío al cliente y, al confirmarse el envío, se persiste como artefacto histórico inmutable accesible desde el módulo Validar Cobro.
+El sistema debe generar un PDF de Proforma al tramitar un pedido Prepago sin Factura por Adelantado para clientes con Región Perú, con un diseño estandarizado equivalente al de la Proforma México pero adaptado a las convenciones fiscales y administrativas peruanas. Dado que la única empresa emisora del grupo operando en Perú es Golocaer S.A.C., el branding del documento es único. El PDF se genera bajo demanda durante el flujo previo al envío al cliente y, al confirmarse el envío, se almacena y queda accesible desde el módulo Validar Cobro.
 
 > **~~⚠️ Precondición (OBS-032)~~** ~~La generación de Proforma Perú está condicionada a que la facturación / timbrado Perú esté habilitada productivamente. Mientras la facturación Perú no esté habilitada, no se genera Proforma Perú.~~ **[Actualizado — Decisión "Quitar Perú" 2026-07-17]** El cliente canceló Facturación y Timbrado de Perú; esto **no reduce el alcance de RE-FU-017**. La Proforma Perú se genera íntegra (generación, foliado, persistencia, consulta histórica). Lo que cambia es el estado final: la Proforma Perú nunca transiciona a `Facturada` — cierra en `CompletadaSinFactura`, responsabilidad de RE-FU-029. OBS-032 ya **no es bloqueante** para este requisito.
 
@@ -27,20 +27,20 @@ El sistema debe generar un PDF de Proforma al tramitar un pedido Prepago sin Fac
 - Generación del PDF de Proforma al tramitar un pedido en modalidad Prepago sin factura por adelantado para clientes con Región Perú.
 - Empresa emisora única: Golocaer S.A.C. (la única empresa del grupo PROQUIFA operando actualmente en Perú).
 - Generación bajo demanda del PDF durante el flujo previo al envío de la Proforma al cliente.
-- Persistencia del PDF en base de datos al recibir confirmación de envío exitoso del correo al cliente.
+- Almacenamiento del PDF al recibir confirmación de envío exitoso del correo al cliente.
 - Acceso al PDF histórico desde el módulo Validar Cobro una vez la Proforma fue enviada.
-- Foliador global lineal PQF2 con prefijo PRF en la representación visual del documento (compartido con Proformas México: un solo contador global de Proformas para todo el grupo).
+- Foliador global PQF2 con prefijo PRF en la representación visual del documento (compartido con Proformas México: un solo contador global de Proformas para todo el grupo).
 - Paginación automática cuando las partidas exceden el espacio de una página (comportamiento ya existente del sistema).
-- Aplicación de catálogos fiscales SUNAT peruanos (RUC, IGV, CCI, moneda PEN, Reglamento de Comprobantes de Pago y Resolución de Superintendencia N° 097-2012/SUNAT).
+- Aplicación de las convenciones fiscales y administrativas peruanas que el documento adopta (RUC, IGV, CCI, moneda PEN), y del texto de disclaimer basado en el Reglamento de Comprobantes de Pago y la Resolución de Superintendencia N° 097-2012/SUNAT.
 
 ### No aplica a
 
 - Pedidos Crédito sin Factura por Adelantado ni Crédito/Prepago con Factura por Adelantado.
 - Pedidos para clientes con Región México. Esa funcionalidad se documenta en requisito independiente.
 - Otras empresas del grupo PROQUIFA. Solo Golocaer S.A.C. opera actualmente en Perú; las cuatro empresas del grupo México (Golocaer S.A. de C.V., Mungen S.A. de C.V., Proquifa S.A. de C.V., Proveedora Quimico Farmaceutica S.A. de C.V.) no emiten proformas para clientes Perú.
-- ~~Régimen de Detracciones SUNAT (SPOT). Bajo análisis preliminar, los productos típicos de PROQUIFA NO están en los anexos sujetos a detracción de la R.S. 183-2004/SUNAT. La aplicabilidad final debe confirmarse con asesor contable peruano antes de habilitar el módulo productivamente.~~ **[Resuelto — DUDA-009]** El cliente confirmó que NO aplica Detracción SPOT para la operación de PROQUIFA. Régimen de Detracciones fuera de alcance de forma definitiva.
-- Régimen de Percepciones SUNAT del IGV. ** Bajo análisis preliminar, Golocaer S.A.C. NO está designada por SUNAT como Agente de Percepción y sus productos no están en el Apéndice 1 de la Ley N° 29173. La aplicabilidad final debe confirmarse con asesor contable peruano antes de habilitar el módulo productivamente. **
-- ~~Generación de Proforma Perú mientras la facturación / timbrado Perú no esté habilitada productivamente (OBS-032).~~ **[Anulado — Decisión "Quitar Perú" 2026-07-17]** OBS-032 ya no bloquea este requisito. La Proforma Perú se genera sin precondición de timbrado.
+- Los regímenes de Detracciones y Percepciones SUNAT: quedan sin objeto, dado que no se emiten comprobantes fiscales desde el sistema para clientes Perú (el IGV se conserva en el documento como referencia informativa; la facturación se realiza fuera de ProquifaNet).
+- Generación de Proforma Perú condicionada a que la facturación / timbrado Perú esté habilitada productivamente (OBS-032): el cliente canceló Facturación y Timbrado de Perú; la Proforma Perú se genera sin esa precondición.
+- La construcción de la referencia bancaria del cliente (REF. CLIENTE): se documenta en el requisito de Referencia de Pago. Esta fila únicamente presenta el dato ya construido.
 
 ---
 
@@ -55,49 +55,43 @@ Regla 1 — Generación únicamente en pedidos Prepago sin Factura por Adelantad
 Cumplida la Regla 0, el sistema genera el PDF de Proforma con el diseño estandarizado para Perú únicamente cuando el pedido es en modalidad Prepago sin Factura por Adelantado y el cliente tiene Región = Perú. Los pedidos Crédito (con o sin Factura por Adelantado) y los pedidos Prepago con Factura por Adelantado no generan Proforma.
 
 Regla 2 — Empresa emisora única Golocaer S.A.C.
-La empresa emisora del documento para clientes Perú es siempre Golocaer S.A.C., única empresa del grupo PROQUIFA operando en Perú. No hay diferenciación por empresa emisora como en México. ** Pendiente confirmar con el cliente. **
+La empresa emisora del documento para clientes Perú es siempre Golocaer S.A.C., única empresa del grupo PROQUIFA operando en Perú. No hay diferenciación por empresa emisora como en México.
 
 Regla 3 — Foliador global con prefijo PRF compartido con Proformas México
-El folio de la Proforma Perú usa el mismo foliador global lineal PQF2 que las Proformas México (un solo contador global para todo el grupo, sin segmentación por región ni por empresa), en formato MMDDAA-Consecutivo, con prefijo "PRF-" en la representación visual del documento. ** Pendiente confirmar si el prefijo se persiste también en el folio interno almacenado en base de datos. **
+El folio de la Proforma Perú usa el mismo foliador global PQF2 que las Proformas México (un solo contador global para todo el grupo, sin segmentación por región ni por empresa), en formato MMDDAA-Consecutivo, con prefijo "PRF-" en la representación visual del documento. El prefijo "PRF-" es exclusivamente visual: en base de datos se almacena únicamente el número de folio. El folio se consume únicamente al confirmarse el envío exitoso del correo al cliente.
 
 Regla 4 — Vigencia del documento
-La Proforma calcula y muestra una fecha de vigencia en formato DD/MM/YYYY. ** La regla exacta del cálculo de la vigencia queda como duda formal del proyecto, pendiente de confirmar con el cliente. **
+La Proforma calcula y muestra una fecha de vigencia en formato DD/MM/YYYY. La vigencia es de **30 días naturales**, contados a partir del momento de la generación de la Proforma.
 
 Regla 5 — Generación bajo demanda durante el flujo previo al envío
-Al presionar "Tramitar" para un pedido Prepago sin Factura por Adelantado de cliente Perú, el sistema genera el PDF de la Proforma dinámicamente, leyendo los datos vigentes en ese momento desde las fuentes (Catálogo de Clientes, Pedido, Catálogo de Cuentas Bancarias Perú, Referencia Bancaria del Cliente), y lo muestra en previsualización. En esta etapa el PDF no se almacena en base de datos.
+Al tramitar un pedido Prepago sin Factura por Adelantado de cliente Perú, el sistema genera el PDF de la Proforma dinámicamente, leyendo los datos vigentes en ese momento desde las fuentes (Catálogo de Clientes, Pedido, Catálogo de Cuentas Bancarias Perú, Referencia Bancaria del Cliente), y lo muestra en previsualización. En esta etapa el PDF no se almacena.
 
 Regla 6 — Regeneración con datos actualizados si el usuario abandona la previsualización y reintenta
-Si un usuario vio la previsualización pero abandonó el flujo sin enviar la Proforma, al volver al pedido y presionar "Tramitar" nuevamente el sistema regenera el PDF desde cero leyendo los datos vigentes en ese nuevo momento. Si entre intentos cambiaron datos fuente (razón social del cliente, dirección fiscal, precios, cuentas bancarias, etc.), la nueva versión los refleja. Esto aplica únicamente mientras la Proforma no haya sido enviada al cliente.
+Si un usuario vio la previsualización pero abandonó el flujo sin enviar la Proforma, al volver a tramitar el pedido el sistema regenera el PDF desde cero leyendo los datos vigentes en ese nuevo momento. Si entre intentos cambiaron datos fuente (razón social del cliente, dirección fiscal, precios, cuentas bancarias, etc.), la nueva versión los refleja. Esto aplica únicamente mientras la Proforma no haya sido enviada al cliente.
 
-Regla 7 — Persistencia del PDF al recibir confirmación del envío exitoso del correo
-Al confirmarse que el correo de la Proforma fue enviado exitosamente al cliente, el sistema persiste la versión final del PDF en base de datos como artefacto histórico inmutable, con los datos exactos enviados. El pendiente en Tramitar Pedido se cierra.
+Regla 7 — Almacenamiento del PDF al recibir confirmación del envío exitoso del correo
+Al confirmarse que el correo de la Proforma fue enviado exitosamente al cliente, el sistema almacena la versión final del PDF como artefacto histórico inmutable, con los datos exactos enviados.
 
 Regla 8 — Sin regeneración posterior al envío
-Una Proforma enviada y persistida se entrega, al consultarse históricamente, desde el PDF almacenado en base de datos, sin regenerarlo desde los datos fuente actuales. El sistema no ofrece funcionalidad de reenvío.
+Una Proforma enviada y almacenada se entrega, al consultarse históricamente, desde el PDF almacenado, sin regenerarlo desde los datos fuente actuales. El sistema no ofrece funcionalidad de reenvío.
 
 Regla 9 — Consulta del PDF histórico desde Validar Cobro
-Una Proforma enviada y persistida puede consultarse desde el módulo Validar Cobro para verificación y trazabilidad del cobro asociado, accediendo al PDF histórico.
+Una Proforma enviada y almacenada puede consultarse desde el módulo Validar Cobro para verificación y trazabilidad del cobro asociado, accediendo al PDF histórico.
 
 Regla 10 — Disclaimer legal SUNAT
-El documento muestra un texto fijo, equivalente bajo normativa SUNAT, que indica que es informativo previo a la emisión del Comprobante de Pago Electrónico (CPE) y carece de validez fiscal y tributaria conforme al Reglamento de Comprobantes de Pago. ** Texto propuesto: "ESTE ES UN DOCUMENTO INFORMATIVO PREVIO A LA EMISIÓN DEL COMPROBANTE DE PAGO ELECTRÓNICO (CPE). CARECE DE VALIDEZ FISCAL Y TRIBUTARIA CONFORME AL REGLAMENTO DE COMPROBANTES DE PAGO Y RESOLUCIÓN DE SUPERINTENDENCIA N° 097-2012/SUNAT." Pendiente validación legal con asesor SUNAT antes de publicación productiva. **
+El documento muestra el texto fijo, aprobado por el cliente junto con los diseños de los documentos: "ESTE ES UN DOCUMENTO INFORMATIVO PREVIO A LA EMISIÓN DEL COMPROBANTE DE PAGO ELECTRÓNICO (CPE). CARECE DE VALIDEZ FISCAL Y TRIBUTARIA CONFORME AL REGLAMENTO DE COMPROBANTES DE PAGO Y RESOLUCIÓN DE SUPERINTENDENCIA N° 097-2012/SUNAT."
 
 Regla 11 — Paginación automática (comportamiento existente)
-Cuando las partidas del pedido exceden el espacio disponible en una sola página, el sistema genera páginas adicionales con la misma cabecera y pie completo, mostrando la numeración "X/Y" en cada página. Este comportamiento ya existe en PQF2.
+Cuando las partidas del pedido exceden el espacio disponible en una sola página, el sistema genera páginas adicionales completas, mostrando la numeración "X/Y" en cada página. Este comportamiento ya existe en PQF2.
 
 Regla 12 — Origen de los datos por sección
-Los paneles del documento se arman desde las fuentes indicadas: datos de partidas (cantidad, descripción, precio unitario, importe) desde el Pedido; identificación del cliente, RUC y dirección fiscal desde el Catálogo de Clientes; moneda aplicada a los cálculos desde la moneda de facturación configurada en el Catálogo del cliente (no del pedido); Condiciones de Pago desde la configuración del cliente en el Catálogo; cuentas bancarias (Banca, Sucursal, Cuenta, CCI) desde el Catálogo de Cuentas Bancarias de Golocaer S.A.C. Perú; REF. CLIENTE de cada cuenta construida con la lógica de identificación de pagos peruana; Pedido interno, Parciales, Contacto y Lugar de entrega desde el Pedido; logo, color institucional, dirección y razón social legal generados por el sistema correspondientes a Golocaer S.A.C. Perú. El modelo de cuentas bancarias Perú permanece pendiente (B1). ** La Referencia Bancaria Perú (B2) está resuelta: REF. CLIENTE = Razón Social del cliente (Duda FU-006/FU-017). **
+Los paneles del documento se arman desde las fuentes indicadas: datos de partidas (cantidad, descripción, precio unitario, importe) desde el Pedido; identificación del cliente, RUC y dirección fiscal desde el Catálogo de Clientes; moneda aplicada a los cálculos desde la moneda de facturación configurada en el Catálogo del cliente (no del pedido); Condiciones de Pago desde la configuración del cliente en el Catálogo; cuentas bancarias (Banca, Cuenta, CCI) desde el Catálogo de Cuentas Bancarias de Golocaer S.A.C. Perú, mostrando las dos cuentas activas más recientes con los mismos campos que en México, salvo la Sucursal, que no aplica; REF. CLIENTE de cada cuenta, presentada tal como se construye en el requisito de Referencia de Pago; Pedido interno, Parciales, Contacto y Lugar de entrega desde el Pedido; logo, color institucional, dirección y razón social legal generados por el sistema correspondientes a Golocaer S.A.C. Perú.
 
 ---
 
 ## Riesgos
 
-Riesgo 1 — Disclaimer legal SUNAT pendiente de validación
-El disclaimer propuesto en el documento es una redacción aproximada basada en el marco normativo SUNAT. La redacción legal exacta debe ser validada por asesor contable o legal peruano antes de uso productivo. Un disclaimer mal redactado podría generar confusión en el cliente o exposición legal innecesaria.
-
-Riesgo 2 — Régimen de Percepciones SUNAT con aplicabilidad pendiente de confirmar
-~~Bajo análisis preliminar, los productos típicos de PROQUIFA (estándares químico-biológicos, cepas Microbiologics, sustancias controladas, columnas cromatográficas, equipos de laboratorio) no están en los anexos de Detracción de la R.S. 183-2004/SUNAT~~. **[Resuelto — DUDA-009]** El cliente confirmó que NO aplica Detracción SPOT para la operación de PROQUIFA; este punto queda cerrado. Pendiente de confirmar continúa siendo únicamente el Régimen de Percepciones: bajo análisis preliminar Golocaer S.A.C. no sería Agente de Percepción del IGV bajo la Ley N° 29173 para sus productos típicos. ** Confirmar formalmente con asesor contable peruano antes de habilitar Perú productivamente. Si SUNAT designa a Golocaer S.A.C. como Agente de Percepción en el futuro, el sistema deberá adaptarse para reflejar el régimen aplicable. **
-
-Riesgo 3 — Tipo de cambio inconsistente entre Proforma y validación de pago posterior
+Riesgo 1 — Tipo de cambio inconsistente entre Proforma y validación de pago posterior
 Si el tipo de cambio mostrado en la Proforma difiere del aplicado al recibir el pago en Validar Cobro, el cliente puede recibir documentos con montos distintos en moneda local generando confusión. La regla es la misma que en México: el tipo de cambio es el del día de generación de la Proforma.
 
 ---
@@ -116,22 +110,22 @@ Entonces deberá mostrar el logo de Golocaer S.A.C. correspondiente a la operaci
 Criterio A2 — Disclaimer legal SUNAT
 Dado que el sistema renderiza la cabecera,
 Cuando incluye el disclaimer legal,
-Entonces deberá mostrar un texto que indique el carácter informativo del documento previo a la emisión del Comprobante de Pago Electrónico (CPE) bajo normativa SUNAT. ** Texto propuesto: "ESTE ES UN DOCUMENTO INFORMATIVO PREVIO A LA EMISIÓN DEL COMPROBANTE DE PAGO ELECTRÓNICO (CPE). CARECE DE VALIDEZ FISCAL Y TRIBUTARIA CONFORME AL REGLAMENTO DE COMPROBANTES DE PAGO Y RESOLUCIÓN DE SUPERINTENDENCIA N° 097-2012/SUNAT." Pendiente validación legal con asesor SUNAT antes de publicación productiva. **
+Entonces deberá mostrar el texto aprobado por el cliente: "ESTE ES UN DOCUMENTO INFORMATIVO PREVIO A LA EMISIÓN DEL COMPROBANTE DE PAGO ELECTRÓNICO (CPE). CARECE DE VALIDEZ FISCAL Y TRIBUTARIA CONFORME AL REGLAMENTO DE COMPROBANTES DE PAGO Y RESOLUCIÓN DE SUPERINTENDENCIA N° 097-2012/SUNAT."
 
 Criterio A3 — Título "Proforma"
 Dado que el sistema renderiza la cabecera,
 Cuando incluye el título del documento,
-Entonces deberá mostrar el texto **"Proforma"**. **[Resuelto — DUDA-041]** El cliente confirmó que el título canónico es "Proforma".
+Entonces deberá mostrar el texto "Proforma".
 
 Criterio A4 — Folio con prefijo PRF
 Dado que el sistema renderiza la cabecera,
 Cuando incluye el folio del documento,
-Entonces deberá mostrar el folio con formato "PRF-MMDDAA-Consecutivo". El consecutivo corresponde al foliador global lineal PQF2. ** El momento exacto en que se consume el folio (al previsualizar vs al confirmar envío) queda como duda técnica del proyecto. **
+Entonces deberá mostrar el folio con formato "PRF-MMDDAA-Consecutivo". El consecutivo corresponde al foliador global PQF2. El prefijo "PRF-" es solo visual y el folio se consume únicamente al confirmarse el envío exitoso.
 
 Criterio A5 — Vigencia del documento
 Dado que el sistema renderiza la cabecera,
 Cuando incluye el campo Vigencia,
-Entonces deberá mostrar la fecha de vigencia en formato DD/MM/YYYY. ** Regla exacta del cálculo pendiente confirmar. **
+Entonces deberá mostrar la fecha de vigencia en formato DD/MM/YYYY, calculada como 30 días naturales a partir de la fecha de generación de la Proforma.
 
 ═══════════════════════════════════════════════════════════════
 SECCIÓN B — IDENTIFICACIÓN DEL CLIENTE
@@ -140,7 +134,7 @@ SECCIÓN B — IDENTIFICACIÓN DEL CLIENTE
 Criterio B1 — Identificación del cliente
 Dado que el sistema renderiza la sección Cliente,
 Cuando incluye el identificador del cliente,
-Entonces deberá mostrar la **Razón Social** del cliente desde el Catálogo de Clientes. **[Resuelto — DIS-SOL v1.1]** El dato fuente confirmado es Razón Social, igual que en RE-FU-016.
+Entonces deberá mostrar la Razón Social del cliente desde el Catálogo de Clientes.
 
 ═══════════════════════════════════════════════════════════════
 SECCIÓN C — TABLA DE PARTIDAS
@@ -160,7 +154,7 @@ Dado que el sistema incluye los cálculos fiscales,
 Cuando renderiza las líneas de monto,
 Entonces deberá mostrar:
 - "Sub-Total" con monto y moneda.
-- "IGV" con tasa aplicable al pedido (18% según normativa SUNAT, salvo exoneraciones específicas que pudieran aplicar a productos puntuales — pendiente confirmar exoneraciones aplicables) y monto calculado.
+- "IGV" con tasa aplicable al pedido (18%) y monto calculado.
 - "Gran Total" con monto, suma de Sub-Total e IGV.
 La moneda aplicada es la moneda de facturación del cliente desde el Catálogo (no la moneda del pedido). Para Perú las monedas típicas son PEN (Soles) y USD.
 
@@ -168,14 +162,14 @@ Criterio D2 — Monto del Gran Total expresado en letra
 Dado que el sistema renderiza la conversión a letras del Gran Total,
 Cuando incluye la leyenda monetaria,
 Entonces deberá mostrar el monto en palabras según la moneda:
-- Si moneda = soles peruanos: "(XXX **SOLES** XX/100)". **[Resuelto — DUDA-042]** La nomenclatura oficial desde 2015 es "SOLES"; no usar "NUEVOS SOLES".
+- Si moneda = soles peruanos: "(XXX SOLES XX/100)". La nomenclatura oficial desde 2015 es "SOLES"; no se usa "NUEVOS SOLES".
 - Si moneda = dólares: "(XXX DOLARES XX/100)".
 - Otras monedas: nomenclatura correspondiente.
 
 Criterio D3 — Tipo de Cambio (cuando aplica)
 Dado que la moneda de facturación del cliente NO es soles peruanos,
 Cuando el sistema renderiza la sección de pago,
-Entonces deberá mostrar el tipo de cambio aplicado a la conversión. El tipo de cambio es el del día de generación. ~~Pendiente confirmar si para Perú aplica el tipo de cambio SUNAT publicado (compra/venta) o un tipo de cambio interno corporativo.~~ **[Resuelto — DUDA-054]** Ya existe un tipo de cambio para Perú (Soles): es el mismo que actualmente usa el sistema para Pedidos que no están en USD. No se requiere una fuente nueva o distinta.
+Entonces deberá mostrar el tipo de cambio aplicado a la conversión. El tipo de cambio es el del día de generación: el mismo que el sistema ya utiliza para los pedidos que no están en dólares. No se requiere una fuente nueva o distinta.
 
 Criterio D4 — Condiciones de Pago
 Dado que el sistema renderiza la sección de pago,
@@ -185,7 +179,7 @@ Entonces deberá mostrar las condiciones de pago aplicables al cliente (ejemplo:
 Criterio D5 — Leyenda de pago
 Dado que el sistema renderiza el final de la sección de pago,
 Cuando incluye la leyenda de pago,
-Entonces deberá mostrar la clasificación **"Contado"** o **"Crédito"** según la normativa peruana. **[Resuelto — DUDA-043, confirmado por Armando 2026-07-17]** La leyenda mexicana "Pago en una sola exhibición" no aplica a Perú. La leyenda "Contado"/"Crédito" queda como **texto fijo en la plantilla** `GOLPERU_PER_PRO` del DocumentBuilder — no es un campo dinámico del DTO (el escenario real Perú es Prepago, por lo que el valor sería siempre "Contado").
+Entonces deberá mostrar el texto "OPERACIÓN AL CONTADO". Esta leyenda es fija para toda Proforma Perú, sustituye a la leyenda mexicana "Pago en una sola exhibición" y cumple con la clasificación de la normativa peruana (el escenario Prepago en Perú es siempre al contado).
 
 ═══════════════════════════════════════════════════════════════
 SECCIÓN E — DATOS BANCARIOS
@@ -194,13 +188,13 @@ SECCIÓN E — DATOS BANCARIOS
 Criterio E1 — Cuentas bancarias de Golocaer S.A.C. Perú
 Dado que el sistema renderiza la sección de datos bancarios,
 Cuando arma el contenido,
-Entonces deberá mostrar las **dos cuentas activas más recientes** de Golocaer S.A.C. Perú. **[Resuelto — DUDA-044 / DUDA-118/036, alineado con RE-FU-016]** Se muestran siempre las dos cuentas activas más recientes, independientemente de la moneda del pedido (mismo criterio que México). Las cuentas se obtienen de `EmpresaDatosBancarios` filtradas por `IdRegion = PER`; los datos concretos (bancos, monedas, CCI) se capturan como DML en la brecha B1.
-Los campos por cuenta esperados son: Moneda, Banca, Sucursal, Cuenta, CCI (Código de Cuenta Interbancario de 20 dígitos, en lugar de CLABE) y REF. CLIENTE.
+Entonces deberá mostrar las dos cuentas activas más recientes de Golocaer S.A.C. Perú, independientemente de la moneda del pedido (mismo criterio que México). Las cuentas se obtienen de `EmpresaDatosBancarios` filtradas por `IdRegion = PER`.
+Los campos por cuenta son los mismos que en México, salvo la Sucursal, que no aplica: Moneda, Banca, Cuenta, CCI (Código de Cuenta Interbancario de 20 dígitos, en lugar de CLABE) y REF. CLIENTE.
 
-Criterio E2 — Referencia bancaria del cliente (REF. CLIENTE) **[Resuelto — Duda FU-006/FU-017]**
-Dado que el sistema renderiza la REF. CLIENTE de cada cuenta,
-Cuando construye el valor para un cliente de Perú,
-Entonces deberá mostrar la **Razón Social** del cliente como referencia bancaria por default. Para Perú no existe mecanismo de identificación de pagos mediante Código Validador; se utiliza el mismo camino que bancos distintos de Banamex (RE-FU-006 Regla 6-PER), con Razón Social en lugar de Nombre. ~~Brecha mayor del proyecto — pendiente definir.~~
+Criterio E2 — Referencia bancaria del cliente (REF. CLIENTE)
+Dado que el sistema renderiza la sección de datos bancarios,
+Cuando incluye la REF. CLIENTE de cada cuenta,
+Entonces deberá presentar el valor tal como se construye conforme al requisito de Referencia de Pago: para Perú, al no existir mecanismo de identificación de pagos mediante Código Validador, la REF. CLIENTE es la Razón Social del cliente (mismo camino que bancos distintos de Banamex, RE-FU-006 Regla 6-PER).
 
 ═══════════════════════════════════════════════════════════════
 SECCIÓN F — DATOS DE FACTURACIÓN
@@ -212,7 +206,7 @@ Cuando incluye los datos fiscales del cliente,
 Entonces deberá mostrar:
 - RUC del cliente desde el Catálogo de Clientes (en lugar de RFC; etiqueta del campo "RUC").
 - Razón Social del cliente desde el Catálogo de Clientes.
-- Dirección fiscal completa del cliente (calle, número, distrito, provincia, departamento, país) desde el Catálogo de Clientes. El formato de dirección refleja las convenciones administrativas peruanas (distrito/provincia/departamento en lugar de colonia/ciudad/estado).
+- Dirección fiscal del cliente tal como esté capturada en el Catálogo de Clientes, que no diferencia la estructura de la dirección por región.
 
 ═══════════════════════════════════════════════════════════════
 SECCIÓN G — DATOS DE ENTREGA
@@ -222,39 +216,39 @@ Criterio G1 — Pedido, Parciales, Contacto, Lugar
 Dado que el sistema renderiza la sección de entrega,
 Cuando incluye los datos de entrega,
 Entonces deberá mostrar:
-- Número de pedido interno. ** Aplica la misma duda de generación de folio interno que en México (momento de generación cuando el pedido aún no se ha enviado). **
+- Número de pedido interno.
 - Parciales (SI/NO) según configuración del pedido.
-- Contacto de entrega del pedido (si no existe, mostrar "NINGUNO"). ** Confirmar si es el contacto de entrega, contacto del cliente o contacto que realizó el pedido (misma duda que en México). **
+- Contacto (Título+Contacto, con referencia a la tabla Pedidos en Legacy; si no existe, mostrar "NINGUNO").
 - Lugar de entrega completo (dirección).
 
 ═══════════════════════════════════════════════════════════════
-SECCIÓN H — PIE LEGAL DE GOLOCAER S.A.C.
+SECCIÓN H — INFORMACIÓN LEGAL DE GOLOCAER S.A.C.
 ═══════════════════════════════════════════════════════════════
 
 Criterio H1 — Contacto Golocaer S.A.C. Perú
-Dado que el sistema renderiza el pie del documento,
-Cuando incluye la información de contacto,
-Entonces deberá mostrar los datos de contacto institucionales de Golocaer S.A.C. Perú: redes sociales aplicables, teléfonos de oficinas Perú, web y correo de ventas Perú. ** Datos pendientes de capturar en el sistema: no se cuenta actualmente con la información de contacto de Golocaer S.A.C. Perú (teléfonos, web institucional Perú, correo Perú, redes sociales Perú). Brecha pendiente. **
+Dado que el sistema arma la información de contacto de Golocaer S.A.C. Perú,
+Cuando la incluye en el documento,
+Entonces deberá mostrar los datos de contacto institucionales de Golocaer S.A.C. Perú: redes sociales aplicables, teléfonos de oficinas Perú, web y correo de ventas Perú. ** Brecha pendiente (B3): no se cuenta actualmente con la información de contacto de Golocaer S.A.C. Perú (teléfonos, web institucional Perú, correo Perú, redes sociales Perú). **
 
 Criterio H2 — Razón social legal de Golocaer S.A.C.
-Dado que el sistema renderiza el pie legal,
-Cuando incluye la razón social legal,
-Entonces deberá mostrar la razón social legal completa "Golocaer S.A.C." con su dirección legal completa en Perú. ** La dirección legal de Golocaer S.A.C. en Perú no está disponible en el sistema actual. Brecha pendiente: recopilar y capturar antes de habilitar Perú. **
+Dado que el sistema arma la información legal de Golocaer S.A.C.,
+Cuando la incluye en el documento,
+Entonces deberá mostrar la razón social legal completa "Golocaer S.A.C." con su dirección legal completa en Perú. ** Brecha pendiente (B3): la dirección legal de Golocaer S.A.C. en Perú no está disponible en el sistema actual. **
 
 Criterio H3 — Sellos de certificación y métodos de pago aceptados
-Dado que el sistema renderiza el pie,
-Cuando incluye certificaciones y métodos de pago aceptados,
-Entonces deberá mostrar las certificaciones vigentes aplicables a Golocaer S.A.C. Perú. ** El sello NEEC (Nuevo Esquema de Empresas Certificadas) NO aplica para Perú por ser programa SAT exclusivo México. Pendiente confirmar si Golocaer Perú cuenta con certificación ISO 9001 o equivalente. Pendiente confirmar métodos de pago aceptados aplicables al mercado peruano (visa, mastercard, etc.). Brecha pendiente. **
+Dado que el sistema arma las certificaciones y métodos de pago aceptados,
+Cuando los incluye en el documento,
+Entonces deberá mostrar las certificaciones vigentes aplicables a Golocaer S.A.C. Perú. El sello NEEC no aplica para Perú (programa SAT exclusivo México). ** Brecha pendiente (B6): confirmar si Golocaer Perú cuenta con certificación ISO 9001 o equivalente, y los métodos de pago aceptados aplicables al mercado peruano. **
 
 Criterio H4 — Numeración de página
 Dado que el sistema completa el documento,
 Cuando incluye el contador de páginas,
-Entonces deberá mostrar "X/Y" en el pie del documento, donde X es la página actual e Y es el total. Si el documento es de una sola página, se muestra "1/1".
+Entonces deberá mostrar "X/Y", donde X es la página actual e Y es el total. Si el documento es de una sola página, se muestra "1/1".
 
-Criterio H5 — Logos de catálogos farmacéuticos
-Dado que el sistema renderiza la línea final del documento,
-Cuando incluye los logos de catálogos y proveedores reconocidos,
-Entonces deberá mostrar los logos aplicables a la operación Perú. ** El logo FEUM (Farmacopea de los Estados Unidos Mexicanos) NO aplica para Perú. Los logos USP (United States Pharmacopeia, internacional), EDQM (European Directorate for the Quality of Medicines, europeo) y Microbiologics típicamente sí aplican. Pendiente confirmar la lista exacta de logos aplicables a Golocaer S.A.C. Perú. Brecha pendiente. **
+Criterio H5 — Sin logos de catálogos farmacéuticos ni de marcas
+Dado que el sistema completa el documento,
+Cuando lo arma,
+Entonces no deberá incluir logos de catálogos farmacéuticos ni de marcas.
 
 ═══════════════════════════════════════════════════════════════
 SECCIÓN I — PAGINACIÓN AUTOMÁTICA
@@ -263,101 +257,62 @@ SECCIÓN I — PAGINACIÓN AUTOMÁTICA
 Criterio I1 — Múltiples páginas cuando las partidas exceden una página
 Dado que el pedido tiene partidas que exceden el espacio disponible en una sola página,
 Cuando el sistema renderiza el documento,
-Entonces deberá generar páginas adicionales con la misma cabecera y pie completo. Las partidas continúan en las páginas adicionales. La numeración se actualiza (1/3, 2/3, 3/3). Este comportamiento ya existe en PQF2.
+Entonces deberá generar páginas adicionales completas. Las partidas continúan en las páginas adicionales. La numeración se actualiza (1/3, 2/3, 3/3). Este comportamiento ya existe en PQF2.
 
 ═══════════════════════════════════════════════════════════════
-SECCIÓN J — PERSISTENCIA Y CONSULTA POST-ENVÍO
+SECCIÓN J — ALMACENAMIENTO Y CONSULTA POST-ENVÍO
 ═══════════════════════════════════════════════════════════════
 
 Criterio J1 — Generación bajo demanda durante el flujo previo al envío
-Dado que un usuario presiona "Tramitar" en el módulo Tramitar Pedido para un pedido Perú,
+Dado que se ejecuta la acción de tramitar en el módulo Tramitar Pedido para un pedido Perú,
 Cuando el sistema procesa la acción,
-Entonces deberá generar el PDF dinámicamente con los datos vigentes en ese momento y mostrarlo en previsualización al usuario. El PDF no se almacena en base de datos en esta etapa.
+Entonces deberá generar el PDF dinámicamente con los datos vigentes en ese momento y mostrarlo en previsualización al usuario. El PDF no se almacena en esta etapa.
 
 Criterio J2 — Regeneración con datos actualizados al reintentar
-Dado que el usuario abandonó el flujo sin enviar la Proforma y vuelve a presionar "Tramitar",
+Dado que el usuario abandonó el flujo sin enviar la Proforma y vuelve a tramitar el pedido,
 Cuando el sistema procesa la nueva acción,
 Entonces deberá regenerar el PDF desde cero con los datos fuente vigentes en ese nuevo momento. Si cambiaron datos entre intentos, el nuevo PDF los refleja.
 
-Criterio J3 — Persistencia del PDF al confirmar envío exitoso del correo
+Criterio J3 — Almacenamiento del PDF al confirmar envío exitoso del correo
 Dado que el sistema confirma que el correo de envío al cliente fue exitoso,
 Cuando se completa el envío,
-Entonces deberá persistir el PDF final en base de datos como artefacto histórico inmutable. El pendiente en Tramitar Pedido se cierra.
+Entonces deberá almacenar el PDF final como artefacto histórico inmutable.
 
 Criterio J4 — Consulta del PDF histórico desde Validar Cobro
-Dado que una Proforma fue enviada y persistida,
+Dado que una Proforma fue enviada y almacenada,
 Cuando un usuario consulta el módulo Validar Cobro para procesar el cobro asociado,
 Entonces el sistema deberá permitir acceder al PDF histórico de la Proforma. El PDF se entrega tal cual fue almacenado, sin regeneración desde datos fuente actuales.
 
 Criterio J5 — Sin reenvío posterior
-Dado que una Proforma fue enviada y persistida,
+Dado que una Proforma fue enviada y almacenada,
 Cuando un usuario intenta reenviarla desde el módulo Tramitar Pedido,
-Entonces el sistema no deberá ofrecer esa funcionalidad. El pendiente está cerrado y la Proforma original se conserva como registro permanente.
+Entonces el sistema no deberá ofrecer esa funcionalidad. La Proforma original se conserva como registro permanente.
 
 ---
 
 ## Notas Adicionales
 
-- Esta fila documenta el contenido y la generación del PDF de Proforma para clientes con Región Perú. La equivalente para Región México se documenta en requisito independiente.
-- El requisito es un rediseño del documento de Proforma. La estructura visual específica (colores exactos, layout de bandas, tipografía, espaciados) es decisión del equipo de diseño UI; este requisito se enfoca en la información que debe contener cada sección del documento adaptada a la normativa fiscal peruana.
-- Aplica exclusivamente a pedidos Prepago que NO seleccionaron Factura por Adelantado. Los pedidos Crédito (con o sin Factura por Adelantado) y los pedidos Prepago con Factura por Adelantado NO generan Proforma.
-- La única empresa emisora del grupo PROQUIFA operando actualmente en Perú es Golocaer S.A.C. No hay diferenciación por empresa emisora como en México (donde son cuatro empresas: Golocaer, Mungen, Proquifa, Proveedora Quimico Farmaceutica).
-- El PDF se genera bajo demanda en cada presión del botón "Tramitar" durante el flujo previo al envío de la Proforma. Si el usuario abandona el flujo sin enviar y vuelve a presionar "Tramitar", el PDF se regenera leyendo los datos fuente vigentes en ese nuevo momento.
-- Cuando el sistema confirma que el correo de envío al cliente fue exitoso, el PDF final se persiste en base de datos como artefacto histórico inmutable. A partir de ese momento, la Proforma enviada queda como registro permanente del documento exacto que recibió el cliente. No se ofrece funcionalidad de reenvío posterior.
-- El PDF histórico de la Proforma enviada se puede consultar desde el módulo Validar Cobro.
-- Diferencias normativas SUNAT respecto al modelo México:
-  - Impuesto: IGV 18% (Impuesto General a las Ventas) en lugar de IVA 16%.
-  - Identificador fiscal del cliente: RUC en lugar de RFC.
-  - Código bancario interbancario: CCI (Código de Cuenta Interbancario, 20 dígitos) en lugar de CLABE (18 dígitos).
-  - Moneda local: PEN (Soles peruanos) en lugar de MXN (Pesos mexicanos).
-  - Disclaimer legal: marco SUNAT (Reglamento de Comprobantes de Pago y R.S. 097-2012/SUNAT) en lugar de marco SAT (Art. 29 y 29A CFF).
-  - Documento fiscal final: Comprobante de Pago Electrónico (CPE) en lugar de CFDI.
-  - Régimen de Pago: SUNAT clasifica Contado/Crédito sin el concepto "Pago en una sola exhibición" del SAT.
-  - Sello NEEC: NO aplica a Perú (programa SAT exclusivo México).
-  - Logo FEUM: NO aplica a Perú (farmacopea mexicana).
-- ~~Régimen de Detracciones (SPOT) y Régimen de Percepciones del IGV: bajo análisis preliminar NO aplican a los productos típicos de Golocaer S.A.C. Perú. Sin embargo, esta validación debe ser confirmada por asesor contable peruano antes de habilitar Perú productivamente.~~ **[Resuelto parcialmente — DUDA-009]** El Régimen de Detracciones (SPOT) NO aplica a la operación de PROQUIFA — confirmado por el cliente, cerrado de forma definitiva. El Régimen de Percepciones del IGV permanece pendiente de confirmación formal por asesor contable peruano. Si en el futuro SUNAT designa a Golocaer S.A.C. como Agente de Percepción, el sistema debe adaptarse.
+- Esta fila documenta el contenido y la generación del PDF de Proforma para clientes con Región Perú. La equivalente para Región México se documenta en R16A-RE-FU-016.
+- El requisito es un rediseño del documento de Proforma. La estructura visual específica (colores, layout, tipografía, espaciados) es decisión del equipo de diseño UI; este requisito se enfoca en la información que debe contener cada sección, adaptada a las convenciones fiscales y administrativas peruanas (IGV, RUC, CCI, PEN, disclaimer SUNAT).
+- La construcción de la REF. CLIENTE de cada cuenta se documenta en el requisito de Referencia de Pago (ver también RE-FU-006 Regla 6-PER).
+- OBS-032 ya no bloquea este requisito (Decisión "Quitar Perú" 2026-07-17): la Proforma Perú se genera íntegra; el ciclo de vida del pedido cierra en `CompletadaSinFactura` (RE-FU-029) en lugar de transicionar a `Facturada`.
 
 ═══════════════════════════════════════════════════════════════
 BRECHAS PENDIENTES DE RESOLUCIÓN ANTES DE HABILITAR PERÚ
 ═══════════════════════════════════════════════════════════════
 
-Las siguientes brechas se documentan formalmente y deben resolverse antes de habilitar la generación de Proformas para clientes Perú en producción:
-
-~~B1 — Modelo de cuentas bancarias de Golocaer S.A.C. Perú~~ **[Parcialmente resuelto — DUDA-118/036]**
-~~No se conocen los bancos peruanos donde Golocaer opera, ni la cantidad de cuentas que se muestran en la Proforma, ni las monedas (PEN únicamente o PEN + USD), ni el formato del CCI de 20 dígitos. Pendiente capturar y configurar.~~
-El criterio de visualización está resuelto **[DUDA-044 / DUDA-118/036]**: se usa el mismo mecanismo que México (mostrar las cuentas/referencias configuradas), con las **dos cuentas activas más recientes** (mismo criterio que RE-FU-016 México). La brecha pendiente restante es de **datos (DML)**: insertar los registros reales en `EmpresaDatosBancarios` + `DatosBancarios` para los bancos peruanos de Golocaer S.A.C. (BCP, BBVA Continental u otros). Ver RE-FU-017_BD.md brecha B1.
-
-~~B2 — Modelo de Referencia Bancaria Perú (Código Validador)~~ **[Resuelto — Duda FU-006/FU-017]**
-~~La lógica para construir la REF. CLIENTE que permite identificar pagos del cliente en cuentas peruanas no está definida. La lógica México (Banamex 7 segmentos / no-Banamex nombre directo) es exclusiva del Legacy mexicano y no replica al contexto peruano. Pendiente definir mecanismo de identificación de pagos por banco peruano.~~
-Perú no cuenta con mecanismo de Código Validador. La REF. CLIENTE se genera por default con la **Razón Social** del cliente (mismo mecanismo que bancos no-Banamex en México, RE-FU-006 Regla 6-PER). No requiere configuración adicional por cuenta bancaria peruana.
+B1 — Datos bancarios de Golocaer S.A.C. Perú (DML)
+El criterio de visualización está resuelto (mismo mecanismo que México: dos cuentas activas más recientes). Pendiente restante: insertar los registros reales en `EmpresaDatosBancarios` + `DatosBancarios` para los bancos peruanos de Golocaer S.A.C. (BCP, BBVA Continental u otros). Ver RE-FU-017_BD.md brecha B1.
 
 B3 — Datos legales y de contacto de Golocaer S.A.C. Perú
-Dirección legal, teléfonos, web institucional, correo de ventas y redes sociales de Golocaer Perú no están disponibles en el sistema actual. Pendiente recopilar y capturar.
+Dirección legal, teléfonos, web institucional, correo de ventas y redes sociales de Golocaer Perú no están disponibles en el sistema actual. Pendiente recopilar y capturar. Ver Criterios H1 y H2.
 
-B4 — Disclaimer legal SUNAT
-Texto exacto del disclaimer validado por asesor legal peruano. Propuesta documentada: "ESTE ES UN DOCUMENTO INFORMATIVO PREVIO A LA EMISIÓN DEL COMPROBANTE DE PAGO ELECTRÓNICO (CPE). CARECE DE VALIDEZ FISCAL Y TRIBUTARIA CONFORME AL REGLAMENTO DE COMPROBANTES DE PAGO Y RESOLUCIÓN DE SUPERINTENDENCIA N° 097-2012/SUNAT."
+B6 — Certificaciones y métodos de pago aplicables a Golocaer S.A.C. Perú
+Confirmar si Golocaer Perú cuenta con certificación ISO 9001 o equivalente, y los métodos de pago aceptados aplicables al mercado peruano. Ver Criterio H3.
 
-~~B5 — Régimen de Detracciones y Percepciones~~ **[Detracción resuelta — DUDA-009; Percepción sigue abierta]**
-~~Confirmación formal por asesor contable peruano de que los productos típicos de PROQUIFA NO están sujetos a Detracción (R.S. 183-2004/SUNAT) y de que Golocaer S.A.C. NO sería Agente de Percepción para sus productos (Ley N° 29173).~~ El Régimen de Detracciones (SPOT) queda cerrado: el cliente confirmó que NO aplica a la operación de PROQUIFA (DUDA-009). Pendiente restante: confirmación formal por asesor contable peruano de que Golocaer S.A.C. NO sería Agente de Percepción del IGV para sus productos (Ley N° 29173).
+Brechas resueltas: B2 — referencia bancaria (REF. CLIENTE = Razón Social por default, RE-FU-006 Regla 6-PER); B4 — disclaimer legal SUNAT (texto fijo aprobado por el cliente, Regla 10 / Criterio A2); B5 — Detracciones y Percepciones (ambos regímenes quedan sin objeto: no se emiten comprobantes fiscales desde el sistema para clientes Perú); B7 — catálogos farmacéuticos (el documento no incluye logos de catálogos farmacéuticos ni de marcas, Criterio H5); B8 — título del documento ("Proforma", Criterio A3); B9 — nomenclatura del monto en letra ("SOLES", Criterio D2); B10 — tipo de cambio (el mismo que ya usa el sistema para pedidos no-USD, Criterio D3).
 
-B6 — Certificaciones aplicables a Golocaer S.A.C. Perú
-ISO 9001 o equivalente, métodos de pago aceptados (medios peruanos), y cualquier otra certificación de calidad vigente en el mercado peruano.
-
-B7 — Catálogos farmacéuticos aplicables a Perú
-Lista definitiva de logos del pie inferior aplicables a Golocaer S.A.C. Perú. Confirmados como aplicables: USP, EDQM, Microbiologics. NO aplica: FEUM. Otros logos (APACOR, CHATA Biosystems, Pharmaffiliates) pendientes de confirmar.
-
-~~B8 — Título canónico del documento en Perú~~ **[Resuelto — DUDA-041]**
-~~Confirmar si el título es "Proforma" o "Factura Proforma" (ambos términos se usan indistintamente en la práctica comercial peruana).~~
-El título confirmado es **"Proforma"**. Ver Criterio A3.
-
-~~B9 — Nomenclatura del monto en letra para soles peruanos~~ **[Resuelto — DUDA-042]**
-~~Confirmar si la nomenclatura aceptada es "SOLES" (oficial desde 2015) o "NUEVOS SOLES" (denominación previa que aún aparece en algunas implementaciones).~~
-La nomenclatura correcta es **"SOLES"** (oficial desde 2015). No usar "NUEVOS SOLES". Ver Criterio D2.
-
-~~B10 — Tipo de cambio aplicado en Perú~~ **[Resuelto — DUDA-054]**
-~~Confirmar si para Perú aplica el tipo de cambio SUNAT publicado (compra/venta) o un tipo de cambio interno corporativo.~~ Ya se cuenta con un tipo de cambio para Perú (Soles): es el mismo que actualmente usa el sistema para Pedidos que no están en USD. No se requiere una fuente nueva o distinta. Ver Criterio D3.
-
-Mientras las brechas abiertas no se resuelvan, el cliente Perú no puede recibir Proforma productiva con el formato adaptado. Se recomienda programar sesión específica para resolución integral del modelo Perú. **[Actualizado — Decisión "Quitar Perú" 2026-07-17]** ~~La precondición operativa de OBS-032 (no generar Proforma Perú mientras la facturación Perú no esté habilitada) sigue vigente hasta el cierre de B1–B5 + módulo de timbrado SUNAT.~~ OBS-032 ya no bloquea este requisito: la Proforma Perú procede íntegramente y el ciclo de vida cierra en `CompletadaSinFactura` (ver RE-FU-029). Las brechas B3, B4, B6 y B7 permanecen abiertas (datos / validación legal); B5 permanece abierta solo en su componente de Percepción (Detracción cerrada por DUDA-009); B1 permanece abierta solo en su componente de datos DML. Las brechas B2, B8, B9 y B10 están resueltas. **[Actualización 2026-08-21 — ver DUDA-009, DUDA-044, DUDA-054]**
+Mientras B1, B3 y B6 no se resuelvan, el cliente Perú no puede recibir Proforma productiva completa con el formato adaptado.
 
 
 ---
@@ -371,3 +326,4 @@ Mientras las brechas abiertas no se resuelvan, el cliente Perú no puede recibir
 | 3   | 2026-07-17 | Duda FU-006/FU-017 | Resolución referencia bancaria Perú (B2): Perú no tiene mecanismo de Código Validador; REF. CLIENTE usa Razón Social por default (mismo camino que bancos no-Banamex, RE-FU-006 Regla 6-PER). Criterio E2 y Brecha B2 actualizados. |
 | 4   | 2026-07-21 | DIS-SOL v1.2 / Decisión "Quitar Perú" 2026-07-17 | Actualización integral tras validación del Diseño de Solución v1.2: (1) OBS-032 anulada como bloqueante — la Proforma Perú procede íntegramente; ciclo cierra en `CompletadaSinFactura` (RE-FU-029). Regla 0 y precondición en Requisito Funcional marcadas como anuladas. (2) Criterio A3: título "Proforma" confirmado (DUDA-041). (3) Criterio B1: dato fuente confirmado como Razón Social (DIS-SOL v1.1). (4) Criterio D2: nomenclatura "SOLES" confirmada (DUDA-042). (5) Criterio D5: leyenda Contado/Crédito como texto fijo en plantilla GOLPERU_PER_PRO, no campo DTO (DUDA-043). (6) Criterio E1: se muestran las dos cuentas activas más recientes (DUDA-118/036). (7) Brechas B8 y B9 cerradas (DUDA-041, DUDA-042). (8) Brecha B1 parcialmente resuelta en criterio de visualización; DML pendiente. |
 | 5   | 2026-08-21 | DUDA-009 / DUDA-018 / DUDA-041 / DUDA-042 / DUDA-043 / DUDA-044 / DUDA-054 | Revisión de trazabilidad de dudas cerradas de la hoja "R16 - Dudas a Cliente": (1) DUDA-009 — Régimen de Detracciones (SPOT) cerrado de forma definitiva (NO aplica); se separa de Percepciones del IGV, que sigue pendiente. Actualizados Alcance/No aplica a, Riesgo 2, Notas Adicionales y Brecha B5. (2) DUDA-044 — se agrega cita cruzada en Criterio E1 y Brecha B1 (mismo mecanismo que México, ya reflejado vía DUDA-118/036). (3) DUDA-054 — Criterio D3 y Brecha B10 cerrados: el tipo de cambio de Perú ya existe (el usado para pedidos no-USD), no se requiere fuente nueva. (4) DUDA-018, DUDA-041, DUDA-042 y DUDA-043 verificadas: ya estaban correctamente reflejadas en el documento, sin cambios de contenido. |
+| 6   | 2026-09-11 | Cierre de dudas resueltas / Correcciones de consistencia / Retiro de la proforma del flujo (Tramitar) / Ajuste por el retiro del timbrado de Perú | Pasada integral de limpieza y consistencia: (1) Historia de Usuario y Requisito Funcional depurados de lenguaje de UI ("botón", "presionar Tramitar") y de "persiste"→"almacena"; Alcance/No aplica a reescrito para reflejar que Detracciones y Percepciones SUNAT quedan sin objeto (no se emiten comprobantes fiscales desde el sistema para Perú), cerrando así Brecha B5 en su totalidad. (2) Reglas 3, 5–8, 10 y 12 limpiadas de lenguaje de UI y de persistencia en BD; Regla 10 y Criterio A2 fijan el disclaimer SUNAT como texto final aprobado (cierra Brecha B4). (3) Eliminado el Riesgo de validación del disclaimer y el Riesgo de Percepciones SUNAT (ya cubierto por el cambio de Alcance); renumerado el Riesgo de tipo de cambio a Riesgo 1. (4) Criterio D5: leyenda de pago fijada a texto final "OPERACIÓN AL CONTADO" (ya no template propuesto). (5) Criterio E1/E2, F1 y G1 limpiados de lenguaje de UI/BD y de pendientes ya cerrados. (6) Sección H renombrada "Información legal de Golocaer S.A.C."; Criterio H5 reescrito para establecer que el documento NO incluye logos de catálogos farmacéuticos ni de marcas (cierra Brecha B7); Criterios H1–H3 se dejan reescritos pero con sus brechas (B3, B6) explícitamente abiertas, a la espera de datos reales del cliente. (7) Sección J renombrada "Almacenamiento y consulta post-envío" y sus criterios limpiados de lenguaje de UI/BD/pendiente Tramitar Pedido. (8) Notas Adicionales reescritas por completo, retirando los bullets que reproducían reglas y criterios ya documentados; sección de Brechas condensada a los tres pendientes vigentes (B1 datos DML, B3 contacto/dirección legal Perú, B6 certificaciones), con las brechas B2, B4, B5, B7, B8, B9 y B10 documentadas como resueltas. Nota: los bloques de instrucción sobre "configuración fiscal de producto", "retiro de Región Perú del alcance" (roles Analista de Cuentas por Cobrar / Gestor de Cobranza, aprobación de exportaciones) y "ordenamiento por columna" no se aplicaron a este documento por no corresponder a su alcance (Proforma Perú); quedan pendientes de reasignación al requisito correcto, probablemente FU-018. |

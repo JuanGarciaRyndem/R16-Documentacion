@@ -133,7 +133,8 @@ El ESAC puede visualizar el PDF de la proforma antes de confirmar el envio, con 
 ### Consideraciones previas
 - Se ejecuta despues de que el ESAC acepta la previsualizacion
 - El asunto se genera automaticamente: "Proforma " + FolioPedidoInterno (Regla 7)
-- Al confirmar envio exitoso se genera pendiente Validar Cobro y se cierra pendiente Tramitar Pedido
+- Al confirmar envio exitoso se genera pendiente 
+y se cierra pendiente Tramitar Pedido
 -  La generacion del PDF de proforma se desarrolla en RE-FU-016 y RE-FU-017
 
 ### Objetivo general

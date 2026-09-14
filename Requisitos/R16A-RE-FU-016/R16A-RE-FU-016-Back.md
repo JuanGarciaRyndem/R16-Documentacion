@@ -183,7 +183,7 @@ ProquifaDotNet (Venta Interna)     ProquifaDotNet.Finanzas          DocumentBuil
 | GAP-05 | Endpoint generación bajo demanda (previsualización) | `POST /api/v1/proforma/{id}/pdf` — genera sin persistir, retorna byte[]                       | Medio    |
 | GAP-06 | Endpoint consulta histórica                         | `GET /api/v1/proforma/{id}/pdf` — descarga PDF de Minio (sin regenerar)                       | Bajo     |
 | GAP-07 | Foliador con SEQUENCE                               | Consumir `NEXT VALUE FOR dbo.SeqFolioProforma` al confirmar envío, formato MMDDAA-Consecutivo | Medio    |
-| GAP-08 | Lógica del Código Validador (REF. CLIENTE)          | Banamex=7 segmentos; no-Banamex=nombre cliente directo                                        | Medio    |
+| GAP-08 | Consumo del REF. CLIENTE                            | Reutilizar el valor ya construido por la lógica del Código Validador, documentada en R16A-RE-FU-006 (Referencia de Pago); esta fila solo lo presenta en el DTO, no reimplementa la construcción | Bajo     |
 | GAP-09 | Conversión monto a letras                           | MXN: "PESOS XX/100 M.N." / USD: "DOLARES XX/100"                                              | Bajo     |
 | GAP-10 | Folio con prefijo PRF (visual)                      | En DTO para DocumentBuilder: "PRF-" + FolioProforma. No se persiste con prefijo               | Bajo     |
 
@@ -204,8 +204,8 @@ ProquifaDotNet (Venta Interna)     ProquifaDotNet.Finanzas          DocumentBuil
 | GAP-16 | Crear Validator DocumentGenerateProformaDtoFluentValidator | Validaciones de campos requeridos | Bajo |
 | GAP-17 | Crear 4 templates HTML (12 archivos) | Carpetas GOL/MUN/PQF/PRO_MEX_PRO con _H.html, _B.html, _F.html | Alto |
 | GAP-18 | Registrar templates en BD DocumentBuilder | INSERT en tabla DocumentTemplate | Bajo |
-| GAP-19 | Diseño HTML/CSS del template | Maquetación: cabecera, partidas, panel inferior 4 columnas, pie con certificaciones. 3 variantes visuales | Alto |
-| GAP-20 | Logos e imágenes | Preparar logos por empresa + sellos + catálogos en base64 o repositorio | Medio |
+| GAP-19 | Diseño HTML/CSS del template | Maquetación: cabecera, partidas, panel inferior 4 columnas, pie con certificaciones vigentes (ISO 9001:2015, OEA) y métodos de pago (pendientes de confirmar). 3 variantes visuales | Alto |
+| GAP-20 | Logos e imágenes | Preparar logos por empresa emisora + sellos de certificación (ISO 9001:2015, OEA) en base64 o repositorio. El documento no incluye logos de catálogos farmacéuticos ni de marcas | Medio |
 
 ---
 

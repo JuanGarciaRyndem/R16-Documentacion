@@ -65,16 +65,16 @@ Crear los 4 templates HTML (Header, Body, Footer) y los registros en `DocumentTe
 - Datos del receptor: RFC, Razón Social, CP fiscal, Régimen Fiscal, Uso CFDI
 
 #### Body (`*_MEX_FAC_B.html`)
-- **Datos del CFDI:** Serie, Folio, Versión 4.0, UUID, Fecha de Emisión, Fecha de Certificación, Método de Pago (PPD), Forma de Pago (99), Tipo de Comprobante (I - Ingreso), Moneda, Tipo de Cambio, Exportación (01 - No aplica), Condiciones de Pago
-- **Tabla de partidas:** ClaveProdServSAT, Descripción (catálogo + marca + lote + caducidad), Pedimento (si aplica), Nº ID interno, Cantidad, Unidad de Medida, ClaveSAT unidad (c_ClaveUnidad), Valor Unitario, Importe, IVA 16% por línea
-- **Totales:** Subtotal, IVA trasladado, Total, Total en letras
-- **Datos bancarios:** Banco, Cuenta, CLABE, Moneda, Referencia del cliente
+- **Datos del CFDI:** Serie (A2), Folio, Versión 4.0, UUID, Fecha de Emisión, Fecha de Certificación, Método de Pago y Forma de Pago (según escenario de emisión — Regla 5), Tipo de Comprobante (I - Ingreso), Moneda y Tipo de Cambio (heredados de la Proforma cuando aplica — Regla 6), Exportación (01 - No aplica), Condiciones de Pago
+- **Tabla de partidas:** ClaveProdServSAT, Descripción (catálogo + marca + lote + caducidad), Pedimento (No aplica — se emite antes del surtido, criterio C5), Nº ID interno, Cantidad, Unidad de Medida, ClaveSAT unidad (c_ClaveUnidad), Valor Unitario, Importe, impuestos trasladados por línea (IVA, tasa cero o exento según Perfil Fiscal)
+- **Totales:** Subtotal, Impuestos Federales trasladados, Total, Total en letras
+- **Datos bancarios:** las dos cuentas activas más recientes de la empresa emisora, con Banco, Cuenta, CLABE, Moneda, Referencia del cliente
 
 #### Footer (`*_MEX_FAC_F.html`)
 - Elementos técnicos SAT: QR, Nº serie certificados emisor y SAT, sellos digitales emisor/SAT, cadena original
 - Disclaimer: "Representación impresa de un CFDI 4.0"
-- Certificaciones: ISO 9001:2015, NEEC (varían por empresa)
-- Logos institucionales: EDQM, FEUM, USP, etc. (varían por empresa)
+- Certificaciones: ISO 9001:2015, OEA (varían por empresa)
+- Sin logos de catálogos farmacéuticos ni de marcas (decisión confirmada por el cliente)
 - Paginación automática "X de Y"
 
 ### Scripts SQL — INSERT DocumentTemplate
@@ -134,17 +134,17 @@ public class InvoicePdfModel
     public string UsoCFDI                  { get; set; }
 
     // Sección D — Datos del CFDI
-    public string   Serie               { get; set; }
+    public string   Serie               { get; set; }   // "A2"
     public string   Folio               { get; set; }
     public string   Version             { get; set; }   // "4.0"
     public string   UUID                { get; set; }
     public DateTime FechaEmision        { get; set; }
     public DateTime FechaCertificacion  { get; set; }
-    public string   MetodoPago          { get; set; }   // "PPD"
-    public string   FormaPago           { get; set; }   // "99"
+    public string   MetodoPago          { get; set; }   // "PPD" o "PUE" según escenario de emisión (Regla 5)
+    public string   FormaPago           { get; set; }   // "99" o forma real del pago, según Regla 5
     public string   TipoComprobante     { get; set; }   // "I - Ingreso"
-    public string   Moneda              { get; set; }
-    public decimal? TipoCambio          { get; set; }
+    public string   Moneda              { get; set; }   // heredada de la Proforma cuando aplica (Regla 6)
+    public decimal? TipoCambio          { get; set; }   // heredado de la Proforma cuando aplica (Regla 6)
     public string   Exportacion         { get; set; }   // "01 - No aplica"
     public string   CondicionesPago     { get; set; }
     public string   FolioPedidoInterno  { get; set; }   // PI del sistema PQF2 (criterio G3)
@@ -158,7 +158,7 @@ public class InvoicePdfModel
     public decimal Total          { get; set; }
     public string  TotalEnLetras  { get; set; }
 
-    // Sección G — Datos Bancarios (dos cuentas: MXN + USD — criterio D1)
+    // Sección G — Datos Bancarios (dos cuentas activas más recientes de la empresa emisora — criterio D1)
     public List<FacturaPdfCuentaBancariaModel> CuentasBancarias { get; set; }
     public string ReferenciaCliente { get; set; }   // Referencia del pedido del cliente (criterio D3)
 
@@ -178,7 +178,7 @@ public class InvoicePdfLineItemModel
 {
     public string  ClaveProdServSAT { get; set; }   // c_ClaveProdServ SAT (campo nuevo)
     public string  Descripcion      { get; set; }   // Catálogo + Marca + Lote + Caducidad
-    public string  Pedimento        { get; set; }   // Si aplica
+    public string  Pedimento        { get; set; }   // Siempre "No aplica": se emite antes del surtido (criterio C5)
     public string  NumeroId         { get; set; }   // Nº ID interno
     public decimal Cantidad         { get; set; }
     public string  UnidadMedida     { get; set; }

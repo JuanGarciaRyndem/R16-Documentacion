@@ -1,17 +1,11 @@
 # Tareas BackEnd - R16A-RE-FU-017
 **Requisito:** Diseno y generacion de Documentos: Proforma Peru
 **Aplicativos:** ProquifaDotNet (.NET Framework 4.8) + ProquifaDotNet.Finanzas (.NET Core 10) + DocumentBuilder
-**Version:** 2.0 (rev. 2026-06-25 tras OBS-032 + alineacion RE-FU-006 actualizado)
+**Version:** 3.0 (rev. 2026-09-11 — OBS-032 anulada, sin FeatureFlag; leyenda "OPERACIÓN AL CONTADO"; sin logos farmacéuticos)
 
-> **Precondicion OBS-032** — Mientras la facturacion / timbrado Peru no este habilitada productivamente
-> (brechas B1-B5 + modulo timbrado SUNAT sin resolver), ninguna de estas tareas debe activarse en
-> produccion. El gating se implementa en la Tarea 4 (FeatureFlag `TimbradoPeruHabilitado`). El resto
-> de tareas (1, 2, 3, 5, 6, 7) puede desarrollarse y testearse en DEV/QA sin impacto productivo.
+> **[Actualizado — Decisión "Quitar Perú" 2026-07-17]** La precondición OBS-032 fue anulada: el cliente canceló Facturación y Timbrado de Perú, pero esto no reduce el alcance de este requisito. La Proforma Perú se genera íntegra, sin gating ni FeatureFlag; el ciclo de vida del pedido cierra en `CompletadaSinFactura` (RE-FU-029) en vez de `Facturada`. Ninguna de estas tareas depende ya de una precondición de habilitación productiva de Perú.
 >
-> **Alineacion con RE-FU-006 actualizado (OBS-013/014)** — Cuando la brecha B2 (REF.CLIENTE Peru) se
-> resuelva, la implementacion debe seguir el patron Mexico actualizado: armar la referencia al
-> CREATE/UPDATE de la asignacion cliente-cuenta, persistirla en `ClienteDatosBancarios.ReferenciaVigente`,
-> y leerla (no recalcular) desde el `ProformaModelBuilder` al armar el DTO. Snapshot inmutable al PDF.
+> **Alineacion con RE-FU-006 actualizado (OBS-013/014) + [Resuelto — Duda FU-006/FU-017]** — La brecha B2 (REF.CLIENTE Peru) está resuelta: Perú no cuenta con mecanismo de Código Validador, por lo que la REF. CLIENTE se lee directamente como la **Razón Social** del cliente (mismo camino que bancos no-Banamex en México, RE-FU-006 Regla 6-PER). No requiere lógica de armado adicional ni persistencia de una referencia distinta.
 
 ---
 
@@ -41,9 +35,8 @@ Agregar logica condicional por Region en el ProformaModelBuilder para generar el
 - Cambiar label interbancario: CCI en vez de CLABE
 - Cambiar label ID fiscal: RUC en vez de RFC
 - Cambiar formato direccion: Distrito/Provincia/Departamento en vez de Colonia/Ciudad/Estado
-- Cambiar leyenda exhibicion: OPERACION AL CONTADO (o omitir, pendiente confirmar)
-- Excluir sellos NEEC y FEUM del footer (exclusivos Mexico)
-- Incluir solo sellos aplicables Peru: USP + EDQM + Microbiologics
+- Cambiar leyenda exhibicion: texto fijo "OPERACIÓN AL CONTADO" en la plantilla (sustituye "Pago en una sola exhibición"; no es campo del DTO)
+- No incluir logos de catálogos farmacéuticos ni de marcas en el footer Peru (decisión — aplica también NEEC y FEUM, exclusivos Mexico)
 
 **Resultado esperado:**
 ProformaModelBuilder genera DTO correcto tanto para Region MEX como para Region PER con un unico punto de entrada.
@@ -56,7 +49,7 @@ ProformaModelBuilder genera DTO correcto tanto para Region MEX como para Region 
 - Para Region=PER el DTO contiene IGV 18%, RUC, CCI, PEN, disclaimer SUNAT, GOLPERU_PER_PRO
 - Para Region=MEX el DTO sigue funcionando identico (sin regresion)
 - El templateKey se determina correctamente segun Region
-- Los sellos NEEC/FEUM no aparecen en DTO Peru
+- El DTO Peru no incluye logos de catálogos farmacéuticos ni de marcas
 
 **Mas informacion de la tarea:**
 Corresponde a GAP-01, GAP-04, GAP-06 y GAP-07 del documento de impacto Back.
@@ -118,33 +111,31 @@ Corresponde a GAP-02 del documento de impacto Back.
 
 **Consideraciones previas:**
 - Depende de Tarea 1 (logica condicional Region en ProformaModelBuilder)
-- BRECHA B1: No existen cuentas bancarias GOLPERU Peru en BD (requiere GAP-14 DML previo)
-- BRECHA B2: La logica REF.CLIENTE Peru no esta definida (bloqueante de negocio)
-- En Mexico (RE-FU-006 actualizado, OBS-013/014): la referencia se persiste en `ClienteDatosBancarios.ReferenciaVigente` al CREATE/UPDATE de la asignacion y se casa snapshot a `tpProformaPedido.ReferenciaPago` al generar el PDF. El BO del ProformaModelBuilder **LEE** la referencia, no la recalcula.
-- En Peru: logica de armado diferente (pendiente definicion por el cliente), pero el **patron de persistencia/lectura debe ser el mismo** que Mexico.
+- BRECHA B1: No existen cuentas bancarias GOLPERU Peru en BD (requiere GAP-14 DML previo); el criterio de visualización ya está resuelto (dos cuentas activas más recientes, mismo mecanismo que México)
+- **[Resuelto — Duda FU-006/FU-017]** Perú no cuenta con mecanismo de Código Validador: la REF. CLIENTE se lee directamente como la **Razón Social** del cliente (mismo camino que bancos no-Banamex en México, RE-FU-006 Regla 6-PER). No requiere lógica de armado adicional.
 - Consulta cuentas: EmpresaDatosBancarios WHERE IdEmpresa=GOLPERU AND IdRegion=PER
 
 **Objetivo general:**
-Implementar la consulta de cuentas bancarias peruanas y la logica de referencia bancaria del cliente para Peru.
+Implementar la consulta de cuentas bancarias peruanas y consumir la Razón Social del cliente como REF.CLIENTE para Peru.
 
 **Objetivos especificos:**
 - Agregar filtro IdRegion=PER en consulta EmpresaDatosBancarios del ProformaModelBuilder
-- Implementar logica REF.CLIENTE Peru (cuando se defina por negocio)
+- Leer `DatosFacturacionCliente.RazonSocial` directamente para el campo `refCliente` (sin lógica adicional)
 - Mapear campo Clabe como CCI en el DTO cuando Region=PER
-- Soportar N cuentas (PEN + USD) en vez de las 2 fijas de Mexico (MN + DLS)
+- Mostrar las dos cuentas activas más recientes (mismo criterio que Mexico)
 
 **Resultado esperado:**
-Seccion datosBancarios del DTO se arma correctamente con cuentas peruanas y referencia del cliente.
+Seccion datosBancarios del DTO se arma correctamente con cuentas peruanas y la Razón Social del cliente como referencia.
 
 **Entregables:**
 - Logica de consulta cuentas bancarias filtrada por Region
-- Logica REF.CLIENTE Peru (implementacion o placeholder segun estado de brecha)
+- Lectura de Razón Social como REF.CLIENTE Peru
 - Tests unitarios
 
 **Criterios de aceptacion:**
 - El DTO Peru contiene cuentas con label CCI (no CLABE)
-- Las cuentas consultadas corresponden a GOLPERU con IdRegion=PER
-- Si la brecha B2 no se resuelve, el campo refCliente muestra placeholder controlado
+- Las cuentas consultadas corresponden a GOLPERU con IdRegion=PER y muestran las dos más recientes
+- El campo refCliente muestra la Razón Social del cliente
 - No afecta consulta de cuentas Mexico (sin regresion)
 
 **Mas informacion de la tarea:**
@@ -158,50 +149,43 @@ Corresponde a GAP-03 y GAP-05 del documento de impacto Back.
 
 ### Tarea 4
 
-**Titulo:** [ R16A-RE-FU-017 ] [IMP-EXIST-SERVICE] Ampliar condicion Region Peru en flujo de tramitacion ProquifaDotNet con OBS-032
+**Titulo:** [ R16A-RE-FU-017 ] [IMP-EXIST-SERVICE] Ampliar condicion Region Peru en flujo de tramitacion ProquifaDotNet
 
 **Aplicativos:** ProquifaDotNet (.NET Framework 4.8)
 
-**Modulos:** Logic.Pqf.Logistica/L05.TramitarPedido + Configuracion (FeatureFlag)
+**Modulos:** Logic.Pqf.Logistica/L05.TramitarPedido
 
 **Consideraciones previas:**
 - Depende de RE-FU-016 Tarea 15 (ApiCallerFinanzas ya creado para Mexico)
 - Actualmente la llamada a API Finanzas se ejecuta solo para Region=MEX
-- Se debe ampliar la condicion para incluir Region=PER **con guarda OBS-032**: el flujo solo se activa cuando la facturacion Peru esta habilitada (FeatureFlag `TimbradoPeruHabilitado`)
-- Mientras el flag este apagado, los pedidos Prepago de clientes Peru NO disparan la generacion de Proforma ni consumen folio del SEQUENCE global ni generan pendientes (evita ruido operativo solicitado por el cliente)
+- **[Actualizado — Decisión "Quitar Perú" 2026-07-17]** La precondición OBS-032 fue anulada: la Proforma Perú procede íntegramente, sin gating ni FeatureFlag. Se amplía la condición directamente a `(Region=MEX) OR (Region=PER)`.
 - El resto del flujo es identico al de Mexico (mismo endpoint, mismo byte[] de retorno)
 
 **Objetivo general:**
-Ampliar la condicion en el flujo de tramitacion de ProquifaDotNet para que invoque la API de Finanzas cuando el pedido es Prepago sin FAA de Region Peru **y** la facturacion Peru esta habilitada productivamente.
+Ampliar la condicion en el flujo de tramitacion de ProquifaDotNet para que invoque la API de Finanzas cuando el pedido es Prepago sin FAA de Region Peru.
 
 **Objetivos especificos:**
-- Definir el FeatureFlag `TimbradoPeruHabilitado` en mecanismo de configuracion (appSettings, BD de configuracion o claim IdentityServer) — debe poder alternarse sin redeploy cuando se cierren brechas B1-B5 + modulo timbrado SUNAT
-- Modificar condicion en flujo L05.TramitarPedido: de `(Region=MEX)` a `(Region=MEX) OR (Region=PER AND FeatureFlag.TimbradoPeruHabilitado = true)`
-- Pasar IdRegion=PER en la llamada a API Finanzas (solo cuando se pasa la guarda)
+- Modificar condicion en flujo L05.TramitarPedido: de `(Region=MEX)` a `(Region=MEX) OR (Region=PER)`
+- Pasar IdRegion=PER en la llamada a API Finanzas
 - Verificar que el byte[] del PDF Peru se retorna correctamente al Front
-- Documentar el flag en el archivo de configuracion con valor inicial `false`
 
 **Resultado esperado:**
-Al tramitar pedido Prepago sin FAA de cliente Peru con el flag habilitado, se genera PDF de Proforma Peru via API Finanzas. Con el flag apagado, el flujo se ignora silenciosamente.
+Al tramitar un pedido Prepago sin FAA de cliente Peru, se genera el PDF de Proforma Peru via API Finanzas, en las mismas condiciones que Mexico.
 
 **Entregables:**
-- Modificacion de condicion en flujo tramitacion L05 con guarda OBS-032
-- FeatureFlag `TimbradoPeruHabilitado` configurado e inicializado en `false`
+- Modificacion de condicion en flujo tramitacion L05
 - Paso de parametro IdRegion al endpoint cuando aplica
-- Documentacion del flag y su procedimiento de activacion
 
 **Criterios de aceptacion:**
-- Pedidos Prepago sin FAA Region=PER con flag=true generan PDF via Finanzas
-- Pedidos Prepago sin FAA Region=PER con flag=false NO invocan Finanzas, NO consumen folio, NO generan pendiente
-- Pedidos Prepago sin FAA Region=MEX siguen funcionando (sin regresion, sin dependencia del flag)
+- Pedidos Prepago sin FAA Region=PER generan PDF via Finanzas
+- Pedidos Prepago sin FAA Region=MEX siguen funcionando (sin regresion)
 - Pedidos Credito o con FAA no disparan la generacion (sin cambios)
-- El flag puede alternarse sin redeploy
 
 **Mas informacion de la tarea:**
-Corresponde a GAP-08 y GAP-08b del documento de impacto Back. Implementa la precondicion OBS-032 (no generar Proforma Peru mientras la facturacion Peru no este habilitada).
+Corresponde a GAP-08 y GAP-08b del documento de impacto Back, ambos **anulados como mecanismo de gating**: la tarea se limita a ampliar la condición de Region, sin FeatureFlag ni guarda de habilitación productiva.
 
 **Recursos:**
-- R16A-RE-FU-017.md (Regla 0 — Precondicion OBS-032)
+- R16A-RE-FU-017.md (Decisión "Quitar Perú" 2026-07-17)
 - R16A-RE-FU-017-Back.md (GAP-08, GAP-08b)
 - Logic.Pqf.Catalogos/ApiCaller/ApiCallerFinanzas.cs (creado en RE-FU-016)
 
@@ -220,7 +204,7 @@ Corresponde a GAP-08 y GAP-08b del documento de impacto Back. Implementa la prec
 - 1 sola empresa: GOLPERU (Golocaer S.A.C.)
 - 3 archivos: GOLPERU_PER_PRO_H.html (Header), GOLPERU_PER_PRO_B.html (Body), GOLPERU_PER_PRO_F.html (Footer)
 - Variante visual unica: logo GOLPERU Peru, color institucional
-- Sin sellos NEEC ni FEUM (exclusivos Mexico)
+- El documento NO incluye logos de catálogos farmacéuticos ni de marcas (decisión)
 - Etiquetas adaptadas: CCI, RUC, IGV, S/., SOLES
 
 **Objetivo general:**
@@ -230,7 +214,7 @@ Crear el template HTML de Proforma para la operacion Peru con el branding de Gol
 - Crear carpeta GOLPERU_PER_PRO/ con 3 archivos HTML
 - Header: logo GOLPERU Peru, titulo Proforma, folio, vigencia, disclaimer SUNAT
 - Body: tabla partidas, panel 4 columnas (pago con IGV, bancarios con CCI, facturacion con RUC, entrega)
-- Footer: razon social legal GOLPERU Peru, contacto Peru, sellos (USP, EDQM, Microbiologics), paginacion X/Y
+- Footer: razon social legal GOLPERU Peru, contacto Peru, paginacion X/Y (sin logos de catálogos farmacéuticos ni de marcas)
 - CSS embebido con color institucional GOLPERU Peru
 - Placeholders Handlebars/Mustache para datos dinamicos del ProformaModel
 
@@ -247,7 +231,7 @@ Template HTML funcional que renderiza correctamente la Proforma Peru.
 - El logo corresponde a GOLPERU Peru
 - Las etiquetas muestran: RUC (no RFC), CCI (no CLABE), IGV (no IVA), S/. (no $)
 - El disclaimer es el texto SUNAT
-- No aparecen sellos NEEC ni FEUM
+- El footer no incluye logos de catálogos farmacéuticos ni de marcas
 - El panel inferior muestra 4 columnas con datos peruanos
 
 **Mas informacion de la tarea:**
@@ -279,7 +263,6 @@ Registrar el template GOLPERU_PER_PRO en la base de datos de DocumentBuilder y p
 **Objetivos especificos:**
 - INSERT en tabla DocumentTemplate para GOLPERU_PER_PRO
 - Preparar logo GOLPERU Peru en formato adecuado (base64 o path)
-- Preparar logos farmaceuticos Peru (USP, EDQM, Microbiologics - sin FEUM)
 - Verificar que DocumentBuilder resuelve correctamente el template por TemplateKey
 
 **Resultado esperado:**
@@ -288,16 +271,15 @@ Template registrado en BD y assets graficos disponibles para renderizacion.
 **Entregables:**
 - Script SQL con INSERT en DocumentTemplate
 - Logo GOLPERU Peru preparado
-- Logos farmaceuticos Peru preparados
 
 **Criterios de aceptacion:**
 - El template GOLPERU_PER_PRO se encuentra en BD con TemplateKey correcto
 - DocumentBuilder resuelve correctamente el template por su key
 - El logo se renderiza correctamente en el PDF generado
-- Los logos farmaceuticos Peru aparecen en el pie (sin NEEC/FEUM)
+- El pie del documento no incluye logos de catálogos farmacéuticos ni de marcas
 
 **Mas informacion de la tarea:**
-Corresponde a GAP-11, GAP-12 y GAP-13 del documento de impacto Back.
+Corresponde a GAP-11 y GAP-12 del documento de impacto Back. GAP-13 (logos farmaceuticos) queda cerrado: el documento no incluye ese tipo de logos para Perú, sin assets adicionales que preparar.
 
 **Recursos:**
 - R16A-RE-FU-017-Back.md
@@ -317,7 +299,6 @@ Corresponde a GAP-11, GAP-12 y GAP-13 del documento de impacto Back.
 - BRECHA B3: Direccion legal y datos de contacto GOLPERU Peru no capturados (brecha consolidada en v2.0: incluye telefonos, web, correo ventas)
 - Requiere datos proporcionados por el cliente (bancos peruanos, direccion legal, telefonos)
 - Tablas: EmpresaDatosBancarios, DatosBancarios, Empresa
-- Esta tarea **desbloquea parte de la precondicion OBS-032** (junto con B2, B4 y B5 + modulo timbrado)
 
 **Objetivo general:**
 Crear los scripts DML para insertar los datos de GOLPERU Peru necesarios para la generacion de la Proforma.
@@ -347,7 +328,7 @@ Datos Peru disponibles en BD para que ProformaModelBuilder pueda armar la seccio
 - No afectan datos Mexico existentes
 
 **Mas informacion de la tarea:**
-Corresponde a GAP-14, GAP-15 y GAP-16 del documento de impacto Back. Resuelve brechas B1 y B3 (en numeracion v2.0). Junto con resolver B2, B4 y B5 + modulo timbrado SUNAT, habilita el activado del FeatureFlag `TimbradoPeruHabilitado` de la Tarea 4.
+Corresponde a GAP-14, GAP-15 y GAP-16 del documento de impacto Back. Resuelve las brechas de datos B1 (cuentas bancarias) y B3 (dirección legal y contacto).
 
 **Recursos:**
 - R16A-RE-FU-017-Back.md
@@ -362,7 +343,7 @@ Corresponde a GAP-14, GAP-15 y GAP-16 del documento de impacto Back. Resuelve br
 | 1 | ALG-COMPLX-LOGIC | Logica condicional Region Peru en ProformaModelBuilder | Finanzas | RE-FU-016 (completo) |
 | 2 | ALG-BASIC-LOGIC | Soporte moneda PEN en MontoALetrasConverter | Finanzas | RE-FU-016 T13 |
 | 3 | ALG-BASIC-LOGIC | REF.CLIENTE Peru + consulta cuentas bancarias GOLPERU | Finanzas | 1, 7 |
-| 4 | IMP-EXIST-SERVICE | Ampliar condicion Region Peru en flujo tramitacion + FeatureFlag OBS-032 | ProquifaDotNet | RE-FU-016 T15 |
+| 4 | IMP-EXIST-SERVICE | Ampliar condicion Region Peru en flujo tramitacion | ProquifaDotNet | RE-FU-016 T15 |
 | 5 | CREATE-PDF | Template HTML Proforma Peru GOLPERU_PER_PRO (3 archivos) | DocumentBuilder | RE-FU-016 T16 |
 | 6 | BD-OBJ-CH | Registrar template Peru en BD + logo GOLPERU | DocumentBuilder | 5 |
 | 7 | CREATE-SCRIPT-CONTROL | Scripts DML datos GOLPERU Peru (cuentas, direccion, contacto) | BD | - |

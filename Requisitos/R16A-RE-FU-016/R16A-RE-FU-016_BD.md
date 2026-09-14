@@ -280,7 +280,7 @@ Logos se resuelven por Prefijo en DocumentBuilder (repositorio o base64), no en 
 | 2 | ~~Vigencia del documento~~ | Negocio | **Resuelto (DUDA-033, 2026-08-21):** 30 dias naturales desde la generacion |
 | 3 | ~~Alias vs RazonSocial en seccion Cliente~~ | Negocio | **Resuelto (DUDA-034, 2026-08-21):** Razon Social |
 | 4 | ~~Contacto de entrega: cual contacto~~ | Negocio | **Resuelto (DUDA-037, 2026-08-21):** Titulo+Contacto, referencia tabla Pedidos en Legacy |
-| 5 | Certificaciones pie (ISO/NEEC) | Negocio | Confirmar vigencia |
+| 5 | Certificaciones pie | Negocio | **Resuelto:** certificaciones vigentes ISO 9001:2015 y OEA; se retira NEEC. Métodos de pago a mostrar: pendiente de confirmar |
 | 6 | ~~Cuentas siempre MN+DLS~~ | Negocio | **Resuelto (DUDA-036, 2026-08-21):** dos cuentas activas mas recientes por Fecha de ultima actualizacion; si solo hay una, se muestra esa. Aplica tambien a Peru |
 | 7 | ~~PUE siempre en Prepago~~ | Fiscal | **Resuelto (DUDA-035, 2026-08-21):** leyenda PUE fija, Prepago siempre asume PUE |
 | 8 | ~~Prefijo PRF en BD o solo render~~ | Tecnico | **Resuelto (DUDA-032, 2026-08-21):** solo render, sin prefijo en BD (confirma recomendacion) |

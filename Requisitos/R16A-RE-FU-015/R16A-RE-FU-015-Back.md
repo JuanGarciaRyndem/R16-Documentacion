@@ -95,7 +95,7 @@ El panel de Información de Facturación de Tramitar Pedido muestra los mismos c
 
 ## Criterios de Aceptación
 
-### Sección A — Tramitación, activación y opciones en pantalla
+### Sección A — Tramitación, activación y opciones disponibles
 
 **Criterio A1 — Tramitación habilitada para Prepago sin controlados con Factura por Adelantado activada**
 - **Dado** que un pedido pertenece a un cliente Prepago en México o Perú, sin productos controlados, y el ESAC activa la opción Factura por Adelantado,
@@ -109,13 +109,13 @@ El panel de Información de Facturación de Tramitar Pedido muestra los mismos c
 
 **Criterio A3 — Bloqueo de edición de datos de facturación al activar Factura por Adelantado**
 - **Dado** que el ESAC activó la opción Factura por Adelantado en Tramitar Pedido,
-- **Cuando** se muestra la pantalla del pedido,
-- **Entonces** el botón "Editar Datos" para datos de facturación no debe aparecer disponible para este pedido. El sistema deberá mostrar los datos de facturación en modo solo lectura tomados del catálogo del cliente vigente al momento de la activación (fijados como snapshot en `fccFactura`).
+- **Cuando** el ESAC consulta el pedido,
+- **Entonces** el sistema no deberá permitir editar los datos de facturación del cliente; estos deberán presentarse en modo solo lectura, tomados del catálogo del cliente vigente al momento de la activación (fijados como snapshot en `fccFactura`).
 
-**Criterio A4 — No visualización de Entrega con Remisión para Prepago**
+**Criterio A4 — Entrega con Remisión no disponible para Prepago**
 - **Dado** que el pedido es de cliente Prepago,
-- **Cuando** el ESAC visualiza la pantalla del pedido,
-- **Entonces** el radio button de Entrega con Remisión no deberá aparecer en la pantalla, dado que esta opción no aplica para clientes prepago en ninguna variante.
+- **Cuando** el ESAC opera el módulo Tramitar Pedido,
+- **Entonces** el sistema no deberá ofrecer la opción de Entrega con Remisión, dado que no aplica para clientes prepago en ninguna variante.
 
 ### Sección D — Pendientes generados y cierre
 
@@ -124,22 +124,17 @@ El panel de Información de Facturación de Tramitar Pedido muestra los mismos c
 - **Cuando** el ESAC ejecuta la acción Tramitar,
 - **Entonces** el sistema deberá generar automáticamente un pendiente en el módulo Factura por Adelantado asociado al folio del pedido (INSERT atómico en `fccFactura` + `fccFacturaPartida` + `fccFacturaReferenciaBancaria`), para que el Analista de Cuentas por Cobrar (rol Gestor de Cobranza) gestione posteriormente la emisión y timbrado de la factura.
 
-**Criterio D2 — Momento de generación del pendiente Validar Cobro**
-- **Dado** que el ESAC tramitó un pedido prepago con Factura por Adelantado activada,
-- **Cuando** se completa la tramitación,
-- **Entonces** el pendiente en Validar Cobro se generará posteriormente, cuando la factura se emita exitosamente desde el módulo Factura por Adelantado (RT-06).
-
-**Criterio D3 — Desaparición del pendiente operativo en bandeja Tramitar Pedido**
+**Criterio D2 — Desaparición del pendiente operativo en bandeja Tramitar Pedido**
 - **Dado** que la acción de Tramitar Pedido se completó (con la generación del pendiente en Factura por Adelantado),
 - **Cuando** se actualiza `PedidoEstadoActual.IdCatEstadoPedido` a `prepagoconfaa` vía `PUT /v1/api/orders/status` (RT-05, OBS-027 resuelto),
 - **Entonces** el pedido no deberá seguir apareciendo como pendiente en la bandeja del módulo Tramitar Pedido del ESAC.
 
-**Criterio D4 — Cancelación del pedido**
+**Criterio D3 — Cancelación del pedido**
 - **Dado** que un pedido tramitado tiene solicitud del cliente para cancelar,
 - **Cuando** el ESAC ejecuta la acción Cancelar pedido en Tramitar Pedido,
 - **Entonces** el sistema deberá presentar un modal de confirmación y requerir confirmación explícita antes de proceder (endpoint compartido con RE-FU-010).
 
-**Criterio D5 — Estatus del pedido a lo largo del flujo**
+**Criterio D4 — Estatus del pedido a lo largo del flujo**
 - **Dado** que el sistema opera por pendientes (que aparecen y desaparecen de cada bandeja a medida que se trabajan) y que esos pendientes no reflejan por sí solos el estatus global del pedido,
 - **Cuando** un pedido avanza por las distintas etapas del flujo,
 - **Entonces** el sistema deberá mantener un estatus del pedido que refleje su punto en el flujo, persistido en `PedidoEstadoActual.IdCatEstadoPedido` contra el catálogo `catEstadoPedido` (OBS-027 resuelto — ver `catEstadoPedido — Estados Propuestos.md`).

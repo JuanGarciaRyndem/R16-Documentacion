@@ -12,7 +12,7 @@
 
 ## Historia de Usuario
 
-> Yo como **ESAC**, quiero que el sistema genere automáticamente el PDF de la Proforma con el branding de la empresa emisora del pedido al tramitar un pedido Prepago para clientes de México, para entregar al cliente un documento estandarizado y correcto que respalde el cobro por adelantado.
+> Yo como **ESAC**, quiero que el sistema genere automáticamente el PDF de la Proforma con el branding de la empresa emisora del pedido al tramitar un pedido Prepago sin Factura por Adelantado para clientes de México, para entregar al cliente un documento estandarizado y correcto que respalde el cobro por adelantado.
 
 ---
 
@@ -29,10 +29,10 @@ El sistema debe generar un PDF de Proforma al tramitar un pedido Prepago sin Fac
 - Generación del PDF de Proforma al tramitar un pedido en modalidad Prepago sin factura por adelantado para clientes con Región México.
 - Cuatro empresas emisoras del grupo PROQUIFA México con branding propio: Golocaer S.A. de C.V., Mungen S.A. de C.V., Proquifa S.A. de C.V. y Proveedora Quimico Farmaceutica S.A. de C.V.
 - Branding diferenciado por empresa emisora.
-- Generación bajo demanda del PDF durante el flujo previo al envío de la Proforma al cliente (cada vez que el usuario presiona "Tramitar" se previsualiza el PDF con datos vigentes).
-- Persistencia del PDF en base de datos al recibir confirmación de envío exitoso del correo al cliente.
+- Generación bajo demanda del PDF durante el flujo previo al envío de la Proforma al cliente (cada vez que se tramita el pedido se previsualiza el PDF con datos vigentes).
+- Almacenamiento del PDF al recibir confirmación de envío exitoso del correo al cliente.
 - Acceso al PDF histórico desde el módulo Validar Cobro una vez la Proforma fue enviada.
-- Foliador global lineal PQF2 con prefijo PRF en la representación visual del documento.
+- Foliador global PQF2 con prefijo PRF en la representación visual del documento.
 - Paginación automática cuando las partidas exceden el espacio de una página (comportamiento ya existente del sistema).
 - Aplicación de catálogos fiscales SAT mexicanos (RFC, IVA, CLABE, certificación NEEC, Art. 29 y 29A CFF).
 
@@ -40,6 +40,7 @@ El sistema debe generar un PDF de Proforma al tramitar un pedido Prepago sin Fac
 
 - Pedidos Crédito sin Factura por Adelantado ni Crédito/Prepago con Factura por Adelantado.
 - Pedidos para clientes con Región Perú. Esa funcionalidad se documenta en requisito independiente.
+- La construcción de la referencia bancaria del cliente (REF. CLIENTE): se documenta en el requisito de Referencia de Pago. Esta fila únicamente presenta el dato ya construido.
 
 ---
 
@@ -52,26 +53,22 @@ El sistema genera el PDF de Proforma únicamente cuando el pedido es en modalida
 La Proforma se diferencia según la empresa emisora del pedido (una de las cuatro del grupo PROQUIFA México) en logo, color institucional, dirección y razón social legal correspondiente.
 
 **Regla 3 — Foliador global con prefijo PRF**
-El folio de la Proforma usa el foliador global lineal PQF2 para Proformas (un solo contador sin segmentación por empresa) en formato MMDDAA-Consecutivo, con prefijo "PRF-" en la representación visual del documento (ejemplo: "PRF-031826-691"). El prefijo "PRF-" es **exclusivamente visual**: en base de datos se almacena únicamente el número de folio, sin el prefijo; la transferencia del dato a Legacy debe considerarse sin el prefijo. *(DUDA-032, Resuelta)*
-
-> ~~Pendiente confirmar si el prefijo se persiste también en el folio interno almacenado en base de datos.~~ Resuelto — ver DUDA-032: el prefijo es solo visual, no se persiste en BD.
+El folio de la Proforma usa el foliador global PQF2 para Proformas (un solo contador sin segmentación por empresa) en formato MMDDAA-Consecutivo, con prefijo "PRF-" en la representación visual del documento (ejemplo: "PRF-031826-691"). El prefijo "PRF-" es **exclusivamente visual**: en base de datos se almacena únicamente el número de folio, sin el prefijo; la transferencia del dato a Legacy debe considerarse sin el prefijo. El folio se consume únicamente al confirmarse el envío exitoso del correo al cliente: se reintenta con el mismo folio hasta que el envío se complete exitosamente, sin descartarlo en cada intento fallido, de modo que las previsualizaciones abandonadas no generan huecos en la numeración.
 
 **Regla 4 — Vigencia del documento**
-La Proforma calcula y muestra una fecha de vigencia en formato DD/MM/YYYY. La vigencia es de **30 días naturales**, contados a partir del momento de la **generación** de la Proforma. *(DUDA-033, Resuelta)*
-
-> ~~La regla exacta del cálculo de la vigencia queda como duda formal del proyecto, pendiente de confirmar con el cliente.~~ Resuelto — ver DUDA-033: 30 días naturales desde la generación.
+La Proforma calcula y muestra una fecha de vigencia en formato DD/MM/YYYY. La vigencia es de **30 días naturales**, contados a partir del momento de la **generación** de la Proforma.
 
 **Regla 5 — Generación bajo demanda durante el flujo previo al envío**
-Al presionar "Tramitar" para un pedido Prepago sin Factura por Adelantado de cliente México, el sistema genera el PDF de la Proforma dinámicamente, leyendo los datos vigentes en ese momento desde las fuentes (Catálogo de Clientes, Pedido, Catálogo de Cuentas Bancarias, Tabla de Empresas, Referencia Bancaria del Cliente), y lo muestra en previsualización. En esta etapa el PDF no se almacena en base de datos.
+Al tramitar un pedido Prepago sin Factura por Adelantado de cliente México, el sistema genera el PDF de la Proforma dinámicamente, leyendo los datos vigentes en ese momento desde las fuentes (Catálogo de Clientes, Pedido, Catálogo de Cuentas Bancarias, Tabla de Empresas, Referencia Bancaria del Cliente), y lo muestra en previsualización. En esta etapa el PDF no se almacena.
 
 **Regla 6 — Regeneración con datos actualizados si el usuario abandona la previsualización y reintenta**
-Si un usuario vio la previsualización pero abandonó el flujo sin enviar la Proforma, al volver al pedido y presionar "Tramitar" nuevamente el sistema regenera el PDF desde cero leyendo los datos vigentes en ese nuevo momento. Si entre intentos cambiaron datos fuente (razón social del cliente, dirección fiscal, precios, cuentas bancarias, etc.), la nueva versión los refleja. Esto aplica únicamente mientras la Proforma no haya sido enviada al cliente.
+Si un usuario vio la previsualización pero abandonó el flujo sin enviar la Proforma, al volver a tramitar el pedido el sistema regenera el PDF desde cero leyendo los datos vigentes en ese nuevo momento. Si entre intentos cambiaron datos fuente (razón social del cliente, dirección fiscal, precios, cuentas bancarias, etc.), la nueva versión los refleja. Esto aplica únicamente mientras la Proforma no haya sido enviada al cliente.
 
-**Regla 7 — Persistencia del PDF al recibir confirmación del envío exitoso del correo**
-Al confirmarse que el correo de la Proforma fue enviado exitosamente al cliente, el sistema persiste la versión final del PDF en base de datos como artefacto histórico inmutable, con los datos exactos enviados. El pendiente en Tramitar Pedido se cierra y la Proforma enviada queda como registro permanente del documento exacto que recibió el cliente.
+**Regla 7 — Almacenamiento del PDF al recibir confirmación del envío exitoso del correo**
+Al confirmarse que el correo de la Proforma fue enviado exitosamente al cliente, el sistema almacena la versión final del PDF como artefacto histórico inmutable, con los datos exactos enviados; la Proforma enviada queda como registro permanente del documento exacto que recibió el cliente.
 
 **Regla 8 — Sin regeneración posterior al envío**
-Una Proforma enviada y persistida se entrega, al consultarse históricamente, desde el PDF almacenado en base de datos, sin regenerarlo desde los datos fuente actuales. El sistema no ofrece funcionalidad de reenvío. Si los datos fuente cambian después del envío, la Proforma histórica conserva los datos originales.
+Una Proforma enviada y almacenada se entrega, al consultarse históricamente, desde el PDF almacenado, sin regenerarlo desde los datos fuente actuales. El sistema no ofrece funcionalidad de reenvío. Si los datos fuente cambian después del envío, la Proforma histórica conserva los datos originales.
 
 **Regla 9 — Consulta del PDF histórico desde Validar Cobro**
 Una Proforma enviada y persistida puede consultarse desde el módulo Validar Cobro para verificación y trazabilidad del cobro asociado, accediendo al PDF histórico.
@@ -83,20 +80,13 @@ El documento muestra el texto fijo: "ESTE ES UN DOCUMENTO INFORMATIVO PREVIO A L
 Cuando las partidas del pedido exceden el espacio disponible en una sola página, el sistema genera páginas adicionales con la misma cabecera y pie completo, mostrando la numeración "X/Y" en cada página. Este comportamiento ya existe en PQF2.
 
 **Regla 12 — Origen de los datos por sección**
-Los paneles del documento se arman desde las fuentes indicadas: datos de partidas (cantidad, descripción, precio unitario, importe) desde el Pedido; identificación del cliente, RFC y dirección fiscal desde el Catálogo de Clientes; moneda aplicada a los cálculos desde la moneda de facturación configurada en el Catálogo del cliente (no del pedido); Condiciones de Pago desde la configuración del cliente en el Catálogo (sección Cobros); cuentas bancarias (Banca, Sucursal, Cuenta, CLABE) desde el Catálogo de Cuentas Bancarias del grupo PROQUIFA México; REF. CLIENTE de cada cuenta construida dinámicamente con la lógica del Código Validador; Pedido interno, Parciales, Contacto y Lugar de entrega desde el Pedido; logo, color institucional, dirección y razón social legal generados por el sistema.
+Los paneles del documento se arman desde las fuentes indicadas: datos de partidas (cantidad, descripción, precio unitario, importe) desde el Pedido; identificación del cliente, RFC y dirección fiscal desde el Catálogo de Clientes; moneda aplicada a los cálculos desde la moneda de facturación configurada en el Catálogo del cliente (no del pedido); Condiciones de Pago desde la configuración del cliente en el Catálogo (sección Cobros); cuentas bancarias (Banca, Sucursal, Cuenta, CLABE) desde el Catálogo de Cuentas Bancarias del grupo PROQUIFA México; REF. CLIENTE de cada cuenta, presentada tal como se construye en el requisito de Referencia de Pago; Pedido interno, Parciales, Contacto y Lugar de entrega desde el Pedido; logo, color institucional, dirección y razón social legal generados por el sistema.
 
 ---
 
 ## Riesgos
 
-**Riesgo 1 — Consumo prematuro del folio en la previsualización (Resuelto)**
-Si el sistema reservara un folio del foliador global PQF2 al generar el PDF en la previsualización pero el usuario abandonara sin enviar, ese folio quedaría huérfano generando huecos en la numeración consecutiva. La numeración consecutiva sin huecos puede ser un requisito fiscal o de auditoría.
-
-Resuelto: el folio **se consume hasta el envío correcto** — se reserva/reintenta con el mismo folio hasta que el envío se complete exitosamente; no se descarta en cada intento fallido, evitando huecos. *(DUDA-031, Resuelta)*
-
-> ~~Pendiente decisión técnica: definir si el folio se reserva al generar el PDF de previsualización (consume folio aunque no se envíe) o exclusivamente al confirmar el envío exitoso (sin huecos).~~ Resuelto — ver DUDA-031.
-
-**Riesgo 2 — Tipo de cambio inconsistente entre Proforma y validación de pago posterior**
+**Riesgo 1 — Tipo de cambio inconsistente entre Proforma y validación de pago posterior**
 Si el tipo de cambio mostrado en la Proforma difiere del aplicado al recibir el pago en Validar Cobro, el cliente puede recibir documentos con montos distintos en moneda local generando confusión.
 
 ---
@@ -123,25 +113,19 @@ Si el tipo de cambio mostrado en la Proforma difiere del aplicado al recibir el 
 **Criterio A4 — Folio con prefijo PRF**
 - **Dado** que el sistema renderiza la cabecera,
 - **Cuando** incluye el folio del documento,
-- **Entonces** deberá mostrar el folio con formato "PRF-MMDDAA-Consecutivo" (ejemplo: "PRF-031826-691"). El consecutivo corresponde al foliador global lineal PQF2. El prefijo "PRF-" es solo visual (no se persiste en BD, ver DUDA-032) y el folio se consume hasta el envío exitoso, sin huecos por intentos fallidos (ver DUDA-031).
-
-> ~~El momento exacto en que se consume el folio (al previsualizar vs al confirmar envío) queda como duda técnica del proyecto.~~ Resuelto — ver DUDA-031: se consume al confirmar envío exitoso.
+- **Entonces** deberá mostrar el folio con formato "PRF-MMDDAA-Consecutivo" (ejemplo: "PRF-031826-691"). El consecutivo corresponde al foliador global PQF2. El prefijo "PRF-" es solo visual (en base de datos se almacena únicamente el número de folio) y el folio se consume únicamente al confirmarse el envío exitoso, sin huecos por intentos fallidos.
 
 **Criterio A5 — Vigencia del documento**
 - **Dado** que el sistema renderiza la cabecera,
 - **Cuando** incluye el campo Vigencia,
 - **Entonces** deberá mostrar la fecha de vigencia en formato DD/MM/YYYY, calculada como **30 días naturales** a partir de la fecha de generación de la Proforma.
 
-> ~~Regla exacta del cálculo pendiente confirmar.~~ Resuelto — ver DUDA-033: 30 días naturales desde la generación.
-
 ### Sección B — Identificación del cliente
 
 **Criterio B1 — Identificación del cliente**
 - **Dado** que el sistema renderiza la sección Cliente,
 - **Cuando** incluye el identificador del cliente,
-- **Entonces** deberá mostrar la ~~Alias~~ **Razón Social** del cliente desde el Catálogo de Clientes.
-
-> ~~Pendiente confirmar si el dato fuente correcto es Alias o Razón Social.~~ Resuelto — ver DUDA-034: debe mostrarse la Razón Social.
+- **Entonces** deberá mostrar la Razón Social del cliente desde el Catálogo de Clientes.
 
 ### Sección C — Tabla de partidas
 
@@ -175,9 +159,7 @@ Si el tipo de cambio mostrado en la Proforma difiere del aplicado al recibir el 
 **Criterio D5 — Leyenda "Pago en una sola exhibición"**
 - **Dado** que el sistema renderiza el final de la sección de pago,
 - **Cuando** incluye la leyenda de exhibición,
-- **Entonces** deberá mostrar el texto "PAGO EN UNA SOLA EXHIBICIÓN" como leyenda fiscal obligatoria SAT. Esta leyenda es **fija para toda Proforma** (el esquema Prepago siempre asume PUE), independiente de la configuración de Método de Pago del cliente.
-
-> ~~Confirmar si siempre es PUE.~~ Resuelto — ver DUDA-035: la leyenda es fija, la proforma siempre se enfoca a PUE.
+- **Entonces** deberá mostrar el texto "PAGO EN UNA SOLA EXHIBICIÓN". Esta leyenda es **fija para toda Proforma** (el esquema Prepago siempre asume PUE), independiente de la configuración de Método de Pago del cliente. El documento carece de validez fiscal (ver Regla 10); la leyenda no debe presentarse como una leyenda fiscal obligatoria del SAT.
 
 ### Sección E — Datos bancarios
 
@@ -186,12 +168,10 @@ Si el tipo de cambio mostrado en la Proforma difiere del aplicado al recibir el 
 - **Cuando** arma el contenido,
 - **Entonces** deberá mostrar las **dos cuentas activas más recientes** (según Fecha de última actualización) de la empresa que factura, independientemente de la moneda del pedido. Si solo existe una cuenta activa, se muestra únicamente esa; si hay más de dos registradas, se toman las dos más recientes. Este mismo mecanismo aplica también a Proformas de Perú. Los campos por cuenta son: Moneda, Banca, Sucursal, Cuenta, CLABE y REF. CLIENTE.
 
-> ~~Confirmar si siempre se muestran M.N y DLS o puede variar, ej. EUR.~~ Resuelto — ver DUDA-036: se muestran las dos cuentas activas más recientes (o solo una si es lo único activo).
-
 **Criterio E2 — Referencia bancaria del cliente (REF. CLIENTE)**
-- **Dado** que el sistema renderiza la REF. CLIENTE de cada cuenta,
-- **Cuando** construye el valor,
-- **Entonces** deberá aplicar la lógica documentada del Código Validador: cuenta Banamex con concatenación de 7 segmentos basados en nombre del cliente, clave, código del banco, moneda y CodValidador; cuenta no-Banamex con nombre del cliente directo.
+- **Dado** que el sistema renderiza la sección de datos bancarios,
+- **Cuando** incluye la REF. CLIENTE de cada cuenta,
+- **Entonces** deberá presentar el valor tal como se construye conforme al requisito de Referencia de Pago, que documenta la lógica de construcción de ese dato.
 
 ### Sección F — Datos de facturación
 
@@ -207,40 +187,32 @@ Si el tipo de cambio mostrado en la Proforma difiere del aplicado al recibir el 
 - **Cuando** incluye los datos de entrega,
 - **Entonces** deberá mostrar: Número de pedido interno; Parciales (SI/NO) según configuración del pedido; Contacto (Título+Contacto, con referencia a la tabla Pedidos en Legacy; si no existe, mostrar "NINGUNO"); Lugar de entrega completo (dirección).
 
-> ** Aplica la misma duda de generación de folio interno, ya que no se ha enviado el pedido aún. **
-
-> ~~Confirmar si es el contacto de entrega, contacto del cliente o contacto que realizó el pedido.~~ Resuelto — ver DUDA-037: el campo Contacto se llena con Título+Contacto, con referencia a la tabla Pedidos en Legacy.
-
-### Sección H — Pie legal de la empresa emisora
+### Sección H — Información legal de la empresa emisora
 
 **Criterio H1 — Contacto PROQUIFA México**
-- **Dado** que el sistema renderiza el pie del documento,
-- **Cuando** incluye la información de contacto,
+- **Dado** que el sistema arma la información de contacto de PROQUIFA México,
+- **Cuando** la incluye en el documento,
 - **Entonces** deberá mostrar: Redes sociales: @PROQUIFA, /PROQUIFA_OFICIAL, PROQUIFA (LinkedIn); Teléfonos: Ciudad de México 55 1315 1498 y Guadalajara 01 (33) 4770 1170; Web: www.proquifa.com.mx; Correo: ventas@proquifa.com.mx.
 
 **Criterio H2 — Razón social legal de la empresa emisora**
-- **Dado** que el sistema renderiza el pie legal,
-- **Cuando** incluye la razón social legal,
+- **Dado** que el sistema arma la información legal de la empresa emisora,
+- **Cuando** la incluye en el documento,
 - **Entonces** deberá mostrar la razón social legal completa y dirección legal de la empresa emisora del pedido (Golocaer S.A. de C.V., Mungen S.A. de C.V., Proquifa S.A. de C.V. o Proveedora Quimico Farmaceutica S.A. de C.V.).
 
 **Criterio H3 — Sellos de certificación y métodos de pago**
-- **Dado** que el sistema renderiza el pie,
-- **Cuando** incluye certificaciones y métodos de pago aceptados,
-- **Entonces** deberá mostrar: sello ISO 9001:2015, sello NEEC (Nuevo Esquema de Empresas Certificadas, programa SAT exclusivo México), y los métodos de pago aceptados (American Express / Tarjetas Bienvenidas).
-
-> ** Confirmar con el cliente si estas certificaciones siguen vigentes, así como su diseño. **
+- **Dado** que el sistema arma las certificaciones y métodos de pago aceptados,
+- **Cuando** los incluye en el documento,
+- **Entonces** deberá mostrar los sellos de las certificaciones vigentes ISO 9001:2015 y OEA (Operador Económico Autorizado). Los métodos de pago a mostrar quedan pendientes de confirmar con el cliente.
 
 **Criterio H4 — Numeración de página**
 - **Dado** que el sistema completa el documento,
 - **Cuando** incluye el contador de páginas,
-- **Entonces** deberá mostrar "X/Y" en el pie del documento, donde X es la página actual e Y es el total. Si el documento es de una sola página, se muestra "1/1".
+- **Entonces** deberá mostrar "X/Y", donde X es la página actual e Y es el total. Si el documento es de una sola página, se muestra "1/1".
 
-**Criterio H5 — Logos de catálogos farmacéuticos**
-- **Dado** que el sistema renderiza la línea final del documento,
-- **Cuando** incluye los logos de catálogos y proveedores reconocidos,
-- **Entonces** deberá mostrar los logos aplicables a la empresa emisora del pedido: EDQM, FEUM, USP, Microbiologics, APACOR, CHATA Biosystems, Pharmaffiliates (varían según empresa emisora).
-
-> ** Confirmar si esta info sigue vigente. **
+**Criterio H5 — Sin logos de catálogos farmacéuticos ni de marcas**
+- **Dado** que el sistema completa el documento,
+- **Cuando** lo arma,
+- **Entonces** no deberá incluir logos de catálogos farmacéuticos ni de marcas.
 
 ### Sección I — Paginación automática
 
@@ -252,67 +224,43 @@ Si el tipo de cambio mostrado en la Proforma difiere del aplicado al recibir el 
 ### Sección J — Persistencia y consulta post-envío
 
 **Criterio J1 — Generación bajo demanda durante el flujo previo al envío**
-- **Dado** que un usuario presiona "Tramitar" en el módulo Tramitar Pedido,
+- **Dado** que se ejecuta la acción de tramitar en el módulo Tramitar Pedido,
 - **Cuando** el sistema procesa la acción,
-- **Entonces** deberá generar el PDF dinámicamente con los datos vigentes en ese momento y mostrarlo en previsualización al usuario. El PDF no se almacena en base de datos en esta etapa.
+- **Entonces** deberá generar el PDF dinámicamente con los datos vigentes en ese momento y mostrarlo en previsualización al usuario. El PDF no se almacena en esta etapa.
 
 **Criterio J2 — Regeneración con datos actualizados al reintentar**
-- **Dado** que el usuario abandonó el flujo sin enviar la Proforma y vuelve a presionar "Tramitar",
+- **Dado** que el usuario abandonó el flujo sin enviar la Proforma y vuelve a tramitar el pedido,
 - **Cuando** el sistema procesa la nueva acción,
 - **Entonces** deberá regenerar el PDF desde cero con los datos fuente vigentes en ese nuevo momento. Si cambiaron datos entre intentos, el nuevo PDF los refleja.
 
-**Criterio J3 — Persistencia del PDF al confirmar envío exitoso del correo**
+**Criterio J3 — Almacenamiento del PDF al confirmar envío exitoso del correo**
 - **Dado** que el sistema confirma que el correo de envío al cliente fue exitoso,
 - **Cuando** se completa el envío,
-- **Entonces** deberá persistir el PDF final como artefacto histórico inmutable. El PDF se almacena en el sistema como archivo/binario y no sufre regeneración: es el PDF generado originalmente el que se conserva y consulta, no se reconstruye a partir de datos. El pendiente en Tramitar Pedido se cierra.
-
-> ~~Pendiente decisión técnica del tipo de almacenamiento del PDF (binario completo vs snapshot estructurado).~~ Resuelto — ver DUDA-039: se almacena como archivo/binario, sin regeneración posterior.
+- **Entonces** deberá almacenar el PDF final como artefacto histórico inmutable, como archivo/binario y no sufre regeneración: es el PDF generado originalmente el que se conserva y consulta, no se reconstruye a partir de datos.
 
 **Criterio J4 — Consulta del PDF histórico desde Validar Cobro**
-- **Dado** que una Proforma fue enviada y persistida,
+- **Dado** que una Proforma fue enviada y almacenada,
 - **Cuando** un usuario consulta el módulo Validar Cobro para procesar el cobro asociado,
 - **Entonces** el sistema deberá permitir acceder al PDF histórico de la Proforma. El PDF se entrega tal cual fue almacenado, sin regeneración desde datos fuente actuales.
 
 **Criterio J5 — Sin reenvío posterior**
-- **Dado** que una Proforma fue enviada y persistida,
+- **Dado** que una Proforma fue enviada y almacenada,
 - **Cuando** un usuario intenta reenviarla desde el módulo Tramitar Pedido,
-- **Entonces** el sistema no deberá ofrecer esa funcionalidad. El pendiente está cerrado y la Proforma original se conserva como registro permanente.
+- **Entonces** el sistema no deberá ofrecer esa funcionalidad. La Proforma original se conserva como registro permanente.
 
 ---
 
 ## Notas
 
-- Esta fila documenta el contenido y la generación del PDF de Proforma para clientes con Región México. La equivalente para Región Perú se documenta en requisito independiente.
-- El requisito es un rediseño del documento de Proforma. La estructura visual específica (colores exactos, layout de bandas, tipografía, espaciados) es decisión del equipo de diseño UI; este requisito se enfoca en la información que debe contener cada sección del documento.
-- Aplica exclusivamente a pedidos Prepago que NO seleccionaron Factura por Adelantado.
-- El branding del documento varía por empresa emisora del pedido (logo, color institucional, dirección y razón social legal).
-- El PDF se genera bajo demanda en cada presión del botón "Tramitar" durante el flujo previo al envío de la Proforma. En esta etapa el PDF NO se almacena en base de datos.
-- Cuando el sistema confirma que el correo de envío al cliente fue exitoso, el PDF final se persiste en base de datos como artefacto histórico inmutable.
-- El PDF histórico de la Proforma enviada se puede consultar desde el módulo Validar Cobro para verificación y trazabilidad del cobro asociado.
-- La moneda aplicada a los cálculos del documento es la moneda de facturación configurada en el Catálogo del cliente, no la moneda del pedido.
-- El tipo de cambio aplicado a la conversión es el del día de generación de la Proforma.
-- Las condiciones de pago provienen de la configuración del cliente en el Catálogo.
-- El foliador es global lineal PQF2 para Proformas (un solo contador sin segmentación por empresa).
-- La paginación automática del PDF cuando las partidas exceden una página es comportamiento ya existente en PQF2.
+- Esta fila documenta el contenido y la generación del PDF de Proforma para pedidos Prepago sin Factura por Adelantado de clientes con Región México; la equivalente para Región Perú se documenta en requisito independiente.
+- El requisito es un rediseño del documento de Proforma: se enfoca en la información que debe contener cada sección. La estructura visual específica (colores exactos, layout de bandas, tipografía, espaciados, posición de cada bloque en la página) es decisión del equipo de diseño UI.
+- La construcción de la referencia bancaria del cliente (REF. CLIENTE) se documenta en el requisito de Referencia de Pago; esta fila únicamente presenta el dato.
+- Pendiente: confirmar con el cliente los métodos de pago a mostrar en el pie del documento.
 
-> ~~Pendiente confirmar la regla exacta de Vigencia del documento.~~ Resuelto (2026-08-21) — ver DUDA-033: 30 días naturales desde la generación.
+---
 
-> ~~Pendiente confirmar si el prefijo "PRF-" del folio aplica solo a la representación visual del PDF o también se persiste en el folio interno almacenado en base de datos.~~ Resuelto (2026-08-21) — ver DUDA-032: solo visual, no se persiste en BD.
+## Cambios
 
-> ~~Pendiente confirmar si la sección Cliente muestra el Alias del cliente o la Razón Social.~~ Resuelto (2026-08-21) — ver DUDA-034: Razón Social.
-
-> ~~Pendiente confirmar si los pedidos Prepago siempre son Método de Pago PUE.~~ Resuelto (2026-08-21) — ver DUDA-035: la leyenda PUE es fija.
-
-> ~~Pendiente confirmar si la sección de Datos Bancarios siempre muestra las dos cuentas M.N. y DLS.~~ Resuelto (2026-08-21) — ver DUDA-036: dos cuentas activas más recientes (o solo una si es lo único activo).
-
-> ** Pendiente respecto al folio interno del pedido que aparece en la sección de Entrega. **
-
-> ~~Pendiente definir qué dato fuente corresponde al campo "Contacto" de la sección de Entrega.~~ Resuelto (2026-08-21) — ver DUDA-037: Título+Contacto, referencia tabla Pedidos en Legacy.
-
-> ** Pendiente validar con el cliente la vigencia de las certificaciones del pie del documento (ISO 9001:2015, NEEC). **
-
-> ** Pendiente validar con el cliente la vigencia de los logos de catálogos farmacéuticos. **
-
-> ~~Pendiente decisión técnica: tipo de almacenamiento del PDF persistido en base de datos.~~ Resuelto (2026-08-21) — ver DUDA-039: archivo/binario, sin regeneración.
-
-> ~~Pendiente decisión técnica del momento de consumo del folio del foliador PQF2.~~ Resuelto (2026-08-21) — ver DUDA-031: al confirmar envío exitoso, sin huecos.
+| # | Fecha | Observación | Descripción del cambio |
+|---|-------|-------------|-------------------------|
+| 1 | 2026-09-11 | Cierre de dudas resueltas / retiro de definición duplicada / actualización del pie / correcciones de consistencia | Se limpia el marcado de tachado/duda usado para registrar el cierre de DUDA-031 a DUDA-039, conservando las conclusiones ya resueltas en las Reglas, Criterios y Notas correspondientes (consumo del folio al confirmar envío, prefijo "PRF-" solo visual, vigencia de 30 días naturales, Razón Social en Sección Cliente, leyenda "PAGO EN UNA SOLA EXHIBICIÓN" fija, dos cuentas bancarias activas más recientes, campo Contacto con Título+Contacto de la tabla Pedidos en Legacy). Se elimina el Riesgo 1 (consumo prematuro del folio), ya resuelto, y se renumera el riesgo restante. Se retira de esta fila la construcción de la referencia bancaria del cliente (REF. CLIENTE), que se documenta en el requisito de Referencia de Pago; esta fila conserva únicamente su presentación (Alcance, Regla 12, Criterio E2, Notas). Se actualiza el pie del documento: certificaciones vigentes ISO 9001:2015 y OEA, se retira NEEC, y se marcan como pendientes los métodos de pago a mostrar (Criterio H3); se establece que el documento no incluye logos de catálogos farmacéuticos ni de marcas (Criterio H5). Se cierra el pendiente del folio interno del pedido en la sección de Entrega. Correcciones de consistencia: se acota la Historia de Usuario a pedidos Prepago sin Factura por Adelantado; se retira la calificación de "lineal" del foliador (Alcance, Regla 3, Criterio A4); se retira la calificación de la leyenda "PAGO EN UNA SOLA EXHIBICIÓN" como fiscal obligatoria del SAT, que contradecía el disclaimer de la Regla 10 (Criterio D5); se retiran las referencias al cierre del pendiente en Tramitar Pedido de las Reglas 7/8 y Criterios J3/J5 (corresponde a otro requisito) y se sustituye la mención a la persistencia en base de datos por el almacenamiento del documento; se retiran las menciones al botón de pantalla "Tramitar" por corresponder a detalle de diseño (Alcance, Reglas 5/6, Criterios J1/J2, Notas); se retiran las referencias posicionales al "pie del documento" de la Sección H y los Criterios H1-H4, por corresponder a detalle de diseño (se renombra la sección a "Información legal de la empresa emisora"). Se reescriben las Notas completas, retirando los bullets que reproducían reglas y criterios ya documentados (incluido el desglose del origen de los datos por sección, cubierto íntegro por la Regla 12), conservando únicamente el encuadre de la fila, la delimitación entre requisito y diseño, las referencias cruzadas a otros requisitos y el único pendiente vigente (métodos de pago del pie). |

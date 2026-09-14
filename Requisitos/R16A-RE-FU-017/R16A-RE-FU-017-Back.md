@@ -3,7 +3,7 @@
 **Aplicativos:** ProquifaDotNet (.NET Framework 4.8) + ProquifaDotNet.Finanzas (.NET Core 10) + DocumentBuilder
 **Modulo:** L05.TramitarPedido + Proforma (Finanzas) + DocumentBuilder
 **Impacto:** Generacion de PDF de Proforma Peru con adaptacion regional (IGV, RUC, CCI, PEN) + template unico GOLPERU + reutilizacion infraestructura RE-FU-016
-**Version:** 3.1 (rev. 2026-08-21 — trazabilidad DUDA-009/018/041/042/044/054 + B10 resuelto)
+**Version:** 3.2 (rev. 2026-09-11 — leyenda de pago "OPERACIÓN AL CONTADO", cierre de B4/B5/B7)
 
 ---
 
@@ -70,14 +70,14 @@ El BO ProformaModelBuilder (creado en RE-FU-016) debe incorporar logica condicio
 | pago.impuestoLabel | etiqueta | IVA | IGV |
 | pago.monedaLocal | clave | MXN (M.N.) | PEN (S/.) |
 | pago.granTotalEnLetra | sufijo | PESOS XX/100 M.N. | SOLES XX/100 |
-| pago.leyendaExhibicion | texto | PAGO EN UNA SOLA EXHIBICION | **[Resuelto — DUDA-043]** Texto fijo "Contado"/"Crédito" en plantilla `GOLPERU_PER_PRO` — **no es campo DTO**; el escenario Perú Prepago siempre es "Contado" |
+| pago.leyendaExhibicion | texto | PAGO EN UNA SOLA EXHIBICION | **[Resuelto — DUDA-043]** Texto fijo "OPERACIÓN AL CONTADO" en plantilla `GOLPERU_PER_PRO` — **no es campo DTO**; sustituye a la leyenda mexicana y cubre el escenario Perú Prepago (siempre al contado) |
 | datosBancarios.cuentas | estructura | 2 cuentas (MN + DLS) CLABE | **[Resuelto — DUDA-044 / DUDA-118/036]** Mismo mecanismo que México: 2 cuentas activas más recientes (PEN/USD) con CCI, mismo criterio que MEX |
 | datosBancarios.labelInterbancario | etiqueta | CLABE | CCI |
 | datosBancarios.refCliente | logica | CodigoValidador (Banamex/otros) | **[Resuelto — Duda FU-006/FU-017]** Razón Social del cliente (mismo camino que no-Banamex, RE-FU-006 Regla 6-PER) |
 | facturacion.labelIdFiscal | etiqueta | RFC | RUC |
 | facturacion.direccion | formato | Colonia/Ciudad/Estado | Distrito/Provincia/Departamento |
 | entrega.direccion | formato | Formato MEX | Formato PER (distrito/provincia/depto) |
-| footer.sellos | contenido | NEEC + FEUM + USP + EDQM + Microbiologics | USP + EDQM + Microbiologics (sin NEEC/FEUM) |
+| footer.sellos | contenido | NEEC + FEUM + USP + EDQM + Microbiologics | Sin logos de catálogos farmacéuticos ni de marcas (decisión) |
 | footer.contacto | datos | Datos MEX por empresa | Datos GOLPERU Peru (BRECHA - no capturados) |
 | templateKey | valor | {Prefijo}_MEX_PRO (4 opciones) | GOLPERU_PER_PRO (1 opcion) |
 
@@ -138,8 +138,8 @@ Misma estructura que Mexico, con valores adaptados:
 | ~~GAP-03~~ | ~~Logica REF.CLIENTE Peru (BRECHA)~~ **[Resuelto — Duda FU-006/FU-017]** | `ProformaModelBuilder` lee `DatosFacturacionCliente.RazonSocial` directamente para el campo `refCliente` — mismo camino que no-Banamex | ~~Medio~~ Bajo |
 | GAP-04 | Determinacion TemplateKey Peru | Si Region=PER -> templateKey = GOLPERU_PER_PRO (no usar Empresa.Prefijo + _MEX_PRO) | Bajo |
 | GAP-05 | Consulta cuentas bancarias filtro Region PER | EmpresaDatosBancarios WHERE IdEmpresa=GOLPERU AND IdRegion=PER | Bajo |
-| GAP-06 | Sellos/certificaciones Peru (sin NEEC, sin FEUM) | Condicional en DTO footer por Region | Bajo |
-| ~~GAP-07~~ | ~~Leyenda exhibicion Peru~~ **[Resuelto — DUDA-043]** | Texto fijo "Contado"/"Crédito" en plantilla `GOLPERU_PER_PRO` — no es campo DTO; el DocumentBuilder lo renderiza directamente | ~~Bajo~~ N/A |
+| GAP-06 | Certificaciones Golocaer Peru en footer | Los logos de catálogos farmacéuticos NO aplican a Perú (decisión, sin desarrollo adicional); certificaciones y métodos de pago pendientes de datos (BRECHA B6) | Bajo |
+| ~~GAP-07~~ | ~~Leyenda exhibicion Peru~~ **[Resuelto — DUDA-043]** | Texto fijo "OPERACIÓN AL CONTADO" en plantilla `GOLPERU_PER_PRO` — no es campo DTO; el DocumentBuilder lo renderiza directamente | ~~Bajo~~ N/A |
 
 ### En ProquifaDotNet (Venta Interna)
 
@@ -158,7 +158,7 @@ Misma estructura que Mexico, con valores adaptados:
 | GAP-10 | Diseno HTML/CSS template Peru | Variante visual unica: color institucional GOLPERU Peru, layout adaptado (CCI en vez de CLABE, RUC en vez de RFC, IGV en vez de IVA) | Alto |
 | GAP-11 | Registrar template en BD DocumentBuilder | INSERT DocumentTemplate para GOLPERU_PER_PRO | Bajo |
 | GAP-12 | Logo GOLPERU Peru | Preparar logo en formato base64/asset para operacion Peru | Bajo |
-| GAP-13 | Logos farmaceuticos Peru (sin FEUM) | USP + EDQM + Microbiologics (pendiente confirmar lista exacta) | Bajo |
+| ~~GAP-13~~ | ~~Logos farmaceuticos Peru~~ **[Cerrado — decisión]** | El documento NO incluye logos de catálogos farmacéuticos ni de marcas para Perú; no requiere assets adicionales | ~~Bajo~~ N/A |
 
 > Nota: El endpoint POST api/Report/proforma, el servicio ProformaExtension y el DTO DocumentGenerateProformaDto ya existen (creados en RE-FU-016). Solo se agrega 1 template nuevo.
 
@@ -174,17 +174,17 @@ Misma estructura que Mexico, con valores adaptados:
 
 ## Brechas Criticas (Bloqueantes)
 
-> Numeracion alineada con `R16A-RE-FU-017.md` B1-B10. **[Actualizado — Decisión "Quitar Perú" 2026-07-17]** ~~La precondicion OBS-032 implica que todas las brechas B1-B5 son bloqueantes para activar el gating en GAP-08.~~ OBS-032 anulada; GAP-08/08b anulados. Las brechas B3–B7 siguen abiertas (datos/validación legal). B2, B8, B9 y B10 cerradas.
+> Numeracion alineada con `R16A-RE-FU-017.md` B1-B10. **[Actualizado — Decisión "Quitar Perú" 2026-07-17]** ~~La precondicion OBS-032 implica que todas las brechas B1-B5 son bloqueantes para activar el gating en GAP-08.~~ OBS-032 anulada; GAP-08/08b anulados. Las brechas B1, B3 y B6 siguen abiertas (datos). B2, B4, B5, B7, B8, B9 y B10 cerradas.
 
 | # | Brecha | Impacto en Back | Estado |
 |---|--------|----------------|--------|
-| B1 | 0 cuentas bancarias GOLPERU Peru en BD | ProformaModelBuilder no puede armar seccion datosBancarios | Bloqueante OBS-032 |
+| B1 | 0 cuentas bancarias GOLPERU Peru en BD | ProformaModelBuilder no puede armar seccion datosBancarios | Abierta (datos DML) |
 | ~~B2~~ | ~~REF.CLIENTE Peru no definida~~ **[Resuelto — Duda FU-006/FU-017]** | `ProformaModelBuilder` lee `DatosFacturacionCliente.RazonSocial` para el campo `refCliente`. Sin lógica adicional. | Cerrado |
-| B3 | Direccion legal y contacto GOLPERU Peru no capturados | Footer del PDF incompleto | Bloqueante OBS-032 |
-| B4 | Disclaimer SUNAT no validado legalmente | Riesgo legal en texto del PDF | Bloqueante OBS-032 |
-| B5 | Detracciones/Percepciones SUNAT no confirmadas | Posible omision regulatoria que invalide CPE posterior | Bloqueante OBS-032 |
-| B6 | Certificaciones GOLPERU Peru desconocidas | Footer incompleto | Media - no bloquea gating |
-| B7 | Logos farmaceuticos Peru no definidos | Footer incompleto | Baja - puede resolverse con assets existentes |
+| B3 | Direccion legal y contacto GOLPERU Peru no capturados | Footer del PDF incompleto | Abierta (datos) |
+| ~~B4~~ | ~~Disclaimer SUNAT no validado legalmente~~ **[Resuelto]** | Texto final aprobado por el cliente junto con los diseños (ver `R16A-RE-FU-017.md` Regla 10 / Criterio A2) | Cerrado |
+| ~~B5~~ | ~~Detracciones/Percepciones SUNAT no confirmadas~~ **[Resuelto]** | Ambos regímenes quedan sin objeto: no se emiten comprobantes fiscales desde el sistema para clientes Perú (la facturación se realiza fuera de ProquifaNet) | Cerrado |
+| B6 | Certificaciones GOLPERU Peru desconocidas | Footer incompleto | Abierta (datos) |
+| ~~B7~~ | ~~Logos farmaceuticos Peru no definidos~~ **[Resuelto — decisión]** | El documento NO incluye logos de catálogos farmacéuticos ni de marcas | Cerrado |
 | ~~B8~~ | ~~Titulo: Proforma vs Factura Proforma~~ **[Resuelto — DUDA-041]** | Template `GOLPERU_PER_PRO` usa título **"Proforma"** | Cerrado |
 | ~~B9~~ | ~~Nomenclatura SOLES vs NUEVOS SOLES~~ **[Resuelto — DUDA-042]** | `MontoALetrasConverter` usa **"SOLES"** (oficial desde 2015) | Cerrado |
 | ~~B10~~ | ~~TC SUNAT vs TC interno~~ **[Resuelto — DUDA-054]** | Cálculo en `ProformaModelBuilder` usa el tipo de cambio de Perú ya existente en el sistema (el mismo aplicado a Pedidos no-USD); no se requiere una fuente nueva o distinta | Cerrado |
@@ -207,7 +207,7 @@ Misma estructura que Mexico, con valores adaptados:
 | --------------- | ----------------------------------------------------------------------------------------- |
 | Logo            | Logo GOLPERU Peru (operacion SAC)                                                         |
 | Color           | Color institucional GOLPERU Peru (pendiente confirmar si es mismo naranja que GOL Mexico) |
-| Sellos pie      | USP + EDQM + Microbiologics (sin NEEC, sin FEUM)                                          |
+| Sellos pie      | Sin logos de catálogos farmacéuticos ni de marcas (decisión)                              |
 | Datos bancarios | CCI 20 digitos (en vez de CLABE)                                                          |
 | ID fiscal       | RUC (en vez de RFC)                                                                       |
 | Impuesto        | IGV 18% (en vez de IVA 16%)                                                               |

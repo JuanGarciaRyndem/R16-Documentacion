@@ -1,7 +1,7 @@
 # Impacto en BD - Diseno y Generacion Factura Mexico (CFDI 4.0 PDF)
 **Requisito:** R16A-RE-FU-021
 **Base de Datos:** ProquifaDotNet
-**Version:** 2.0 - Consolidado: una sola tabla CFDIGenerada (propiedad de ProquifaDotNet.Finanzas), sin tabla CFDI separada
+**Version:** 2.1 - Se cierran los pendientes de negocio: pedimento no aplicable (criterio C5), referencia bancaria desde el Catálogo del cliente, almacenamiento del PDF (DUDA-039) y estructura de la Factura Anticipo; se generaliza el desglose de impuestos trasladados (IVA, tasa cero o exento) y el Método/Forma de Pago según escenario de emisión (Regla 5)
 
 ---
 
@@ -84,7 +84,7 @@ por requisitos previos) + columnas nuevas agregadas por este requisito (marcadas
 | IdCatTipoCFDI | uniqueidentifier | RE-FU-028 | FK -> catTipoCFDI |
 | IdCFDIRelacionado | uniqueidentifier | RE-FU-028 | FK -> CFDIGenerada (CFDI relacionado, notas de credito) |
 | IdCatUsoCFDI | uniqueidentifier | RE-FU-018 | FK -> catUsoCFDI |
-| IdCatMetodoDePagoCFDI | uniqueidentifier | RE-FU-018 | FK -> catMetodoDePagoCFDI ('PPD') |
+| IdCatMetodoDePagoCFDI | uniqueidentifier | RE-FU-018 | FK -> catMetodoDePagoCFDI (PPD o PUE, según escenario de emisión — Regla 5) |
 | IdCatMoneda | uniqueidentifier | RE-FU-018 | FK -> catMoneda |
 | TipoCambio | decimal(18,6) | RE-FU-018 | TC del dia de emision |
 | IdArchivoXml | uniqueidentifier | RE-FU-018 | FK -> Archivo (XML timbrado en Minio) |
@@ -282,7 +282,7 @@ por requisitos previos) + columnas nuevas agregadas por este requisito (marcadas
 | CFDI - UUID (Folio Fiscal) | CFDIGenerada | UUID | SI |
 | CFDI - Serie/Folio | CFDIGenerada | Serie, Folio | SI |
 | CFDI - Fechas | CFDIGenerada | FechaEmision, **FechaCertificacionSat (FALTA - ALTER)** | Parcial |
-| CFDI - MetodoPago/FormaPago | CFDIGenerada | IdCatMetodoDePagoCFDI ('PPD') | SI |
+| CFDI - MetodoPago/FormaPago | CFDIGenerada | IdCatMetodoDePagoCFDI (PPD/PUE según escenario — Regla 5) | SI |
 | CFDI - TipoComprobante | CFDIGenerada | Constante 'I' (Ingreso) | SI |
 | CFDI - Moneda/TC | CFDIGenerada | IdCatMoneda, TipoCambio | SI |
 | CFDI - Exportacion | CFDIGenerada | **Exportacion (FALTA - ALTER)** | NO |
@@ -291,10 +291,10 @@ por requisitos previos) + columnas nuevas agregadas por este requisito (marcadas
 | Partidas - ClaveUnidadSAT | catUnidad | **ClaveSAT (FALTA - ALTER)** | NO |
 | Partidas - Cantidad/PU | tpPartidaPedido | NumeroDePiezas, PrecioUnitario | SI |
 | Partidas - Descripcion | Producto + MarcaFamilia | Catalogo+Descripcion+Marca | SI |
-| Partidas - Pedimento | **No definido** | **Pendiente confirmar** | NO |
+| Partidas - Pedimento | Constante | "No aplica" — se emite antes del surtido (criterio C5) | SI |
 | Partidas - Lote | tpPartidaPedido | FechaCaducidadStock | Parcial |
 | Totales | CFDIGenerada | **Subtotal (FALTA - ALTER)**, Total | Parcial |
-| IVA/Traslados | A calcular desde partidas | tasa 16% | Parcial |
+| Impuestos trasladados | A calcular desde partidas según Perfil Fiscal (IVA tasa general, tasa cero o exento) | criterio F2/F5 | Parcial |
 | Datos bancarios | EmpresaDatosBancarios | Banco, Cuenta, CLABE | SI |
 | REF.CLIENTE | ClienteDatosBancarios (RE-FU-006) | CodigoValidador | SI (pendiente) |
 | Elementos SAT - UUID, Sellos, Cadena Original | XML del PAC (via CFDIGenerada.IdArchivoXml) | TimbreFiscalDigital — parseo directo, no columnas | SI |
@@ -323,9 +323,9 @@ por requisitos previos) + columnas nuevas agregadas por este requisito (marcadas
 |-------------|--------|--------|
 | ClaveProdServSAT (c_ClaveProdServ) | NO existe en BD | ALTER + poblar catalogo |
 | ClaveSAT de unidad (c_ClaveUnidad) | NO existe en catUnidad | ALTER catUnidad |
-| Pedimento aduanal | Sin definir origen | Confirmar con cliente |
+| Pedimento aduanal | Resuelto — siempre "No aplica" (se emite antes del surtido, criterio C5) | Ninguna |
 | Lote del producto | tpPartidaPedido.FechaCaducidadStock (parcial) | Confirmar campo |
-| Desglose IVA por linea | Calcular (16% sobre importe) | Logica aplicacion |
+| Desglose de impuestos por linea | Calcular segun Perfil Fiscal del producto (IVA tasa general, tasa cero o exento) | Logica aplicacion |
 
 ---
 
@@ -354,11 +354,11 @@ por requisitos previos) + columnas nuevas agregadas por este requisito (marcadas
 | 4   | Exportacion en CFDIGenerada (CFDI 4.0)                                | DDL         | ALTER - default '01'                | Pendiente   |
 | 5   | Snapshot Emisor/Receptor + CondicionesPago + Subtotal en CFDIGenerada | DDL         | ALTER (ver script 2)                | Pendiente   |
 | 6   | IdArchivoPdf + FechaCertificacionSat en CFDIGenerada                  | DDL         | ALTER + FK a Archivo (ver script 3) | Pendiente   |
-| 7   | Pedimento aduanal en partidas                                         | Negocio     | Confirmar origen del dato           | Pendiente   |
+| 7   | Pedimento aduanal en partidas                                         | Negocio     | Resuelto — "No aplica" (criterio C5) | Resuelto   |
 | 8   | Lote del producto al facturar FAA                                     | Negocio     | FAA = antes del surtido             | Pendiente   |
-| 9   | Referencia bancaria en Factura                                        | Negocio     | Misma logica Proforma o diferente   | Pendiente   |
-| 10  | Almacenamiento PDF (BLOB vs snapshot)                                 | Tecnico     | Consistente con RE-FU-016           | Pendiente   |
-| 11  | Factura Anticipo estructura                                           | Negocio     | Confirmar con asesor comercial      | Pendiente   |
+| 9   | Referencia bancaria en Factura                                        | Negocio     | Resuelto — referencia vigente del Catálogo del cliente (Regla 9 / Criterio D2) | Resuelto   |
+| 10  | Almacenamiento PDF (BLOB vs snapshot)                                 | Tecnico     | Resuelto — DUDA-039: se almacena como archivo, sin regeneración | Resuelto   |
+| 11  | Factura Anticipo estructura                                           | Negocio     | Resuelto — ver Sección K de `R16A-RE-FU-021.md` | Resuelto   |
 
 ---
 

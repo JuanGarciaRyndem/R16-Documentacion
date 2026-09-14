@@ -512,7 +512,7 @@ Corresponde a GAP-02 del documento de impacto Back.
 
 ### Tarea 12
 
-**Titulo:** [ R16A-RE-FU-016 ] [ALG-BASIC-LOGIC] Implementar foliador global con SEQUENCE y logica de Codigo Validador
+**Titulo:** [ R16A-RE-FU-016 ] [ALG-BASIC-LOGIC] Implementar foliador global con SEQUENCE y consumir REF. CLIENTE de Referencia de Pago
 **Aplicativos:** ProquifaDotNet.Finanzas
 **Modulos:** Application, Infrastructure
 
@@ -521,31 +521,31 @@ Corresponde a GAP-02 del documento de impacto Back.
 - El foliador consume NEXT VALUE FOR dbo.SeqFolioProforma
 - Formato BD: MMDDAA-Consecutivo (ej: 031826-691)
 - Formato visual PDF: PRF-MMDDAA-Consecutivo (prefijo PRF solo en render, no se persiste)
-- Codigo Validador (REF. CLIENTE): Banamex = 7 segmentos numericos; no-Banamex = nombre cliente directo
-- Momento de consumo: al confirmar envio exitoso (sin huecos)
+- REF. CLIENTE (Código Validador): la lógica de construcción se documenta e implementa en R16A-RE-FU-006 (Referencia de Pago); esta tarea únicamente consume el valor ya construido para incluirlo en el DTO
+- Momento de consumo del folio: al confirmar envio exitoso (sin huecos)
 
 **Objetivo general:**
-Implementar el foliador global de proformas usando SQL SEQUENCE y la logica del Codigo Validador para referencia de pago.
+Implementar el foliador global de proformas usando SQL SEQUENCE y consumir el REF. CLIENTE ya construido por el requisito de Referencia de Pago.
 
 **Objetivos especificos:**
 - Implementar consumo de SEQUENCE: NEXT VALUE FOR dbo.SeqFolioProforma
 - Generar FolioProforma con formato MMDDAA-Consecutivo
 - Persistir FolioProforma y ConsecutivoProforma en tpProformaPedido al confirmar envio
-- Implementar logica Codigo Validador: Si banco es Banamex generar 7 segmentos numericos; si no, usar nombre del cliente
+- Consumir el REF. CLIENTE de cada cuenta desde la fuente documentada en R16A-RE-FU-006 (sin reimplementar la lógica de segmentación)
 - Agregar prefijo PRF- solo en el DTO para DocumentBuilder (visual)
 
 **Resultado esperado:**
-Foliador funcional que asigna consecutivos unicos y logica de Codigo Validador correcta segun banco.
+Foliador funcional que asigna consecutivos unicos, con el REF. CLIENTE de cada cuenta bancaria incluido en el DTO tal como lo construye Referencia de Pago.
 
 **Entregables:**
 - Servicio FoliadorProforma con metodo GenerarFolio()
-- Logica de Codigo Validador con metodo ObtenerReferenciaCliente(banco, cliente)
 - Integracion con flujo de confirmacion de envio
+- Mapeo del REF. CLIENTE (de R16A-RE-FU-006) al DTO de datos bancarios
 
 **Criterios de aceptacion:**
 - Cada proforma confirmada obtiene un consecutivo unico sin huecos
 - El formato es MMDDAA-Consecutivo en BD y PRF-MMDDAA-Consecutivo en PDF
-- El Codigo Validador genera 7 segmentos para Banamex y nombre directo para otros bancos
+- El REF. CLIENTE que llega al PDF coincide con el valor construido por Referencia de Pago, sin lógica duplicada en este módulo
 - No se consume SEQUENCE en previsualizacion (solo al confirmar)
 
 **Mas informacion de la tarea:**
@@ -762,8 +762,9 @@ Crear los 12 archivos HTML de templates de Proforma Mexico para las 4 empresas c
 - Crear carpeta MUN_MEX_PRO/ con MUN_MEX_PRO_H.html, MUN_MEX_PRO_B.html, MUN_MEX_PRO_F.html
 - Crear carpeta PQF_MEX_PRO/ con PQF_MEX_PRO_H.html, PQF_MEX_PRO_B.html, PQF_MEX_PRO_F.html
 - Crear carpeta PRO_MEX_PRO/ con PRO_MEX_PRO_H.html, PRO_MEX_PRO_B.html, PRO_MEX_PRO_F.html
-- Maquetacion HTML/CSS: cabecera con logo, tabla de partidas, panel inferior 4 columnas (pago, bancarios, facturacion, entrega), pie con certificaciones
+- Maquetacion HTML/CSS: cabecera con logo, tabla de partidas, panel inferior 4 columnas (pago, bancarios, facturacion, entrega), pie con certificaciones vigentes (ISO 9001:2015, OEA) y métodos de pago (pendientes de confirmar)
 - Aplicar colores por variante visual (Naranja, Verde, Teal)
+- No incluir logos de catálogos farmacéuticos ni de marcas en ningún template
 
 **Resultado esperado:**
 12 archivos HTML funcionales que renderizan correctamente la Proforma de cada empresa.
@@ -806,23 +807,24 @@ Registrar los 4 templates de Proforma en la base de datos de DocumentBuilder y p
 
 **Objetivos especificos:**
 - INSERT en tabla DocumentTemplate para GOL_MEX_PRO, MUN_MEX_PRO, PQF_MEX_PRO, PRO_MEX_PRO
-- Preparar logos por empresa en formato adecuado (base64 o path)
-- Preparar sellos y certificaciones en formato adecuado
+- Preparar logos por empresa emisora en formato adecuado (base64 o path)
+- Preparar sellos de certificaciones vigentes (ISO 9001:2015, OEA) en formato adecuado
 - Verificar que los templates se resuelven correctamente con TemplateKey
+- Confirmar que ningún template incluye logos de catálogos farmacéuticos ni de marcas
 
 **Resultado esperado:**
 Templates registrados en BD y assets graficos disponibles para renderizacion.
 
 **Entregables:**
 - Script SQL con 4 INSERTs en DocumentTemplate
-- Logos de 4 empresas preparados
-- Sellos de certificaciones preparados
+- Logos de 4 empresas emisoras preparados
+- Sellos de certificaciones (ISO 9001:2015, OEA) preparados
 
 **Criterios de aceptacion:**
 - Los 4 templates se encuentran en BD con TemplateKey correcto
 - DocumentBuilder resuelve correctamente cada template por su key
-- Los logos se renderizan correctamente en el PDF generado
-- Los sellos de certificaciones aparecen en el pie de pagina
+- Los logos de la empresa emisora se renderizan correctamente en el PDF generado
+- Los sellos de certificaciones (ISO 9001:2015, OEA) aparecen en el pie de pagina, sin logos de catálogos farmacéuticos ni de marcas
 
 **Mas informacion de la tarea:**
 Corresponde a GAP-18 y GAP-20 del documento de impacto Back.

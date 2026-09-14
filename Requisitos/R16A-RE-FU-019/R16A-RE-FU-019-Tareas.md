@@ -602,7 +602,7 @@ Corresponde a GAP-13 (ya satisfecho por RE-FU-018 GAP-10/GAP-11; esta tarea es d
 - Depende de Tareas 9 (DTOs), 11 (AdvanceInvoiceFiscalDataRepository) y 12 (verificación de `ICfdiService`/`IApiCallerStamping`, ya creados en RE-FU-018)
 - Servicio de ALTA complejidad: orquesta el flujo Generar Factura delegando el timbrado y la persistencia del CFDI a `ICfdiService` (RE-FU-018, Parte B) — **no llama a Timbrado directamente ni persiste CFDIGenerada/Archivo por su cuenta**, para no duplicar esa lógica
 - Si PAC falla, retorna error sin modificar estado del pedido
-- La factura es inmutable una vez timbrada exitosamente (Regla 9)
+- La factura es inmutable una vez timbrada exitosamente (Regla 10)
 
 **Objetivo general:**
 Implementar el servicio que orquesta el flujo completo desde la obtención de datos fiscales hasta la actualización de `fccFactura` post-timbrado, delegando el timbrado y la persistencia del CFDI a `ICfdiService`.
@@ -617,15 +617,23 @@ Implementar el servicio que orquesta el flujo completo desde la obtención de da
 3. Obtener datos fiscales del cliente (AdvanceInvoiceFiscalDataRepository)
 4. Obtener datos del emisor (empresa del pedido)
 5. Obtener Tipo de Cambio del día (si moneda != MXN)
-6. Armar StampAdvanceInvoiceRequestDto con valores forzados SAT (PPD, 99, I)
-7. Llamar ICfdiService.GenerateAsync(request) — internamente: llama IApiCallerStamping -> Timbrado
+6. Armar StampAdvanceInvoiceRequestDto con valores forzados SAT (PPD, 99, I) y UsoCFDI precargado
+   con el valor configurado en la ficha del cliente (DatosFacturacionCliente.IdCatUsoCFDI); un
+   valor de UsoCFDI válido es obligatorio para continuar (Regla 4)
+7. Validar la Factura antes de timbrar (Regla 9 — validaciones previas al envío al PAC):
+   a. Compatibilidad del UsoCFDI con el RegimenFiscal del receptor
+   b. Ausencia de valores negativos en importes de partidas y totales
+   c. Congruencia entre partidas, Subtotal, IVA y MontoTotal
+   Si alguna falla, NO se llama a Timbrado; se retorna error (mismo formato que un error de PAC,
+   paso 8) sin modificar el estado del pedido
+8. Llamar ICfdiService.GenerateAsync(request) — internamente: llama IApiCallerStamping -> Timbrado
    POST /api/v1/stamp/invoice, y si es exitoso INSERT CFDIGenerada + Archivo (XML) en ProquifaDotNet
-8. Si ERROR: UPDATE fccFactura SET IdCatFacturaEstado = ERROR_TIMBRADO (sin tocar IdCFDIGenerada) y
-   retornar AdvanceInvoiceGenerateResponseDto con Exitoso=false + ErrorDescripcion
-9. Si ÉXITO: UPDATE fccFactura SET IdCFDIGenerada = @IdCFDIGenerada, EsFacturaPorAdelantado = 0,
+9. Si ERROR (validación previa o respuesta del PAC): UPDATE fccFactura SET IdCatFacturaEstado = ERROR_TIMBRADO
+   (sin tocar IdCFDIGenerada) y retornar AdvanceInvoiceGenerateResponseDto con Exitoso=false + ErrorDescripcion
+10. Si ÉXITO: UPDATE fccFactura SET IdCFDIGenerada = @IdCFDIGenerada, EsFacturaPorAdelantado = 0,
    IdCatFacturaEstado = GENERADA (catFacturaEstado, RE-FU-015 v2.1)
    (Id real retornado por ICfdiService.GenerateAsync, correspondiente al registro insertado en CFDIGenerada)
-10. Retornar AdvanceInvoiceGenerateResponseDto con Exitoso=true + datos factura
+11. Retornar AdvanceInvoiceGenerateResponseDto con Exitoso=true + datos factura
 ```
 
 > Nota: los pasos "Almacenar PDF+XML en Minio" e "INSERT Archivo" de versiones previas de esta tarea ya no los ejecuta `AdvanceInvoiceGenerateService` — `ICfdiService.GenerateAsync` (RE-FU-018) se encarga de la subida del XML a Minio y de vincularlo en `CFDIGenerada.IdArchivoXml`. Este servicio solo persiste el PDF (que no es responsabilidad de Timbrado ni de CfdiService) si aplica, o delega tambien esa persistencia segun se defina en el detalle de DocumentBuilder.
@@ -638,10 +646,12 @@ Servicio funcional que ejecuta el flujo completo de generación de factura con m
 - Interface `IAdvanceInvoiceGenerateService`
 
 **Criterios de aceptación:**
-- Si el PAC falla, retorna error sin modificar estado del pedido
+- Antes de llamar a Timbrado, valida compatibilidad UsoCFDI/RegimenFiscal, ausencia de valores negativos y congruencia de importes/totales; si alguna falla, no se invoca al PAC
+- Si el PAC falla (o la validación previa falla), retorna error sin modificar estado del pedido
 - Si el timbrado es exitoso, `ICfdiService.GenerateAsync` persiste CFDIGenerada + Archivo y este servicio actualiza `fccFactura.IdCFDIGenerada` (y `EsFacturaPorAdelantado=0`) con el Id real retornado
 - La factura es inmutable post-timbrado (rechaza reintentos de generación para misma proforma)
 - Validación inicial rechaza pedidos que no estén en estado PendienteGenerar
+- El UsoCFDI se precarga con el valor configurado en la ficha del cliente y es obligatorio para continuar
 - La descripción de cada concepto CFDI se construye como "catálogo + descripción + marca"; no se incluye lote ni pedimento (OBS-039)
 
 **Más información de la tarea:**
@@ -678,15 +688,17 @@ Implementar el servicio de envío de factura que envía el correo, marca como en
 ```
 1. Validar que IdFccFactura tiene EstadoFAA='PendienteEnviar' (vfccFactura)
 2. Obtener PDF y XML desde Minio (bucket 'facturas')
-3. Armar asunto: formato canónico con folio factura + folio pedido interno
+3. Armar asunto: formato provisional con folio factura + folio pedido interno. **Brecha pendiente:**
+   la plantilla exacta del asunto y del cuerpo del correo está pendiente de definición (transversal
+   a los demás documentos del proyecto); actualizar cuando se defina.
 4. Enviar correo vía ProquifaDotNet.EnvioCorreo con destinatario, CC, adjuntos PDF+XML, notas
 5. Si envío FALLA: retornar error sin modificar estado
 6. INSERT CorreoEnviado + ArchivoCorreoEnviado (2 registros: PDF, XML)
 7. UPDATE fccFactura SET Enviada = 1, FechaEnvio = SYSUTCDATETIME(), IdCatFacturaEstado = ENVIADA
    (antes: UPDATE tpProformaAdelanto SET Enviada = 1)
 8. Registrar el guardado/envío de la factura en ProquifaDotNet.BitacoraCambios (Aplicativo Nuevo — regla 8)
-9. Si Crédito (fccFactura.IdTPProformaPedido NOT NULL): ejecutar AdvanceInvoiceLegacyService.TransferInvoiceToLegacy
-10. Si Prepago (fccFactura.IdTPProformaPedido NULL): ejecutar AdvanceInvoiceValidateCollectionService.GenerarPendienteValidarCobro
+9. Si Crédito o Pago contra entrega: ejecutar AdvanceInvoiceLegacyService.TransferInvoiceToLegacy
+10. Si Prepago: ejecutar AdvanceInvoiceValidateCollectionService.GenerarPendienteValidarCobro
 11. Retornar AdvanceInvoiceSendResponseDto con Exitoso=true y AccionPostEnvio
 ```
 
@@ -700,7 +712,7 @@ Servicio funcional que ejecuta el envío de factura y la salida operativa difere
 **Criterios de aceptación:**
 - El correo se envía con PDF y XML como adjuntos no removibles
 - Si el envío falla, el estado permanece PendienteEnviar
-- POST-envío Crédito: invoca `AdvanceInvoiceLegacyService` directamente desde Finanzas
+- POST-envío Crédito o Pago contra entrega: invoca `AdvanceInvoiceLegacyService` directamente desde Finanzas
 - POST-envío Prepago: invoca `AdvanceInvoiceValidateCollectionService` directamente desde Finanzas
 - INSERT CorreoEnviado registra fecha, destinatario, asunto y archivos adjuntos
 
@@ -737,7 +749,7 @@ Implementar el servicio que genera el PDF de previsualización de la factura sin
 ```
 1. Obtener datos del pedido y partidas
 2. Obtener datos fiscales cliente y emisor (reutilizar AdvanceInvoiceFiscalDataRepository)
-3. Armar modelo para DocumentBuilder (sin UUID, sin sello, sin cadena original)
+3. Armar modelo para DocumentBuilder (sin folio fiscal, sin UUID, sin sello, sin cadena original ni código QR)
 4. Llamar DocumentBuilder para generar PDF desde template
 5. Retornar PDF como byte[]
 ```
@@ -750,7 +762,7 @@ Servicio que genera un PDF preview de la factura para el modal de previsualizaci
 - Interface `IAdvanceInvoicePreviewService`
 
 **Criterios de aceptación:**
-- El PDF se genera sin datos de timbrado (sin UUID, sin sello)
+- El PDF se genera sin datos de timbrado (sin folio fiscal, sin UUID, sin sello)
 - El PDF incluye datos fiscales del cliente, emisor y conceptos del pedido
 - El servicio retorna `byte[]` consumible por el frontend para renderizar en modal
 - Si DocumentBuilder falla, retorna error controlado sin afectar estado del pedido
@@ -817,14 +829,14 @@ Corresponde a GAP-14. Los endpoints son consumidos por ProquifaDotNet (Venta Int
 
 ### Tarea 17
 
-**Título:** [ R16A-RE-FU-019 ] [SERV-COMPLEX-TRANSACT] Implementar transferencia a Legacy para pedido Crédito post-envío FAA
+**Título:** [ R16A-RE-FU-019 ] [SERV-COMPLEX-TRANSACT] Implementar transferencia a Legacy para pedido Crédito o Pago contra entrega post-envío FAA
 
 **Aplicativos:** ProquifaDotNet.Finanzas
 
 **Módulos:** Application/Services
 
 **Consideraciones previas:**
-- Se ejecuta SOLO cuando `TipoPedido='Credito'` y la factura se envió exitosamente
+- Se ejecuta cuando `TipoPedido='Credito'` o `TipoPedido='PagoContraEntrega'` y la factura se envió exitosamente; el pedido Pago contra entrega sigue el mismo camino de salida operativa que Crédito
 - Reutiliza el patrón existente de `ServicioLegacyBO` / `RestClientLegacy` en `L05.TramitarPedido/Legacy/`
 - Datos a transferir a Legacy: Factura (UUID, Folio, Serie, Total), Pedido, Partidas, Cobro, PDF
 - Si la transferencia a Legacy falla, la factura sigue como enviada (no se revierte el envío)
@@ -857,14 +869,14 @@ Lógica de transferencia funcional que envía datos de factura a Legacy para con
 - La transferencia envía los 5 elementos a Legacy (Factura, Pedido, Partidas, Cobro, PDF)
 - Reutiliza `RestClientLegacy` existente (no crea nuevo canal)
 - Si Legacy falla, registra error pero NO revierte el envío de factura
-- Solo se ejecuta para pedidos Crédito (SinCredito=0 en catCondicionesDePago)
+- Solo se ejecuta para pedidos Crédito y Pago contra entrega (no Prepago)
 
 **Más información de la tarea:**
 Corresponde a GAP-18. Patrón de referencia: `ServicioLegacyBO` en `L05.TramitarPedido/Legacy/`.
 
 **Recursos:**
 - R16A-RE-FU-019-Back.md (Parte C — Transferencia Legacy)
-- R16A-RE-FU-019.md (Regla 13 — Salida operativa Crédito)
+- R16A-RE-FU-019.md (Regla 14 — Salida operativa Crédito y Pago contra entrega)
 
 ---
 
@@ -918,4 +930,4 @@ Corresponde a GAP-19. El módulo Validar Cobro valida el pago del cliente contra
 
 **Recursos:**
 - R16A-RE-FU-019-Back.md (Parte C — Pendiente Validar Cobro)
-- R16A-RE-FU-019.md (Regla 13 — Salida operativa Prepago)
+- R16A-RE-FU-019.md (Regla 14 — Salida operativa Prepago)

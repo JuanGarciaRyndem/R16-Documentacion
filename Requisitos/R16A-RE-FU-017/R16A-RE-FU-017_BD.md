@@ -1,7 +1,7 @@
 # Impacto en BD - Diseno y Generacion PDF Proforma Peru
 **Requisito:** R16A-RE-FU-017
 **Base de Datos:** ProquifaDotNet
-**Version:** 3.1 (rev. 2026-08-21 — trazabilidad DUDA-009/018/041/042/044/054: B8/B9/B10 cerradas)
+**Version:** 3.2 (rev. 2026-09-11 — cierre de B4/B5/B7: disclaimer aprobado, regímenes SUNAT sin objeto, sin logos farmacéuticos)
 
 ---
 
@@ -66,7 +66,7 @@ Logos se resuelven por Prefijo en DocumentBuilder, no en BD.
 | Clientes Peru con datos fiscales (RUC) | 9 registros | OK - hay clientes |
 | Bucket 'pedidos' region PER | Registrado en RegionConfiguracionMinioBucket | OK |
 | Direccion legal Golocaer SAC | No capturada | BRECHA B3 |
-| REF.CLIENTE logica Peru | No definida | BRECHA B2 |
+| REF.CLIENTE logica Peru | Resuelta (Razón Social por default) | Cerrado — Duda FU-006/FU-017 |
 
 ---
 
@@ -177,10 +177,10 @@ Logos se resuelven por Prefijo en DocumentBuilder, no en BD.
 | B1 | 0 cuentas bancarias GOLPERU en BD — **criterio de visualización resuelto** (2 cuentas activas más recientes, mismo mecanismo que México — DUDA-044 / DUDA-118/036) | PDF sin datos bancarios reales | INSERT EmpresaDatosBancarios + DatosBancarios para bancos peruanos de Golocaer (BCP, BBVA Continental u otros). **Brecha DML abierta.** |
 | ~~B2~~ | ~~REF.CLIENTE Peru no definida~~ **[Resuelto — Duda FU-006/FU-017]** | ~~PDF sin referencia de pago~~ | Perú usa Razón Social por default (mismo camino que no-Banamex, RE-FU-006 Regla 6-PER). No requiere columna DDL adicional. **Cerrado.** |
 | B3 | Direccion legal y datos de contacto GOLPERU no capturados | Pie del PDF incompleto | Recopilar y UPDATE Empresa (GOLPERU): direccion legal Peru + telefonos + web + correo Peru |
-| B4 | Disclaimer SUNAT no validado legalmente | Riesgo legal | Validar con asesor contable peruano |
-| B5 | Detracciones/Percepciones no confirmadas | Posible omision regulatoria | Confirmar con asesor contable peruano. **Bloquea habilitacion productiva de Peru (OBS-032).** |
+| ~~B4~~ | ~~Disclaimer SUNAT no validado legalmente~~ **[Resuelto]** | Texto final aprobado por el cliente junto con los diseños (ver `R16A-RE-FU-017.md` Regla 10 / Criterio A2) | Cerrado |
+| ~~B5~~ | ~~Detracciones/Percepciones no confirmadas~~ **[Resuelto]** | Ambos regímenes quedan sin objeto: no se emiten comprobantes fiscales desde el sistema para clientes Perú (la facturación se realiza fuera de ProquifaNet) | Cerrado |
 | B6 | Certificaciones GOLPERU Peru desconocidas | Pie del PDF incompleto | Confirmar ISO/metodos de pago Peru |
-| B7 | Logos farmaceuticos Peru no definidos | Pie del PDF incompleto | Confirmar lista (USP, EDQM, Microbiologics) |
+| ~~B7~~ | ~~Logos farmaceuticos Peru no definidos~~ **[Resuelto — decisión]** | El documento NO incluye logos de catálogos farmacéuticos ni de marcas | Cerrado |
 | ~~B8~~ | ~~Titulo: Proforma vs Factura Proforma~~ **[Resuelto — DUDA-041]** | Título confirmado: "Proforma" | Cerrado |
 | ~~B9~~ | ~~Nomenclatura: SOLES vs NUEVOS SOLES~~ **[Resuelto — DUDA-042]** | Nomenclatura confirmada: "SOLES" (oficial desde 2015) | Cerrado |
 | ~~B10~~ | ~~TC SUNAT compra/venta vs interno~~ **[Resuelto — DUDA-054]** **Dónde persiste:** `tpProformaPedido.TipoCambio` (nuevo, ver OBS-TC). **Origen del valor:** ya existe un tipo de cambio para Perú (Soles) — es el mismo que actualmente usa el sistema para Pedidos que no están en USD. No se requiere una fuente nueva o distinta (SUNAT publicado ni interno corporativo separado). | Resuelto | Cerrado |

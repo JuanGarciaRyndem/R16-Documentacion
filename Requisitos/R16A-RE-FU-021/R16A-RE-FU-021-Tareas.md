@@ -223,8 +223,8 @@ Crear la plantilla HTML (Header, Body, Footer) y el registro en `DocumentTemplat
 
 **Objetivos específicos:**
 - Crear `GOL_MEX_FAC_H.html` — cabecera con logo Golocaer, datos del emisor (RFC, razón social, dirección, lugar expedición) y datos del receptor (RFC, razón social, CP, régimen fiscal, uso CFDI).
-- Crear `GOL_MEX_FAC_B.html` — cuerpo con: datos del CFDI (serie, folio, versión 4.0, UUID, fechas, método/forma pago, tipo comprobante, moneda, TC, exportación), tabla de partidas (clave SAT producto, descripción, pedimento, Nº ID, cantidad, unidad, clave unidad SAT, valor unitario, importe, IVA por línea), totales (subtotal, IVA, total, total en letras), datos bancarios y referencias del cliente.
-- Crear `GOL_MEX_FAC_F.html` — pie con elementos técnicos SAT (QR, Nº serie certificados, sellos digitales, cadena original), disclaimer "Representación impresa de un CFDI 4.0", certificaciones (ISO 9001:2015, NEEC), logos institucionales (EDQM, FEUM, USP, etc.) y paginación "X de Y".
+- Crear `GOL_MEX_FAC_B.html` — cuerpo con: datos del CFDI (serie "A2", folio, versión 4.0, UUID, fechas, método/forma pago según escenario de emisión, tipo comprobante, moneda y TC heredados de la Proforma cuando aplica, exportación), tabla de partidas (clave SAT producto, descripción, pedimento "No aplica", Nº ID, cantidad, unidad, clave unidad SAT, valor unitario, importe, impuestos trasladados por línea según Perfil Fiscal), totales (subtotal, impuestos federales, total, total en letras), las dos cuentas bancarias activas más recientes de la empresa emisora y referencias del cliente.
+- Crear `GOL_MEX_FAC_F.html` — pie con elementos técnicos SAT (QR, Nº serie certificados, sellos digitales, cadena original), disclaimer "Representación impresa de un CFDI 4.0", certificaciones (ISO 9001:2015, OEA), sin logos de catálogos farmacéuticos ni de marcas (decisión confirmada por el cliente), y paginación "X de Y".
 - Insertar el registro en `DocumentTemplate` via script SQL (`Scripts/`).
 
 **Resultado esperado:**
@@ -410,10 +410,10 @@ Implementar el servicio que consolida todos los datos necesarios del CFDI 4.0 en
 **Objetivos específicos:**
 - Mapear sección Emisor: RFC, Razón Social, Régimen Fiscal 601, Lugar de Expedición, dirección (desde `CFDIGenerada` + `Empresa`).
 - Mapear sección Receptor: RFC, Razón Social, Uso CFDI, CP, Régimen Fiscal (desde `CFDIGenerada`).
-- Mapear sección CFDI: Serie, Folio, Versión 4.0, UUID, fechas emisión/certificación, Método de Pago PPD, Forma de Pago 99, Condiciones de Pago, Tipo Comprobante I, Moneda, Tipo de Cambio, Exportación (desde `CFDIGenerada`); incluir Folio del Pedido Interno (PI) del sistema PQF2 (criterio G3).
+- Mapear sección CFDI: Serie ("A2"), Folio, Versión 4.0, UUID, fechas emisión/certificación, Método de Pago y Forma de Pago según el escenario que origina la Factura (Regla 5), Condiciones de Pago, Tipo Comprobante I, Moneda y Tipo de Cambio heredados de la Proforma de origen cuando aplica (Regla 6), Exportación (desde `CFDIGenerada`); incluir Folio del Pedido Interno (PI) del sistema PQF2 (criterio G3).
 - Mapear sección Partidas por concepto: `ClaveProdServSAT`, descripción (catálogo + marca + lote + caducidad), pedimento si aplica, Nº ID interno, cantidad, unidad de medida, `ClaveSAT` de unidad, valor unitario, importe, desglose de impuestos SAT por línea: Base, Impuesto (clave SAT), TipoFactor, TasaCuota e Importe (desde `tpPartidaPedido` + `Producto` + `catUnidad`).
-- Mapear sección Totales: Subtotal, IVA trasladado, Total, Total en letras (desde `CFDIGenerada` + cálculo de partidas).
-- Mapear sección Datos Bancarios: lista de dos cuentas del grupo PROQUIFA México (una en MXN y una en USD), cada una con Banco, Número de Cuenta, CLABE, Moneda, Sucursal y Referencia del Cliente; modeladas como `List<FacturaPdfCuentaBancariaModel>` (desde `EmpresaDatosBancarios`).
+- Mapear sección Totales: Subtotal, Impuestos Federales trasladados (según Perfil Fiscal de cada partida: IVA, tasa cero o exento), Total, Total en letras (desde `CFDIGenerada` + cálculo de partidas).
+- Mapear sección Datos Bancarios: lista de las dos cuentas activas más recientes de la empresa emisora, cada una con Banco, Número de Cuenta, CLABE, Moneda, Sucursal y Referencia del Cliente; modeladas como `List<FacturaPdfCuentaBancariaModel>` (desde `EmpresaDatosBancarios`).
 - Mapear sección Técnica SAT: UUID, sellos digitales emisor/SAT, cadena original, Nº serie certificados, QR generado dinámicamente (desde `TimbreFiscalDigital` del XML del PAC).
 - Resolver branding (logo, colores, certificaciones) según `EmpresaClave` del pedido (GOL/MUN/PRO/PQF).
 
@@ -435,7 +435,7 @@ Servicio `InvoicePdfMappingService` (o equivalente) que recibe el `IdCFDI` y ret
 - Los elementos técnicos SAT (sellos, cadena original, números de serie) se leen del `TimbreFiscalDigital` del XML del PAC, no se calculan en la aplicación.
 
 **Más información de la tarea:**
-Ver sección *"Fuentes de Datos para el PDF"* en `R16A-RE-FU-021_BD.md`. Ver criterios A1–J2 y Reglas 2, 4 y 7 en `R16A-RE-FU-021.md`. La Tarea 15 de RE-FU-019 (`AdvanceInvoicePreviewService`) consume este mapeo para el preview; esta tarea extiende el modelo con los campos del `TimbreFiscalDigital` que RE-FU-019 dejó como placeholder.
+Ver sección *"Fuentes de Datos para el PDF"* en `R16A-RE-FU-021_BD.md`. Ver criterios A1–J2 y Reglas 2, 4, 5, 6 y 9 en `R16A-RE-FU-021.md`. La Tarea 15 de RE-FU-019 (`AdvanceInvoicePreviewService`) consume este mapeo para el preview; esta tarea extiende el modelo con los campos del `TimbreFiscalDigital` que RE-FU-019 dejó como placeholder.
 
 **Recursos:**
 - `R16A-RE-FU-021_BD.md` — Tabla de fuentes de datos por sección del PDF
@@ -489,11 +489,11 @@ PDF de la Factura CFDI 4.0 persistido en Minio como artefacto fiscal inmutable, 
 - La operación queda registrada en log con `IdCFDI`, fecha y resultado.
 
 **Más información de la tarea:**
-Ver criterios J1–J2, Regla 5 en `R16A-RE-FU-021.md`, y sección *"Persistencia del PDF"* en `R16A-RE-FU-021_BD.md`.
+Ver criterios J1–J2, Regla 7 en `R16A-RE-FU-021.md`, y sección *"Persistencia del PDF"* en `R16A-RE-FU-021_BD.md`.
 
 **Recursos:**
 - `R16A-RE-FU-021_BD.md` — Sección "Persistencia del PDF", patrón INSERT Archivo
-- `R16A-RE-FU-021.md` — Criterios J1–J2, Regla 5
+- `R16A-RE-FU-021.md` — Criterios J1–J2, Regla 7
 
 ---
 

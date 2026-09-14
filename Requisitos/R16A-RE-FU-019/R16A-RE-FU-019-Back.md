@@ -215,12 +215,17 @@ ORDER BY FechaTramitacion DESC
 4. Obtener datos del emisor (Empresa)
 5. Obtener Tipo de Cambio del día (si moneda != MXN)
 6. Armar StampAdvanceInvoiceRequestDto con:
-   - Receptor: RFC, RazonSocial, CP, RegimenFiscal, UsoCFDI, Moneda, TipoCambio
+   - Receptor: RFC, RazonSocial, CP, RegimenFiscal, UsoCFDI (precargado con el valor configurado en DatosFacturacionCliente.IdCatUsoCFDI; valor obligatorio para continuar), Moneda, TipoCambio
    - Emisor: RFC, RazonSocial, RegimenFiscal, EmpresaClave
    - Conceptos: partidas del pedido (cantidad, precioUnitario, importe). La descripción de cada concepto CFDI se construye como "catálogo + descripción + marca"; no se incluye lote ni pedimento (OBS-039).
    - Forzados: IdCatMetodoDePagoCFDI=<IdPPD>, IdCatFormaPagoSAT=<Id99>, TipoComprobante="I"
-7. Llamar ProquifaDotNet.Timbrado POST /api/v1/stamp/invoice (servicio técnico, sin persistir CFDI)
-8. Si EXITOSO (Timbrado regresa Uuid, Serie, Folio, FechaEmision, Total, XmlBase64):
+7. Validar la Factura antes de enviarla al PAC (Regla 9 de R16A-RE-FU-019.md):
+   a. Compatibilidad del UsoCFDI seleccionado con el RegimenFiscal del receptor (catálogo SAT de combinaciones válidas)
+   b. Ausencia de valores negativos en los importes de las partidas y en los totales
+   c. Congruencia entre partidas, Subtotal, IVA y MontoTotal
+   Si alguna validación falla, NO se llama a Timbrado; se retorna error (mismo formato que un error de PAC, ver Response Error) y no se modifica el estado del pedido.
+8. Llamar ProquifaDotNet.Timbrado POST /api/v1/stamp/invoice (servicio técnico, sin persistir CFDI)
+9. Si EXITOSO (Timbrado regresa Uuid, Serie, Folio, FechaEmision, Total, XmlBase64):
    a. INSERT CFDIGenerada (CfdiService, en ProquifaDotNet): UUID, Serie, Folio, FechaEmision, Total,
       IdCatTipoCFDI, IdCatUsoCFDI, IdCatMetodoDePagoCFDI, IdCatMoneda, TipoCambio, Estado='Timbrado'
    b. Persistir IdCFDIGenerada en fccFactura (UPDATE SET IdCFDIGenerada = @IdCFDIGenerada, EsFacturaPorAdelantado = 0 — el Id real del registro insertado en el paso anterior, no un Id de Timbrado)
@@ -228,9 +233,9 @@ ORDER BY FechaTramitacion DESC
    d. Insertar registros en Archivo (2 registros: PDF + XML) + UPDATE CFDIGenerada SET IdArchivoXml
    e. Registrar el guardado de la factura en ProquifaDotNet.BitacoraCambios (Aplicativo Nuevo — regla 8)
    f. Retornar éxito con datos de la factura generada
-9. Si ERROR:
+10. Si ERROR (validación previa o respuesta del PAC):
    a. Si ya existía un registro Pendiente en CFDIGenerada, UPDATE Estado='Fallido', MensajeError
-   b. Retornar error con descripción del PAC SAT
+   b. Retornar error con descripción del error (validación previa o PAC SAT)
    c. NO modificar estado del pedido
 ```
 
@@ -242,7 +247,7 @@ ORDER BY FechaTramitacion DESC
   "IdCFDIGenerada": "guid",
   "UUID": "string (UUID del CFDI)",
   "Folio": "000123",
-  "Serie": "A",
+  "Serie": "A2",
   "FechaEmision": "datetime",
   "Total": 17400.00,
   "PdfUrl": "string (URL Minio)",
@@ -303,14 +308,14 @@ ORDER BY FechaTramitacion DESC
 ```
 1. Validar que IdFccFactura tiene EstadoFAA = 'PendienteEnviar' (vfccFactura)
 2. Obtener PDF y XML de Minio (bucket 'facturas')
-3. Armar asunto con folio factura + folio pedido interno
+3. Armar asunto con folio factura + folio pedido interno. **Brecha pendiente:** la plantilla exacta del asunto y del cuerpo del correo está pendiente de definición (transversal a los demás documentos del proyecto); mientras se define, se usa el formato provisional folio Factura + folio Pedido Interno.
 4. Enviar correo via Brevo con adjuntos PDF+XML
 5. Si envío EXITOSO:
    a. INSERT CorreoEnviado + ArchivoCorreoEnviado (PDF, XML)
    b. UPDATE fccFactura SET Enviada = 1, FechaEnvio = GETDATE(), IdCatFacturaEstado = ENVIADA
       (catFacturaEstado y FechaEnvio, RE-FU-015 v2.1; antes: UPDATE tpProformaAdelanto SET Enviada = 1)
    c. Ejecutar salida operativa según tipo de pedido:
-      - Crédito: transferir factura a Legacy (Pendientes, Pedido, Partidas, Cobro, PDF)
+      - Crédito o Pago contra entrega: transferir factura a Legacy (Pendientes, Pedido, Partidas, Cobro, PDF)
       - Prepago: generar pendiente en Validar Cobro
    d. Retornar éxito
 6. Si envío FALLA:
@@ -485,9 +490,9 @@ Ampliar el controlador FAA existente en Venta Interna (creado en RE-FU-018) con 
 | POST | facturaAdelantado/previsualizar-pdf | Delega a Finanzas, retorna PDF stream |
 | POST | facturaAdelantado/enviar | Delega a Finanzas, recibe resultado, ejecuta Legacy si Crédito |
 
-### Transferencia Legacy (Pedido Crédito)
+### Transferencia Legacy (Pedido Crédito o Pago contra entrega)
 
-Cuando el tipo de pedido es Crédito y la factura se envió exitosamente, se ejecuta transferencia a Legacy:
+Cuando el tipo de pedido es Crédito o Pago contra entrega y la factura se envió exitosamente, se ejecuta transferencia a Legacy:
 
 | Dato transferido | Tabla Legacy | Descripción |
 |-----------------|-------------|-------------|
@@ -567,7 +572,7 @@ Cuando el tipo de pedido es Prepago y la factura se envió exitosamente:
 |---|-----|--------|----------|
 | GAP-16 | ApiCallerFinanzas: 4 métodos nuevos (detalle, generar, previsualizar, enviar) | Llamadas HTTP a Finanzas | Bajo |
 | GAP-17 | Controlador FAA Detalle: 4 endpoints que delegan a Finanzas | WebAPI 2 controller con rutas REST | Medio |
-| GAP-18 | Lógica transferencia Legacy para pedido Crédito post-envío | Reutilizar patrón ServicioLegacyBO/RestClientLegacy | Alto |
+| GAP-18 | Lógica transferencia Legacy para pedido Crédito o Pago contra entrega post-envío | Reutilizar patrón ServicioLegacyBO/RestClientLegacy | Alto |
 | GAP-19 | Lógica generación pendiente Validar Cobro para pedido Prepago post-envío | INSERT en tabla de pendientes de cobro | Medio |
 
 ### En Base de Datos
@@ -629,7 +634,7 @@ Cuando el tipo de pedido es Prepago y la factura se envió exitosamente:
      |   AdvanceInvoiceSendResponseDto          |                              |               |
      |<--------------------------------|                              |               |
      |                                 |                              |               |
-     | [Si Crédito]                    |                              |               |
+     | [Si Crédito o Pago contra entrega] |                           |               |
      | Transferir a Legacy             |                              |               |
      |---------------------------------------------------------------->------------->|
      |                                 |                              |               |
@@ -687,7 +692,7 @@ Cuando el tipo de pedido es Prepago y la factura se envió exitosamente:
 | Manejo de errores PAC | Retornar descripción del error SAT sin modificar estado del pedido |
 | Timeout SAP | Polly con timeout + retry; si excede: error al usuario (no encola en este flujo síncrono) |
 | PDF preview vs final | El preview no incluye sello/UUID; el PDF final se regenera post-timbrado con datos fiscales completos |
-| Descripción concepto CFDI | Formato: "catálogo + descripción + marca". **No se incluye lote ni pedimento en ningún concepto de la FAA** (OBS-039). La Regla 15 ya cierra este punto. |
+| Descripción concepto CFDI | Formato: "catálogo + descripción + marca". **No se incluye lote ni pedimento en ningún concepto de la FAA** (OBS-039). La Regla 16 de R16A-RE-FU-019.md ya cierra este punto. |
 | Legacy transfer | Usa RestClientLegacy existente; requiere mapeo de datos factura a formato Legacy |
 | Validar Cobro pendiente | INSERT directo en tabla de pendientes; el módulo Validar Cobro lo consume |
 
@@ -701,7 +706,7 @@ Cuando el tipo de pedido es Prepago y la factura se envió exitosamente:
 | R16A-RE-FU-016 | Prerequisito: ProquifaDotNet.Finanzas (solución base) |
 | R16A-RE-FU-012 | Genera pendiente FAA (`fccFactura`, origen Crédito) desde tramitación Crédito con FAA |
 | R16A-RE-FU-015 | Origen y dueño de `fccFactura`/`fccFacturaPartida`/`fccFacturaReferenciaBancaria`/`vfccFactura` — genera pendiente FAA de Prepago |
-| R16A-RE-FU-005 | Brecha timbrado SUNAT Perú (bloquea FAA para Perú) |
+| R16A-RE-FU-005 | ~~Brecha timbrado SUNAT Perú (bloquea FAA para Perú)~~ **[Descartado — DUDA-049]** Se canceló la facturación de Perú; Región Perú queda fuera del alcance de este módulo, sin desarrollo pendiente asociado. |
 | DocumentBuilder | Generación de PDF de factura (template pendiente de requisito independiente) |
 
 ---
